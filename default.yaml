@@ -1,0 +1,4 @@
+log_level: 1 
+log_path: "logs"
+mine_len: 2
+mine_hashrate: 900
