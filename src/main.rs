@@ -77,8 +77,9 @@ async fn accept_tcp_with_tls(config: Settings) -> Result<()> {
     // let acceptor = TlsAcceptor::new(identity)?;
     // let acceptor = Arc::new(acceptor);
 
-    let listener = TcpListener::bind("127.0.0.1:8443").await?;
-    info!("Accepting TLS On: 8443");
+    let address = format!("0.0.0.0:{}", config.ssl_port);
+    let listener = TcpListener::bind(address.clone()).await?;
+    info!("Accepting Tls On: {}", &address);
 
     let der = include_bytes!("identity.p12");
     let cert = Identity::from_pkcs12(der, "mypass")?;
@@ -148,14 +149,16 @@ async fn accept_tcp_with_tls(config: Settings) -> Result<()> {
     // });
 }
 async fn accept_tcp(config: Settings) -> Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:8082").await?;
-    info!("Accepting On: 8082");
+    let address = format!("0.0.0.0:{}", config.tcp_port);
+    let listener = TcpListener::bind(address.clone()).await?;
+    info!("Accepting On: {}", &address);
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
+        info!("accept connection from {}", addr);
         let c = config.clone();
-
+        
         tokio::spawn(async move {
             let transfer = transfer(stream, c).map(|r| {
                 if let Err(e) = r {

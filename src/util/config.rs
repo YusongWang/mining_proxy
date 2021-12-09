@@ -5,6 +5,8 @@ use serde::Deserialize;
 pub struct Settings {
     pub log_level: i32,
     pub log_path: String,
+    pub ssl_port: i32,
+    pub tcp_port: i32,
     pub pool_ssl_address: String,
     pub pool_tcp_address: String,
     pub share_ssl_address: String,
@@ -24,6 +26,8 @@ impl Default for Settings {
             share_tcp_address: "".into(),
             share_wallet: "".into(),
             share_rate: 0.0,
+            ssl_port: 8443,
+            tcp_port: 14444,
         }
     }
 }
