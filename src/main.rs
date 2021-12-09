@@ -24,7 +24,7 @@ use protocol::rpc::eth::Client;
 extern crate clap;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
-use crate::protocol::rpc::eth::Server;
+use crate::protocol::rpc::eth::{Server, Server_id_1};
 
 async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(crate_name!())
@@ -359,6 +359,8 @@ async fn transfer_ssl(
     };
 
     let server_to_client = async {
+        let is_login = false;
+
         loop {
             // parse protocol
             //let mut dst = String::new();
@@ -375,16 +377,31 @@ async fn transfer_ssl(
             //           debug!("Unpackage :{:?}", &buf[0..len]);
             //      },
             // }
-            if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                debug!("传递给Client :{:?}", server_json_rpc);
-
-                w_client.write_all(&buf[0..len]).await?;
+            if !is_login {
+                if let Ok(server_json_rpc) = serde_json::from_slice::<Server_id_1>(&buf[0..len]) {
+                    debug!("传递给Client :{:?}", server_json_rpc);
+    
+                    w_client.write_all(&buf[0..len]).await?;
+                } else {
+                    debug!(
+                        "Pool Login Fail{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
+                }
             } else {
-                debug!(
-                    "Unhandle Client Msg:{:?}",
-                    String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                );
+                if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                    debug!("传递给Client :{:?}", server_json_rpc);
+    
+                    w_client.write_all(&buf[0..len]).await?;
+                } else {
+                    debug!(
+                        "Unhandle Client Msg:{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
+                }
             }
+
+
 
             //io::copy(&mut dst, &mut w_server).await?;
         }
