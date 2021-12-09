@@ -270,10 +270,10 @@ async fn transfer_ssl(
                 //      },
                 // }
                 if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
-                    if client_json_rpc.method == "eth_submitHashrate" {
+                    if client_json_rpc.method == "eth_submitWork" {
                         info!(
-                            "矿机 :{} 提交本地算力 {:?}",
-                            client_json_rpc.worker, client_json_rpc
+                            "矿机 :{} Share #{:?}",
+                            client_json_rpc.worker, client_json_rpc.id
                         );
                         //debug!("传递给Server :{:?}", client_json_rpc);
                     } else if client_json_rpc.method == "eth_submitHashrate" {
