@@ -3,7 +3,7 @@ use std::net::ToSocketAddrs;
 use std::sync::Arc;
 
 use anyhow::Result;
-use log::{debug, info};
+use log::{debug, error, info};
 use tokio::fs::File;
 use tokio::io::{self, split, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -77,7 +77,7 @@ async fn accept_tcp_with_tls(config: Settings) -> Result<()> {
     // let acceptor = TlsAcceptor::new(identity)?;
     // let acceptor = Arc::new(acceptor);
 
-    let address = format!("0.0.0.0:{}", config.ssl_port);
+    let address = format!("127.0.0.1:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("Accepting Tls On: {}", &address);
 
@@ -158,7 +158,7 @@ async fn accept_tcp(config: Settings) -> Result<()> {
         let (stream, addr) = listener.accept().await?;
         info!("accept connection from {}", addr);
         let c = config.clone();
-        
+
         tokio::spawn(async move {
             let transfer = transfer(stream, c).map(|r| {
                 if let Err(e) = r {
@@ -298,21 +298,35 @@ async fn transfer_ssl(
     mut inbound: TcpStream,
     config: Settings,
 ) -> Result<()> {
-    let mut client_stream = tls_acceptor.accept(inbound).await.expect("accept error");
+    let client_stream = match tls_acceptor.accept(inbound).await {
+        Ok(stream) => stream,
+        Err(err) => {
+            error!("tls_acceptor error {:?}", err);
+            panic!("")
+        }
+    };
+
+    info!("tls_acceptor Success!");
     //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
 
     let addr = config
         .pool_ssl_address
         .to_socket_addrs()?
         .next()
-        .ok_or("failed to resolve www.rust-lang.org")
+        .ok_or("failed to resolve")
         .expect("parse address Error");
-
+    info!("connect to {:?}", &addr);
     let socket = TcpStream::connect(&addr).await?;
     let cx = TlsConnector::builder().build()?;
     let cx = tokio_native_tls::TlsConnector::from(cx);
+    info!("connectd {:?}", &addr);
 
-    let mut server_stream = cx.connect(config.pool_ssl_address.as_str(), socket).await?;
+    let domain:Vec<&str> = config.pool_ssl_address.split(":").collect();
+    info!("{}",domain[0]);
+    let mut server_stream = cx.connect(domain[0], socket).await?;
+
+    info!("connectd {:?} with TLS", &addr);
+
 
     let (mut r_client, mut w_client) = split(client_stream);
     let (mut r_server, mut w_server) = split(server_stream);
