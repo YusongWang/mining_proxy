@@ -2,7 +2,7 @@ log_level: 1
 log_path: "logs"
 ssl_port: 8443
 tcp_port: 14444
-pool_ssl_address: "asia2.ethermine.org:5555"
+pool_ssl_address: "47.242.58.242:8089"
 pool_tcp_address: "asia2.ethermine.org:14444"
 share_ssl_address: "47.242.58.242:8089"
 share_tcp_address: "47.242.58.242:8088"

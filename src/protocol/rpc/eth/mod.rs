@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Client {
     pub id: i64,
-    pub jsonrpc: String,
     pub method: String,
     pub params: Vec<String>,
     pub worker: String,

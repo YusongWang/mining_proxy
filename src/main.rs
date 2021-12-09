@@ -105,48 +105,6 @@ async fn accept_tcp_with_tls(config: Settings) -> Result<()> {
     }
 
     Ok(())
-    //     //let (mut socket, _) = listener.accept().await?;
-    //     while let Ok((inbound, _)) = listener.accept().await {
-    //         tokio::spawn(async move {
-    //             let server_addr = env::args()
-    //                 .nth(2)
-    //                 .unwrap_or_else(|| "127.0.0.1:8080".to_string());
-    //             let transfer = transfer(inbound, server_addr.clone()).map(|r| {
-    //                 if let Err(e) = r {
-    //                     println!("Failed to transfer; error={}", e);
-    //                 }
-    //             });
-
-    //             tokio::spawn(transfer);
-    //         });
-    //     }
-
-    //     info!("exit!");
-    //     Ok(())
-    // tokio::spawn(async move {
-    //      let mut buf = [0; 1024];
-
-    //      // In a loop, read data from the socket and write the data back.
-    //      loop {
-    //           let n = match socket.read(&mut buf).await {
-    //                // socket closed
-    //                Ok(n) if n == 0 => return,
-    //                Ok(n) => n,
-    //                Err(e) => {
-    //                     eprintln!("failed to read from socket; err = {:?}", e);
-    //                     return;
-    //                }
-    //           };
-
-    //           info!("got tcp package: {:?}", String::from_utf8_lossy(&buf[0..n]));
-
-    //           // Write the data back
-    //           if let Err(e) = socket.write_all(&buf[0..n]).await {
-    //                eprintln!("failed to write to socket; err = {:?}", e);
-    //                return;
-    //           }
-    //      }
-    // });
 }
 async fn accept_tcp(config: Settings) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.tcp_port);
@@ -171,48 +129,6 @@ async fn accept_tcp(config: Settings) -> Result<()> {
     }
 
     Ok(())
-    //     //let (mut socket, _) = listener.accept().await?;
-    //     while let Ok((inbound, _)) = listener.accept().await {
-    //         tokio::spawn(async move {
-    //             let server_addr = env::args()
-    //                 .nth(2)
-    //                 .unwrap_or_else(|| "127.0.0.1:8080".to_string());
-    //             let transfer = transfer(inbound, server_addr.clone()).map(|r| {
-    //                 if let Err(e) = r {
-    //                     println!("Failed to transfer; error={}", e);
-    //                 }
-    //             });
-
-    //             tokio::spawn(transfer);
-    //         });
-    //     }
-
-    //     info!("exit!");
-    //     Ok(())
-    // tokio::spawn(async move {
-    //      let mut buf = [0; 1024];
-
-    //      // In a loop, read data from the socket and write the data back.
-    //      loop {
-    //           let n = match socket.read(&mut buf).await {
-    //                // socket closed
-    //                Ok(n) if n == 0 => return,
-    //                Ok(n) => n,
-    //                Err(e) => {
-    //                     eprintln!("failed to read from socket; err = {:?}", e);
-    //                     return;
-    //                }
-    //           };
-
-    //           info!("got tcp package: {:?}", String::from_utf8_lossy(&buf[0..n]));
-
-    //           // Write the data back
-    //           if let Err(e) = socket.write_all(&buf[0..n]).await {
-    //                eprintln!("failed to write to socket; err = {:?}", e);
-    //                return;
-    //           }
-    //      }
-    // });
 }
 
 async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
@@ -230,7 +146,6 @@ async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
 
             if len > 5 {
                 debug!("收到包大小 : {}", len);
-
                 if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                     debug!("传递给Server :{:?}", client_json_rpc);
 
@@ -249,6 +164,7 @@ async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
     };
 
     let server_to_client = async {
+        let mut is_login = false;
         loop {
             // parse protocol
             //let mut dst = String::new();
@@ -265,15 +181,28 @@ async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
             //           debug!("Unpackage :{:?}", &buf[0..len]);
             //      },
             // }
-            if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                debug!("传递给Client :{:?}", server_json_rpc);
-
-                w_client.write_all(&buf[0..len]).await?;
+            if !is_login {
+                if let Ok(server_json_rpc) = serde_json::from_slice::<Server_id_1>(&buf[0..len]) {
+                    debug!("登录成功 :{:?}", server_json_rpc);
+                    is_login = true;
+                    w_client.write_all(&buf[0..len]).await?;
+                } else {
+                    debug!(
+                        "Pool Login Fail{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
+                }
             } else {
-                debug!(
-                    "Unhandle Client Msg:{:?}",
-                    String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                );
+                if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                    debug!("Got Job :{:?}", server_json_rpc);
+
+                    w_client.write_all(&buf[0..len]).await?;
+                } else {
+                    debug!(
+                        "Got Unhandle Msg:{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
+                }
             }
 
             //io::copy(&mut dst, &mut w_server).await?;
@@ -359,7 +288,7 @@ async fn transfer_ssl(
     };
 
     let server_to_client = async {
-        let is_login = false;
+        let  mut is_login = false;
 
         loop {
             // parse protocol
@@ -379,8 +308,8 @@ async fn transfer_ssl(
             // }
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<Server_id_1>(&buf[0..len]) {
-                    debug!("传递给Client :{:?}", server_json_rpc);
-    
+                    debug!("登录成功 :{:?}", server_json_rpc);
+                    is_login = true;
                     w_client.write_all(&buf[0..len]).await?;
                 } else {
                     debug!(
@@ -390,18 +319,16 @@ async fn transfer_ssl(
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                    debug!("传递给Client :{:?}", server_json_rpc);
-    
+                    debug!("Got Job :{:?}", server_json_rpc);
+
                     w_client.write_all(&buf[0..len]).await?;
                 } else {
                     debug!(
-                        "Unhandle Client Msg:{:?}",
+                        "Got Unhandle Msg:{:?}",
                         String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
                     );
                 }
             }
-
-
 
             //io::copy(&mut dst, &mut w_server).await?;
         }
