@@ -77,7 +77,7 @@ async fn accept_tcp_with_tls(config: Settings) -> Result<()> {
     // let acceptor = TlsAcceptor::new(identity)?;
     // let acceptor = Arc::new(acceptor);
 
-    let address = format!("127.0.0.1:{}", config.ssl_port);
+    let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("Accepting Tls On: {}", &address);
 
