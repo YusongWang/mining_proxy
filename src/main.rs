@@ -19,14 +19,10 @@ use util::config::Settings;
 use util::{config, logger};
 mod protocol;
 
-use protocol::rpc::eth::Client;
-
 extern crate clap;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
-use crate::protocol::rpc::eth::{
-    ClientGetWork, ClientLogin, ClientSubmitHashrate, Server, Server_id_1,
-};
+use crate::protocol::rpc::eth::{Client, ClientGetWork, Server, Server_id_1};
 
 async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(crate_name!())
