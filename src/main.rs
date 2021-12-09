@@ -24,7 +24,9 @@ use protocol::rpc::eth::Client;
 extern crate clap;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
-use crate::protocol::rpc::eth::{Server, Server_id_1};
+use crate::protocol::rpc::eth::{
+    ClientGetWork, ClientLogin, ClientSubmitHashrate, Server, Server_id_1,
+};
 
 async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(crate_name!())
@@ -272,14 +274,28 @@ async fn transfer_ssl(
                 //      },
                 // }
                 if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
-                    debug!("传递给Server :{:?}", client_json_rpc);
+                    if client_json_rpc.method == "eth_submitHashrate" {
+                        info!(
+                            "矿机 :{} 提交本地算力 {:?}",
+                            client_json_rpc.worker, client_json_rpc
+                        );
+                        //debug!("传递给Server :{:?}", client_json_rpc);
+                    } else if client_json_rpc.method == "eth_submitHashrate" {
+                        if let Some(hashrate) = client_json_rpc.params.get(0) {
+                            debug!("矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
+                        }
+                    } else if client_json_rpc.method == "eth_submitLogin" {
+                        debug!("矿机 :{} 请求登录", client_json_rpc.worker);
+                    } else {
+                        debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                    }
 
                     w_server.write_all(&buf[0..len]).await?;
-                } else {
-                    debug!(
-                        "Unhandle Client Msg:{:?}",
-                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    );
+                } else if let Ok(client_json_rpc) =
+                    serde_json::from_slice::<ClientGetWork>(&buf[0..len])
+                {
+                    debug!("GetWork:{:?}", client_json_rpc);
+                    w_server.write_all(&buf[0..len]).await?;
                 }
             }
             //io::copy(&mut dst, &mut w_server).await?;
@@ -288,7 +304,7 @@ async fn transfer_ssl(
     };
 
     let server_to_client = async {
-        let  mut is_login = false;
+        let mut is_login = false;
 
         loop {
             // parse protocol
@@ -310,7 +326,6 @@ async fn transfer_ssl(
                 if let Ok(server_json_rpc) = serde_json::from_slice::<Server_id_1>(&buf[0..len]) {
                     debug!("登录成功 :{:?}", server_json_rpc);
                     is_login = true;
-                    w_client.write_all(&buf[0..len]).await?;
                 } else {
                     debug!(
                         "Pool Login Fail{:?}",
@@ -321,7 +336,7 @@ async fn transfer_ssl(
                 if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     debug!("Got Job :{:?}", server_json_rpc);
 
-                    w_client.write_all(&buf[0..len]).await?;
+                    //w_client.write_all(&buf[0..len]).await?;
                 } else {
                     debug!(
                         "Got Unhandle Msg:{:?}",
@@ -329,7 +344,7 @@ async fn transfer_ssl(
                     );
                 }
             }
-
+            w_client.write_all(&buf[0..len]).await?;
             //io::copy(&mut dst, &mut w_server).await?;
         }
         //io::copy(&mut r_server, &mut w_client).await?;
