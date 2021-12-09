@@ -227,26 +227,20 @@ async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
             //let mut dst = String::new();
             let mut buf = vec![0; 1024];
             let len = r_client.read(&mut buf).await?;
-            debug!("收到包大小 : {}", len);
-            // match serde_json::from_slice::<Client>(&buf[0..len]){
-            //     Ok(_) => todo!(),
-            //     Err(_) => todo!(),
-            // }
-            // if let client_json_rpc = match serde_json::from_slice(&buf[0..len]) {
-            //      Ok(client) => client,
-            //      Err(e) => {
-            //           debug!("Unpackage :{:?}", &buf[0..len]);
-            //      },
-            // }
-            if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
-                debug!("传递给Server :{:?}", client_json_rpc);
 
-                w_server.write_all(&buf[0..len]).await?;
-            } else {
-                debug!(
-                    "Unhandle Client Msg:{:?}",
-                    String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                );
+            if len > 5 {
+                debug!("收到包大小 : {}", len);
+
+                if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
+                    debug!("传递给Server :{:?}", client_json_rpc);
+
+                    w_server.write_all(&buf[0..len]).await?;
+                } else {
+                    debug!(
+                        "Unhandle Client Msg:{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
+                }
             }
 
             //io::copy(&mut dst, &mut w_server).await?;
@@ -321,12 +315,11 @@ async fn transfer_ssl(
     let cx = tokio_native_tls::TlsConnector::from(cx);
     info!("connectd {:?}", &addr);
 
-    let domain:Vec<&str> = config.pool_ssl_address.split(":").collect();
-    info!("{}",domain[0]);
+    let domain: Vec<&str> = config.pool_ssl_address.split(":").collect();
+    info!("{}", domain[0]);
     let mut server_stream = cx.connect(domain[0], socket).await?;
 
     info!("connectd {:?} with TLS", &addr);
-
 
     let (mut r_client, mut w_client) = split(client_stream);
     let (mut r_server, mut w_server) = split(server_stream);
@@ -337,28 +330,29 @@ async fn transfer_ssl(
             //let mut dst = String::new();
             let mut buf = vec![0; 1024];
             let len = r_client.read(&mut buf).await?;
-            debug!("收到包大小 : {}", len);
-            // match serde_json::from_slice::<Client>(&buf[0..len]){
-            //     Ok(_) => todo!(),
-            //     Err(_) => todo!(),
-            // }
-            // if let client_json_rpc = match serde_json::from_slice(&buf[0..len]) {
-            //      Ok(client) => client,
-            //      Err(e) => {
-            //           debug!("Unpackage :{:?}", &buf[0..len]);
-            //      },
-            // }
-            if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
-                debug!("传递给Server :{:?}", client_json_rpc);
+            if len > 5 {
+                debug!("收到包大小 : {}", len);
+                // match serde_json::from_slice::<Client>(&buf[0..len]){
+                //     Ok(_) => todo!(),
+                //     Err(_) => todo!(),
+                // }
+                // if let client_json_rpc = match serde_json::from_slice(&buf[0..len]) {
+                //      Ok(client) => client,
+                //      Err(e) => {
+                //           debug!("Unpackage :{:?}", &buf[0..len]);
+                //      },
+                // }
+                if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
+                    debug!("传递给Server :{:?}", client_json_rpc);
 
-                w_server.write_all(&buf[0..len]).await?;
-            } else {
-                debug!(
-                    "Unhandle Client Msg:{:?}",
-                    String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                );
+                    w_server.write_all(&buf[0..len]).await?;
+                } else {
+                    debug!(
+                        "Unhandle Client Msg:{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
+                }
             }
-
             //io::copy(&mut dst, &mut w_server).await?;
         }
         w_server.shutdown().await
