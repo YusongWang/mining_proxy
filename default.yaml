@@ -1,4 +1,8 @@
 log_level: 1 
 log_path: "logs"
-mine_len: 2
-mine_hashrate: 900
+pool_ssl_address: "47.242.58.242:8089"
+pool_tcp_address: "47.242.58.242:8088"
+share_ssl_address: "47.242.58.242:8089"
+share_tcp_address: "47.242.58.242:8088"
+share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
+share_rate: 1.0

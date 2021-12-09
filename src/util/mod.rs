@@ -4,8 +4,8 @@ pub mod logger {
 
     pub fn init(
         app_name: &'static str,
-        path: &String,
-        log_level: &i32,
+        path: String,
+        log_level: i32,
     ) -> Result<(), fern::InitError> {
         // parse log_laver
         let lavel = match log_level {

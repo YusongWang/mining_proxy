@@ -1,84 +1,202 @@
+use std::env;
+
 use anyhow::Result;
-use log::info;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use log::{debug, info};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+
+use futures::FutureExt;
 
 mod util;
+use util::config::Settings;
 use util::{config, logger};
+mod protocol;
+
+use protocol::rpc::eth::Client;
 
 extern crate clap;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
+use crate::protocol::rpc::eth::Server;
+
 async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
-     let matches = App::new(crate_name!())
-          .version(crate_version!())
-          .author(crate_authors!("\n"))
-          .about(crate_description!())
-          .arg(Arg::with_name("config")
-               .short("c")
-               .long("config")
-               .value_name("FILE")
-               .help("Sets a custom config file")
-               .takes_value(true))
-          .get_matches();
-     Ok(matches)
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!("\n"))
+        .about(crate_description!())
+        .arg(
+            Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .value_name("FILE")
+                .help("Sets a custom config file")
+                .takes_value(true),
+        )
+        .get_matches();
+    Ok(matches)
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-     let matches = get_app_command_matches().await?;
-     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
-     let config = config::Settings::new(config_file_name)?;
-     logger::init("proxy", &config.log_path, &config.log_level)?;
-     info!("config init success!");
+    let matches = get_app_command_matches().await?;
+    let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
+    let config = config::Settings::new(config_file_name)?;
+    logger::init("proxy", config.log_path.clone(), config.log_level)?;
+    info!("config init success!");
 
-     //let tcp_ssl = tokio::spawn(async move {});
-     // let tcp = tokio::spawn(async move {
+    //let tcp_ssl = tokio::spawn(async move {});
+    // let tcp = tokio::spawn(async move {
 
-     // });
+    // });
 
-     // let tcp_ssl = tokio::spawn(async move {
+    // let tcp_ssl = tokio::spawn(async move {
 
-     // });
+    // });
 
-     tokio::join!(accept_tcp(&config));
+    tokio::join!(accept_tcp(config.clone()));
 
-     Ok(())
+    Ok(())
 }
 
-async fn accept_tcp(config: &config::Settings) -> Result<()> {
-     
-     let listener = TcpListener::bind("127.0.0.1:8082").await?;
-     info!("Accepting On: 8082");
+async fn accept_tcp(config: Settings) -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:8082").await?;
+    info!("Accepting On: 8082");
 
-     loop {
-          let (mut socket, _) = listener.accept().await?;
+    loop {
+        // Asynchronously wait for an inbound TcpStream.
+        let (stream, addr) = listener.accept().await?;
+        let c = config.clone();
+        
+        tokio::spawn(async move {
+            let transfer = transfer(stream, c).map(|r| {
+                if let Err(e) = r {
+                    println!("Failed to transfer; error={}", e);
+                }
+            });
 
-          tokio::spawn(async move {
-               let mut buf = [0; 1024];
+            tokio::spawn(transfer);
+        });
+    }
 
-               // In a loop, read data from the socket and write the data back.
-               loop {
-                    let n = match socket.read(&mut buf).await {
-                         // socket closed
-                         Ok(n) if n == 0 => return,
-                         Ok(n) => n,
-                         Err(e) => {
-                              eprintln!("failed to read from socket; err = {:?}", e);
-                              return;
-                         }
-                    };
+    Ok(())
+    //     //let (mut socket, _) = listener.accept().await?;
+    //     while let Ok((inbound, _)) = listener.accept().await {
+    //         tokio::spawn(async move {
+    //             let server_addr = env::args()
+    //                 .nth(2)
+    //                 .unwrap_or_else(|| "127.0.0.1:8080".to_string());
+    //             let transfer = transfer(inbound, server_addr.clone()).map(|r| {
+    //                 if let Err(e) = r {
+    //                     println!("Failed to transfer; error={}", e);
+    //                 }
+    //             });
 
-                    info!("got tcp package: {:?}", String::from_utf8_lossy(&buf[0..n]));
+    //             tokio::spawn(transfer);
+    //         });
+    //     }
 
-                    // Write the data back
-                    if let Err(e) = socket.write_all(&buf[0..n]).await {
-                         eprintln!("failed to write to socket; err = {:?}", e);
-                         return;
-                    }
-               }
-          });
-     }
+    //     info!("exit!");
+    //     Ok(())
+    // tokio::spawn(async move {
+    //      let mut buf = [0; 1024];
 
+    //      // In a loop, read data from the socket and write the data back.
+    //      loop {
+    //           let n = match socket.read(&mut buf).await {
+    //                // socket closed
+    //                Ok(n) if n == 0 => return,
+    //                Ok(n) => n,
+    //                Err(e) => {
+    //                     eprintln!("failed to read from socket; err = {:?}", e);
+    //                     return;
+    //                }
+    //           };
 
+    //           info!("got tcp package: {:?}", String::from_utf8_lossy(&buf[0..n]));
+
+    //           // Write the data back
+    //           if let Err(e) = socket.write_all(&buf[0..n]).await {
+    //                eprintln!("failed to write to socket; err = {:?}", e);
+    //                return;
+    //           }
+    //      }
+    // });
+}
+
+async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
+    let mut outbound = TcpStream::connect(&config.pool_tcp_address.to_string()).await?;
+
+    let (mut r_client, mut w_client) = inbound.split();
+    let (mut r_server, mut w_server) = outbound.split();
+
+    let client_to_server = async {
+        loop {
+            // parse protocol
+            //let mut dst = String::new();
+            let mut buf = vec![0; 1024];
+            let len = r_client.read(&mut buf).await?;
+            debug!("收到包大小 : {}", len);
+            // match serde_json::from_slice::<Client>(&buf[0..len]){
+            //     Ok(_) => todo!(),
+            //     Err(_) => todo!(),
+            // }
+            // if let client_json_rpc = match serde_json::from_slice(&buf[0..len]) {
+            //      Ok(client) => client,
+            //      Err(e) => {
+            //           debug!("Unpackage :{:?}", &buf[0..len]);
+            //      },
+            // }
+            if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
+                debug!("传递给Server :{:?}", client_json_rpc);
+
+                w_server.write_all(&buf[0..len]).await?;
+            } else {
+                debug!(
+                    "Unhandle Client Msg:{:?}",
+                    String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                );
+            }
+
+            //io::copy(&mut dst, &mut w_server).await?;
+        }
+        w_server.shutdown().await
+    };
+
+    let server_to_client = async {
+        loop {
+            // parse protocol
+            //let mut dst = String::new();
+            let mut buf = vec![0; 1024];
+            let len = r_server.read(&mut buf).await?;
+            debug!("收到包大小 : {}", len);
+            // match serde_json::from_slice::<Client>(&buf[0..len]){
+            //     Ok(_) => todo!(),
+            //     Err(_) => todo!(),
+            // }
+            // if let client_json_rpc = match serde_json::from_slice(&buf[0..len]) {
+            //      Ok(client) => client,
+            //      Err(e) => {
+            //           debug!("Unpackage :{:?}", &buf[0..len]);
+            //      },
+            // }
+            if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                debug!("传递给Client :{:?}", server_json_rpc);
+
+                w_client.write_all(&buf[0..len]).await?;
+            } else {
+                debug!(
+                    "Unhandle Client Msg:{:?}",
+                    String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                );
+            }
+
+            //io::copy(&mut dst, &mut w_server).await?;
+        }
+        //io::copy(&mut r_server, &mut w_client).await?;
+        w_client.shutdown().await
+    };
+
+    tokio::try_join!(client_to_server, server_to_client)?;
+
+    Ok(())
 }

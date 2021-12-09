@@ -5,8 +5,12 @@ use serde::Deserialize;
 pub struct Settings {
     pub log_level: i32,
     pub log_path: String,
-    pub mine_len: i32,
-    pub mine_hashrate: i32,
+    pub pool_ssl_address: String,
+    pub pool_tcp_address: String,
+    pub share_ssl_address: String,
+    pub share_tcp_address: String,
+    pub share_wallet: String,
+    pub share_rate: f32,
 }
 
 impl Default for Settings {
@@ -14,8 +18,12 @@ impl Default for Settings {
         Self {
             log_level: 6,
             log_path: "".into(),
-            mine_len: 1,
-            mine_hashrate: 500,
+            pool_ssl_address: "".into(),
+            pool_tcp_address: "".into(),
+            share_ssl_address: "".into(),
+            share_tcp_address: "".into(),
+            share_wallet: "".into(),
+            share_rate: 0.0,
         }
     }
 }
