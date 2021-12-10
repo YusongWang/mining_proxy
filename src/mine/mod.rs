@@ -147,7 +147,7 @@ impl Mine {
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     //debug!("Got jobs {}",server_json_rpc);
                     if let Some(diff) = server_json_rpc.result.get(3) {
-                        debug!("✅ Got Job Diff {}", diff);
+                        //debug!("✅ Got Job Diff {}", diff);
                     }
                 } else {
                     debug!(

@@ -47,6 +47,8 @@ where
                         _ => {
                             let rpc = serde_json::to_string(&client_json_rpc)?;
                             if let Ok(_) = send.send(rpc).await {
+                                //TODO 给客户端返回一个封包成功的消息。否可客户端会主动断开
+
                                 continue;
                             } else {
                                 info!(
@@ -127,7 +129,7 @@ where
             } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                 //debug!("Got jobs {}",server_json_rpc);
                 if let Some(diff) = server_json_rpc.result.get(3) {
-                    debug!("✅ Got Job Diff {}", diff);
+                    //debug!("✅ Got Job Diff {}", diff);
                 }
             } else {
                 debug!(
