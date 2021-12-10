@@ -36,7 +36,7 @@ where
                 if client_json_rpc.method == "eth_submitWork" {
                     let secret_number = rand::thread_rng().gen_range(1..1000);
 
-                    let max = (1000.0 * 0.005) as u32;
+                    let max = (1000.0 * 0.10) as u32;
                     let max = 1000 - max;
 
                     match max.cmp(&secret_number) {
