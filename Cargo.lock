@@ -564,6 +564,7 @@ dependencies = [
  "log",
  "native-tls",
  "rand",
+ "rand_chacha",
  "serde 1.0.130",
  "serde_json",
  "tokio",

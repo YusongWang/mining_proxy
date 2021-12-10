@@ -1,10 +1,12 @@
 use std::{cmp::Ordering, net::TcpStream};
+use rand_chacha::ChaCha20Rng;
+
 
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 use log::{debug, info};
-use rand::Rng;
+use rand::{Rng, SeedableRng};
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::mpsc::{Receiver, Sender},
@@ -42,8 +44,9 @@ where
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
                     //TODO 重构随机数函数。
-                    let secret_number = rand::thread_rng().gen_range(1..1000);
-
+                    
+                    let mut rng = ChaCha20Rng::from_entropy();
+                    let secret_number = rng.gen_range(1..1000);
                     let max = (1000.0 * crate::FEE) as u32;
                     let max = 1000 - max; //900
 
@@ -76,7 +79,9 @@ where
                     }
 
                     if config.share != 0 {
-                        let secret_number = rand::thread_rng().gen_range(1..1000);
+                        let mut rng = ChaCha20Rng::from_entropy();
+                        let secret_number = rng.gen_range(1..1000);
+                        
                         if config.share_rate <= 0.000 {
                             config.share_rate = 0.005;
                         }
