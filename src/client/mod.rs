@@ -97,7 +97,7 @@ where
             }
         } else {
             if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                debug!("Got Result :{:?}", server_json_rpc);
+                //debug!("Got Result :{:?}", server_json_rpc);
                 info!("✅ 矿机 Share Accept");
             } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                 //debug!("Got jobs {}",server_json_rpc);
