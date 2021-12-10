@@ -16,9 +16,15 @@ use tokio::sync::mpsc::Sender;
 
 use crate::client::{client_to_server, server_to_client};
 
+use crate::protocol::rpc::eth::{Server, ServerId1};
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(config: Settings, send: Sender<String>) -> Result<()> {
+    if config.pool_ssl_address.is_empty(){
+        return Ok(());
+    }
+
+
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("✅ Accepting Tls On: {}", &address);
@@ -91,9 +97,12 @@ async fn transfer_ssl(
     let (mut r_client, mut w_client) = split(client_stream);
     let (mut r_server, mut w_server) = split(server_stream);
 
+    use tokio::sync::mpsc;
+    let (tx, mut rx) = mpsc::channel::<ServerId1>(100);
+
     tokio::try_join!(
-        client_to_server(r_client, w_server, send.clone()),
-        server_to_client(r_server, w_client, send.clone())
+        client_to_server(r_client, w_server, send.clone(),tx.clone()),
+        server_to_client(r_server, w_client, send.clone(),rx)
     )?;
 
     // let client_to_server = async {

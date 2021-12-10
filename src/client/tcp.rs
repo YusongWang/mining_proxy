@@ -12,6 +12,10 @@ use crate::protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1};
 use crate::util::config::Settings;
 
 pub async fn accept_tcp(config: Settings, send: Sender<String>) -> Result<()> {
+    if config.pool_tcp_address.is_empty(){
+        return Ok(());
+    }
+    
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("✅ Accepting Tcp On: {}", &address);
@@ -42,10 +46,12 @@ pub async fn transfer(
 
     let (mut r_client, mut w_client) = split(inbound);
     let (mut r_server, mut w_server) = split(outbound);
+    use tokio::sync::mpsc;
+    let (tx, mut rx) = mpsc::channel::<ServerId1>(100);
 
     tokio::try_join!(
-        client_to_server(r_client, w_server, send.clone()),
-        server_to_client(r_server, w_client, send.clone())
+        client_to_server(r_client, w_server, send.clone(),tx.clone()),
+        server_to_client(r_server, w_client, send.clone(),rx)
     )?;
 
     Ok(())
