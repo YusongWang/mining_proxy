@@ -127,13 +127,18 @@ impl Mine {
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
+                    if server_json_rpc.result == false {
+                        panic!("❗❎ 矿池登录失败，请尝试重启程序");
+                    }
+
                     info!("✅✅ 登录成功 :{:?}", server_json_rpc);
                     is_login = true;
                 } else {
-                    debug!(
-                        "❗❎ 登录失败{:?}",
-                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    );
+                    panic!("❗❎ 矿池登录失败，请尝试重启程序");
+                    // debug!(
+                    //     "❗❎ 登录失败{:?}",
+                    //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    // );
                     //return w_server.shutdown().await;
                 }
             } else {
@@ -220,7 +225,9 @@ impl Mine {
             params: vec![self.wallet.clone(), "x".into()],
             worker: self.hostname.clone(),
         };
-        
+        let login_msg = serde_json::to_string(&login)?;
+        send.send(login_msg).await.expect("异常退出了.");
+
         sleep(std::time::Duration::from_millis(10)).await;
 
 
@@ -237,9 +244,7 @@ impl Mine {
             params: vec![],
         };
 
-        let login_msg = serde_json::to_string(&login)?;
-
-        send.send(login_msg).await.expect("异常退出了.");
+ 
         loop {
 
             //计算速率

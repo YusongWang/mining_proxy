@@ -124,13 +124,18 @@ impl Mine {
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
+                    if server_json_rpc.result == false {
+                        panic!("❗❎ 矿池登录失败，请尝试重启程序");
+                    }
+
                     info!("✅✅ 登录成功 :{:?}", server_json_rpc);
                     is_login = true;
                 } else {
-                    debug!(
-                        "❗❎ 登录失败{:?}",
-                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    );
+                    panic!("❗❎ 矿池登录失败，请尝试重启程序");
+                    // debug!(
+                    //     "❗❎ 登录失败{:?}",
+                    //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    // );
                     //return w_server.shutdown().await;
                 }
             } else {
@@ -141,10 +146,10 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                    //debug!("Got jobs {}",server_json_rpc);
-                    // if let Some(diff) = server_json_rpc.result.get(3) {
-                    //     //debug!("✅ Got Job Diff {}", diff);
-                    // }
+                    debug!("Got jobs {:?}",server_json_rpc);
+                    if let Some(diff) = server_json_rpc.result.get(3) {
+                        debug!("✅ Got Job Diff {}", diff);
+                    }
                 } else {
                     debug!(
                         "❗ ------未捕获封包:{:?}",
@@ -166,6 +171,7 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
+            debug!("To server {:?}",client_msg);
 
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
@@ -217,6 +223,8 @@ impl Mine {
             params: vec![self.wallet.clone(), "x".into()],
             worker: self.hostname.clone(),
         };
+        let login_msg = serde_json::to_string(&login)?;
+        send.send(login_msg).await.expect("异常退出了.");
         
         sleep(std::time::Duration::from_millis(10)).await;
 
@@ -234,9 +242,7 @@ impl Mine {
             params: vec![],
         };
 
-        let login_msg = serde_json::to_string(&login)?;
-
-        send.send(login_msg).await.expect("异常退出了.");
+ 
         loop {
 
             //计算速率
