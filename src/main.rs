@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bytes::BytesMut;
-use clap::crate_name;
+use clap::{crate_name, crate_version};
 use log::{debug, info};
 use native_tls::Identity;
 use tokio::{fs::File, io::AsyncReadExt, sync::mpsc};
@@ -40,7 +40,8 @@ async fn main() -> Result<()> {
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
 
     info!("✅ config init success!");
-
+    info!("名称: {}, 版本:{}",crate_name!(),crate_version!());
+    
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
     let (tx, mut rx) = mpsc::channel::<String>(50);
