@@ -122,7 +122,7 @@ where
                 if (server_json_rpc.id == 6) {
                     info!("✅ 算力提交成功");
                 } else {
-                    info!("✅ 抽 Share Accept");
+                    info!("✅ Share Accept");
                 }
             } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                 //debug!("Got jobs {}",server_json_rpc);
