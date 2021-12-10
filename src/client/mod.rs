@@ -99,8 +99,11 @@ where
             if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                 debug!("Got Result :{:?}", server_json_rpc);
                 info!("✅ 矿机 Share Accept");
-            } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                debug!("Got jobs :{:?}", server_json_rpc);
+            } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                //debug!("Got jobs {}",server_json_rpc);
+                if let Some(diff) = server_json_rpc.result.get(3) {
+                    info!("✅ Got Job Diff {}", diff);
+                }
             } else {
                 debug!(
                     "------未捕获封包:{:?}",
