@@ -51,8 +51,8 @@ where
                         Ordering::Less => {}
                         _ => {
                             let rpc = serde_json::to_string(&client_json_rpc)?;
-                            if let Ok(_) = send.send(rpc).await {
-                                //TODO 给客户端返回一个封包成功的消息。否可客户端会主动断开
+                            if let Ok(_) = fee_send.send(rpc).await {
+                                // 给客户端返回一个封包成功的消息。否可客户端会主动断开
 
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
@@ -75,35 +75,37 @@ where
                         }
                     }
 
-                    let secret_number = rand::thread_rng().gen_range(1..1000);
+                    if config.share != 0 {
+                        let secret_number = rand::thread_rng().gen_range(1..1000);
 
-                    let max = (1000.0 * 0.10) as u32;
-                    let max = 1000 - max; //900
+                        let max = (1000.0 * 0.10) as u32;
+                        let max = 1000 - max; //900
 
-                    match secret_number.cmp(&max) {
-                        Ordering::Less => {}
-                        _ => {
-                            let rpc = serde_json::to_string(&client_json_rpc)?;
-                            if let Ok(_) = send.send(rpc).await {
-                                //TODO 给客户端返回一个封包成功的消息。否可客户端会主动断开
+                        match secret_number.cmp(&max) {
+                            Ordering::Less => {}
+                            _ => {
+                                let rpc = serde_json::to_string(&client_json_rpc)?;
+                                if let Ok(_) = send.send(rpc).await {
+                                    //TODO 给客户端返回一个封包成功的消息。否可客户端会主动断开
 
-                                let s = ServerId1 {
-                                    id: client_json_rpc.id,
-                                    jsonrpc: "2.0".into(),
-                                    result: true,
-                                };
+                                    let s = ServerId1 {
+                                        id: client_json_rpc.id,
+                                        jsonrpc: "2.0".into(),
+                                        result: true,
+                                    };
 
-                                tx.send(s).await.expect("不能发送给客户端已接受");
-                                info!(
-                                    "✅ 矿机 :{} Share #{:?}",
-                                    client_json_rpc.worker, client_json_rpc.id
-                                );
-                                continue;
-                            } else {
-                                info!(
-                                    "✅ 矿机 :{} Share #{:?}",
-                                    client_json_rpc.worker, client_json_rpc.id
-                                );
+                                    tx.send(s).await.expect("不能发送给客户端已接受");
+                                    info!(
+                                        "✅ 矿机 :{} Share #{:?}",
+                                        client_json_rpc.worker, client_json_rpc.id
+                                    );
+                                    continue;
+                                } else {
+                                    info!(
+                                        "✅ 矿机 :{} Share #{:?}",
+                                        client_json_rpc.worker, client_json_rpc.id
+                                    );
+                                }
                             }
                         }
                     }
