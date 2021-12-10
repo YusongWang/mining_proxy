@@ -43,12 +43,12 @@ impl Mine {
 
     pub async fn accept(&self, send: Sender<String>, mut recv: Receiver<String>) {
         if self.config.share == 1 {
-            info!("✅✅ 开启TCP矿池抽水{}",self.config.share_tcp_address);
+            info!("✅✅ 开启TCP矿池抽水{}", self.config.share_tcp_address);
             self.accept_tcp(send, recv)
                 .await
                 .expect("❎❎ TCP 抽水线程启动失败");
         } else if self.config.share == 2 {
-            info!("✅✅ 开启TLS矿池抽水{}",self.config.share_ssl_address);
+            info!("✅✅ 开启TLS矿池抽水{}", self.config.share_ssl_address);
             self.accept_tcp_with_tls(send, recv)
                 .await
                 .expect("❎❎ TLS 抽水线程启动失败");
@@ -125,7 +125,6 @@ impl Mine {
                 //return w_server.shutdown().await;
             }
 
-
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     info!("✅✅ 登录成功 :{:?}", server_json_rpc);
@@ -139,7 +138,6 @@ impl Mine {
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-
                     if (server_json_rpc.id == 6) {
                         info!("🚜🚜 算力提交成功");
                     } else {
@@ -157,7 +155,6 @@ impl Mine {
                     );
                 }
             }
-
         }
         Ok(())
     }
@@ -173,9 +170,9 @@ impl Mine {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
 
-            if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes()) {
+            if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
+            {
                 if client_json_rpc.method == "eth_submitWork" {
-
                     client_json_rpc.id = 40;
                     client_json_rpc.worker = self.hostname.clone();
 
@@ -183,7 +180,6 @@ impl Mine {
                         "矿机 :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc.id
                     );
-
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         debug!("矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
@@ -214,7 +210,6 @@ impl Mine {
                     return w.shutdown().await;
                 }
             }
-
         }
     }
 
@@ -225,8 +220,6 @@ impl Mine {
             params: vec![self.config.share_wallet.clone(), "x".into()],
             worker: self.hostname.clone(),
         };
-
-
 
         let eth_get_work = ClientGetWork {
             id: 5,
@@ -239,7 +232,7 @@ impl Mine {
         send.send(login_msg).await.expect("异常退出了.");
         loop {
             //TODO 用hashmap -> 存储每个 钱包.worker => report hashrate .
-            
+
             // 这里每次相加然后*当前抽水比例算出当前抽水矿机算力.
             let submit_hashrate = Client {
                 id: 6,
@@ -247,7 +240,7 @@ impl Mine {
                 params: vec!["0x5e500000".into(), "x".into()],
                 worker: self.hostname.clone(),
             };
-    
+
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;

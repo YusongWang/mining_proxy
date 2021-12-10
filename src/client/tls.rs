@@ -19,37 +19,33 @@ use crate::client::{client_to_server, server_to_client};
 use crate::protocol::rpc::eth::{Server, ServerId1};
 use crate::util::config::Settings;
 
-pub async fn accept_tcp_with_tls(config: Settings, send: Sender<String>,fee_send: Sender<String>) -> Result<()> {
-    if config.pool_ssl_address.is_empty(){
+pub async fn accept_tcp_with_tls(
+    config: Settings,
+    send: Sender<String>,
+    fee_send: Sender<String>,
+    cert: Identity,
+) -> Result<()> {
+    if config.pool_ssl_address.is_empty() {
         return Ok(());
     }
 
-
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
-    info!("✅ Accepting Tls On: {}", &address);
-    let mut p12 = File::open(config.p12_path.clone())
-        .await
-        .expect("证书路径错误");
-
-    let mut buffer = BytesMut::with_capacity(10240);
-    let read_key_len = p12.read_buf(&mut buffer).await?;
-    info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
-    let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
+    info!("😄 Accepting Tls On: {}", &address);
 
     let tls_acceptor =
         tokio_native_tls::TlsAcceptor::from(native_tls::TlsAcceptor::builder(cert).build()?);
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        info!("✅ accept connection from {}", addr);
+        info!("😄 accept connection from {}", addr);
 
         let c = config.clone();
         let acceptor = tls_acceptor.clone();
         let s = send.clone();
         let fee = fee_send.clone();
         tokio::spawn(async move {
-            let transfer = transfer_ssl(acceptor, stream, c, s,fee).map(|r| {
+            let transfer = transfer_ssl(acceptor, stream, c, s, fee).map(|r| {
                 if let Err(e) = r {
                     error!("❎ 线程退出 : error={}", e);
                 }
@@ -102,8 +98,15 @@ async fn transfer_ssl(
     let (tx, mut rx) = mpsc::channel::<ServerId1>(100);
 
     tokio::try_join!(
-        client_to_server(config.clone(),r_client, w_server, send.clone(),fee.clone(),tx.clone()),
-        server_to_client(r_server, w_client, send.clone(),rx)
+        client_to_server(
+            config.clone(),
+            r_client,
+            w_server,
+            send.clone(),
+            fee.clone(),
+            tx.clone()
+        ),
+        server_to_client(r_server, w_client, send.clone(), rx)
     )?;
 
     // let client_to_server = async {

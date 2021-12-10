@@ -24,7 +24,7 @@ pub struct Mine {
 }
 
 impl Mine {
-    pub async fn new(config: Settings,wallet:String) -> Result<Self> {
+    pub async fn new(config: Settings, wallet: String) -> Result<Self> {
         let name = hostname::get()?;
         let mut hostname = String::new();
         if name.is_empty() {
@@ -124,7 +124,6 @@ impl Mine {
                 //return w_server.shutdown().await;
             }
 
-
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     info!("✅✅ 登录成功 :{:?}", server_json_rpc);
@@ -138,7 +137,6 @@ impl Mine {
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-
                     if (server_json_rpc.id == 6) {
                         info!("🚜🚜 算力提交成功");
                     } else {
@@ -156,7 +154,6 @@ impl Mine {
                     );
                 }
             }
-
         }
         Ok(())
     }
@@ -172,9 +169,9 @@ impl Mine {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
 
-            if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes()) {
+            if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
+            {
                 if client_json_rpc.method == "eth_submitWork" {
-
                     client_json_rpc.id = 40;
                     client_json_rpc.worker = self.hostname.clone();
 
@@ -182,7 +179,6 @@ impl Mine {
                         "矿机 :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc.id
                     );
-
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         debug!("矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
@@ -213,7 +209,6 @@ impl Mine {
                     return w.shutdown().await;
                 }
             }
-
         }
     }
 
@@ -231,7 +226,6 @@ impl Mine {
             params: vec!["0x5e500000".into(), "x".into()],
             worker: self.hostname.clone(),
         };
-
 
         let eth_get_work = ClientGetWork {
             id: 5,

@@ -10,7 +10,10 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
 };
 //use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
-use crate::{protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1}, util::config::Settings};
+use crate::{
+    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
+    util::config::Settings,
+};
 
 pub mod tcp;
 pub mod tls;

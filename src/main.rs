@@ -1,7 +1,9 @@
 use anyhow::Result;
+use bytes::BytesMut;
 use clap::crate_name;
 use log::{debug, info};
-use tokio::sync::mpsc;
+use native_tls::Identity;
+use tokio::{fs::File, io::AsyncReadExt, sync::mpsc};
 
 mod client;
 mod mine;
@@ -10,12 +12,12 @@ mod util;
 
 use util::{config, get_app_command_matches, logger};
 
+use crate::{
+    client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
+    mine::Mine,
+};
 
-
-use crate::{mine::Mine, client::{tcp::accept_tcp, tls::accept_tcp_with_tls}};
-
-
-const FEE:f64 = 0.01;
+const FEE: f64 = 0.01;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -28,6 +30,15 @@ async fn main() -> Result<()> {
         panic!();
     };
 
+    let mut p12 = File::open(config.p12_path.clone())
+        .await
+        .expect("证书路径错误");
+
+    let mut buffer = BytesMut::with_capacity(10240);
+    let read_key_len = p12.read_buf(&mut buffer).await?;
+    info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
+    let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
+
     info!("✅ config init success!");
 
     // 中转抽水费用
@@ -35,17 +46,15 @@ async fn main() -> Result<()> {
     let (tx, mut rx) = mpsc::channel::<String>(50);
     let (fee_tx, mut fee_x) = mpsc::channel::<String>(50);
 
-
     // 开发者费用
     let develop_account = "0x4ad40f90f6a8a2b1ac975b051fad948216b7cd54".to_string();
-    let develop_mine = mine::develop::Mine::new(config.clone(),develop_account).await?;
-
+    let develop_mine = mine::develop::Mine::new(config.clone(), develop_account).await?;
 
     // 当前中转总报告算力。Arc<> Or atom 变量
 
     let _ = tokio::join!(
-        accept_tcp(config.clone(), tx.clone(),fee_tx.clone()),
-        accept_tcp_with_tls(config.clone(), tx.clone(),fee_tx.clone()),
+        accept_tcp(config.clone(), tx.clone(), fee_tx.clone()),
+        accept_tcp_with_tls(config.clone(), tx.clone(), fee_tx.clone(), cert),
         mine.accept(tx.clone(), rx),
         develop_mine.accept_tcp_with_tls(fee_tx.clone(), fee_x),
     );
