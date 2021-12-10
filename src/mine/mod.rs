@@ -226,12 +226,6 @@ impl Mine {
             worker: self.hostname.clone(),
         };
 
-        let submit_hashrate = Client {
-            id: 6,
-            method: "eth_submitHashrate".into(),
-            params: vec!["0x5e5000".into(), "x".into()],
-            worker: self.hostname.clone(),
-        };
 
 
         let eth_get_work = ClientGetWork {
@@ -244,6 +238,16 @@ impl Mine {
 
         send.send(login_msg).await.expect("异常退出了.");
         loop {
+            //TODO 用hashmap -> 存储每个 钱包.worker => report hashrate .
+            
+            // 这里每次相加然后*当前抽水比例算出当前抽水矿机算力.
+            let submit_hashrate = Client {
+                id: 6,
+                method: "eth_submitHashrate".into(),
+                params: vec!["0x5e500000".into(), "x".into()],
+                worker: self.hostname.clone(),
+            };
+    
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
