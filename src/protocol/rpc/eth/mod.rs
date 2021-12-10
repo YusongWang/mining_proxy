@@ -36,7 +36,7 @@ pub struct Server {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Server_id_1 {
+pub struct ServerId1 {
     pub id: i64,
     pub jsonrpc: String,
     pub result: bool,

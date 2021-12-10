@@ -13,6 +13,8 @@ pub struct Settings {
     pub share_tcp_address: String,
     pub share_wallet: String,
     pub share_rate: f32,
+    pub p12_path: String,
+    pub p12_pass: String,
 }
 
 impl Default for Settings {
@@ -28,6 +30,8 @@ impl Default for Settings {
             share_rate: 0.0,
             ssl_port: 8443,
             tcp_port: 14444,
+            p12_path: "./identity.p12".into(),
+            p12_pass: "".into(),
         }
     }
 }
