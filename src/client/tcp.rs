@@ -18,12 +18,12 @@ pub async fn accept_tcp(config: Settings, send: Sender<String>) -> Result<()> {
     
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;
-    info!("✅ Accepting Tcp On: {}", &address);
+    info!("😄 Accepting Tcp On: {}", &address);
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        info!("✅ accept connection from {}", addr);
+        info!("😄 accept connection from {}", addr);
         let c = config.clone();
         let s = send.clone();
         tokio::spawn(async move {

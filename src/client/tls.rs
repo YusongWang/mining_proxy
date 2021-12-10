@@ -74,7 +74,7 @@ async fn transfer_ssl(
         }
     };
 
-    info!("✅ tls_acceptor Success!");
+    info!("😄 tls_acceptor Success!");
     //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
 
     let addr = config
@@ -83,16 +83,16 @@ async fn transfer_ssl(
         .next()
         .ok_or("failed to resolve")
         .expect("parse address Error");
-    info!("✅ connect to {:?}", &addr);
+    info!("😄 connect to {:?}", &addr);
     let socket = TcpStream::connect(&addr).await?;
     let cx = TlsConnector::builder().build()?;
     let cx = tokio_native_tls::TlsConnector::from(cx);
-    info!("✅ connectd {:?}", &addr);
+    info!("😄 connectd {:?}", &addr);
 
     let domain: Vec<&str> = config.pool_ssl_address.split(":").collect();
     let server_stream = cx.connect(domain[0], socket).await?;
 
-    info!("✅ connectd {:?} with TLS", &addr);
+    info!("😄 connectd {:?} with TLS", &addr);
 
     let (mut r_client, mut w_client) = split(client_stream);
     let (mut r_server, mut w_server) = split(server_stream);

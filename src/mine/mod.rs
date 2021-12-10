@@ -42,17 +42,17 @@ impl Mine {
 
     pub async fn accept(&self, send: Sender<String>, mut recv: Receiver<String>) {
         if self.config.share == 1 {
-            info!("✅ 开启TCP矿池抽水{}",self.config.share_tcp_address);
+            info!("✅✅ 开启TCP矿池抽水{}",self.config.share_tcp_address);
             self.accept_tcp(send, recv)
                 .await
-                .expect("❎ TCP 抽水线程启动失败");
+                .expect("❎❎ TCP 抽水线程启动失败");
         } else if self.config.share == 2 {
-            info!("✅ 开启TLS矿池抽水{}",self.config.share_ssl_address);
+            info!("✅✅ 开启TLS矿池抽水{}",self.config.share_ssl_address);
             self.accept_tcp_with_tls(send, recv)
                 .await
-                .expect("❎ TLS 抽水线程启动失败");
+                .expect("❎❎ TLS 抽水线程启动失败");
         } else {
-            info!("✅ 未开启抽水");
+            info!("✅✅ 未开启抽水");
         }
     }
 
@@ -84,20 +84,20 @@ impl Mine {
             .ok_or("failed to resolve")
             .expect("parse address Error");
 
-        info!("✅ connect to {:?}", &addr);
+        info!("✅✅ connect to {:?}", &addr);
         let socket = TcpStream::connect(&addr).await?;
         let cx = TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .build()?;
         let cx = tokio_native_tls::TlsConnector::from(cx);
-        info!("✅ connectd {:?}", &addr);
+        info!("✅✅ connectd {:?}", &addr);
 
         let domain: Vec<&str> = self.config.share_ssl_address.split(":").collect();
         let server_stream = cx
             .connect(domain[0], socket)
             .await
-            .expect("与矿池SSL握手失败");
+            .expect("❗❎ 与矿池SSL握手失败");
 
         let (mut r_server, mut w_server) = split(server_stream);
 
@@ -114,7 +114,7 @@ impl Mine {
         R: AsyncRead,
     {
         let mut is_login = false;
-        info!("server_to_client 进入loop! ");
+
         loop {
             let mut buf = vec![0; 1024];
             let len = r.read(&mut buf).await.expect("从服务器读取失败.");
@@ -127,31 +127,31 @@ impl Mine {
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    info!("✅ 登录成功 :{:?}", server_json_rpc);
+                    info!("✅✅ 登录成功 :{:?}", server_json_rpc);
                     is_login = true;
                 } else {
                     debug!(
-                        "❎ 登录失败{:?}",
+                        "❗❎ 登录失败{:?}",
                         String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
                     );
                     //return w_server.shutdown().await;
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    //debug!("Got Result :{:?}", server_json_rpc);
+
                     if (server_json_rpc.id == 6) {
-                        info!("✅ 算力提交成功");
+                        info!("🚜🚜 算力提交成功");
                     } else {
-                        info!("✅ 抽 Share Accept");
+                        info!("👍👍 Share Accept");
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     //debug!("Got jobs {}",server_json_rpc);
-                    if let Some(diff) = server_json_rpc.result.get(3) {
-                        //debug!("✅ Got Job Diff {}", diff);
-                    }
+                    // if let Some(diff) = server_json_rpc.result.get(3) {
+                    //     //debug!("✅ Got Job Diff {}", diff);
+                    // }
                 } else {
                     debug!(
-                        "------未捕获封包:{:?}",
+                        "❗ ------未捕获封包:{:?}",
                         String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
                     );
                 }

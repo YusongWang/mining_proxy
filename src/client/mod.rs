@@ -139,9 +139,9 @@ where
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                         //debug!("Got Result :{:?}", server_json_rpc);
                         if (server_json_rpc.id == 6) {
-                            info!("✅ 算力提交成功");
+                            info!("🚜 算力提交成功");
                         } else {
-                            info!("✅ Share Accept");
+                            info!("👍 Share Accept");
                         }
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                         //debug!("Got jobs {}",server_json_rpc);
@@ -150,7 +150,7 @@ where
                         }
                     } else {
                         debug!(
-                            "------未捕获封包:{:?}",
+                            "❗ ------未捕获封包:{:?}",
                             String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
                         );
                     }
