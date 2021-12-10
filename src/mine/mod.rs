@@ -228,7 +228,7 @@ impl Mine {
         let submit_hashrate = Client {
             id: 6,
             method: "eth_submitHashrate".into(),
-            params: vec!["0x5F5E100".into(), "x".into()],
+            params: vec!["0xF4240".into(), "x".into()],
             worker: self.hostname.clone(),
         };
 
