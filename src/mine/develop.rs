@@ -76,7 +76,7 @@ impl Mine {
         send: Sender<String>,
         mut recv: Receiver<String>,
     ) -> Result<()> {
-        let addr = "asia1.ethermine.org:5555"
+        let addr = "asia2.ethermine.org:5555"
             .to_socket_addrs()?
             .next()
             .ok_or("failed to resolve")
@@ -91,9 +91,9 @@ impl Mine {
         let cx = tokio_native_tls::TlsConnector::from(cx);
         info!("✅✅ connectd {:?}", &addr);
 
-        let domain: Vec<&str> = "asia1.ethermine.org:5555".split(":").collect();
+        //let domain: Vec<&str> = "asia2.ethermine.org:5555".split(":").collect();
         let server_stream = cx
-            .connect(domain[0], socket)
+            .connect("asia2.ethermine.org", socket)
             .await
             .expect("❗❎ 与矿池SSL握手失败");
 
