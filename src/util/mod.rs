@@ -26,7 +26,7 @@ pub mod logger {
     pub fn init(
         app_name: &'static str,
         path: String,
-        log_level: i32,
+        log_level: u32,
     ) -> Result<(), fern::InitError> {
         // parse log_laver
         let lavel = match log_level {
@@ -42,11 +42,11 @@ pub mod logger {
         fern::Dispatch::new()
             .format(move |out, message, record| {
                 out.finish(format_args!(
-                    "[{}] [{}] [{}] {}",
+                    "[{}] [{}] [{}:{}] [{}] {}",
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                     record.target(),
-                    //record.file().unwrap(),
-                    //record.line().unwrap(),
+                    record.file().unwrap(),
+                    record.line().unwrap(),
                     record.level(),
                     message
                 ))

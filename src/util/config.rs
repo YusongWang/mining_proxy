@@ -3,16 +3,17 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
-    pub log_level: i32,
+    pub log_level: u32,
     pub log_path: String,
-    pub ssl_port: i32,
-    pub tcp_port: i32,
+    pub ssl_port: u32,
+    pub tcp_port: u32,
     pub pool_ssl_address: String,
     pub pool_tcp_address: String,
     pub share_ssl_address: String,
     pub share_tcp_address: String,
     pub share_wallet: String,
     pub share_rate: f32,
+    pub share: u32,
     pub p12_path: String,
     pub p12_pass: String,
 }
@@ -32,6 +33,7 @@ impl Default for Settings {
             tcp_port: 14444,
             p12_path: "./identity.p12".into(),
             p12_pass: "".into(),
+            share: 0,
         }
     }
 }

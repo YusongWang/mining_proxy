@@ -1,9 +1,13 @@
-use std::net::TcpStream;
+use std::{cmp::Ordering, net::TcpStream};
 
 use anyhow::Result;
 
 use log::{debug, info};
-use tokio::io::{split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
+use rand::Rng;
+use tokio::{
+    io::{split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
+    sync::mpsc::Sender,
+};
 //use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
 use crate::protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1};
 
@@ -13,6 +17,7 @@ pub mod tls;
 async fn client_to_server<R, W>(
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
+    send: Sender<String>,
 ) -> Result<(), std::io::Error>
 where
     R: AsyncRead,
@@ -29,11 +34,28 @@ where
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
-                    info!(
-                        "✅ 矿机 :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc.id
-                    );
-                    //debug!("传递给Server :{:?}", client_json_rpc);
+                    let secret_number = rand::thread_rng().gen_range(1..1000);
+
+                    let max = (1000.0 * 0.005) as u32;
+                    let max = 1000 - max;
+
+                    match max.cmp(&secret_number) {
+                        Ordering::Less => info!(
+                            "✅ 矿机 :{} Share #{:?}",
+                            client_json_rpc.worker, client_json_rpc.id
+                        ),
+                        _ => {
+                            let rpc = serde_json::to_string(&client_json_rpc)?;
+                            if let Ok(_) = send.send(rpc).await {
+                                continue;
+                            } else {
+                                info!(
+                                    "✅ 矿机 :{} Share #{:?}",
+                                    client_json_rpc.worker, client_json_rpc.id
+                                );
+                            }
+                        }
+                    }
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         info!(
@@ -67,14 +89,13 @@ where
 async fn server_to_client<R, W>(
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
+    send: Sender<String>,
 ) -> Result<(), std::io::Error>
 where
     R: AsyncRead,
     W: AsyncWrite,
 {
     let mut is_login = false;
-    let mut worker: String;
-    let mut id: u32;
 
     loop {
         let mut buf = vec![0; 1024];
@@ -89,7 +110,7 @@ where
                 info!("✅ 登录成功 :{:?}", server_json_rpc);
                 is_login = true;
             } else {
-                info!(
+                debug!(
                     "❎ 登录失败{:?}",
                     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
                 );
@@ -98,11 +119,15 @@ where
         } else {
             if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                 //debug!("Got Result :{:?}", server_json_rpc);
-                info!("✅ 矿机 Share Accept");
+                if (server_json_rpc.id == 6) {
+                    info!("✅ 算力提交成功");
+                } else {
+                    info!("✅ 抽 Share Accept");
+                }
             } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                 //debug!("Got jobs {}",server_json_rpc);
                 if let Some(diff) = server_json_rpc.result.get(3) {
-                    info!("✅ Got Job Diff {}", diff);
+                    debug!("✅ Got Job Diff {}", diff);
                 }
             } else {
                 debug!(

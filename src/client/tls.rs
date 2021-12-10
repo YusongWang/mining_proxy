@@ -12,15 +12,16 @@ extern crate native_tls;
 use native_tls::{Identity, TlsConnector};
 
 use futures::FutureExt;
+use tokio::sync::mpsc::Sender;
 
 use crate::client::{client_to_server, server_to_client};
 
 use crate::util::config::Settings;
 
-pub async fn accept_tcp_with_tls(config: Settings) -> Result<()> {
+pub async fn accept_tcp_with_tls(config: Settings, send: Sender<String>) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
-    info!("Accepting Tls On: {}", &address);
+    info!("✅ Accepting Tls On: {}", &address);
     let mut p12 = File::open(config.p12_path.clone())
         .await
         .expect("证书路径错误");
@@ -35,13 +36,14 @@ pub async fn accept_tcp_with_tls(config: Settings) -> Result<()> {
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        info!("accept connection from {}", addr);
+        info!("✅ accept connection from {}", addr);
 
         let c = config.clone();
         let acceptor = tls_acceptor.clone();
+        let s = send.clone();
 
         tokio::spawn(async move {
-            let transfer = transfer_ssl(acceptor, stream, c).map(|r| {
+            let transfer = transfer_ssl(acceptor, stream, c, s).map(|r| {
                 if let Err(e) = r {
                     error!("❎ 线程退出 : error={}", e);
                 }
@@ -56,6 +58,7 @@ async fn transfer_ssl(
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     inbound: TcpStream,
     config: Settings,
+    send: Sender<String>,
 ) -> Result<()> {
     let client_stream = match tls_acceptor.accept(inbound).await {
         Ok(stream) => stream,
@@ -89,8 +92,8 @@ async fn transfer_ssl(
     let (mut r_server, mut w_server) = split(server_stream);
 
     tokio::try_join!(
-        client_to_server(r_client, w_server),
-        server_to_client(r_server, w_client)
+        client_to_server(r_client, w_server, send.clone()),
+        server_to_client(r_server, w_client, send.clone())
     )?;
 
     // let client_to_server = async {
