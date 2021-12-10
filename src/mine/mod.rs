@@ -34,10 +34,11 @@ impl Mine {
             hostname = hostname + name.to_str().unwrap();
         }
 
+        let w = config.clone();
         Ok(Self {
             config,
             hostname: hostname,
-            wallet: "".into(),
+            wallet: w.share_wallet.clone(),
         })
     }
 
