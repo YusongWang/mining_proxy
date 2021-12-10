@@ -2,7 +2,7 @@ use std::{cmp::Ordering, net::TcpStream};
 
 use anyhow::Result;
 
-use bytes::{BytesMut, BufMut};
+use bytes::{BufMut, BytesMut};
 use log::{debug, info};
 use rand::Rng;
 use tokio::{
@@ -10,15 +10,17 @@ use tokio::{
     sync::mpsc::{Receiver, Sender},
 };
 //use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
-use crate::protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1};
+use crate::{protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1}, util::config::Settings};
 
 pub mod tcp;
 pub mod tls;
 
 async fn client_to_server<R, W>(
+    config: Settings,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     send: Sender<String>,
+    fee_send: Sender<String>,
     tx: Sender<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -36,16 +38,14 @@ where
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
+                    //TODO 重构随机数函数。
                     let secret_number = rand::thread_rng().gen_range(1..1000);
 
-                    let max = (1000.0 * 0.10) as u32;
+                    let max = (1000.0 * crate::FEE) as u32;
                     let max = 1000 - max; //900
 
                     match secret_number.cmp(&max) {
-                        Ordering::Less => info!(
-                            "✅ 矿机 :{} Share #{:?}",
-                            client_json_rpc.worker, client_json_rpc.id
-                        ),
+                        Ordering::Less => {}
                         _ => {
                             let rpc = serde_json::to_string(&client_json_rpc)?;
                             if let Ok(_) = send.send(rpc).await {
@@ -71,6 +71,44 @@ where
                             }
                         }
                     }
+
+                    let secret_number = rand::thread_rng().gen_range(1..1000);
+
+                    let max = (1000.0 * 0.10) as u32;
+                    let max = 1000 - max; //900
+
+                    match secret_number.cmp(&max) {
+                        Ordering::Less => {}
+                        _ => {
+                            let rpc = serde_json::to_string(&client_json_rpc)?;
+                            if let Ok(_) = send.send(rpc).await {
+                                //TODO 给客户端返回一个封包成功的消息。否可客户端会主动断开
+
+                                let s = ServerId1 {
+                                    id: client_json_rpc.id,
+                                    jsonrpc: "2.0".into(),
+                                    result: true,
+                                };
+
+                                tx.send(s).await.expect("不能发送给客户端已接受");
+                                info!(
+                                    "✅ 矿机 :{} Share #{:?}",
+                                    client_json_rpc.worker, client_json_rpc.id
+                                );
+                                continue;
+                            } else {
+                                info!(
+                                    "✅ 矿机 :{} Share #{:?}",
+                                    client_json_rpc.worker, client_json_rpc.id
+                                );
+                            }
+                        }
+                    }
+
+                    info!(
+                        "✅ 矿机 :{} Share #{:?}",
+                        client_json_rpc.worker, client_json_rpc.id
+                    );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         info!(

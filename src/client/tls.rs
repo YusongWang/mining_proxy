@@ -19,7 +19,7 @@ use crate::client::{client_to_server, server_to_client};
 use crate::protocol::rpc::eth::{Server, ServerId1};
 use crate::util::config::Settings;
 
-pub async fn accept_tcp_with_tls(config: Settings, send: Sender<String>) -> Result<()> {
+pub async fn accept_tcp_with_tls(config: Settings, send: Sender<String>,fee_send: Sender<String>) -> Result<()> {
     if config.pool_ssl_address.is_empty(){
         return Ok(());
     }
@@ -47,9 +47,9 @@ pub async fn accept_tcp_with_tls(config: Settings, send: Sender<String>) -> Resu
         let c = config.clone();
         let acceptor = tls_acceptor.clone();
         let s = send.clone();
-
+        let fee = fee_send.clone();
         tokio::spawn(async move {
-            let transfer = transfer_ssl(acceptor, stream, c, s).map(|r| {
+            let transfer = transfer_ssl(acceptor, stream, c, s,fee).map(|r| {
                 if let Err(e) = r {
                     error!("❎ 线程退出 : error={}", e);
                 }
@@ -65,6 +65,7 @@ async fn transfer_ssl(
     inbound: TcpStream,
     config: Settings,
     send: Sender<String>,
+    fee: Sender<String>,
 ) -> Result<()> {
     let client_stream = match tls_acceptor.accept(inbound).await {
         Ok(stream) => stream,
@@ -101,7 +102,7 @@ async fn transfer_ssl(
     let (tx, mut rx) = mpsc::channel::<ServerId1>(100);
 
     tokio::try_join!(
-        client_to_server(r_client, w_server, send.clone(),tx.clone()),
+        client_to_server(config.clone(),r_client, w_server, send.clone(),fee.clone(),tx.clone()),
         server_to_client(r_server, w_client, send.clone(),rx)
     )?;
 

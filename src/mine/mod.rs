@@ -1,4 +1,5 @@
 use std::net::ToSocketAddrs;
+pub mod develop;
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
