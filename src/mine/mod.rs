@@ -245,10 +245,10 @@ impl Mine {
         loop {
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
-            let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-            send.send(eth_get_work_msg).await.expect("异常退出了.");
+            // let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
+            // send.send(eth_get_work_msg).await.expect("异常退出了.");
 
-            
+
             sleep(std::time::Duration::from_millis(10000)).await;
         }
     }
