@@ -19,7 +19,7 @@ pub mod tcp;
 pub mod tls;
 
 async fn client_to_server<R, W>(
-    config: Settings,
+    mut config: Settings,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     send: Sender<String>,
@@ -77,8 +77,10 @@ where
 
                     if config.share != 0 {
                         let secret_number = rand::thread_rng().gen_range(1..1000);
-
-                        let max = (1000.0 * 0.10) as u32;
+                        if config.share_rate <= 0.000 {
+                            config.share_rate = 0.005;
+                        }
+                        let max = (1000.0 * config.share_rate) as u32;
                         let max = 1000 - max; //900
 
                         match secret_number.cmp(&max) {

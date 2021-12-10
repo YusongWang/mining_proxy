@@ -217,7 +217,17 @@ impl Mine {
         let login = Client {
             id: 1,
             method: "eth_submitLogin".into(),
-            params: vec![self.config.share_wallet.clone(), "x".into()],
+            params: vec![self.wallet.clone(), "x".into()],
+            worker: self.hostname.clone(),
+        };
+        
+        sleep(std::time::Duration::from_millis(100000)).await;
+
+
+        let submit_hashrate = Client {
+            id: 6,
+            method: "eth_submitHashrate".into(),
+            params: vec!["0x5e500000".into(), "x".into()],
             worker: self.hostname.clone(),
         };
 
@@ -231,22 +241,16 @@ impl Mine {
 
         send.send(login_msg).await.expect("异常退出了.");
         loop {
-            //TODO 用hashmap -> 存储每个 钱包.worker => report hashrate .
 
-            // 这里每次相加然后*当前抽水比例算出当前抽水矿机算力.
-            let submit_hashrate = Client {
-                id: 6,
-                method: "eth_submitHashrate".into(),
-                params: vec!["0x5e500000".into(), "x".into()],
-                worker: self.hostname.clone(),
-            };
+            sleep(std::time::Duration::from_millis(1000000)).await;
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
+
+            sleep(std::time::Duration::from_millis(1000000)).await;
+
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg).await.expect("异常退出了.");
-
-            sleep(std::time::Duration::from_millis(100000)).await;
         }
     }
 }
