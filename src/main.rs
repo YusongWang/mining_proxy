@@ -141,6 +141,10 @@ async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
             //let mut dst = String::new();
             let mut buf = vec![0; 1024];
             let len = r_client.read(&mut buf).await?;
+            if len == 0 {
+                info!("客户端断开连接.");
+                return w_server.shutdown().await;
+            }
 
             if len > 5 {
                 debug!("收到包大小 : {}", len);
@@ -158,7 +162,6 @@ async fn transfer(mut inbound: TcpStream, config: Settings) -> Result<()> {
 
             //io::copy(&mut dst, &mut w_server).await?;
         }
-        w_server.shutdown().await
     };
 
     let server_to_client = async {
@@ -257,18 +260,14 @@ async fn transfer_ssl(
             //let mut dst = String::new();
             let mut buf = vec![0; 1024];
             let len = r_client.read(&mut buf).await?;
+            if len == 0 {
+                info!("客户端断开连接.");
+                return w_server.shutdown().await;
+            }
+
             if len > 5 {
                 debug!("收到包大小 : {}", len);
-                // match serde_json::from_slice::<Client>(&buf[0..len]){
-                //     Ok(_) => todo!(),
-                //     Err(_) => todo!(),
-                // }
-                // if let client_json_rpc = match serde_json::from_slice(&buf[0..len]) {
-                //      Ok(client) => client,
-                //      Err(e) => {
-                //           debug!("Unpackage :{:?}", &buf[0..len]);
-                //      },
-                // }
+
                 if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                     if client_json_rpc.method == "eth_submitWork" {
                         info!(
@@ -296,28 +295,21 @@ async fn transfer_ssl(
             }
             //io::copy(&mut dst, &mut w_server).await?;
         }
-        w_server.shutdown().await
     };
 
     let server_to_client = async {
         let mut is_login = false;
 
         loop {
-            // parse protocol
-            //let mut dst = String::new();
             let mut buf = vec![0; 1024];
             let len = r_server.read(&mut buf).await?;
+            if len == 0 {
+                info!("服务端断开连接.");
+                return w_client.shutdown().await;
+            }
+
             debug!("收到包大小 : {}", len);
-            // match serde_json::from_slice::<Client>(&buf[0..len]){
-            //     Ok(_) => todo!(),
-            //     Err(_) => todo!(),
-            // }
-            // if let client_json_rpc = match serde_json::from_slice(&buf[0..len]) {
-            //      Ok(client) => client,
-            //      Err(e) => {
-            //           debug!("Unpackage :{:?}", &buf[0..len]);
-            //      },
-            // }
+
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<Server_id_1>(&buf[0..len]) {
                     debug!("登录成功 :{:?}", server_json_rpc);
@@ -340,11 +332,12 @@ async fn transfer_ssl(
                     );
                 }
             }
-            w_client.write_all(&buf[0..len]).await?;
-            //io::copy(&mut dst, &mut w_server).await?;
+            let len = w_client.write(&buf[0..len]).await?;
+            if len == 0 {
+                info!("服务端写入失败 断开连接.");
+                return w_client.shutdown().await;
+            }
         }
-        //io::copy(&mut r_server, &mut w_client).await?;
-        w_client.shutdown().await
     };
 
     tokio::try_join!(client_to_server, server_to_client)?;
