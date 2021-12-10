@@ -183,15 +183,15 @@ impl Mine {
                     client_json_rpc.worker = self.hostname.clone();
 
                     info!(
-                        "矿机 :{} Share #{:?}",
+                        "✅✅ 矿机 :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc.id
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
-                        debug!("矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
+                        debug!("✅✅ 矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
-                    debug!("矿机 :{} 请求登录", client_json_rpc.worker);
+                    debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                 } else {
                     debug!("矿机传递未知RPC :{:?}", client_json_rpc);
                 }

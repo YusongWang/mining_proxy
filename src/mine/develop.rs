@@ -146,10 +146,10 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                    debug!("Got jobs {:?}",server_json_rpc);
-                    if let Some(diff) = server_json_rpc.result.get(3) {
-                        debug!("✅ Got Job Diff {}", diff);
-                    }
+                    // debug!("Got jobs {:?}",server_json_rpc);
+                    // if let Some(diff) = server_json_rpc.result.get(3) {
+                    //     debug!("✅ Got Job Diff {}", diff);
+                    // }
                 } else {
                     debug!(
                         "❗ ------未捕获封包:{:?}",
@@ -171,7 +171,7 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            debug!("To server {:?}",client_msg);
+
 
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
@@ -180,15 +180,15 @@ impl Mine {
                     client_json_rpc.worker = self.hostname.clone();
 
                     info!(
-                        "矿机 :{} Share #{:?}",
+                        "✅✅ 矿机 :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc.id
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
-                        debug!("矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
+                        debug!("✅✅ 矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
-                    debug!("矿机 :{} 请求登录", client_json_rpc.worker);
+                    debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                 } else {
                     debug!("矿机传递未知RPC :{:?}", client_json_rpc);
                 }
