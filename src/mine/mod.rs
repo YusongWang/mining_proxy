@@ -236,7 +236,7 @@ impl Mine {
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg).await.expect("异常退出了.");
 
-        sleep(std::time::Duration::from_secs(10)).await;
+        sleep(std::time::Duration::new(10,0)).await;
 
         let eth_get_work = ClientGetWork {
             id: 5,
@@ -259,7 +259,7 @@ impl Mine {
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
 
-            sleep(std::time::Duration::from_secs(10)).await;
+            sleep(std::time::Duration::new(60,0)).await;
         }
     }
 }
