@@ -144,6 +144,7 @@ impl Mine {
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
+                    debug!("收到抽水矿机返回 {:?}",server_json_rpc);
                     if (server_json_rpc.id == 6) {
                         info!("🚜🚜 算力提交成功");
                     } else {
