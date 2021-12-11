@@ -19,6 +19,9 @@ TODO
 ##### docker-composer 模式多矿池
 TODO
 
+#### 目前已验证支持
+- ethermine
+
 #### 配置文件说明
 ```yaml
 log_level: 2 #日志等级 2=INFO 1=DEBUG
