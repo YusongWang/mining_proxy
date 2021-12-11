@@ -63,13 +63,7 @@ async fn transfer_ssl(
     send: Sender<String>,
     fee: Sender<String>,
 ) -> Result<()> {
-    let client_stream = match tls_acceptor.accept(inbound).await {
-        Ok(stream) => stream,
-        Err(err) => {
-            error!("❎ tls_acceptor error {:?}", err);
-            panic!("{}", err);
-        }
-    };
+    let client_stream = tls_acceptor.accept(inbound).await?;
 
     info!("😄 tls_acceptor Success!");
     //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
