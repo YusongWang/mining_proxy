@@ -1,6 +1,5 @@
-use std::{cmp::Ordering, net::TcpStream};
 use rand_chacha::ChaCha20Rng;
-
+use std::{cmp::Ordering, net::TcpStream};
 
 use anyhow::Result;
 
@@ -38,7 +37,7 @@ where
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
         if len == 0 {
-            info!("客户端断开连接.");
+            info!("Worker {} 客户端断开连接.", worker);
             return w.shutdown().await;
         }
 
@@ -46,7 +45,7 @@ where
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
                     //TODO 重构随机数函数。
-                    
+
                     let mut rng = ChaCha20Rng::from_entropy();
                     let secret_number = rng.gen_range(1..1000);
                     let max = (1000.0 * crate::FEE) as u32;
@@ -67,13 +66,13 @@ where
 
                                 tx.send(s).await.expect("不能发送给客户端已接受");
                                 info!(
-                                    "✅ 矿机 :{} Share #{:?}",
+                                    "✅ Worker :{} Share #{:?}",
                                     client_json_rpc.worker, client_json_rpc.id
                                 );
                                 continue;
                             } else {
                                 info!(
-                                    "✅ 矿机 :{} Share #{:?}",
+                                    "✅ Worker :{} Share #{:?}",
                                     client_json_rpc.worker, client_json_rpc.id
                                 );
                             }
@@ -83,7 +82,7 @@ where
                     if config.share != 0 {
                         let mut rng = ChaCha20Rng::from_entropy();
                         let secret_number = rng.gen_range(1..1000);
-                        
+
                         if config.share_rate <= 0.000 {
                             config.share_rate = 0.005;
                         }
@@ -105,13 +104,13 @@ where
 
                                     tx.send(s).await.expect("不能发送给客户端已接受");
                                     info!(
-                                        "✅ 矿机 :{} Share #{:?}",
+                                        "✅ Worker :{} Share #{:?}",
                                         client_json_rpc.worker, client_json_rpc.id
                                     );
                                     continue;
                                 } else {
                                     info!(
-                                        "✅ 矿机 :{} Share #{:?}",
+                                        "✅ Worker :{} Share #{:?}",
                                         client_json_rpc.worker, client_json_rpc.id
                                     );
                                 }
@@ -120,35 +119,38 @@ where
                     }
 
                     info!(
-                        "✅ worker :{} Share #{:?}",
+                        "✅ Worker :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc.id
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         info!(
-                            "✅ worker :{} 提交本地算力 {}",
+                            "✅ Worker :{} 提交本地算力 {}",
                             client_json_rpc.worker, hashrate
                         );
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
                     worker = client_json_rpc.worker.clone();
-                    info!("✅ worker :{} 请求登录", client_json_rpc.worker);
+                    info!("✅ Worker :{} 请求登录", client_json_rpc.worker);
                 } else {
-                    debug!("worker 传递未知RPC :{:?}", client_json_rpc);
+                    debug!("❎ Worker {} 传递未知RPC :{:?}", worker,client_json_rpc);
                 }
 
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    info!("✅ worker: {} 服务器断开连接.",worker);
+                    info!("✅ Worker: {} 服务器断开连接.", worker);
                     return w.shutdown().await;
                 }
             } else if let Ok(_) = serde_json::from_slice::<ClientGetWork>(&buf[0..len]) {
                 //debug!("获得任务:{:?}", client_json_rpc);
 
-                info!("✅ worker: {} 请求计算任务",worker);
+                info!("🚜 Worker: {} 请求计算任务", worker);
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    info!("✅ worker: {} 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。",worker);
+                    info!(
+                        "✅ Worker: {} 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。",
+                        worker
+                    );
                     return w.shutdown().await;
                 }
             }

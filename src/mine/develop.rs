@@ -237,7 +237,7 @@ impl Mine {
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
         send.send(eth_get_work_msg).await.expect("异常退出了.");
-
+        sleep(std::time::Duration::new(10,0)).await;
         loop {
             //计算速率
             let submit_hashrate = Client {
