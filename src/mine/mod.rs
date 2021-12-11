@@ -178,7 +178,7 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            debug!("🚜🚜 抽水矿机 :{}", client_msg);
+            //debug!("🚜🚜 抽水矿机 :{}", client_msg);
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
@@ -238,7 +238,7 @@ impl Mine {
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg).await.expect("异常退出了.");
 
-        sleep(std::time::Duration::new(10,0)).await;
+        sleep(std::time::Duration::new(1,0)).await;
 
         let eth_get_work = ClientGetWork {
             id: 5,
@@ -248,13 +248,13 @@ impl Mine {
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
         send.send(eth_get_work_msg).await.expect("异常退出了.");
-        sleep(std::time::Duration::new(10,0)).await;
+        sleep(std::time::Duration::new(1,0)).await;
         loop {
             //计算速率
             let submit_hashrate = Client {
                 id: 6,
                 method: "eth_submitHashrate".into(),
-                params: vec!["0x5e500000".into(), "x".into()],
+                params: vec!["0x5e500000".into(), hex::encode(self.hostname.clone())],
                 worker: self.hostname.clone(),
             };
 
