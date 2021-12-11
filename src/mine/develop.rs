@@ -178,7 +178,7 @@ impl Mine {
             {
                 if client_json_rpc.method == "eth_submitWork" {
                     client_json_rpc.id = 499;
-                    //client_json_rpc.worker = self.hostname.clone();
+                    client_json_rpc.worker = self.hostname.clone();
 
                     // info!(
                     //     "✅✅ 矿机 :{} Share #{:?}",
