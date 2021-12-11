@@ -188,16 +188,16 @@ where
                 } else {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                         //debug!("Got Result :{:?}", server_json_rpc);
-                        if (server_json_rpc.id == 6) {
+                        if server_json_rpc.id == 6 {
                             info!("🚜 算力提交成功");
                         } else {
                             info!("👍 Share Accept");
                         }
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                         //debug!("Got jobs {}",server_json_rpc);
-                        if let Some(diff) = server_json_rpc.result.get(3) {
-                            //debug!("✅ Got Job Diff {}", diff);
-                        }
+                        // if let Some(diff) = server_json_rpc.result.get(3) {
+                        //     //debug!("✅ Got Job Diff {}", diff);
+                        // }
                     } else {
                         debug!(
                             "❗ ------未捕获封包:{:?}",

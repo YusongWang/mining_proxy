@@ -171,7 +171,7 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-
+            debug!("🚜🚜 抽水矿机 :{}", client_msg);
 
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {

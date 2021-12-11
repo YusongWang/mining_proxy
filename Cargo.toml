@@ -1,7 +1,7 @@
 [package]
 name = "proxy"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 authors = ["Yusong Wang <admin@wangyusong.com>"]
 description = "A simple Eth Proxy\n一个简单的以太坊SSL代理工具\n本工具是开放软件，任何人都可以免费下载和使用。\n请遵循本地法律的情况下使用。如非法使用由软件使用人承担一切责任\n"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

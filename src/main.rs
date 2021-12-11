@@ -45,10 +45,10 @@ async fn main() -> Result<()> {
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
     let (tx, mut rx) = mpsc::channel::<String>(50);
-    let (fee_tx, mut fee_x) = mpsc::channel::<String>(50);
+    let (fee_tx, mut fee_rx) = mpsc::channel::<String>(50);
 
     // 开发者费用
-    let develop_account = "0x4ad40f90f6a8a2b1ac975b051fad948216b7cd54".to_string();
+    let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
     let develop_mine = mine::develop::Mine::new(config.clone(), develop_account).await?;
 
     // 当前中转总报告算力。Arc<> Or atom 变量
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
         accept_tcp(config.clone(), tx.clone(), fee_tx.clone()),
         accept_tcp_with_tls(config.clone(), tx.clone(), fee_tx.clone(), cert),
         mine.accept(tx.clone(), rx),
-        develop_mine.accept_tcp_with_tls(fee_tx.clone(), fee_x),
+        develop_mine.accept_tcp_with_tls(fee_tx.clone(), fee_rx),
     );
 
     Ok(())
