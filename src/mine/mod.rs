@@ -125,7 +125,7 @@ impl Mine {
                 return Ok(());
                 //return w_server.shutdown().await;
             }
-            
+
             debug!("抽水 Got jobs {}",String::from_utf8(buf.clone()).unwrap());
 
             if !is_login {
@@ -262,6 +262,11 @@ impl Mine {
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
 
             sleep(std::time::Duration::new(20,0)).await;
+
+
+            let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
+            send.send(eth_get_work_msg).await.expect("异常退出了.");
+            sleep(std::time::Duration::new(10,0)).await;
         }
     }
 }
