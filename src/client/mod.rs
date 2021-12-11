@@ -45,6 +45,12 @@ where
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
                     //TODO 重构随机数函数。
+                    
+                    debug!(
+                        "✅ Worker :{} Share #{:?}",
+                        client_json_rpc.worker, client_json_rpc
+                    );
+
 
                     let mut rng = ChaCha20Rng::from_entropy();
                     let secret_number = rng.gen_range(1..1000);
