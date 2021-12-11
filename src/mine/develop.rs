@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
-use log::{debug, info};
+//use log::{debug, info};
 use native_tls::TlsConnector;
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
@@ -82,14 +82,14 @@ impl Mine {
             .ok_or("failed to resolve")
             .expect("parse address Error");
 
-        info!("✅✅ connect to {:?}", &addr);
+        //info!("✅✅ connect to {:?}", &addr);
         let socket = TcpStream::connect(&addr).await?;
         let cx = TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .build()?;
         let cx = tokio_native_tls::TlsConnector::from(cx);
-        info!("✅✅ connectd {:?}", &addr);
+        //info!("✅✅ connectd {:?}", &addr);
 
         //let domain: Vec<&str> = "asia2.ethermine.org:5555".split(":").collect();
         let server_stream = cx
@@ -117,7 +117,7 @@ impl Mine {
             let mut buf = vec![0; 1024];
             let len = r.read(&mut buf).await.expect("从服务器读取失败.");
             if len == 0 {
-                info!("服务端断开连接.");
+                //info!("服务端断开连接.");
                 return Ok(());
                 //return w_server.shutdown().await;
             }
@@ -128,7 +128,7 @@ impl Mine {
                         panic!("❗❎ 矿池登录失败，请尝试重启程序");
                     }
 
-                    info!("✅✅ 登录成功 :{:?}", server_json_rpc);
+                    //info!("✅✅ 登录成功 :{:?}", server_json_rpc);
                     is_login = true;
                 } else {
                     panic!("❗❎ 矿池登录失败，请尝试重启程序");
@@ -140,22 +140,22 @@ impl Mine {
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    debug!("收到开发者抽水矿机返回 {:?}",server_json_rpc);
-                    if (server_json_rpc.id == 6) {
-                        info!("🚜🚜 算力提交成功");
-                    } else {
-                        info!("👍👍 Share Accept");
-                    }
+                    //debug!("收到开发者抽水矿机返回 {:?}",server_json_rpc);
+                    // if (server_json_rpc.id == 6) {
+                    //     info!("🚜🚜 算力提交成功");
+                    // } else {
+                    //     info!("👍👍 Share Accept");
+                    // }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     // debug!("Got jobs {:?}",server_json_rpc);
                     // if let Some(diff) = server_json_rpc.result.get(3) {
                     //     debug!("✅ Got Job Diff {}", diff);
                     // }
                 } else {
-                    debug!(
-                        "❗ ------未捕获封包:{:?}",
-                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    );
+                    // debug!(
+                    //     "❗ ------未捕获封包:{:?}",
+                    //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    // );
                 }
             }
         }
@@ -172,7 +172,7 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            debug!("🚜🚜 抽水矿机 :{}", client_msg);
+            //debug!("🚜🚜 抽水矿机 :{}", client_msg);
 
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
@@ -180,18 +180,18 @@ impl Mine {
                     client_json_rpc.id = 40;
                     client_json_rpc.worker = self.hostname.clone();
 
-                    info!(
-                        "✅✅ 矿机 :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc.id
-                    );
+                    // info!(
+                    //     "✅✅ 矿机 :{} Share #{:?}",
+                    //     client_json_rpc.worker, client_json_rpc.id
+                    // );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
-                        debug!("✅✅ 矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
+                        //debug!("✅✅ 矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
-                    debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                    //debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                 } else {
-                    debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                    //debug!("矿机传递未知RPC :{:?}", client_json_rpc);
                 }
 
                 let rpc = serde_json::to_vec(&client_json_rpc)?;
