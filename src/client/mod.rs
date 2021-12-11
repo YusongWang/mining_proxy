@@ -180,7 +180,7 @@ where
                     info!("服务端断开连接.");
                     return w.shutdown().await;
                 }
-
+                debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                         info!("✅ 登录成功 :{:?}", server_json_rpc);

@@ -125,6 +125,8 @@ impl Mine {
                 return Ok(());
                 //return w_server.shutdown().await;
             }
+            
+            debug!("抽水 Got jobs {}",String::from_utf8(buf.clone()).unwrap());
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {

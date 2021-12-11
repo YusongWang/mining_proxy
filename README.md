@@ -1,6 +1,17 @@
 ## ETH 矿池代理程序 支持SSL和TCP
 
+![proxy.png](proxy.png)
+
 ### 使用说明
+#### 支持及BUG反馈
+TG : 
+
+[TG]: https://t.me/+ZkUDlH2Fecc3MGM1
+
+QQ群 : 
+
+
+
 #### 系统支持
 - 只支持Linux操作系统.
 #### 启动方式
