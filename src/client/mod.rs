@@ -32,6 +32,8 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let mut worker = String::new();
+
     loop {
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
@@ -118,32 +120,35 @@ where
                     }
 
                     info!(
-                        "✅ 矿机 :{} Share #{:?}",
+                        "✅ worker :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc.id
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         info!(
-                            "✅ 矿机 :{} 提交本地算力 {}",
+                            "✅ worker :{} 提交本地算力 {}",
                             client_json_rpc.worker, hashrate
                         );
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
-                    info!("✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                    worker = client_json_rpc.worker.clone();
+                    info!("✅ worker :{} 请求登录", client_json_rpc.worker);
                 } else {
-                    debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                    debug!("worker 传递未知RPC :{:?}", client_json_rpc);
                 }
 
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    info!("✅ 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。 001");
+                    info!("✅ worker: {} 服务器断开连接.",worker);
                     return w.shutdown().await;
                 }
             } else if let Ok(_) = serde_json::from_slice::<ClientGetWork>(&buf[0..len]) {
                 //debug!("获得任务:{:?}", client_json_rpc);
+
+                info!("✅ worker: {} 请求计算任务",worker);
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    info!("✅ 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。 002");
+                    info!("✅ worker: {} 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。",worker);
                     return w.shutdown().await;
                 }
             }
