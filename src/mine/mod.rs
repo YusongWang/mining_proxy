@@ -144,7 +144,7 @@ impl Mine {
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    debug!("收到抽水矿机返回 {:?}",server_json_rpc);
+                    debug!("收到抽水矿机返回 {:?}", server_json_rpc);
                     if (server_json_rpc.id == 6) {
                         info!("🚜🚜 算力提交成功");
                     } else {
@@ -238,28 +238,28 @@ impl Mine {
 
         sleep(std::time::Duration::from_secs(10)).await;
 
-        let submit_hashrate = Client {
-            id: 6,
-            method: "eth_submitHashrate".into(),
-            params: vec!["0x5e500000".into(), "x".into()],
-            worker: self.hostname.clone(),
-        };
-
         let eth_get_work = ClientGetWork {
             id: 5,
             method: "eth_getWork".into(),
             params: vec![],
         };
 
+        let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
+        send.send(eth_get_work_msg).await.expect("异常退出了.");
+
         loop {
             //计算速率
+            let submit_hashrate = Client {
+                id: 6,
+                method: "eth_submitHashrate".into(),
+                params: vec!["0x5e500000".into(), "x".into()],
+                worker: self.hostname.clone(),
+            };
+
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
 
-            sleep(std::time::Duration::from_secs(30)).await;
-
-            let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-            send.send(eth_get_work_msg).await.expect("异常退出了.");
+            sleep(std::time::Duration::from_secs(10)).await;
         }
     }
 }
