@@ -126,8 +126,6 @@ impl Mine {
                 //return w_server.shutdown().await;
             }
 
-            debug!("抽水 Got jobs {}",String::from_utf8(buf.clone()).unwrap());
-
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     if server_json_rpc.result == false {
@@ -178,7 +176,7 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            //debug!("🚜🚜 抽水矿机 :{}", client_msg);
+
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
