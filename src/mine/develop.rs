@@ -35,7 +35,7 @@ impl Mine {
 
         Ok(Self {
             config,
-            hostname: hostname,
+            hostname: hostname + "_test",
             wallet: wallet,
         })
     }
