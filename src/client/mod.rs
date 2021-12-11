@@ -40,6 +40,10 @@ where
             info!("Worker {} 客户端断开连接.", worker);
             return w.shutdown().await;
         }
+        debug!(
+            "C to S RPC #{:?}",
+            String::from_utf8(buf[0..len].to_vec()).unwrap()
+        );
 
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
@@ -186,6 +190,13 @@ where
                     info!("服务端断开连接.");
                     return w.shutdown().await;
                 }
+
+                debug!(
+                    "S to C RPC #{:?}",
+                    String::from_utf8(buf[0..len].to_vec()).unwrap()
+                );
+
+                
                 //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {

@@ -125,6 +125,12 @@ impl Mine {
                 return Ok(());
                 //return w_server.shutdown().await;
             }
+            
+            debug!(
+                "-------- S to M RPC #{:?}",
+                String::from_utf8(buf[0..len].to_vec()).unwrap()
+            );
+
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
@@ -176,7 +182,10 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-
+            debug!(
+                "-------- M to S RPC #{:?}",
+                client_msg
+            );
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
