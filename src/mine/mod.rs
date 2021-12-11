@@ -182,8 +182,9 @@ impl Mine {
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
-                    client_json_rpc.id = 40;
-                    client_json_rpc.worker = self.hostname.clone();
+                    //client_json_rpc.id = 40;
+                    client_json_rpc.id = 499;
+                    //client_json_rpc.worker = self.hostname.clone();
                     debug!(
                         "🚜🚜 抽水矿机 :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc
