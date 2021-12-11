@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::{debug, error, info};
+use log::{debug, info};
 
 use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -35,7 +35,7 @@ pub async fn accept_tcp(
         tokio::spawn(async move {
             let transfer = transfer(stream, c, s, d).map(|r| {
                 if let Err(e) = r {
-                    error!("❎ 线程退出 : error={}", e);
+                    info!("❎ 线程退出 : error={}", e);
                 }
             });
             tokio::spawn(transfer);

@@ -1,7 +1,7 @@
 use std::net::ToSocketAddrs;
 
 use anyhow::Result;
-use log::{error, info};
+use log::{info};
 
 use bytes::BytesMut;
 use tokio::fs::File;
@@ -47,7 +47,7 @@ pub async fn accept_tcp_with_tls(
         tokio::spawn(async move {
             let transfer = transfer_ssl(acceptor, stream, c, s, fee).map(|r| {
                 if let Err(e) = r {
-                    error!("❎ 线程退出 : error={}", e);
+                    info!("❎ 线程退出 : error={}", e);
                 }
             });
 
