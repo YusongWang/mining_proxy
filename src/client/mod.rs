@@ -77,10 +77,12 @@ where
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 // TODO
                                 debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                proxy_fee_sender.send(rpc);
+                                proxy_fee_sender.send(rpc).await.expect("给矿池提交工作任务失败。请报告此BUG。");
+                                continue;
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                         }
+
                     }
 
                     if DEVFEE == true {
@@ -274,11 +276,12 @@ where
                         // }
                         // 过滤掉远程矿池的封包。从此处在队列中pull拉取任务。
 
-                        debug!(
-                            "过滤掉远程矿池的封包。从此处在队列中pull拉取任务。"
-                        );
+                        //TODO 每一个封包都判断是否截获，然后伪装为自己的封包。如果伪装自己的封包则取计算任务。然后分配给矿机。矿机提交时再截获回来。进行提交。
+                        // debug!(
+                        //     "过滤掉远程矿池的封包。从此处在队列中pull拉取任务。"
+                        // );
 
-                        continue;
+                        //continue;
                     } else {
                         debug!(
                             "❗ ------未捕获封包:{:?}",
