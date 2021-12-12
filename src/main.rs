@@ -3,12 +3,16 @@ use std::sync::Arc;
 use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
-use log::info;
+use log::{debug, info};
 use native_tls::Identity;
 use tokio::{
     fs::File,
     io::AsyncReadExt,
-    sync::{broadcast, mpsc, RwLock},
+    sync::{
+        broadcast,
+        mpsc::{self, Receiver},
+        RwLock, RwLockWriteGuard,
+    },
 };
 
 mod client;
@@ -22,6 +26,7 @@ use util::{config, get_app_command_matches, logger};
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
     mine::Mine,
+    protocol::rpc::eth::Server,
     state::State,
     util::hex_to_hashrate,
 };
@@ -60,7 +65,7 @@ async fn main() -> Result<()> {
     // 分配任务给矿机channel
     let (job_send, _) = broadcast::channel::<String>(1);
     // 分配任务给矿机channel
-    //let (job_send, jobs_recv) = mpsc::channel::<String>(50);
+    let (state_send, mut state_recv) = mpsc::channel::<String>(50);
 
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
@@ -75,12 +80,14 @@ async fn main() -> Result<()> {
     let state = Arc::new(RwLock::new(State::new()));
 
     let _ = tokio::join!(
+        process_state(state.clone(), state_recv),
         accept_tcp(
             state.clone(),
             config.clone(),
             job_send.clone(),
             proxy_fee_sender.clone(),
-            fee_tx.clone()
+            fee_tx.clone(),
+            state_send.clone(),
         ),
         accept_tcp_with_tls(
             state.clone(),
@@ -88,6 +95,7 @@ async fn main() -> Result<()> {
             job_send.clone(),
             proxy_fee_sender.clone(),
             fee_tx.clone(),
+            state_send.clone(),
             cert
         ),
         mine.accept(
@@ -100,4 +108,32 @@ async fn main() -> Result<()> {
     );
 
     Ok(())
+}
+
+async fn process_state(state: Arc<RwLock<State>>, mut state_recv: Receiver<String>) -> Result<()> {
+    debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
+    loop {
+        let job = state_recv.recv().await.expect("从队列获得任务失败.");
+        debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
+        let job = serde_json::from_str::<Server>(&*job)?;
+        let job_id = job.result.get(0).expect("封包格式错误");
+        {
+            let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+            if mine_jobs.insert(job_id.clone()) {
+                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+            }
+            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
+        }
+
+        debug!("Job_id {} 写入成功", job_id);
+        let job_str = serde_json::to_string(&job)?;
+        {
+            let mut mine_queue =
+                RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
+            if mine_queue.remove(&job_str) {
+                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
+            }
+            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
+        }
+    }
 }

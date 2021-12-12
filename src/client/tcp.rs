@@ -22,6 +22,8 @@ pub async fn accept_tcp(
     job_send: broadcast::Sender<String>,
     send: Sender<String>,
     d_send: Sender<String>,
+    state_send: Sender<String>,
+    
 ) -> Result<()> {
     if config.pool_tcp_address.is_empty() {
         return Ok(());
@@ -41,8 +43,10 @@ pub async fn accept_tcp(
         let state = state.clone();
 
         let jobs_recv = job_send.subscribe();
+        let state_send = state_send.clone();
+
         tokio::spawn(async move {
-            let transfer = transfer(state, jobs_recv, stream, c, s, d).map(|r| {
+            let transfer = transfer(state, jobs_recv, stream, c, s, d,state_send).map(|r| {
                 if let Err(e) = r {
                     info!("❎ 线程退出 : error={}", e);
                 }
@@ -57,8 +61,9 @@ async fn transfer(
     jobs_recv: broadcast::Receiver<String>,
     inbound: TcpStream,
     config: Settings,
-    send: Sender<String>,
+    proxy_fee_send: Sender<String>,
     fee: Sender<String>,
+    state_send: Sender<String>,
 ) -> Result<()> {
     let outbound = TcpStream::connect(&config.pool_tcp_address.to_string()).await?;
 
@@ -73,7 +78,8 @@ async fn transfer(
             config.clone(),
             r_client,
             w_server,
-            send.clone(),
+            proxy_fee_send.clone(),
+            state_send.clone(),
             fee.clone(),
             tx.clone()
         ),
@@ -83,7 +89,8 @@ async fn transfer(
             jobs_recv,
             r_server,
             w_client,
-            send.clone(),
+            proxy_fee_send.clone(),
+            state_send.clone(),
             rx
         )
     )?;

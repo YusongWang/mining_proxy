@@ -201,8 +201,10 @@ impl Mine {
                     if let Some(job_diff) = server_json_rpc.result.get(2) {
                         if diff.is_empty() || diff != *job_diff {
                             //新的难度发现。
+                            debug!("新的难度发现。");
                             diff = job_diff.clone();
                             {
+                                debug!("清理队列。");
                                 //清理队列。
                                 let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                     &mut s.mine_jobs_queue
@@ -234,6 +236,7 @@ impl Mine {
                             });
                             jobs.insert(job);
                         }
+
 
                         // debug!("发送到等待队列进行工作: {}", job_id);
                         // let job = serde_json::to_string(&server_json_rpc)?;
@@ -342,7 +345,7 @@ impl Mine {
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
         send.send(eth_get_work_msg).await.expect("异常退出了.");
-        sleep(std::time::Duration::new(1, 0)).await;
+        sleep(std::time::Duration::new(5, 0)).await;
         loop {
             {
                 //新增一个share
@@ -373,11 +376,11 @@ impl Mine {
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
 
-            sleep(std::time::Duration::new(1, 0)).await;
+            sleep(std::time::Duration::new(10, 0)).await;
 
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg).await.expect("异常退出了.");
-            sleep(std::time::Duration::new(1, 0)).await;
+            sleep(std::time::Duration::new(10, 0)).await;
         }
     }
 }

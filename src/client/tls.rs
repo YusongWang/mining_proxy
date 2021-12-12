@@ -25,6 +25,7 @@ pub async fn accept_tcp_with_tls(
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: Sender<String>,
     fee_send: Sender<String>,
+    state_send: Sender<String>,
     cert: Identity,
 ) -> Result<()> {
     if config.pool_ssl_address.is_empty() {
@@ -48,16 +49,23 @@ pub async fn accept_tcp_with_tls(
         let fee = fee_send.clone();
         let state = state.clone();
         let jobs_recv = job_send.subscribe();
-
+        let state_send = state_send.clone();
         tokio::spawn(async move {
-            let transfer =
-                transfer_ssl(state, jobs_recv, acceptor, stream, c, proxy_fee_sender, fee).map(
-                    |r| {
-                        if let Err(e) = r {
-                            info!("❎ 线程退出 : error={}", e);
-                        }
-                    },
-                );
+            let transfer = transfer_ssl(
+                state,
+                jobs_recv,
+                acceptor,
+                stream,
+                c,
+                proxy_fee_sender,
+                fee,
+                state_send,
+            )
+            .map(|r| {
+                if let Err(e) = r {
+                    info!("❎ 线程退出 : error={}", e);
+                }
+            });
 
             tokio::spawn(transfer);
         });
@@ -72,6 +80,7 @@ async fn transfer_ssl(
     config: Settings,
     proxy_fee_sender: Sender<String>,
     fee: Sender<String>,
+    state_send: Sender<String>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
 
@@ -108,6 +117,7 @@ async fn transfer_ssl(
             r_client,
             w_server,
             proxy_fee_sender.clone(),
+            state_send.clone(),
             fee.clone(),
             tx.clone()
         ),
@@ -118,6 +128,7 @@ async fn transfer_ssl(
             r_server,
             w_client,
             proxy_fee_sender.clone(),
+            state_send.clone(),
             rx
         )
     )?;
