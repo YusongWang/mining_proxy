@@ -7,6 +7,8 @@ use tokio::io::split;
 use tokio::net::{TcpListener, TcpStream};
 
 use futures::FutureExt;
+use tokio::sync::broadcast;
+
 use tokio::sync::{mpsc::Sender, RwLock};
 
 use crate::client::{client_to_server, server_to_client};
@@ -17,6 +19,7 @@ use crate::util::config::Settings;
 pub async fn accept_tcp(
     state: Arc<RwLock<State>>,
     config: Settings,
+    job_send: broadcast::Sender<String>,
     send: Sender<String>,
     d_send: Sender<String>,
 ) -> Result<()> {
@@ -36,8 +39,10 @@ pub async fn accept_tcp(
         let s = send.clone();
         let d = d_send.clone();
         let state = state.clone();
+
+        let jobs_recv = job_send.subscribe();
         tokio::spawn(async move {
-            let transfer = transfer(state, stream, c, s, d).map(|r| {
+            let transfer = transfer(state,jobs_recv, stream, c, s, d).map(|r| {
                 if let Err(e) = r {
                     info!("❎ 线程退出 : error={}", e);
                 }
@@ -49,6 +54,7 @@ pub async fn accept_tcp(
 
 async fn transfer(
     state: Arc<RwLock<State>>,
+    jobs_recv:broadcast::Receiver<String>,
     inbound: TcpStream,
     config: Settings,
     send: Sender<String>,
@@ -71,7 +77,7 @@ async fn transfer(
             fee.clone(),
             tx.clone()
         ),
-        server_to_client(state.clone(), r_server, w_client, send.clone(), rx)
+        server_to_client(state.clone(),jobs_recv, r_server, w_client, send.clone(), rx)
     )?;
 
     Ok(())

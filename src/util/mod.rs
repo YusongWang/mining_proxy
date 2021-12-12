@@ -3,6 +3,27 @@ pub mod config;
 extern crate clap;
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
+extern crate rustc_serialize as serialize; 
+use serialize::hex::FromHex; 
+
+
+pub fn hex_to_hashrate(hex: &str) -> Result<f64> {
+    let hex = &hex[1..hex.len()];
+
+    //println!("{:?}",442250769f64.to_ne_bytes());
+
+    // let a = hex::decode(hex)?;
+    // f64::from_ne_bytes(&a[..]);
+    // println!("{:?}", a);
+    Ok(0.0)
+}   
+
+#[test]
+fn test_hex_to_hashrate() {
+    let hex = "0x1a5c3611";
+    
+    //assert_eq!(Ok(0.0), hex_to_hashrate(hex));
+}
 
 pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(crate_name!())

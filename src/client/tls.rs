@@ -10,8 +10,8 @@ extern crate native_tls;
 use native_tls::{Identity, TlsConnector};
 
 use futures::FutureExt;
-use tokio::sync::RwLock;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::{RwLock, broadcast};
+use tokio::sync::mpsc::{Sender};
 
 use crate::client::{client_to_server, server_to_client};
 
@@ -22,6 +22,7 @@ use crate::util::config::Settings;
 pub async fn accept_tcp_with_tls(
     state:Arc<RwLock<State>>,
     config: Settings,
+    job_send: broadcast::Sender<String>,
     send: Sender<String>,
     fee_send: Sender<String>,
     cert: Identity,
@@ -46,9 +47,10 @@ pub async fn accept_tcp_with_tls(
         let s = send.clone();
         let fee = fee_send.clone();
         let state = state.clone();
+        let jobs_recv = job_send.subscribe();
 
         tokio::spawn(async move {
-            let transfer = transfer_ssl(state,acceptor, stream, c, s, fee).map(|r| {
+            let transfer = transfer_ssl(state,jobs_recv,acceptor, stream, c, s, fee).map(|r| {
                 if let Err(e) = r {
                     info!("❎ 线程退出 : error={}", e);
                 }
@@ -61,6 +63,7 @@ pub async fn accept_tcp_with_tls(
 
 async fn transfer_ssl(
     state:Arc<RwLock<State>>,
+    jobs_recv:broadcast::Receiver<String>,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     inbound: TcpStream,
     config: Settings,
@@ -105,7 +108,7 @@ async fn transfer_ssl(
             fee.clone(),
             tx.clone()
         ),
-        server_to_client(state.clone(),r_server, w_client, send.clone(), rx)
+        server_to_client(state.clone(),jobs_recv,r_server, w_client, send.clone(), rx)
     )?;
 
     // let client_to_server = async {

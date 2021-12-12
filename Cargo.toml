@@ -24,6 +24,6 @@ hostname = "0.3.1"
 rand = "0.8.3"
 rand_chacha = "0.3.1"
 hex = "0.4.3"
-
+rustc-serialize = "0.3.24"
 [profile.release]
 panic = 'abort'

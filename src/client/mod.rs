@@ -10,7 +10,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::{
         mpsc::{Receiver, Sender},
-        RwLock, RwLockWriteGuard,
+        RwLock, RwLockWriteGuard, broadcast,
     },
 };
 
@@ -203,6 +203,7 @@ where
 
 async fn server_to_client<R, W>(
     state: Arc<RwLock<State>>,
+    mut jobs_recv:broadcast::Receiver<String>,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     _send: Sender<String>,
@@ -274,6 +275,19 @@ where
                 let msg = id1.expect("解析Server封包错误");
 
                 let rpc = serde_json::to_vec(&msg)?;
+                let mut byte = BytesMut::new();
+                byte.put_slice(&rpc[0..rpc.len()]);
+                byte.put_u8(b'\n');
+                let w_len = w.write_buf(&mut byte).await?;
+                if w_len == 0 {
+                    return w.shutdown().await;
+                }
+            },
+            job = jobs_recv.recv() => {
+                let job = job.expect("解析Server封包错误");
+                let rpc = serde_json::to_vec(&job)?;
+                //TODO 判断work是发送给那个矿机的。目前全部接受。
+                debug!("发送指派任务给矿机");
                 let mut byte = BytesMut::new();
                 byte.put_slice(&rpc[0..rpc.len()]);
                 byte.put_u8(b'\n');
