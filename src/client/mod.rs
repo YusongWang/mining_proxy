@@ -67,16 +67,16 @@ where
 
                     if let Some(job_id) = client_json_rpc.params.get(1) {
                         {
+                            debug!("-------- JOB_ID {} Share ",job_id);
                             // 判断接受的任务属于哪个channel
                             let mut mine =
                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                            if mine.get(job_id).is_some() {
+                            if mine.contains(job_id) {
                                 mine.remove(job_id);
 
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 // TODO
-
-                                debug!("收到 指派任务。可以提交到矿池了。");
+                                debug!("------- 收到 指派任务。可以提交给矿池了 {:?}",job_id);
                                 proxy_fee_sender.send(rpc);
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);

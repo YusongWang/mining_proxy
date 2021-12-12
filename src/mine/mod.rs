@@ -198,7 +198,7 @@ impl Mine {
                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
                             jobs.insert(job_id.clone());
                         }
-                        
+
                         let job = serde_json::to_string(&server_json_rpc)?;
                         jobs_send.send(job).expect("与矿机通讯建立失败");
 
@@ -317,6 +317,14 @@ impl Mine {
                 }
             }
 
+            {
+                //新增一个share
+                let jobs = RwLockReadGuard::map(state.read().await, |s| &s.mine_jobs);
+
+                for job_id in &*jobs {
+                    info!("——-------—————— 当前有-job {}",job_id);
+                }
+            }
             //计算速率
             let submit_hashrate = Client {
                 id: 6,
