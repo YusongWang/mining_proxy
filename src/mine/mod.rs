@@ -184,7 +184,12 @@ impl Mine {
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     //debug!("Got jobs {}",server_json_rpc);
                     //新增一个share
-                    if let Some(job_id) = server_json_rpc.result.get(1) {
+                    if let Some(job_id) = server_json_rpc.result.get(0) {
+                        //0 工作任务HASH
+                        //1 DAG 
+                        //2 diff
+
+                        
                         // 判断是丢弃任务还是通知任务。
 
                         // 测试阶段全部通知
