@@ -196,9 +196,12 @@ impl Mine {
                         {
                             let mut jobs =
                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                            jobs.insert(job_id.clone());
+                            if (jobs.insert(job_id.clone())) {
+                                debug!("Job_id {} 写入成功",job_id);
+                            };
                         }
 
+                        debug!("发送到矿机进行工作: {}",job_id);
                         let job = serde_json::to_string(&server_json_rpc)?;
                         jobs_send.send(job).expect("与矿机通讯建立失败");
 
@@ -336,11 +339,11 @@ impl Mine {
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
 
-            sleep(std::time::Duration::new(20, 0)).await;
+            sleep(std::time::Duration::new(1, 0)).await;
 
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg).await.expect("异常退出了.");
-            sleep(std::time::Duration::new(10, 0)).await;
+            sleep(std::time::Duration::new(1, 0)).await;
         }
     }
 }
