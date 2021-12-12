@@ -8,6 +8,7 @@ pub struct State {
     pub proxy_jobs: HashSet<String>,
     pub proxy_share: u64,
     pub mine_jobs: HashSet<String>,
+    pub mine_jobs_queue: HashSet<String>,
     pub mine_share: u64,
     pub develop_jobs: HashSet<String>,
     pub develop_share: u64,
@@ -23,6 +24,7 @@ impl State {
             proxy_share: 0,
             mine_share: 0,
             develop_share: 0,
+            mine_jobs_queue: HashSet::new(),
         }
     }
 }

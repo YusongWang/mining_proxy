@@ -36,7 +36,11 @@ async fn main() -> Result<()> {
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
-    logger::init(crate_name!(), config.log_path.clone(), config.log_level)?;
+    logger::init(
+        config.name.as_str(),
+        config.log_path.clone(),
+        config.log_level,
+    )?;
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个");
         panic!();

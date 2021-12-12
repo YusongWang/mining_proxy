@@ -43,11 +43,7 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
 
 pub mod logger {
 
-    pub fn init(
-        app_name: &'static str,
-        path: String,
-        log_level: u32,
-    ) -> Result<(), fern::InitError> {
+    pub fn init(app_name: &str, path: String, log_level: u32) -> Result<(), fern::InitError> {
         // parse log_laver
         let lavel = match log_level {
             3 => log::LevelFilter::Error,

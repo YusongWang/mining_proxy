@@ -1,3 +1,4 @@
+name: "proxy"
 log_level: 1 
 log_path: "logs"
 ssl_port: 8443
@@ -7,6 +8,7 @@ pool_tcp_address: "47.242.58.242:8088"
 share_ssl_address: "47.242.58.242:8089"
 share_tcp_address: "47.242.58.242:8088"
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
+share_name: "eth_test_miner"
 share_rate: 0.05
 share: 1
 p12_path: "./identity.p12"

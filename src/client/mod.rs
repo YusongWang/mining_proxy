@@ -257,39 +257,87 @@ where
                                 Ordering::Less => {}
                                 _ => {
 
-                                    while let Ok(job) = jobs_recv.recv().await {
-                                        info!("got = {:?}", job);
-                                        let rpc = serde_json::from_str::<Server>(&job)?;
-                                        //记录任务  ID-----
-                                        // TODO 每次DIFF改变后记录清空
-                                        if let Some(job_id) = rpc.result.get(0) {
-                                            if let Some(diff) = rpc.result.get(2){
-                                                if let Some(sdiff) = server_json_rpc.result.get(2){
-                                                    if diff == sdiff {
-                                                        let mut jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                                                        if (jobs.insert(job_id.clone())) {
-                                                            debug!("Job_id {} 写入成功", job_id);
-                                                            let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
-                                                            let mut byte = BytesMut::new();
-                                                            byte.put_slice(&rpc[..]);
-                                                            byte.put_u8(b'\n');
-                                                            debug!("发送指派任务给矿机 {:?}",job);
-                                                            let w_len = w.write_buf(&mut byte).await?;
-                                                            if w_len == 0 {
-                                                                debug!("矿机任务写入失败 {:?}",job);
-                                                                return w.shutdown().await;
-                                                            }
-                                                            break;
-                                                        };
-                                                    }
-                                                }
+                                    //将任务加入队列。
+                                    let mut jobs =
+                                        RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
+                                    //jobs.insert(job);
+                                    if jobs.iter().len() > 0{
+                                        let job = jobs.iter().next().expect("未知错误01");
+                                        let job = serde_json::from_str::<Server>(&*job)?;
 
+                                        if let Some(job_id) = job.result.get(0) {
+                                            let mut jobs_set = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                                            //jobs_set.insert(job_id.clone());
+                                            if (jobs.insert(job_id.clone())) {
+                                                debug!("Job_id {} 写入成功", job_id);
+                                                let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
+                                                let mut byte = BytesMut::new();
+                                                byte.put_slice(&rpc[..]);
+                                                byte.put_u8(b'\n');
+                                                debug!("发送指派任务给矿机 {:?}",job);
+                                                let w_len = w.write_buf(&mut byte).await?;
+                                                if w_len == 0 {
+                                                    debug!("矿机任务写入失败 {:?}",job);
+                                                    return w.shutdown().await;
+                                                }
+                                                continue;
                                             }
-                                            //0 工作任务HASH
-                                            //1 DAG
-                                            //2 diff
                                         }
+                                    } else {
+                                        //几率不高。但是要打日志出来。
+                                        debug!("------------- 跳过本次抽水。没有任务处理了。。。");
                                     }
+                                        //let rpc =
+                                        // let mut jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                                        // if (jobs.insert(job_id.clone())) {
+                                        //     debug!("Job_id {} 写入成功", job_id);
+                                        //     let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
+                                        //     let mut byte = BytesMut::new();
+                                        //     byte.put_slice(&rpc[..]);
+                                        //     byte.put_u8(b'\n');
+                                        //     debug!("发送指派任务给矿机 {:?}",job);
+                                        //     let w_len = w.write_buf(&mut byte).await?;
+                                        //     if w_len == 0 {
+                                        //         debug!("矿机任务写入失败 {:?}",job);
+                                        //         return w.shutdown().await;
+                                        //     }
+                                        // }
+
+
+
+                                    // while let Ok(job) = jobs_recv.recv().await {
+                                    //     info!("got = {:?}", job);
+                                    //     let rpc = serde_json::from_str::<Server>(&job)?;
+                                    //     //记录任务  ID-----
+                                    //     // TODO 每次DIFF改变后记录清空
+                                    //     if let Some(job_id) = rpc.result.get(0) {
+                                    //         if let Some(diff) = rpc.result.get(2){
+                                    //             if let Some(sdiff) = server_json_rpc.result.get(2){
+                                    //                 if diff == sdiff {
+                                    //                     let mut jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                                    //                     if (jobs.insert(job_id.clone())) {
+                                    //                         debug!("Job_id {} 写入成功", job_id);
+                                    //                         let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
+                                    //                         let mut byte = BytesMut::new();
+                                    //                         byte.put_slice(&rpc[..]);
+                                    //                         byte.put_u8(b'\n');
+                                    //                         debug!("发送指派任务给矿机 {:?}",job);
+                                    //                         let w_len = w.write_buf(&mut byte).await?;
+                                    //                         if w_len == 0 {
+                                    //                             debug!("矿机任务写入失败 {:?}",job);
+                                    //                             return w.shutdown().await;
+                                    //                         }
+                                    //                         break;
+                                    //                     };
+                                    //                 }
+                                    //             }
+
+                                    //         }
+                                    //         //0 工作任务HASH
+                                    //         //1 DAG
+                                    //         //2 diff
+                                    //     }
+                                    // }
 
                                     continue;
                                 }

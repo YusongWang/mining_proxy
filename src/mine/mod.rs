@@ -33,12 +33,14 @@ pub struct Mine {
 
 impl Mine {
     pub async fn new(config: Settings) -> Result<Self> {
-        let name = hostname::get()?;
-        let mut hostname = String::new();
-        if name.is_empty() {
-            hostname = "proxy_wallet_mine".into();
-        } else {
-            hostname = hostname + name.to_str().unwrap();
+        let mut hostname = config.share_name.clone();
+        if hostname.is_empty() {
+            let name = hostname::get()?;
+            if name.is_empty() {
+                hostname = "proxy_wallet_mine".into();
+            } else {
+                hostname = hostname + name.to_str().unwrap();
+            }
         }
 
         let w = config.clone();
@@ -155,6 +157,7 @@ impl Mine {
         R: AsyncRead,
     {
         let mut is_login = false;
+        let mut diff = "".to_string();
 
         loop {
             let mut buf = vec![0; 1024];
@@ -195,6 +198,20 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                    if let Some(job_diff) = server_json_rpc.result.get(2) {
+                        if diff.is_empty() || diff != *job_diff {
+                            //新的难度发现。
+                            diff = job_diff.clone();
+                            {
+                                //清理队列。
+                                let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
+                                    &mut s.mine_jobs_queue
+                                });
+                                jobs.clear();
+                            }
+                        }
+                    }
+
                     //debug!("Got jobs {}",server_json_rpc);
                     //新增一个share
                     if let Some(job_id) = server_json_rpc.result.get(0) {
@@ -209,18 +226,18 @@ impl Mine {
                         // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
 
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
-
-                        // {
-                        //     let mut jobs =
-                        //         RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                        //     if (jobs.insert(job_id.clone())) {
-                        //         debug!("Job_id {} 写入成功", job_id);
-                        //     };
-                        // }
-
-                        debug!("发送到等待队列进行工作: {}", job_id);
                         let job = serde_json::to_string(&server_json_rpc)?;
-                        jobs_send.send(job);
+                        {
+                            //将任务加入队列。
+                            let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
+                                &mut s.mine_jobs_queue
+                            });
+                            jobs.insert(job);
+                        }
+
+                        // debug!("发送到等待队列进行工作: {}", job_id);
+                        // let job = serde_json::to_string(&server_json_rpc)?;
+                        // jobs_send.send(job);
                     }
 
                     // if let Some(diff) = server_json_rpc.result.get(3) {
@@ -344,6 +361,7 @@ impl Mine {
                     info!("——-------—————— 当前有-job {}", job_id);
                 }
             }
+
             //计算速率
             let submit_hashrate = Client {
                 id: 6,
