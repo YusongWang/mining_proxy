@@ -38,6 +38,6 @@ pub struct Server {
 #[serde(rename_all = "camelCase")]
 pub struct ServerId1 {
     pub id: i64,
-    pub jsonrpc: String,//TODO 测试这个RPC应该不是必须的
+    pub jsonrpc: String, //TODO 测试这个RPC应该不是必须的
     pub result: bool,
 }

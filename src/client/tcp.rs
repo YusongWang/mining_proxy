@@ -42,7 +42,7 @@ pub async fn accept_tcp(
 
         let jobs_recv = job_send.subscribe();
         tokio::spawn(async move {
-            let transfer = transfer(state,jobs_recv, stream, c, s, d).map(|r| {
+            let transfer = transfer(state, jobs_recv, stream, c, s, d).map(|r| {
                 if let Err(e) = r {
                     info!("❎ 线程退出 : error={}", e);
                 }
@@ -54,7 +54,7 @@ pub async fn accept_tcp(
 
 async fn transfer(
     state: Arc<RwLock<State>>,
-    jobs_recv:broadcast::Receiver<String>,
+    jobs_recv: broadcast::Receiver<String>,
     inbound: TcpStream,
     config: Settings,
     send: Sender<String>,
@@ -77,7 +77,15 @@ async fn transfer(
             fee.clone(),
             tx.clone()
         ),
-        server_to_client(state.clone(),jobs_recv, r_server, w_client, send.clone(), rx)
+        server_to_client(
+            state.clone(),
+            config.clone(),
+            jobs_recv,
+            r_server,
+            w_client,
+            send.clone(),
+            rx
+        )
     )?;
 
     Ok(())

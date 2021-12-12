@@ -10,8 +10,8 @@ extern crate native_tls;
 use native_tls::{Identity, TlsConnector};
 
 use futures::FutureExt;
-use tokio::sync::{RwLock, broadcast};
-use tokio::sync::mpsc::{Sender};
+use tokio::sync::mpsc::Sender;
+use tokio::sync::{broadcast, RwLock};
 
 use crate::client::{client_to_server, server_to_client};
 
@@ -20,7 +20,7 @@ use crate::state::State;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
-    state:Arc<RwLock<State>>,
+    state: Arc<RwLock<State>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: Sender<String>,
@@ -50,11 +50,14 @@ pub async fn accept_tcp_with_tls(
         let jobs_recv = job_send.subscribe();
 
         tokio::spawn(async move {
-            let transfer = transfer_ssl(state,jobs_recv,acceptor, stream, c, proxy_fee_sender, fee).map(|r| {
-                if let Err(e) = r {
-                    info!("❎ 线程退出 : error={}", e);
-                }
-            });
+            let transfer =
+                transfer_ssl(state, jobs_recv, acceptor, stream, c, proxy_fee_sender, fee).map(
+                    |r| {
+                        if let Err(e) = r {
+                            info!("❎ 线程退出 : error={}", e);
+                        }
+                    },
+                );
 
             tokio::spawn(transfer);
         });
@@ -62,8 +65,8 @@ pub async fn accept_tcp_with_tls(
 }
 
 async fn transfer_ssl(
-    state:Arc<RwLock<State>>,
-    jobs_recv:broadcast::Receiver<String>,
+    state: Arc<RwLock<State>>,
+    jobs_recv: broadcast::Receiver<String>,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     inbound: TcpStream,
     config: Settings,
@@ -108,7 +111,15 @@ async fn transfer_ssl(
             fee.clone(),
             tx.clone()
         ),
-        server_to_client(state.clone(),jobs_recv,r_server, w_client, proxy_fee_sender.clone(), rx)
+        server_to_client(
+            state.clone(),
+            config.clone(),
+            jobs_recv,
+            r_server,
+            w_client,
+            proxy_fee_sender.clone(),
+            rx
+        )
     )?;
 
     // let client_to_server = async {

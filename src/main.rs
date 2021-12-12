@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
     info!("✅ config init success!");
     info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
     // 分配任务给矿机channel
-    let (job_send, a) = broadcast::channel::<String>(50);
+    let (job_send, _) = broadcast::channel::<String>(500);
     // 分配任务给矿机channel
     //let (job_send, jobs_recv) = mpsc::channel::<String>(50);
 

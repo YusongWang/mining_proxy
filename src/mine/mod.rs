@@ -17,8 +17,9 @@ use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     net::TcpStream,
     sync::{
+        broadcast,
         mpsc::{Receiver, Sender},
-        RwLock, RwLockReadGuard, RwLockWriteGuard, broadcast,
+        RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -51,18 +52,18 @@ impl Mine {
     pub async fn accept(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send:broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<String>,
         send: Sender<String>,
         recv: Receiver<String>,
     ) {
         if self.config.share == 1 {
             info!("✅✅ 开启TCP矿池抽水{}", self.config.share_tcp_address);
-            self.accept_tcp(state,jobs_send.clone(), send, recv)
+            self.accept_tcp(state, jobs_send.clone(), send, recv)
                 .await
                 .expect("❎❎ TCP 抽水线程启动失败");
         } else if self.config.share == 2 {
             info!("✅✅ 开启TLS矿池抽水{}", self.config.share_ssl_address);
-            self.accept_tcp_with_tls(state,jobs_send, send, recv)
+            self.accept_tcp_with_tls(state, jobs_send, send, recv)
                 .await
                 .expect("❎❎ TLS 抽水线程启动失败");
         } else {
@@ -73,7 +74,7 @@ impl Mine {
     async fn accept_tcp(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send:broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<String>,
         send: Sender<String>,
         recv: Receiver<String>,
     ) -> Result<()> {
@@ -84,9 +85,15 @@ impl Mine {
         // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
 
         tokio::try_join!(
-            self.login_and_getwork(state.clone(),jobs_send.clone(), send.clone()),
-            self.client_to_server(state.clone(),jobs_send.clone(), send.clone(), w_server, recv),
-            self.server_to_client(state.clone(),jobs_send.clone(), send, r_server)
+            self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+            self.client_to_server(
+                state.clone(),
+                jobs_send.clone(),
+                send.clone(),
+                w_server,
+                recv
+            ),
+            self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
         )?;
         Ok(())
     }
@@ -94,7 +101,7 @@ impl Mine {
     async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send:broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<String>,
         send: Sender<String>,
         recv: Receiver<String>,
     ) -> Result<()> {
@@ -124,9 +131,15 @@ impl Mine {
         let (r_server, w_server) = split(server_stream);
 
         tokio::try_join!(
-            self.login_and_getwork(state.clone(),jobs_send.clone(), send.clone()),
-            self.client_to_server(state.clone(),jobs_send.clone(), send.clone(), w_server, recv),
-            self.server_to_client(state.clone(),jobs_send.clone(), send, r_server)
+            self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+            self.client_to_server(
+                state.clone(),
+                jobs_send.clone(),
+                send.clone(),
+                w_server,
+                recv
+            ),
+            self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
         )?;
         Ok(())
     }
@@ -134,7 +147,7 @@ impl Mine {
     async fn server_to_client<R>(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send:broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<String>,
         send: Sender<String>,
         mut r: ReadHalf<R>,
     ) -> Result<(), std::io::Error>
@@ -186,10 +199,9 @@ impl Mine {
                     //新增一个share
                     if let Some(job_id) = server_json_rpc.result.get(0) {
                         //0 工作任务HASH
-                        //1 DAG 
+                        //1 DAG
                         //2 diff
 
-                        
                         // 判断是丢弃任务还是通知任务。
 
                         // 测试阶段全部通知
@@ -198,18 +210,17 @@ impl Mine {
 
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
 
-                        {
-                            let mut jobs =
-                                RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                            if (jobs.insert(job_id.clone())) {
-                                debug!("Job_id {} 写入成功",job_id);
-                            };
-                        }
+                        // {
+                        //     let mut jobs =
+                        //         RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                        //     if (jobs.insert(job_id.clone())) {
+                        //         debug!("Job_id {} 写入成功", job_id);
+                        //     };
+                        // }
 
-                        debug!("发送到矿机进行工作: {}",job_id);
+                        debug!("发送到等待队列进行工作: {}", job_id);
                         let job = serde_json::to_string(&server_json_rpc)?;
-                        jobs_send.send(job).expect("与矿机通讯建立失败");
-
+                        jobs_send.send(job);
                     }
 
                     // if let Some(diff) = server_json_rpc.result.get(3) {
@@ -228,7 +239,7 @@ impl Mine {
     async fn client_to_server<W>(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send:broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<String>,
         send: Sender<String>,
         mut w: WriteHalf<W>,
         mut recv: Receiver<String>,
@@ -292,7 +303,7 @@ impl Mine {
     async fn login_and_getwork(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send:broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<String>,
         send: Sender<String>,
     ) -> Result<(), std::io::Error> {
         let login = Client {
@@ -330,7 +341,7 @@ impl Mine {
                 let jobs = RwLockReadGuard::map(state.read().await, |s| &s.mine_jobs);
 
                 for job_id in &*jobs {
-                    info!("——-------—————— 当前有-job {}",job_id);
+                    info!("——-------—————— 当前有-job {}", job_id);
                 }
             }
             //计算速率

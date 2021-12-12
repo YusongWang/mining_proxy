@@ -77,87 +77,50 @@ where
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 // TODO
                                 debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                proxy_fee_sender.send(rpc).await.expect("给矿池提交工作任务失败。请报告此BUG。");
+                                proxy_fee_sender
+                                    .send(rpc)
+                                    .await
+                                    .expect("给矿池提交工作任务失败。请报告此BUG。");
                                 continue;
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                         }
-
                     }
 
-                    if DEVFEE == true {
-                        let mut rng = ChaCha20Rng::from_entropy();
-                        let secret_number = rng.gen_range(1..1000);
-                        let max = (1000.0 * crate::FEE) as u32;
-                        let max = 1000 - max; //900
+                    // if DEVFEE == true {
+                    //     let mut rng = ChaCha20Rng::from_entropy();
+                    //     let secret_number = rng.gen_range(1..1000);
+                    //     let max = (1000.0 * crate::FEE) as u32;
+                    //     let max = 1000 - max; //900
 
-                        match secret_number.cmp(&max) {
-                            Ordering::Less => {}
-                            _ => {
-                                let rpc = serde_json::to_string(&client_json_rpc)?;
-                                if let Ok(_) = dev_fee_send.send(rpc).await {
-                                    // 给客户端返回一个封包成功的消息。否可客户端会主动断开
+                    //     match secret_number.cmp(&max) {
+                    //         Ordering::Less => {}
+                    //         _ => {
+                    //             let rpc = serde_json::to_string(&client_json_rpc)?;
+                    //             if let Ok(_) = dev_fee_send.send(rpc).await {
+                    //                 // 给客户端返回一个封包成功的消息。否可客户端会主动断开
 
-                                    let s = ServerId1 {
-                                        id: client_json_rpc.id,
-                                        jsonrpc: "2.0".into(),
-                                        result: true,
-                                    };
+                    //                 let s = ServerId1 {
+                    //                     id: client_json_rpc.id,
+                    //                     jsonrpc: "2.0".into(),
+                    //                     result: true,
+                    //                 };
 
-                                    tx.send(s).await.expect("不能发送给客户端已接受");
-                                    info!(
-                                        "✅ Worker :{} Share #{:?}",
-                                        client_json_rpc.worker, client_json_rpc.id
-                                    );
-                                    continue;
-                                } else {
-                                    info!(
-                                        "✅ Worker :{} Share #{:?}",
-                                        client_json_rpc.worker, client_json_rpc.id
-                                    );
-                                }
-                            }
-                        }
-                    }
-
-                    if config.share != 0 {
-                        let mut rng = ChaCha20Rng::from_entropy();
-                        let secret_number = rng.gen_range(1..1000);
-
-                        if config.share_rate <= 0.000 {
-                            config.share_rate = 0.005;
-                        }
-                        let max = (1000.0 * config.share_rate) as u32;
-                        let max = 1000 - max; //900
-
-                        match secret_number.cmp(&max) {
-                            Ordering::Less => {}
-                            _ => {
-                                let rpc = serde_json::to_string(&client_json_rpc)?;
-                                if let Ok(_) = proxy_fee_sender.send(rpc).await {
-                                    //TODO 给客户端返回一个封包成功的消息。否可客户端会主动断开
-
-                                    let s = ServerId1 {
-                                        id: client_json_rpc.id,
-                                        jsonrpc: "2.0".into(),
-                                        result: true,
-                                    };
-
-                                    tx.send(s).await.expect("不能发送给客户端已接受");
-                                    info!(
-                                        "✅ Worker :{} Share #{:?}",
-                                        client_json_rpc.worker, client_json_rpc.id
-                                    );
-                                    continue;
-                                } else {
-                                    info!(
-                                        "✅ Worker :{} Share #{:?}",
-                                        client_json_rpc.worker, client_json_rpc.id
-                                    );
-                                }
-                            }
-                        }
-                    }
+                    //                 tx.send(s).await.expect("不能发送给客户端已接受");
+                    //                 info!(
+                    //                     "✅ Worker :{} Share #{:?}",
+                    //                     client_json_rpc.worker, client_json_rpc.id
+                    //                 );
+                    //                 continue;
+                    //             } else {
+                    //                 info!(
+                    //                     "✅ Worker :{} Share #{:?}",
+                    //                     client_json_rpc.worker, client_json_rpc.id
+                    //                 );
+                    //             }
+                    //         }
+                    //     }
+                    // }
 
                     info!(
                         "✅ Worker :{} Share #{:?}",
@@ -220,6 +183,7 @@ where
 
 async fn server_to_client<R, W>(
     state: Arc<RwLock<State>>,
+    mut config: Settings,
     mut jobs_recv: broadcast::Receiver<String>,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
@@ -269,19 +233,69 @@ where
                         } else {
                             info!("👍 Share Accept");
                         }
-                    } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                        //debug!("Got jobs {}",server_json_rpc);
-                        // if let Some(diff) = server_json_rpc.result.get(3) {
-                        //     //debug!("✅ Got Job Diff {}", diff);
-                        // }
-                        // 过滤掉远程矿池的封包。从此处在队列中pull拉取任务。
+                    } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                            //debug!("Got jobs {}",server_json_rpc);
+                            // if let Some(diff) = server_json_rpc.result.get(3) {
+                            //     //debug!("✅ Got Job Diff {}", diff);
+                            // }
+                            // 过滤掉远程矿池的封包。从此处在队列中pull拉取任务。
 
-                        //TODO 每一个封包都判断是否截获，然后伪装为自己的封包。如果伪装自己的封包则取计算任务。然后分配给矿机。矿机提交时再截获回来。进行提交。
-                        // debug!(
-                        //     "过滤掉远程矿池的封包。从此处在队列中pull拉取任务。"
-                        // );
+                            //TODO 每一个封包都判断是否截获，然后伪装为自己的封包。如果伪装自己的封包则取计算任务。然后分配给矿机。矿机提交时再截获回来。进行提交。
+                            // debug!(
+                            //     "过滤掉远程矿池的封包。从此处在队列中pull拉取任务。"
+                            // );
+                            if config.share != 0 {
+                            let mut rng = ChaCha20Rng::from_entropy();
+                            let secret_number = rng.gen_range(1..1000);
 
-                        //continue;
+                            if config.share_rate <= 0.000 {
+                                config.share_rate = 0.005;
+                            }
+                            let max = (1000.0 * config.share_rate) as u32;
+                            let max = 1000 - max; //900
+                            match secret_number.cmp(&max) {
+                                Ordering::Less => {}
+                                _ => {
+
+                                    while let Ok(job) = jobs_recv.recv().await {
+                                        info!("got = {:?}", job);
+                                        let rpc = serde_json::from_str::<Server>(&job)?;
+                                        //记录任务  ID-----
+                                        // TODO 每次DIFF改变后记录清空
+                                        if let Some(job_id) = rpc.result.get(0) {
+                                            if let Some(diff) = rpc.result.get(2){
+                                                if let Some(sdiff) = server_json_rpc.result.get(2){
+                                                    if diff == sdiff {
+                                                        let mut jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                                                        if (jobs.insert(job_id.clone())) {
+                                                            debug!("Job_id {} 写入成功", job_id);
+                                                            let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
+                                                            let mut byte = BytesMut::new();
+                                                            byte.put_slice(&rpc[..]);
+                                                            byte.put_u8(b'\n');
+                                                            debug!("发送指派任务给矿机 {:?}",job);
+                                                            let w_len = w.write_buf(&mut byte).await?;
+                                                            if w_len == 0 {
+                                                                debug!("矿机任务写入失败 {:?}",job);
+                                                                return w.shutdown().await;
+                                                            }
+                                                            break;
+                                                        };
+                                                    }
+                                                }
+
+                                            }
+                                            //0 工作任务HASH
+                                            //1 DAG
+                                            //2 diff
+                                        }
+                                    }
+
+                                    continue;
+                                }
+                            }
+                        }
+
                     } else {
                         debug!(
                             "❗ ------未捕获封包:{:?}",
@@ -308,20 +322,20 @@ where
                     return w.shutdown().await;
                 }
             },
-            job = jobs_recv.recv() => {
-                let job = job.expect("解析Server封包错误");
-                let rpc = serde_json::from_str::<Server>(&job)?;
-                let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
-                //TODO 判断work是发送给那个矿机的。目前全部接受。
-                debug!("发送指派任务给矿机 {:?}",job);
-                let mut byte = BytesMut::new();
-                byte.put_slice(&rpc[..]);
-                byte.put_u8(b'\n');
-                let w_len = w.write_buf(&mut byte).await?;
-                if w_len == 0 {
-                    return w.shutdown().await;
-                }
-            }
+            // job = jobs_recv.recv() => {
+            //     let job = job.expect("解析Server封包错误");
+            //     let rpc = serde_json::from_str::<Server>(&job)?;
+            //     let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
+            //     //TODO 判断work是发送给那个矿机的。目前全部接受。
+            //     debug!("发送指派任务给矿机 {:?}",job);
+            //     let mut byte = BytesMut::new();
+            //     byte.put_slice(&rpc[..]);
+            //     byte.put_u8(b'\n');
+            //     let w_len = w.write_buf(&mut byte).await?;
+            //     if w_len == 0 {
+            //         return w.shutdown().await;
+            //     }
+            // }
         }
     }
 }
