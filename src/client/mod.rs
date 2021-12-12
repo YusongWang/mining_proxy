@@ -276,7 +276,7 @@ where
 
                         debug!(
                             "过滤掉远程矿池的封包。从此处在队列中pull拉取任务。"
-                        )
+                        );
 
                         continue;
                     } else {
