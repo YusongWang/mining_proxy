@@ -67,7 +67,7 @@ where
 
                     if let Some(job_id) = client_json_rpc.params.get(1) {
                         {
-                            debug!("-------- JOB_ID {} Share ",job_id);
+                            debug!("-------- JOB_ID {} Share ", job_id);
                             // 判断接受的任务属于哪个channel
                             let mut mine =
                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
@@ -76,7 +76,7 @@ where
 
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 // TODO
-                                debug!("------- 收到 指派任务。可以提交给矿池了 {:?}",job_id);
+                                debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
                                 proxy_fee_sender.send(rpc);
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -272,6 +272,13 @@ where
                         // if let Some(diff) = server_json_rpc.result.get(3) {
                         //     //debug!("✅ Got Job Diff {}", diff);
                         // }
+                        // 过滤掉远程矿池的封包。从此处在队列中pull拉取任务。
+
+                        debug!(
+                            "过滤掉远程矿池的封包。从此处在队列中pull拉取任务。"
+                        )
+
+                        continue;
                     } else {
                         debug!(
                             "❗ ------未捕获封包:{:?}",
@@ -302,7 +309,7 @@ where
                 let job = job.expect("解析Server封包错误");
                 let rpc = serde_json::to_vec(&job)?;
                 //TODO 判断work是发送给那个矿机的。目前全部接受。
-                debug!("发送指派任务给矿机");
+                debug!("发送指派任务给矿机 {:?}",rpc);
                 let mut byte = BytesMut::new();
                 byte.put_slice(&rpc[0..rpc.len()]);
                 byte.put_u8(b'\n');
