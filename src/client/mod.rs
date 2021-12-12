@@ -1,5 +1,5 @@
 use rand_chacha::ChaCha20Rng;
-use std::{cmp::Ordering, net::TcpStream};
+use std::{cmp::Ordering, sync::Arc};
 
 use anyhow::Result;
 
@@ -7,19 +7,25 @@ use bytes::{BufMut, BytesMut};
 use log::{debug, info};
 use rand::{Rng, SeedableRng};
 use tokio::{
-    io::{split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
-    sync::mpsc::{Receiver, Sender},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
+    sync::{
+        mpsc::{Receiver, Sender},
+        RwLock, RwLockWriteGuard,
+    },
 };
-//use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
+
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
+    state::State,
     util::config::Settings,
+    DEVFEE,
 };
 
 pub mod tcp;
 pub mod tls;
 
 async fn client_to_server<R, W>(
+    state: Arc<RwLock<State>>,
     mut config: Settings,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
@@ -40,6 +46,7 @@ where
             info!("Worker {} 客户端断开连接.", worker);
             return w.shutdown().await;
         }
+
         debug!(
             "C to S RPC #{:?}",
             String::from_utf8(buf[0..len].to_vec()).unwrap()
@@ -49,42 +56,49 @@ where
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
                     //TODO 重构随机数函数。
-                    
-                    debug!(
-                        "✅ Worker :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc
-                    );
+                    {
+                        //新增一个share
+                        let mut mapped =
+                            RwLockWriteGuard::map(state.write().await, |s| &mut s.proxy_share);
+                        *mapped = *mapped + 1;
+                        debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+                    }
 
+                    {
+                        // 判断接受的任务属于哪个channel
+                    }
 
-                    let mut rng = ChaCha20Rng::from_entropy();
-                    let secret_number = rng.gen_range(1..1000);
-                    let max = (1000.0 * crate::FEE) as u32;
-                    let max = 1000 - max; //900
+                    if DEVFEE == true {
+                        let mut rng = ChaCha20Rng::from_entropy();
+                        let secret_number = rng.gen_range(1..1000);
+                        let max = (1000.0 * crate::FEE) as u32;
+                        let max = 1000 - max; //900
 
-                    match secret_number.cmp(&max) {
-                        Ordering::Less => {}
-                        _ => {
-                            let rpc = serde_json::to_string(&client_json_rpc)?;
-                            if let Ok(_) = fee_send.send(rpc).await {
-                                // 给客户端返回一个封包成功的消息。否可客户端会主动断开
+                        match secret_number.cmp(&max) {
+                            Ordering::Less => {}
+                            _ => {
+                                let rpc = serde_json::to_string(&client_json_rpc)?;
+                                if let Ok(_) = fee_send.send(rpc).await {
+                                    // 给客户端返回一个封包成功的消息。否可客户端会主动断开
 
-                                let s = ServerId1 {
-                                    id: client_json_rpc.id,
-                                    jsonrpc: "2.0".into(),
-                                    result: true,
-                                };
+                                    let s = ServerId1 {
+                                        id: client_json_rpc.id,
+                                        jsonrpc: "2.0".into(),
+                                        result: true,
+                                    };
 
-                                tx.send(s).await.expect("不能发送给客户端已接受");
-                                info!(
-                                    "✅ Worker :{} Share #{:?}",
-                                    client_json_rpc.worker, client_json_rpc.id
-                                );
-                                continue;
-                            } else {
-                                info!(
-                                    "✅ Worker :{} Share #{:?}",
-                                    client_json_rpc.worker, client_json_rpc.id
-                                );
+                                    tx.send(s).await.expect("不能发送给客户端已接受");
+                                    info!(
+                                        "✅ Worker :{} Share #{:?}",
+                                        client_json_rpc.worker, client_json_rpc.id
+                                    );
+                                    continue;
+                                } else {
+                                    info!(
+                                        "✅ Worker :{} Share #{:?}",
+                                        client_json_rpc.worker, client_json_rpc.id
+                                    );
+                                }
                             }
                         }
                     }
@@ -134,16 +148,35 @@ where
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
+                        {
+                            //新增一个share
+                            let mut hash = RwLockWriteGuard::map(state.write().await, |s| {
+                                &mut s.report_hashrate
+                            });
+                            if hash.get(&worker).is_some() {
+                                hash.remove(&worker);
+                                hash.insert(worker.clone(), hashrate.clone());
+                            } else {
+                                hash.insert(worker.clone(), hashrate.clone());
+                            }
+                        }
+
                         info!(
                             "✅ Worker :{} 提交本地算力 {}",
                             client_json_rpc.worker, hashrate
                         );
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
-                    worker = client_json_rpc.worker.clone();
-                    info!("✅ Worker :{} 请求登录", client_json_rpc.worker);
+                    if let Some(wallet) = client_json_rpc.params.get(0) {
+                        worker = wallet.clone();
+                        worker.push_str(".");
+                        worker = worker + client_json_rpc.worker.as_str();
+                        info!("✅ Worker :{} 请求登录", client_json_rpc.worker);
+                    } else {
+                        debug!("❎ 登录错误，未找到登录参数");
+                    }
                 } else {
-                    debug!("❎ Worker {} 传递未知RPC :{:?}", worker,client_json_rpc);
+                    debug!("❎ Worker {} 传递未知RPC :{:?}", worker, client_json_rpc);
                 }
 
                 let write_len = w.write(&buf[0..len]).await?;
@@ -169,9 +202,10 @@ where
 }
 
 async fn server_to_client<R, W>(
+    state: Arc<RwLock<State>>,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
-    send: Sender<String>,
+    _send: Sender<String>,
     mut rx: Receiver<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -196,7 +230,7 @@ where
                     String::from_utf8(buf[0..len].to_vec()).unwrap()
                 );
 
-                
+
                 //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
@@ -217,7 +251,7 @@ where
                         } else {
                             info!("👍 Share Accept");
                         }
-                    } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                    } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
                         //debug!("Got jobs {}",server_json_rpc);
                         // if let Some(diff) = server_json_rpc.result.get(3) {
                         //     //debug!("✅ Got Job Diff {}", diff);

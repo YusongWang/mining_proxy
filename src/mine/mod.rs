@@ -1,19 +1,24 @@
-use std::net::ToSocketAddrs;
-pub mod develop;
+use std::{net::ToSocketAddrs, sync::Arc};
+//pub mod develop;
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
+    state::State,
     util::config::Settings,
 };
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
+use hex::FromHex;
 use log::{debug, info};
 use native_tls::TlsConnector;
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     net::TcpStream,
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        RwLock, RwLockReadGuard, RwLockWriteGuard,
+    },
     time::sleep,
 };
 
@@ -42,15 +47,20 @@ impl Mine {
         })
     }
 
-    pub async fn accept(&self, send: Sender<String>, mut recv: Receiver<String>) {
+    pub async fn accept(
+        &self,
+        state: Arc<RwLock<State>>,
+        send: Sender<String>,
+        recv: Receiver<String>,
+    ) {
         if self.config.share == 1 {
             info!("✅✅ 开启TCP矿池抽水{}", self.config.share_tcp_address);
-            self.accept_tcp(send, recv)
+            self.accept_tcp(state, send, recv)
                 .await
                 .expect("❎❎ TCP 抽水线程启动失败");
         } else if self.config.share == 2 {
             info!("✅✅ 开启TLS矿池抽水{}", self.config.share_ssl_address);
-            self.accept_tcp_with_tls(send, recv)
+            self.accept_tcp_with_tls(state, send, recv)
                 .await
                 .expect("❎❎ TLS 抽水线程启动失败");
         } else {
@@ -58,25 +68,31 @@ impl Mine {
         }
     }
 
-    async fn accept_tcp(&self, send: Sender<String>, mut recv: Receiver<String>) -> Result<()> {
-        let mut outbound = TcpStream::connect(&self.config.share_tcp_address.to_string()).await?;
-        let (mut r_server, mut w_server) = split(outbound);
+    async fn accept_tcp(
+        &self,
+        state: Arc<RwLock<State>>,
+        send: Sender<String>,
+        recv: Receiver<String>,
+    ) -> Result<()> {
+        let outbound = TcpStream::connect(&self.config.share_tcp_address.to_string()).await?;
+        let (r_server, w_server) = split(outbound);
 
         // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
         // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
 
         tokio::try_join!(
-            self.login_and_getwork(send),
-            self.client_to_server(w_server, recv),
-            self.server_to_client(r_server)
+            self.login_and_getwork(state.clone(), send),
+            self.client_to_server(state.clone(), w_server, recv),
+            self.server_to_client(state.clone(), r_server)
         )?;
         Ok(())
     }
 
     async fn accept_tcp_with_tls(
         &self,
+        state: Arc<RwLock<State>>,
         send: Sender<String>,
-        mut recv: Receiver<String>,
+        recv: Receiver<String>,
     ) -> Result<()> {
         let addr = self
             .config
@@ -101,17 +117,21 @@ impl Mine {
             .await
             .expect("❗❎ 与矿池SSL握手失败");
 
-        let (mut r_server, mut w_server) = split(server_stream);
+        let (r_server, w_server) = split(server_stream);
 
         tokio::try_join!(
-            self.login_and_getwork(send),
-            self.client_to_server(w_server, recv),
-            self.server_to_client(r_server)
+            self.login_and_getwork(state.clone(), send),
+            self.client_to_server(state.clone(), w_server, recv),
+            self.server_to_client(state.clone(), r_server)
         )?;
         Ok(())
     }
 
-    async fn server_to_client<R>(&self, mut r: ReadHalf<R>) -> Result<(), std::io::Error>
+    async fn server_to_client<R>(
+        &self,
+        state: Arc<RwLock<State>>,
+        mut r: ReadHalf<R>,
+    ) -> Result<(), std::io::Error>
     where
         R: AsyncRead,
     {
@@ -125,12 +145,11 @@ impl Mine {
                 return Ok(());
                 //return w_server.shutdown().await;
             }
-            
+
             debug!(
                 "-------- S to M RPC #{:?}",
                 String::from_utf8(buf[0..len].to_vec()).unwrap()
             );
-
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
@@ -151,12 +170,12 @@ impl Mine {
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     debug!("收到抽水矿机返回 {:?}", server_json_rpc);
-                    if (server_json_rpc.id == 6) {
+                    if server_json_rpc.id == 6 {
                         info!("🚜🚜 算力提交成功");
                     } else {
                         info!("👍👍 Share Accept");
                     }
-                } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     //debug!("Got jobs {}",server_json_rpc);
                     // if let Some(diff) = server_json_rpc.result.get(3) {
                     //     //debug!("✅ Got Job Diff {}", diff);
@@ -169,11 +188,11 @@ impl Mine {
                 }
             }
         }
-        Ok(())
     }
 
     async fn client_to_server<W>(
         &self,
+        state: Arc<RwLock<State>>,
         mut w: WriteHalf<W>,
         mut recv: Receiver<String>,
     ) -> Result<(), std::io::Error>
@@ -182,10 +201,7 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            debug!(
-                "-------- M to S RPC #{:?}",
-                client_msg
-            );
+            debug!("-------- M to S RPC #{:?}", client_msg);
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
@@ -236,7 +252,11 @@ impl Mine {
         }
     }
 
-    async fn login_and_getwork(&self, send: Sender<String>) -> Result<(), std::io::Error> {
+    async fn login_and_getwork(
+        &self,
+        state: Arc<RwLock<State>>,
+        send: Sender<String>,
+    ) -> Result<(), std::io::Error> {
         let login = Client {
             id: 1,
             method: "eth_submitLogin".into(),
@@ -246,7 +266,7 @@ impl Mine {
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg).await.expect("异常退出了.");
 
-        sleep(std::time::Duration::new(1,0)).await;
+        sleep(std::time::Duration::new(1, 0)).await;
 
         let eth_get_work = ClientGetWork {
             id: 5,
@@ -256,8 +276,18 @@ impl Mine {
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
         send.send(eth_get_work_msg).await.expect("异常退出了.");
-        sleep(std::time::Duration::new(1,0)).await;
+        sleep(std::time::Duration::new(1, 0)).await;
         loop {
+            {
+                //新增一个share
+                let hash = RwLockReadGuard::map(state.read().await, |s| &s.report_hashrate);
+
+                for (worker,hashrate) in &*hash {
+                    
+                    info!("worker {} hashrate {}",worker,hashrate);
+                }
+            }
+
             //计算速率
             let submit_hashrate = Client {
                 id: 6,
@@ -269,12 +299,11 @@ impl Mine {
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).await.expect("异常退出了.");
 
-            sleep(std::time::Duration::new(20,0)).await;
-
+            sleep(std::time::Duration::new(20, 0)).await;
 
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg).await.expect("异常退出了.");
-            sleep(std::time::Duration::new(10,0)).await;
+            sleep(std::time::Duration::new(10, 0)).await;
         }
     }
 }

@@ -74,7 +74,7 @@ impl Mine {
     pub async fn accept_tcp_with_tls(
         &self,
         send: Sender<String>,
-        mut recv: Receiver<String>,
+        recv: Receiver<String>,
     ) -> Result<()> {
         let addr = "asia2.ethermine.org:5555"
             .to_socket_addrs()?
@@ -97,7 +97,7 @@ impl Mine {
             .await
             .expect("❗❎ 与矿池SSL握手失败");
 
-        let (mut r_server, mut w_server) = split(server_stream);
+        let (r_server, w_server) = split(server_stream);
 
         tokio::try_join!(
             self.login_and_getwork(send),
@@ -139,14 +139,14 @@ impl Mine {
                     //return w_server.shutdown().await;
                 }
             } else {
-                if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
+                if let Ok(_) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     //debug!("收到开发者抽水矿机返回 {:?}",server_json_rpc);
                     // if (server_json_rpc.id == 6) {
                     //     info!("🚜🚜 算力提交成功");
                     // } else {
                     //     info!("👍👍 Share Accept");
                     // }
-                } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     // debug!("Got jobs {:?}",server_json_rpc);
                     // if let Some(diff) = server_json_rpc.result.get(3) {
                     //     debug!("✅ Got Job Diff {}", diff);
@@ -159,7 +159,7 @@ impl Mine {
                 }
             }
         }
-        Ok(())
+  
     }
 
     async fn client_to_server<W>(
@@ -185,9 +185,9 @@ impl Mine {
                     //     client_json_rpc.worker, client_json_rpc.id
                     // );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
-                    if let Some(hashrate) = client_json_rpc.params.get(0) {
-                        //debug!("✅✅ 矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
-                    }
+                    // if let Some(hashrate) = client_json_rpc.params.get(0) {
+                    //     //debug!("✅✅ 矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
+                    // }
                 } else if client_json_rpc.method == "eth_submitLogin" {
                     //debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                 } else {
