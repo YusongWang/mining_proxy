@@ -307,11 +307,12 @@ where
             },
             job = jobs_recv.recv() => {
                 let job = job.expect("解析Server封包错误");
-                let rpc = serde_json::to_vec(&job)?;
+                let rpc = serde_json::from_str::<Server>(&job)?;
+                let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
                 //TODO 判断work是发送给那个矿机的。目前全部接受。
                 debug!("发送指派任务给矿机 {:?}",job);
                 let mut byte = BytesMut::new();
-                byte.put_slice(&rpc[0..rpc.len()]);
+                byte.put_slice(&rpc[..]);
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
