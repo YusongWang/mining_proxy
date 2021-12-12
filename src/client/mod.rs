@@ -309,7 +309,7 @@ where
                 let job = job.expect("解析Server封包错误");
                 let rpc = serde_json::to_vec(&job)?;
                 //TODO 判断work是发送给那个矿机的。目前全部接受。
-                debug!("发送指派任务给矿机 {:?}",rpc);
+                debug!("发送指派任务给矿机 {:?}",job);
                 let mut byte = BytesMut::new();
                 byte.put_slice(&rpc[0..rpc.len()]);
                 byte.put_u8(b'\n');
