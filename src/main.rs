@@ -8,7 +8,7 @@ use native_tls::Identity;
 use tokio::{
     fs::File,
     io::AsyncReadExt,
-    sync::{mpsc, RwLock, broadcast},
+    sync::{broadcast, mpsc, RwLock},
 };
 
 mod client;
@@ -58,10 +58,9 @@ async fn main() -> Result<()> {
     // 分配任务给矿机channel
     //let (job_send, jobs_recv) = mpsc::channel::<String>(50);
 
-
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
-    let (tx, rx) = mpsc::channel::<String>(50);
+    let (proxy_fee_sender, proxy_fee_recver) = mpsc::channel::<String>(50);
 
     // 开发者费用
     let (fee_tx, _) = mpsc::channel::<String>(50);
@@ -72,16 +71,27 @@ async fn main() -> Result<()> {
     let state = Arc::new(RwLock::new(State::new()));
 
     let _ = tokio::join!(
-        accept_tcp(state.clone(), config.clone(),job_send.clone(), tx.clone(), fee_tx.clone()),
+        accept_tcp(
+            state.clone(),
+            config.clone(),
+            job_send.clone(),
+            proxy_fee_sender.clone(),
+            fee_tx.clone()
+        ),
         accept_tcp_with_tls(
             state.clone(),
             config.clone(),
             job_send.clone(),
-            tx.clone(),
+            proxy_fee_sender.clone(),
             fee_tx.clone(),
             cert
         ),
-        mine.accept(state.clone(),job_send, tx.clone(), rx),
+        mine.accept(
+            state.clone(),
+            job_send,
+            proxy_fee_sender.clone(),
+            proxy_fee_recver
+        ),
         //develop_mine.accept_tcp_with_tls(fee_tx.clone(), fee_rx),
     );
 

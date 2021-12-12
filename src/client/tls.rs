@@ -23,7 +23,7 @@ pub async fn accept_tcp_with_tls(
     state:Arc<RwLock<State>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
-    send: Sender<String>,
+    proxy_fee_sender: Sender<String>,
     fee_send: Sender<String>,
     cert: Identity,
 ) -> Result<()> {
@@ -44,13 +44,13 @@ pub async fn accept_tcp_with_tls(
 
         let c = config.clone();
         let acceptor = tls_acceptor.clone();
-        let s = send.clone();
+        let proxy_fee_sender = proxy_fee_sender.clone();
         let fee = fee_send.clone();
         let state = state.clone();
         let jobs_recv = job_send.subscribe();
 
         tokio::spawn(async move {
-            let transfer = transfer_ssl(state,jobs_recv,acceptor, stream, c, s, fee).map(|r| {
+            let transfer = transfer_ssl(state,jobs_recv,acceptor, stream, c, proxy_fee_sender, fee).map(|r| {
                 if let Err(e) = r {
                     info!("❎ 线程退出 : error={}", e);
                 }
@@ -67,7 +67,7 @@ async fn transfer_ssl(
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     inbound: TcpStream,
     config: Settings,
-    send: Sender<String>,
+    proxy_fee_sender: Sender<String>,
     fee: Sender<String>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
@@ -104,11 +104,11 @@ async fn transfer_ssl(
             config.clone(),
             r_client,
             w_server,
-            send.clone(),
+            proxy_fee_sender.clone(),
             fee.clone(),
             tx.clone()
         ),
-        server_to_client(state.clone(),jobs_recv,r_server, w_client, send.clone(), rx)
+        server_to_client(state.clone(),jobs_recv,r_server, w_client, proxy_fee_sender.clone(), rx)
     )?;
 
     // let client_to_server = async {

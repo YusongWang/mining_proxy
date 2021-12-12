@@ -9,8 +9,9 @@ use rand::{Rng, SeedableRng};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::{
+        broadcast,
         mpsc::{Receiver, Sender},
-        RwLock, RwLockWriteGuard, broadcast,
+        RwLock, RwLockWriteGuard,
     },
 };
 
@@ -29,8 +30,8 @@ async fn client_to_server<R, W>(
     mut config: Settings,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
-    send: Sender<String>,
-    fee_send: Sender<String>,
+    proxy_fee_sender: Sender<String>,
+    dev_fee_send: Sender<String>,
     tx: Sender<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -64,8 +65,22 @@ where
                         debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                     }
 
-                    {
-                        // 判断接受的任务属于哪个channel
+                    if let Some(job_id) = client_json_rpc.params.get(1) {
+                        {
+                            // 判断接受的任务属于哪个channel
+                            let mut mine =
+                                RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                            if mine.get(job_id).is_some() {
+                                mine.remove(job_id);
+
+                                let rpc = serde_json::to_string(&client_json_rpc)?;
+                                // TODO
+
+                                debug!("收到 指派任务。可以提交到矿池了。");
+                                proxy_fee_sender.send(rpc);
+                            }
+                            //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+                        }
                     }
 
                     if DEVFEE == true {
@@ -78,7 +93,7 @@ where
                             Ordering::Less => {}
                             _ => {
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
-                                if let Ok(_) = fee_send.send(rpc).await {
+                                if let Ok(_) = dev_fee_send.send(rpc).await {
                                     // 给客户端返回一个封包成功的消息。否可客户端会主动断开
 
                                     let s = ServerId1 {
@@ -117,7 +132,7 @@ where
                             Ordering::Less => {}
                             _ => {
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
-                                if let Ok(_) = send.send(rpc).await {
+                                if let Ok(_) = proxy_fee_sender.send(rpc).await {
                                     //TODO 给客户端返回一个封包成功的消息。否可客户端会主动断开
 
                                     let s = ServerId1 {
@@ -203,7 +218,7 @@ where
 
 async fn server_to_client<R, W>(
     state: Arc<RwLock<State>>,
-    mut jobs_recv:broadcast::Receiver<String>,
+    mut jobs_recv: broadcast::Receiver<String>,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     _send: Sender<String>,
