@@ -180,7 +180,7 @@ impl Mine {
                                 //debug!("清理队列。");
                                 //清理队列。
                                 let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
-                                    &mut s.mine_jobs_queue
+                                    &mut s.develop_jobs_queue
                                 });
                                 jobs.clear();
                             }
@@ -246,7 +246,7 @@ impl Mine {
             {
                 if client_json_rpc.method == "eth_submitWork" {
                     //client_json_rpc.id = 40;
-                    client_json_rpc.id = 499;
+                    client_json_rpc.id = 599;
                     client_json_rpc.worker = self.hostname.clone();
                     // debug!(
                     //     "🚜🚜 抽水矿机 :{} Share #{:?}",

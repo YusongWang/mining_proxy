@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
         ),
         process_mine_state(state.clone(), state_recv),
         develop_mine.accept_tcp_with_tls(state.clone(), job_send, fee_tx.clone(), fee_rx),
-        process_mine_state(state.clone(), dev_state_recv),
+        process_dev_state(state.clone(), dev_state_recv),
     );
 
     Ok(())

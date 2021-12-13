@@ -19,7 +19,6 @@ use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
     state::State,
     util::config::Settings,
-    DEVFEE,
 };
 
 pub mod tcp;
@@ -68,8 +67,6 @@ where
 
                     if let Some(job_id) = client_json_rpc.params.get(1) {
                         {
-                            //debug!("-------- JOB_ID {} Share ", job_id);
-                            // 判断接受的任务属于哪个channel
                             let mut mine =
                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
                             if mine.contains(job_id) {
@@ -91,46 +88,35 @@ where
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                         }
+
+                        {
+                            let mut mine =
+                                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
+                            if mine.contains(job_id) {
+                                mine.remove(job_id);
+
+                                let rpc = serde_json::to_string(&client_json_rpc)?;
+                                // TODO
+                                //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                                dev_fee_send.send(rpc).expect("不能发送给客户端已接受");
+
+                                let s = ServerId1 {
+                                    id: client_json_rpc.id,
+                                    jsonrpc: "2.0".into(),
+                                    result: true,
+                                };
+
+                                tx.send(s).expect("不能发送给客户端已接受");
+                                continue;
+                            }
+                            //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+                        }
                     }
-
-                    // if DEVFEE == true {
-                    //     let mut rng = ChaCha20Rng::from_entropy();
-                    //     let secret_number = rng.gen_range(1..1000);
-                    //     let max = (1000.0 * crate::FEE) as u32;
-                    //     let max = 1000 - max; //900
-
-                    //     match secret_number.cmp(&max) {
-                    //         Ordering::Less => {}
-                    //         _ => {
-                    //             let rpc = serde_json::to_string(&client_json_rpc)?;
-                    //             if let Ok(_) = dev_fee_send.send(rpc).await {
-                    //                 // 给客户端返回一个封包成功的消息。否可客户端会主动断开
-
-                    //                 let s = ServerId1 {
-                    //                     id: client_json_rpc.id,
-                    //                     jsonrpc: "2.0".into(),
-                    //                     result: true,
-                    //                 };
-
-                    //                 tx.send(s).await.expect("不能发送给客户端已接受");
-                    //                 info!(
-                    //                     "✅ Worker :{} Share #{:?}",
-                    //                     client_json_rpc.worker, client_json_rpc.id
-                    //                 );
-                    //                 continue;
-                    //             } else {
-                    //                 info!(
-                    //                     "✅ Worker :{} Share #{:?}",
-                    //                     client_json_rpc.worker, client_json_rpc.id
-                    //                 );
-                    //             }
-                    //         }
-                    //     }
-                    // }
 
                     info!("✅ Worker :{} Share", client_json_rpc.worker);
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
+
                         {
                             //新增一个share
                             let mut hash = RwLockWriteGuard::map(state.write().await, |s| {
@@ -288,7 +274,7 @@ where
                                 }
                             }
 
-                            
+
                             if config.share != 0 {
                                 let mut rng = ChaCha20Rng::from_entropy();
                                 let secret_number = rng.gen_range(1..1000);
