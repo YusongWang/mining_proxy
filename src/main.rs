@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
 
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
-    let (proxy_fee_sender, proxy_fee_recver) = mpsc::channel::<String>(50);
+    let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
 
     // 开发者费用
     let (fee_tx, _) = mpsc::channel::<String>(50);
@@ -107,7 +107,10 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn process_state(state: Arc<RwLock<State>>, mut state_recv: UnboundedReceiver<String>) -> Result<()> {
+async fn process_state(
+    state: Arc<RwLock<State>>,
+    mut state_recv: UnboundedReceiver<String>,
+) -> Result<()> {
     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
     loop {
         let job = state_recv.recv().await.expect("从队列获得任务失败.");

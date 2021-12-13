@@ -22,10 +22,9 @@ pub async fn accept_tcp(
     state: Arc<RwLock<State>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
-    send: Sender<String>,
-    d_send: Sender<String>,
+    proxy_fee_sender: UnboundedSender<String>,
+    develop_fee_sender: Sender<String>,
     state_send: UnboundedSender<String>,
-    
 ) -> Result<()> {
     if config.pool_tcp_address.is_empty() {
         return Ok(());
@@ -40,19 +39,20 @@ pub async fn accept_tcp(
         let (stream, addr) = listener.accept().await?;
         info!("😄 accept connection from {}", addr);
         let c = config.clone();
-        let s = send.clone();
-        let d = d_send.clone();
+        let proxy_fee_sender = proxy_fee_sender.clone();
+        let d = develop_fee_sender.clone();
         let state = state.clone();
 
         let jobs_recv = job_send.subscribe();
         let state_send = state_send.clone();
 
         tokio::spawn(async move {
-            let transfer = transfer(state, jobs_recv, stream, c, s, d,state_send).map(|r| {
-                if let Err(e) = r {
-                    info!("❎ 线程退出 : error={}", e);
-                }
-            });
+            let transfer = transfer(state, jobs_recv, stream, c, proxy_fee_sender, d, state_send)
+                .map(|r| {
+                    if let Err(e) = r {
+                        info!("❎ 线程退出 : error={}", e);
+                    }
+                });
             tokio::spawn(transfer);
         });
     }
@@ -63,7 +63,7 @@ async fn transfer(
     jobs_recv: broadcast::Receiver<String>,
     inbound: TcpStream,
     config: Settings,
-    proxy_fee_send: Sender<String>,
+    proxy_fee_send: UnboundedSender<String>,
     fee: Sender<String>,
     state_send: UnboundedSender<String>,
 ) -> Result<()> {

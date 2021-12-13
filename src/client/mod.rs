@@ -31,7 +31,7 @@ async fn client_to_server<R, W>(
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     //state_send: UnboundedSender<String>,
-    proxy_fee_sender: Sender<String>,
+    proxy_fee_sender: UnboundedSender<String>,
     dev_fee_send: Sender<String>,
     tx: UnboundedSender<ServerId1>,
 ) -> Result<(), std::io::Error>
@@ -78,11 +78,8 @@ where
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 // TODO
                                 //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                proxy_fee_sender
-                                    .send(rpc)
-                                    .await
-                                    .expect("给矿池提交工作任务失败。请报告此BUG。");
-                                    
+                                proxy_fee_sender.send(rpc).expect("不能发送给客户端已接受");
+
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
                                     jsonrpc: "2.0".into(),
@@ -131,17 +128,15 @@ where
                     //     }
                     // }
 
-                    info!(
-                        "✅ Worker :{} Share",client_json_rpc.worker
-                    );
+                    info!("✅ Worker :{} Share", client_json_rpc.worker);
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
-                        
                         {
                             //新增一个share
                             let mut hash = RwLockWriteGuard::map(state.write().await, |s| {
                                 &mut s.report_hashrate
                             });
+
                             if hash.get(&worker).is_some() {
                                 hash.remove(&worker);
                                 hash.insert(worker.clone(), hashrate.clone());
@@ -150,10 +145,11 @@ where
                             }
                         }
 
-                        info!(
-                            "✅ Worker :{} 提交本地算力 {}",
-                            client_json_rpc.worker, hashrate
-                        );
+                        if let Some(h) = crate::util::hex_to_int(&hashrate[2..hashrate.len()]) {
+                            info!("✅ Worker :{} 提交本地算力 {} MB", worker, h / 1000 / 1000);
+                        } else {
+                            info!("✅ Worker :{} 提交本地算力 {} MB", worker, hashrate);
+                        }
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
                     if let Some(wallet) = client_json_rpc.params.get(0) {
@@ -196,7 +192,7 @@ async fn server_to_client<R, W>(
     mut jobs_recv: broadcast::Receiver<String>,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
-    send: Sender<String>,
+    proxy_fee_send: UnboundedSender<String>,
     state_send: UnboundedSender<String>,
     mut rx: UnboundedReceiver<ServerId1>,
 ) -> Result<(), std::io::Error>
@@ -240,7 +236,7 @@ where
                         //debug!("Got Result :{:?}", server_json_rpc);
                         if server_json_rpc.id == 6 {
                             info!("🚜 算力提交成功");
-                        }  else if server_json_rpc.result{
+                        }  else if server_json_rpc.result {
                             info!("👍 Share Accept");
                         } else {
                             info!("❗ Share Reject",);
@@ -277,7 +273,7 @@ where
                                                 let mut jobs_queue =
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
                                                 if jobs_queue.iter().len() > 0{
-                                                    let a = jobs_queue.iter().next().take().unwrap();
+                                                    let a = jobs_queue.iter().next().unwrap();
                                                     let job = serde_json::from_str::<Server>(&*a)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
@@ -399,10 +395,10 @@ where
                         }
 
                     } else {
-                        debug!(
-                            "❗ ------未捕获封包:{:?}",
-                            String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                        );
+                        // debug!(
+                        //     "❗ ------未捕获封包:{:?}",
+                        //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                        // );
                     }
                 }
 

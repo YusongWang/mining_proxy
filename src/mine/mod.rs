@@ -9,8 +9,7 @@ use crate::{
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
-use futures::SinkExt;
-use hex::FromHex;
+
 use log::{debug, info};
 use native_tls::TlsConnector;
 use tokio::{
@@ -18,7 +17,7 @@ use tokio::{
     net::TcpStream,
     sync::{
         broadcast,
-        mpsc::{Receiver, Sender},
+        mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
@@ -55,8 +54,8 @@ impl Mine {
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
-        send: Sender<String>,
-        recv: Receiver<String>,
+        send: UnboundedSender<String>,
+        recv: UnboundedReceiver<String>,
     ) {
         if self.config.share == 1 {
             info!("✅✅ 开启TCP矿池抽水{}", self.config.share_tcp_address);
@@ -77,8 +76,8 @@ impl Mine {
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
-        send: Sender<String>,
-        recv: Receiver<String>,
+        send: UnboundedSender<String>,
+        recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         let outbound = TcpStream::connect(&self.config.share_tcp_address.to_string()).await?;
         let (r_server, w_server) = split(outbound);
@@ -104,8 +103,8 @@ impl Mine {
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
-        send: Sender<String>,
-        recv: Receiver<String>,
+        send: UnboundedSender<String>,
+        recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         let addr = self
             .config
@@ -150,7 +149,7 @@ impl Mine {
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
-        send: Sender<String>,
+        send: UnboundedSender<String>,
         mut r: ReadHalf<R>,
     ) -> Result<(), std::io::Error>
     where
@@ -174,7 +173,7 @@ impl Mine {
                         panic!("❗❎ 矿池登录失败，请尝试重启程序");
                     }
 
-                    info!("✅✅ 登录成功 :{:?}", server_json_rpc);
+                    info!("✅✅ 登录成功");
                     is_login = true;
                 } else {
                     panic!("❗❎ 矿池登录失败，请尝试重启程序");
@@ -189,7 +188,7 @@ impl Mine {
                     //debug!("收到抽水矿机返回 {:?}", server_json_rpc);
                     if server_json_rpc.id == 6 {
                         //info!("🚜🚜 算力提交成功");
-                    } else if server_json_rpc.result{
+                    } else if server_json_rpc.result {
                         info!("👍👍 Share Accept");
                     } else {
                         info!("❗❗ Share Reject",);
@@ -235,7 +234,6 @@ impl Mine {
                             jobs.insert(job);
                         }
 
-
                         // debug!("发送到等待队列进行工作: {}", job_id);
                         // let job = serde_json::to_string(&server_json_rpc)?;
                         // jobs_send.send(job);
@@ -258,9 +256,9 @@ impl Mine {
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
-        send: Sender<String>,
+        send: UnboundedSender<String>,
         mut w: WriteHalf<W>,
-        mut recv: Receiver<String>,
+        mut recv: UnboundedReceiver<String>,
     ) -> Result<(), std::io::Error>
     where
         W: AsyncWriteExt,
@@ -322,7 +320,7 @@ impl Mine {
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
-        send: Sender<String>,
+        send: UnboundedSender<String>,
     ) -> Result<(), std::io::Error> {
         let login = Client {
             id: 1,
@@ -331,7 +329,7 @@ impl Mine {
             worker: self.hostname.clone(),
         };
         let login_msg = serde_json::to_string(&login)?;
-        send.send(login_msg).await.expect("异常退出了.");
+        send.send(login_msg);
 
         sleep(std::time::Duration::new(1, 0)).await;
 
@@ -342,49 +340,51 @@ impl Mine {
         };
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-        send.send(eth_get_work_msg).await.expect("异常退出了.");
+        send.send(eth_get_work_msg);
         sleep(std::time::Duration::new(5, 0)).await;
         loop {
-
-            let mut my_hash_rate:u64 = 0;
+            let mut my_hash_rate: u64 = 0;
             {
                 //新增一个share
                 let hash = RwLockReadGuard::map(state.read().await, |s| &s.report_hashrate);
 
                 for (worker, hashrate) in &*hash {
-                    if let Some(h) = hex_to_int(hashrate.as_str()) {
-                        info!("worker {} hashrate {}", worker, (h / 1000 / 1000));
+                    if let Some(h) = hex_to_int(&hashrate[2..hashrate.len()]) {
+                        info!("worker {} hashrate {} MB", worker, (h / 1000 / 1000));
 
                         my_hash_rate = my_hash_rate + h as u64;
                     }
                 }
             }
 
-            info!("{} MB",my_hash_rate / 1000 / 1000);
-            // {
-            //     //新增一个share
-            //     let jobs = RwLockReadGuard::map(state.read().await, |s| &s.mine_jobs);
-
-            //     for job_id in &*jobs {
-            //         info!("——-------—————— 当前有-job {}", job_id);
-            //     }
-            // }
+            info!(
+                "目前总算力 : {} MB 抽水算力 {} MB",
+                my_hash_rate / 1000 / 1000,
+                ((my_hash_rate / 1000 / 1000) as f32 * self.config.share_rate) as u64
+            );
 
             //计算速率
             let submit_hashrate = Client {
                 id: 6,
                 method: "eth_submitHashrate".into(),
-                params: vec!["0x5e500000".into(), hex::encode(self.hostname.clone())],
+                params: [
+                    format!(
+                        "0x{:x}",
+                        ((my_hash_rate / 1000 / 1000) as f32 * self.config.share_rate) as u64
+                    ),
+                    hex::encode(self.hostname.clone()),
+                ]
+                .to_vec(),
                 worker: self.hostname.clone(),
             };
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
-            send.send(submit_hashrate_msg).await.expect("异常退出了.");
+            send.send(submit_hashrate_msg);
 
             sleep(std::time::Duration::new(10, 0)).await;
 
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-            send.send(eth_get_work_msg).await.expect("异常退出了.");
+            send.send(eth_get_work_msg);
             sleep(std::time::Duration::new(10, 0)).await;
         }
     }
