@@ -208,13 +208,13 @@ where
                 //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                        info!("✅ 登录成功 :{:?}", server_json_rpc);
+                        info!("✅ 登录成功");
                         is_login = true;
                     } else {
-                        debug!(
-                            "❎ 登录失败{:?}",
-                            String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                        );
+                        // debug!(
+                        //     "❎ 登录失败{:?}",
+                        //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                        // );
                         return w.shutdown().await;
                     }
                 } else {
