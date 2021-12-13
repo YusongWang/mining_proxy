@@ -169,9 +169,9 @@ impl Mine {
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    if server_json_rpc.result == false {
-                        panic!("❗❎ 矿池登录失败，请尝试重启程序");
-                    }
+                    // if server_json_rpc.result == false {
+                    //     panic!("❗❎ 矿池登录失败，请尝试重启程序");
+                    // }
 
                     info!("✅✅ 登录成功");
                     is_login = true;
