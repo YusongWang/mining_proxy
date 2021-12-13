@@ -108,7 +108,8 @@ async fn transfer_ssl(
     let (r_server, w_server) = split(server_stream);
 
     use tokio::sync::mpsc;
-    let (tx, rx) = mpsc::channel::<ServerId1>(100);
+    //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();
+    let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
 
     tokio::try_join!(
         client_to_server(

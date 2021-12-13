@@ -10,7 +10,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::{
         broadcast,
-        mpsc::{Receiver, Sender, UnboundedSender},
+        mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
 };
@@ -33,7 +33,7 @@ async fn client_to_server<R, W>(
     //state_send: UnboundedSender<String>,
     proxy_fee_sender: Sender<String>,
     dev_fee_send: Sender<String>,
-    tx: Sender<ServerId1>,
+    tx: UnboundedSender<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
     R: AsyncRead,
@@ -82,6 +82,14 @@ where
                                     .send(rpc)
                                     .await
                                     .expect("给矿池提交工作任务失败。请报告此BUG。");
+                                    
+                                let s = ServerId1 {
+                                    id: client_json_rpc.id,
+                                    jsonrpc: "2.0".into(),
+                                    result: true,
+                                };
+
+                                tx.send(s).expect("不能发送给客户端已接受");
                                 continue;
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -190,7 +198,7 @@ async fn server_to_client<R, W>(
     mut w: WriteHalf<W>,
     send: Sender<String>,
     state_send: UnboundedSender<String>,
-    mut rx: Receiver<ServerId1>,
+    mut rx: UnboundedReceiver<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
     R: AsyncRead,
@@ -283,14 +291,14 @@ where
 
                                                     let b = a.clone();
                                                     state_send.send(b);
-   
+
                                                     continue;
                                                 } else {
                                                     //几率不高。但是要打日志出来。
                                                     debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
                                                 }
                                             }
-                                                
+
 
                                                 // if let Some(job_id) = job.result.get(0) {
                                                 //         debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job_id);

@@ -72,7 +72,7 @@ async fn transfer(
     let (r_client, w_client) = split(inbound);
     let (r_server, w_server) = split(outbound);
     use tokio::sync::mpsc;
-    let (tx, rx) = mpsc::channel::<ServerId1>(100);
+    let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
 
     tokio::try_join!(
         client_to_server(
