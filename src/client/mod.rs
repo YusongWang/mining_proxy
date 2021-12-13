@@ -10,7 +10,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::{
         broadcast,
-        mpsc::{Receiver, Sender},
+        mpsc::{Receiver, Sender, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
 };
@@ -30,7 +30,7 @@ async fn client_to_server<R, W>(
     mut config: Settings,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
-    state_send: Sender<String>,
+    //state_send: UnboundedSender<String>,
     proxy_fee_sender: Sender<String>,
     dev_fee_send: Sender<String>,
     tx: Sender<ServerId1>,
@@ -189,7 +189,7 @@ async fn server_to_client<R, W>(
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     send: Sender<String>,
-    state_send: Sender<String>,
+    state_send: UnboundedSender<String>,
     mut rx: Receiver<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -259,7 +259,10 @@ where
                                     Ordering::Less => {}
                                     _ => {
                                             debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                                            //将任务加入队列。
+                                            // let mut jobs_queue =
+                                            //      RwLockWriteGuard::map(state.write().await, |s| &mut s);
+                                            //state.lock().await();
+                                            // 将任务加入队列。
                                             {
                                                 let mut jobs_queue =
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
@@ -279,17 +282,15 @@ where
                                                     }
 
                                                     let b = a.clone();
-                                                    match state_send.send(b).await {
-                                                            Ok(_) => {debug!("----成功")},
-                                                            Err(err) => {debug!("------失败 {:?}",err)},
-                                                    }
+                                                    state_send.send(b);
+   
                                                     continue;
                                                 } else {
                                                     //几率不高。但是要打日志出来。
                                                     debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
                                                 }
                                             }
-
+                                                
 
                                                 // if let Some(job_id) = job.result.get(0) {
                                                 //         debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job_id);

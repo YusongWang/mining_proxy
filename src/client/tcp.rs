@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+
 use log::info;
 
 use tokio::io::split;
@@ -9,6 +10,7 @@ use tokio::net::{TcpListener, TcpStream};
 use futures::FutureExt;
 use tokio::sync::broadcast;
 
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{mpsc::Sender, RwLock};
 
 use crate::client::{client_to_server, server_to_client};
@@ -22,7 +24,7 @@ pub async fn accept_tcp(
     job_send: broadcast::Sender<String>,
     send: Sender<String>,
     d_send: Sender<String>,
-    state_send: Sender<String>,
+    state_send: UnboundedSender<String>,
     
 ) -> Result<()> {
     if config.pool_tcp_address.is_empty() {
@@ -63,7 +65,7 @@ async fn transfer(
     config: Settings,
     proxy_fee_send: Sender<String>,
     fee: Sender<String>,
-    state_send: Sender<String>,
+    state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let outbound = TcpStream::connect(&config.pool_tcp_address.to_string()).await?;
 
@@ -79,7 +81,7 @@ async fn transfer(
             r_client,
             w_server,
             proxy_fee_send.clone(),
-            state_send.clone(),
+            //state_send.clone(),
             fee.clone(),
             tx.clone()
         ),

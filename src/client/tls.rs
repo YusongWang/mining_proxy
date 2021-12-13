@@ -10,7 +10,7 @@ extern crate native_tls;
 use native_tls::{Identity, TlsConnector};
 
 use futures::FutureExt;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{Sender, UnboundedSender};
 use tokio::sync::{broadcast, RwLock};
 
 use crate::client::{client_to_server, server_to_client};
@@ -25,7 +25,7 @@ pub async fn accept_tcp_with_tls(
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: Sender<String>,
     fee_send: Sender<String>,
-    state_send: Sender<String>,
+    state_send: UnboundedSender<String>,
     cert: Identity,
 ) -> Result<()> {
     if config.pool_ssl_address.is_empty() {
@@ -80,7 +80,7 @@ async fn transfer_ssl(
     config: Settings,
     proxy_fee_sender: Sender<String>,
     fee: Sender<String>,
-    state_send: Sender<String>,
+    state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
 
@@ -117,7 +117,7 @@ async fn transfer_ssl(
             r_client,
             w_server,
             proxy_fee_sender.clone(),
-            state_send.clone(),
+            //state_send.clone(),
             fee.clone(),
             tx.clone()
         ),

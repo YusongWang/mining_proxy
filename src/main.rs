@@ -10,7 +10,7 @@ use tokio::{
     io::AsyncReadExt,
     sync::{
         broadcast,
-        mpsc::{self, Receiver},
+        mpsc::{self, UnboundedReceiver},
         RwLock, RwLockWriteGuard,
     },
 };
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
     // 分配任务给矿机channel
     let (job_send, _) = broadcast::channel::<String>(1);
     // 分配任务给矿机channel
-    let (state_send, mut state_recv) = mpsc::channel::<String>(50);
+    let (state_send, mut state_recv) = mpsc::unbounded_channel::<String>();
 
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
@@ -110,7 +110,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn process_state(state: Arc<RwLock<State>>, mut state_recv: Receiver<String>) -> Result<()> {
+async fn process_state(state: Arc<RwLock<State>>, mut state_recv: UnboundedReceiver<String>) -> Result<()> {
     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
     loop {
         let job = state_recv.recv().await.expect("从队列获得任务失败.");
