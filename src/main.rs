@@ -28,7 +28,6 @@ use crate::{
     mine::Mine,
     protocol::rpc::eth::Server,
     state::State,
-    util::hex_to_hashrate,
 };
 
 const DEVFEE: bool = true;
@@ -36,8 +35,6 @@ const FEE: f64 = 0.01;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    hex_to_hashrate("0x1a5c3611")?;
-
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;

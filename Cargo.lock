@@ -572,7 +572,6 @@ dependencies = [
  "native-tls",
  "rand",
  "rand_chacha",
- "rustc-serialize",
  "serde 1.0.130",
  "serde_json",
  "tokio",
@@ -668,12 +667,6 @@ name = "rust-ini"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e52c148ef37f8c375d49d5a73aa70713125b7f19095948a923f80afdeb22ec2"
-
-[[package]]
-name = "rustc-serialize"
-version = "0.3.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
 
 [[package]]
 name = "ryu"
