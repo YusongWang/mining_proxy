@@ -132,8 +132,7 @@ where
                     // }
 
                     info!(
-                        "✅ Worker :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc.id
+                        "✅ Worker :{} Share",client_json_rpc.worker
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
