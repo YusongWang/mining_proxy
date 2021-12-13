@@ -4,7 +4,7 @@ use std::{net::ToSocketAddrs, sync::Arc};
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
     state::State,
-    util::config::Settings,
+    util::{config::Settings, hex_to_int},
 };
 use anyhow::Result;
 
@@ -188,7 +188,7 @@ impl Mine {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     //debug!("收到抽水矿机返回 {:?}", server_json_rpc);
                     if server_json_rpc.id == 6 {
-                        info!("🚜🚜 算力提交成功");
+                        //info!("🚜🚜 算力提交成功");
                     } else if server_json_rpc.result{
                         info!("👍👍 Share Accept");
                     } else {
@@ -345,15 +345,22 @@ impl Mine {
         send.send(eth_get_work_msg).await.expect("异常退出了.");
         sleep(std::time::Duration::new(5, 0)).await;
         loop {
+
+            let mut my_hash_rate:u64 = 0;
             {
                 //新增一个share
                 let hash = RwLockReadGuard::map(state.read().await, |s| &s.report_hashrate);
 
                 for (worker, hashrate) in &*hash {
-                    info!("worker {} hashrate {}", worker, hashrate);
+                    if let Some(h) = hex_to_int(hashrate.as_str()) {
+                        info!("worker {} hashrate {}", worker, (h / 1000 / 1000));
+
+                        my_hash_rate = my_hash_rate + h as u64;
+                    }
                 }
             }
 
+            info!("{} MB",my_hash_rate / 1000 / 1000);
             // {
             //     //新增一个share
             //     let jobs = RwLockReadGuard::map(state.read().await, |s| &s.mine_jobs);

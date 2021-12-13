@@ -136,6 +136,7 @@ where
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
+                        
                         {
                             //新增一个share
                             let mut hash = RwLockWriteGuard::map(state.write().await, |s| {
