@@ -168,11 +168,6 @@ impl Mine {
                 //return w_server.shutdown().await;
             }
 
-            debug!(
-                "-------- S to M RPC #{:?}",
-                String::from_utf8(buf[0..len].to_vec()).unwrap()
-            );
-
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     if server_json_rpc.result == false {
@@ -194,8 +189,10 @@ impl Mine {
                     //debug!("收到抽水矿机返回 {:?}", server_json_rpc);
                     if server_json_rpc.id == 6 {
                         info!("🚜🚜 算力提交成功");
-                    } else {
+                    } else if server_json_rpc.result{
                         info!("👍👍 Share Accept");
+                    } else {
+                        info!("❗❗ Share Reject",);
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     if let Some(job_diff) = server_json_rpc.result.get(3) {

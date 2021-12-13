@@ -240,8 +240,10 @@ where
                         //debug!("Got Result :{:?}", server_json_rpc);
                         if server_json_rpc.id == 6 {
                             info!("🚜 算力提交成功");
-                        } else {
+                        }  else if server_json_rpc.result{
                             info!("👍 Share Accept");
+                        } else {
+                            info!("❗ Share Reject",);
                         }
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                             //debug!("Got jobs {}",server_json_rpc);
