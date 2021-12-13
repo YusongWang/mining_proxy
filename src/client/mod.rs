@@ -247,7 +247,6 @@ where
                                                 RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
                                                 if jobs_queue.iter().len() > 0 {
                                                     let a = jobs_queue.iter().next().unwrap();
-                                                    debug!("得到任务 {:?}",a);
                                                     let job = serde_json::from_str::<Server>(&*a)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
