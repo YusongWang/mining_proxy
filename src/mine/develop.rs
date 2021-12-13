@@ -308,7 +308,7 @@ impl Mine {
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg);
 
-        sleep(std::time::Duration::new(1, 0)).await;
+
 
         let eth_get_work = ClientGetWork {
             id: 5,
@@ -318,7 +318,7 @@ impl Mine {
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
         send.send(eth_get_work_msg);
-        sleep(std::time::Duration::new(5, 0)).await;
+
         loop {
             let mut my_hash_rate: u64 = 0;
             {
@@ -327,8 +327,6 @@ impl Mine {
 
                 for (worker, hashrate) in &*hash {
                     if let Some(h) = crate::util::hex_to_int(&hashrate[2..hashrate.len()]) {
-                        //info!("worker {} hashrate {} MB", worker, (h / 1000 / 1000));
-
                         my_hash_rate = my_hash_rate + h as u64;
                     }
                 }
@@ -358,11 +356,8 @@ impl Mine {
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg);
 
-            sleep(std::time::Duration::new(10, 0)).await;
-
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg);
-            sleep(std::time::Duration::new(10, 0)).await;
         }
     }
 }
