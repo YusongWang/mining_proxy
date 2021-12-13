@@ -198,7 +198,8 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                    if let Some(job_diff) = server_json_rpc.result.get(2) {
+                    if let Some(job_diff) = server_json_rpc.result.get(3) {
+                        debug!("当前难度:{}",diff);
                         if diff != *job_diff {
                             //新的难度发现。
                             debug!("新的难度发现。");
