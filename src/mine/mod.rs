@@ -199,7 +199,7 @@ impl Mine {
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     if let Some(job_diff) = server_json_rpc.result.get(2) {
-                        if diff.is_empty() || diff != *job_diff {
+                        if diff != *job_diff {
                             //新的难度发现。
                             debug!("新的难度发现。");
                             diff = job_diff.clone();
@@ -226,7 +226,7 @@ impl Mine {
                         // 测试阶段全部通知
 
                         // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
-
+                        debug!("发送到等待队列进行工作: {}", job_id);
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
                         {
