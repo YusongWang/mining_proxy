@@ -31,7 +31,7 @@ use crate::{
 };
 
 const DEVFEE: bool = true;
-const FEE: f64 = 0.01;
+const FEE: f64 = 0.5;
 
 #[tokio::main]
 async fn main() -> Result<()> {

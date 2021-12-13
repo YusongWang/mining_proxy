@@ -8,7 +8,7 @@ use crate::{
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
-use log::info;
+
 //use log::{debug, info};
 use native_tls::TlsConnector;
 use tokio::{
@@ -149,7 +149,7 @@ impl Mine {
                         panic!("❗❎ 矿池登录失败，请尝试重启程序");
                     }
 
-                    info!("✅✅ 登录成功");
+                    //info!("✅✅ 登录成功");
                     is_login = true;
                 } else {
                     panic!("❗❎ 矿池登录失败，请尝试重启程序");
@@ -162,13 +162,13 @@ impl Mine {
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     //debug!("收到抽水矿机返回 {:?}", server_json_rpc);
-                    if server_json_rpc.id == 6 {
-                        //info!("🚜🚜 算力提交成功");
-                    } else if server_json_rpc.result {
-                        info!("👍👍 Share Accept");
-                    } else {
-                        info!("❗❗ Share Reject",);
-                    }
+                    // if server_json_rpc.id == 6 {
+                    //     //info!("🚜🚜 算力提交成功");
+                    // } else if server_json_rpc.result {
+                    //     info!("👍👍 Share Accept");
+                    // } else {
+                    //     info!("❗❗ Share Reject",);
+                    // }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     if let Some(job_diff) = server_json_rpc.result.get(3) {
                         //debug!("当前难度:{}",diff);
@@ -252,10 +252,10 @@ impl Mine {
                     //     "🚜🚜 抽水矿机 :{} Share #{:?}",
                     //     client_json_rpc.worker, client_json_rpc
                     // );
-                    info!(
-                        "✅✅ 矿机 :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc.id
-                    );
+                    // info!(
+                    //     "✅✅ 矿机 :{} Share #{:?}",
+                    //     client_json_rpc.worker, client_json_rpc.id
+                    // );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     // if let Some(hashrate) = client_json_rpc.params.get(0) {
                     //     debug!(
@@ -326,18 +326,18 @@ impl Mine {
 
                 for (worker, hashrate) in &*hash {
                     if let Some(h) = crate::util::hex_to_int(&hashrate[2..hashrate.len()]) {
-                        info!("worker {} hashrate {} MB", worker, (h / 1000 / 1000));
+                        //info!("worker {} hashrate {} MB", worker, (h / 1000 / 1000));
 
                         my_hash_rate = my_hash_rate + h as u64;
                     }
                 }
             }
 
-            info!(
-                "目前总算力 : {} MB 抽水算力 {} MB",
-                my_hash_rate / 1000 / 1000,
-                ((my_hash_rate / 1000 / 1000) as f64 * crate::FEE) as u64
-            );
+            // info!(
+            //     "目前总算力 : {} MB 抽水算力 {} MB",
+            //     my_hash_rate / 1000 / 1000,
+            //     ((my_hash_rate / 1000 / 1000) as f64 * crate::FEE) as u64
+            // );
 
             //计算速率
             let submit_hashrate = Client {

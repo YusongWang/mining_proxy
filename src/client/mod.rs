@@ -131,11 +131,11 @@ where
                             }
                         }
 
-                        if let Some(h) = crate::util::hex_to_int(&hashrate[2..hashrate.len()]) {
-                            info!("✅ Worker :{} 提交本地算力 {} MB", worker, h / 1000 / 1000);
-                        } else {
-                            info!("✅ Worker :{} 提交本地算力 {} MB", worker, hashrate);
-                        }
+                        // if let Some(h) = crate::util::hex_to_int(&hashrate[2..hashrate.len()]) {
+                        //     info!("✅ Worker :{} 提交本地算力 {} MB", worker, h / 1000 / 1000);
+                        // } else {
+                        //     info!("✅ Worker :{} 提交本地算力 {} MB", worker, hashrate);
+                        // }
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
                     if let Some(wallet) = client_json_rpc.params.get(0) {
