@@ -23,8 +23,9 @@ pub async fn accept_tcp(
     config: Settings,
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: UnboundedSender<String>,
-    develop_fee_sender: Sender<String>,
+    develop_fee_sender: UnboundedSender<String>,
     state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     if config.pool_tcp_address.is_empty() {
         return Ok(());
@@ -45,9 +46,9 @@ pub async fn accept_tcp(
 
         let jobs_recv = job_send.subscribe();
         let state_send = state_send.clone();
-
+        let dev_state_send = dev_state_send.clone();
         tokio::spawn(async move {
-            let transfer = transfer(state, jobs_recv, stream, c, proxy_fee_sender, d, state_send)
+            let transfer = transfer(state, jobs_recv, stream, c, proxy_fee_sender, d, state_send,dev_state_send)
                 .map(|r| {
                     if let Err(e) = r {
                         info!("❎ 线程退出 : error={}", e);
@@ -64,8 +65,9 @@ async fn transfer(
     inbound: TcpStream,
     config: Settings,
     proxy_fee_send: UnboundedSender<String>,
-    fee: Sender<String>,
+    fee: UnboundedSender<String>,
     state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let outbound = TcpStream::connect(&config.pool_tcp_address.to_string()).await?;
 
@@ -93,6 +95,7 @@ async fn transfer(
             w_client,
             proxy_fee_send.clone(),
             state_send.clone(),
+            dev_state_send.clone(),
             rx
         )
     )?;

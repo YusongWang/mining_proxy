@@ -11,6 +11,7 @@ pub struct State {
     pub mine_jobs_queue: HashSet<String>,
     pub mine_share: u64,
     pub develop_jobs: HashSet<String>,
+    pub develop_jobs_queue: HashSet<String>,
     pub develop_share: u64,
 }
 
@@ -25,6 +26,7 @@ impl State {
             mine_share: 0,
             develop_share: 0,
             mine_jobs_queue: HashSet::new(),
+            develop_jobs_queue: HashSet::new(),
         }
     }
 }

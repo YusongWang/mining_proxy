@@ -32,7 +32,7 @@ async fn client_to_server<R, W>(
     mut w: WriteHalf<W>,
     //state_send: UnboundedSender<String>,
     proxy_fee_sender: UnboundedSender<String>,
-    dev_fee_send: Sender<String>,
+    dev_fee_send: UnboundedSender<String>,
     tx: UnboundedSender<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -194,6 +194,7 @@ async fn server_to_client<R, W>(
     mut w: WriteHalf<W>,
     proxy_fee_send: UnboundedSender<String>,
     state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<String>,
     mut rx: UnboundedReceiver<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -242,16 +243,52 @@ where
                             info!("❗ Share Reject",);
                         }
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                            //debug!("Got jobs {}",server_json_rpc);
-                            // if let Some(diff) = server_json_rpc.result.get(3) {
-                            //     //debug!("✅ Got Job Diff {}", diff);
-                            // }
-                            // 过滤掉远程矿池的封包。从此处在队列中pull拉取任务。
+                            {
+                                let mut rng = ChaCha20Rng::from_entropy();
+                                let secret_number = rng.gen_range(1..1000);
 
-                            //TODO 每一个封包都判断是否截获，然后伪装为自己的封包。如果伪装自己的封包则取计算任务。然后分配给矿机。矿机提交时再截获回来。进行提交。
-                            // debug!(
-                            //     "过滤掉远程矿池的封包。从此处在队列中pull拉取任务。"
-                            // );
+                                let max = (1000.0 * crate::FEE) as u32;
+                                let max = 1000 - max; //900
+                                match secret_number.cmp(&max) {
+                                    Ordering::Less => {}
+                                    _ => {
+                                            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                                            // let mut jobs_queue =
+                                            //      RwLockWriteGuard::map(state.write().await, |s| &mut s);
+                                            //state.lock().await();
+                                            // 将任务加入队列。
+                                            {
+                                                let mut jobs_queue =
+                                                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                                if jobs_queue.iter().len() > 0{
+                                                    let a = jobs_queue.iter().next().unwrap();
+                                                    let job = serde_json::from_str::<Server>(&*a)?;
+                                                    //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
+                                                    let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
+                                                    let mut byte = BytesMut::new();
+                                                    byte.put_slice(&rpc[..]);
+                                                    byte.put_u8(b'\n');
+                                                    //debug!("发送指派任务给矿机 {:?}",job);
+                                                    let w_len = w.write_buf(&mut byte).await?;
+                                                    if w_len == 0 {
+                                                        //debug!("矿机任务写入失败 {:?}",job);
+                                                        return w.shutdown().await;
+                                                    }
+
+                                                    let b = a.clone();
+                                                    dev_state_send.send(b);
+
+                                                    continue;
+                                                } else {
+                                                    //几率不高。但是要打日志出来。
+                                                    debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                                }
+                                            }
+                                    }
+                                }
+                            }
+
+                            
                             if config.share != 0 {
                                 let mut rng = ChaCha20Rng::from_entropy();
                                 let secret_number = rng.gen_range(1..1000);
@@ -296,101 +333,7 @@ where
                                                     debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
                                                 }
                                             }
-
-
-                                                // if let Some(job_id) = job.result.get(0) {
-                                                //         debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job_id);
-
-                                                //         // {
-                                                //         //     let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                                                //         //     //jobs_set.insert(job_id.clone());
-                                                //         //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job_id);
-                                                //         //     insert_success = mine_jobs.insert(job_id.clone());
-                                                //         // }
-                                                //         if !insert_success{
-                                                //             debug!("------------- 跳过本次抽水。没有任务处理了。。。1");
-                                                //             continue;
-                                                //         }
-                                                //         debug!("Job_id {} 写入成功", job_id);
-                                                //         let job_str = serde_json::to_string(&job)?;
-                                                //         {
-                                                //             let mut mine_queue = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-                                                //             //jobs_set.insert(job_id.clone());
-                                                //             debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job_id);
-                                                //             insert_success = mine_queue.remove(&job_str);
-                                                //         }
-                                                //         if !insert_success{
-                                                //             debug!("------------- 跳过本次抽水。没有任务处理了。。。2");
-                                                //             continue;
-                                                //         }
-                                                //         let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
-                                                //         let mut byte = BytesMut::new();
-                                                //         byte.put_slice(&rpc[..]);
-                                                //         byte.put_u8(b'\n');
-                                                //         debug!("发送指派任务给矿机 {:?}",job);
-                                                //         let w_len = w.write_buf(&mut byte).await?;
-                                                //         if w_len == 0 {
-                                                //             debug!("矿机任务写入失败 {:?}",job);
-                                                //             return w.shutdown().await;
-                                                //         }
-                                                //         continue;
-                                                // }
-
-
-                                            //let rpc =
-                                            // let mut jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                                            // if (jobs.insert(job_id.clone())) {
-                                            //     debug!("Job_id {} 写入成功", job_id);
-                                            //     let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
-                                            //     let mut byte = BytesMut::new();
-                                            //     byte.put_slice(&rpc[..]);
-                                            //     byte.put_u8(b'\n');
-                                            //     debug!("发送指派任务给矿机 {:?}",job);
-                                            //     let w_len = w.write_buf(&mut byte).await?;
-                                            //     if w_len == 0 {
-                                            //         debug!("矿机任务写入失败 {:?}",job);
-                                            //         return w.shutdown().await;
-                                            //     }
-                                            // }
-
-
-
-                                        // while let Ok(job) = jobs_recv.recv().await {
-                                        //     info!("got = {:?}", job);
-                                        //     let rpc = serde_json::from_str::<Server>(&job)?;
-                                        //     //记录任务  ID-----
-                                        //     // TODO 每次DIFF改变后记录清空
-                                        //     if let Some(job_id) = rpc.result.get(0) {
-                                        //         if let Some(diff) = rpc.result.get(2){
-                                        //             if let Some(sdiff) = server_json_rpc.result.get(2){
-                                        //                 if diff == sdiff {
-                                        //                     let mut jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-                                        //                     if (jobs.insert(job_id.clone())) {
-                                        //                         debug!("Job_id {} 写入成功", job_id);
-                                        //                         let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
-                                        //                         let mut byte = BytesMut::new();
-                                        //                         byte.put_slice(&rpc[..]);
-                                        //                         byte.put_u8(b'\n');
-                                        //                         debug!("发送指派任务给矿机 {:?}",job);
-                                        //                         let w_len = w.write_buf(&mut byte).await?;
-                                        //                         if w_len == 0 {
-                                        //                             debug!("矿机任务写入失败 {:?}",job);
-                                        //                             return w.shutdown().await;
-                                        //                         }
-                                        //                         break;
-                                        //                     };
-                                        //                 }
-                                        //             }
-
-                                        //         }
-                                        //         //0 工作任务HASH
-                                        //         //1 DAG
-                                        //         //2 diff
-                                        //     }
-                                        // }
-
-                                        //continue;
-                                    }
+                                }
                             }
                         }
 
