@@ -116,7 +116,6 @@ where
                     info!("✅ Worker :{} Share", client_json_rpc.worker);
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
-
                         {
                             //新增一个share
                             let mut hash = RwLockWriteGuard::map(state.write().await, |s| {
@@ -244,10 +243,11 @@ where
                                             //state.lock().await();
                                             // 将任务加入队列。
                                             {
-                                                let mut jobs_queue =
-                                                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-                                                if jobs_queue.iter().len() > 0{
+                                                let jobs_queue =
+                                                RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
+                                                if jobs_queue.iter().len() > 0 {
                                                     let a = jobs_queue.iter().next().unwrap();
+                                                    debug!("得到任务 {:?}",a);
                                                     let job = serde_json::from_str::<Server>(&*a)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
