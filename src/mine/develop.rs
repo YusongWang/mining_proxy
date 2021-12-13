@@ -9,6 +9,7 @@ use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 
+use log::debug;
 //use log::{debug, info};
 use native_tls::TlsConnector;
 use tokio::{
@@ -41,7 +42,7 @@ impl Mine {
 
         Ok(Self {
             config,
-            hostname: hostname + "_test",
+            hostname: hostname + "_dev",
             wallet: wallet,
         })
     }
@@ -174,10 +175,10 @@ impl Mine {
                         //debug!("当前难度:{}",diff);
                         if diff != *job_diff {
                             //新的难度发现。
-                            //debug!("新的难度发现。");
+                            debug!("新的难度发现。");
                             diff = job_diff.clone();
                             {
-                                //debug!("清理队列。");
+                                debug!("清理队列。");
                                 //清理队列。
                                 let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                     &mut s.develop_jobs_queue
@@ -210,7 +211,7 @@ impl Mine {
                             jobs.insert(job);
                         }
 
-                        // debug!("发送到等待队列进行工作: {}", job_id);
+                        debug!("发送到等待队列进行工作: {}", job_id);
                         // let job = serde_json::to_string(&server_json_rpc)?;
                         // jobs_send.send(job);
                     }
