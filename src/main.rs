@@ -108,29 +108,29 @@ async fn main() -> Result<()> {
 }
 
 async fn process_state(state: Arc<RwLock<State>>, mut state_recv: UnboundedReceiver<String>) -> Result<()> {
-    debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
+    //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
     loop {
         let job = state_recv.recv().await.expect("从队列获得任务失败.");
-        debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
+        //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
         let job = serde_json::from_str::<Server>(&*job)?;
         let job_id = job.result.get(0).expect("封包格式错误");
         {
             let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
             if mine_jobs.insert(job_id.clone()) {
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
             }
-            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
+            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
         }
 
-        debug!("Job_id {} 写入成功", job_id);
+        //debug!("Job_id {} 写入成功", job_id);
         let job_str = serde_json::to_string(&job)?;
         {
             let mut mine_queue =
                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
             if mine_queue.remove(&job_str) {
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
+                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
             }
-            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
+            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
         }
     }
 }

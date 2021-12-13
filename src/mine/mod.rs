@@ -191,7 +191,7 @@ impl Mine {
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    debug!("收到抽水矿机返回 {:?}", server_json_rpc);
+                    //debug!("收到抽水矿机返回 {:?}", server_json_rpc);
                     if server_json_rpc.id == 6 {
                         info!("🚜🚜 算力提交成功");
                     } else {
@@ -199,13 +199,13 @@ impl Mine {
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     if let Some(job_diff) = server_json_rpc.result.get(3) {
-                        debug!("当前难度:{}",diff);
+                        //debug!("当前难度:{}",diff);
                         if diff != *job_diff {
                             //新的难度发现。
-                            debug!("新的难度发现。");
+                            //debug!("新的难度发现。");
                             diff = job_diff.clone();
                             {
-                                debug!("清理队列。");
+                                //debug!("清理队列。");
                                 //清理队列。
                                 let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                     &mut s.mine_jobs_queue
@@ -227,7 +227,7 @@ impl Mine {
                         // 测试阶段全部通知
 
                         // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
-                        debug!("发送到等待队列进行工作: {}", job_id);
+                        //debug!("发送到等待队列进行工作: {}", job_id);
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
                         {
@@ -248,10 +248,10 @@ impl Mine {
                     //     //debug!("✅ Got Job Diff {}", diff);
                     // }
                 } else {
-                    debug!(
-                        "❗ ------未捕获封包:{:?}",
-                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    );
+                    // debug!(
+                    //     "❗ ------未捕获封包:{:?}",
+                    //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    // );
                 }
             }
         }
@@ -270,32 +270,32 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            debug!("-------- M to S RPC #{:?}", client_msg);
+            //debug!("-------- M to S RPC #{:?}", client_msg);
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
                     //client_json_rpc.id = 40;
                     client_json_rpc.id = 499;
                     client_json_rpc.worker = self.hostname.clone();
-                    debug!(
-                        "🚜🚜 抽水矿机 :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc
-                    );
+                    // debug!(
+                    //     "🚜🚜 抽水矿机 :{} Share #{:?}",
+                    //     client_json_rpc.worker, client_json_rpc
+                    // );
                     info!(
                         "✅✅ 矿机 :{} Share #{:?}",
                         client_json_rpc.worker, client_json_rpc.id
                     );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
-                    if let Some(hashrate) = client_json_rpc.params.get(0) {
-                        debug!(
-                            "✅✅ 矿机 :{} 提交本地算力 {}",
-                            client_json_rpc.worker, hashrate
-                        );
-                    }
+                    // if let Some(hashrate) = client_json_rpc.params.get(0) {
+                    //     debug!(
+                    //         "✅✅ 矿机 :{} 提交本地算力 {}",
+                    //         client_json_rpc.worker, hashrate
+                    //     );
+                    // }
                 } else if client_json_rpc.method == "eth_submitLogin" {
-                    debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                    //debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                 } else {
-                    debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                    //debug!("矿机传递未知RPC :{:?}", client_json_rpc);
                 }
 
                 let rpc = serde_json::to_vec(&client_json_rpc)?;

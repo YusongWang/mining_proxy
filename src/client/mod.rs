@@ -49,10 +49,10 @@ where
             return w.shutdown().await;
         }
 
-        debug!(
-            "C to S RPC #{:?}",
-            String::from_utf8(buf[0..len].to_vec()).unwrap()
-        );
+        // debug!(
+        //     "C to S RPC #{:?}",
+        //     String::from_utf8(buf[0..len].to_vec()).unwrap()
+        // );
 
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
@@ -63,12 +63,12 @@ where
                         let mut mapped =
                             RwLockWriteGuard::map(state.write().await, |s| &mut s.proxy_share);
                         *mapped = *mapped + 1;
-                        debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+                        //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                     }
 
                     if let Some(job_id) = client_json_rpc.params.get(1) {
                         {
-                            debug!("-------- JOB_ID {} Share ", job_id);
+                            //debug!("-------- JOB_ID {} Share ", job_id);
                             // 判断接受的任务属于哪个channel
                             let mut mine =
                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
@@ -77,7 +77,7 @@ where
 
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 // TODO
-                                debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                                //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
                                 proxy_fee_sender
                                     .send(rpc)
                                     .await
@@ -162,10 +162,10 @@ where
                         worker = worker + client_json_rpc.worker.as_str();
                         info!("✅ Worker :{} 请求登录", client_json_rpc.worker);
                     } else {
-                        debug!("❎ 登录错误，未找到登录参数");
+                        //debug!("❎ 登录错误，未找到登录参数");
                     }
                 } else {
-                    debug!("❎ Worker {} 传递未知RPC :{:?}", worker, client_json_rpc);
+                    //debug!("❎ Worker {} 传递未知RPC :{:?}", worker, client_json_rpc);
                 }
 
                 let write_len = w.write(&buf[0..len]).await?;
@@ -217,10 +217,10 @@ where
                     return w.shutdown().await;
                 }
 
-                debug!(
-                    "S to C RPC #{:?}",
-                    String::from_utf8(buf[0..len].to_vec()).unwrap()
-                );
+                // debug!(
+                //     "S to C RPC #{:?}",
+                //     String::from_utf8(buf[0..len].to_vec()).unwrap()
+                // );
 
 
                 //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
@@ -266,7 +266,7 @@ where
                                 match secret_number.cmp(&max) {
                                     Ordering::Less => {}
                                     _ => {
-                                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                                            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                                             // let mut jobs_queue =
                                             //      RwLockWriteGuard::map(state.write().await, |s| &mut s);
                                             //state.lock().await();
@@ -277,15 +277,15 @@ where
                                                 if jobs_queue.iter().len() > 0{
                                                     let a = jobs_queue.iter().next().take().unwrap();
                                                     let job = serde_json::from_str::<Server>(&*a)?;
-                                                    debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
+                                                    //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                     let mut byte = BytesMut::new();
                                                     byte.put_slice(&rpc[..]);
                                                     byte.put_u8(b'\n');
-                                                    debug!("发送指派任务给矿机 {:?}",job);
+                                                    //debug!("发送指派任务给矿机 {:?}",job);
                                                     let w_len = w.write_buf(&mut byte).await?;
                                                     if w_len == 0 {
-                                                        debug!("矿机任务写入失败 {:?}",job);
+                                                        //debug!("矿机任务写入失败 {:?}",job);
                                                         return w.shutdown().await;
                                                     }
 
