@@ -48,12 +48,21 @@ pub async fn accept_tcp(
         let state_send = state_send.clone();
         let dev_state_send = dev_state_send.clone();
         tokio::spawn(async move {
-            let transfer = transfer(state, jobs_recv, stream, c, proxy_fee_sender, d, state_send,dev_state_send)
-                .map(|r| {
-                    if let Err(e) = r {
-                        info!("❎ 线程退出 : error={}", e);
-                    }
-                });
+            let transfer = transfer(
+                state,
+                jobs_recv,
+                stream,
+                c,
+                proxy_fee_sender,
+                d,
+                state_send,
+                dev_state_send,
+            )
+            .map(|r| {
+                if let Err(e) = r {
+                    info!("❎ 线程退出 : error={}", e);
+                }
+            });
             tokio::spawn(transfer);
         });
     }
@@ -69,16 +78,20 @@ async fn transfer(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let outbound = TcpStream::connect(&config.pool_tcp_address.to_string()).await?;
+    let outbound = TcpStream::connect(&config.pool_tcp_address.to_string())
+        .await
+        .expect("连接到远程TCP矿池失败请检查网络或更换矿池链接！！");
 
     let (r_client, w_client) = split(inbound);
     let (r_server, w_server) = split(outbound);
     use tokio::sync::mpsc;
     let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
+    let worker = Arc::new(RwLock::new(String::new()));
 
     tokio::try_join!(
         client_to_server(
             state.clone(),
+            worker.clone(),
             config.clone(),
             r_client,
             w_server,
@@ -89,6 +102,7 @@ async fn transfer(
         ),
         server_to_client(
             state.clone(),
+            worker,
             config.clone(),
             jobs_recv,
             r_server,

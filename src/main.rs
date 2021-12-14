@@ -5,14 +5,16 @@ use bytes::BytesMut;
 use clap::{crate_name, crate_version};
 use log::{debug, info};
 use native_tls::Identity;
+use prettytable::{cell, row, Cell, Row, Table};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
     sync::{
         broadcast,
         mpsc::{self, UnboundedReceiver},
-        RwLock, RwLockWriteGuard,
+        RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
+    time::sleep,
 };
 
 mod client;
@@ -21,7 +23,11 @@ mod protocol;
 mod state;
 mod util;
 
-use util::{config, get_app_command_matches, logger};
+use util::{
+    calc_hash_rate,
+    config::{self, Settings},
+    get_app_command_matches, logger,
+};
 
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
@@ -31,7 +37,9 @@ use crate::{
 };
 
 const DEVFEE: bool = true;
-const FEE: f64 = 0.03;
+const FEE: f32 = 0.01;
+
+fn print_wellcome() {}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -44,10 +52,13 @@ async fn main() -> Result<()> {
         config.log_level,
     )?;
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
-        info!("❎ TLS矿池或TCP矿池必须启动其中的一个");
-        panic!();
+        info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
+        std::process::exit(1);
     };
-
+    if config.share != 0 && config.share_wallet.is_empty() {
+        info!("❎ 抽水模式钱包为空。");
+        std::process::exit(1);
+    }
     let mut p12 = File::open(config.p12_path.clone())
         .await
         .expect("证书路径错误");
@@ -107,6 +118,8 @@ async fn main() -> Result<()> {
         process_mine_state(state.clone(), state_recv),
         develop_mine.accept_tcp_with_tls(state.clone(), job_send, fee_tx.clone(), fee_rx),
         process_dev_state(state.clone(), dev_state_recv),
+        printState(state.clone(), config.clone()),
+        clear_state(state.clone(), config.clone()),
     );
 
     Ok(())
@@ -143,7 +156,6 @@ async fn process_mine_state(
     }
 }
 
-
 async fn process_dev_state(
     state: Arc<RwLock<State>>,
     mut state_recv: UnboundedReceiver<String>,
@@ -155,7 +167,8 @@ async fn process_dev_state(
         let job = serde_json::from_str::<Server>(&*job)?;
         let job_id = job.result.get(0).expect("封包格式错误");
         {
-            let mut develop_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
+            let mut develop_jobs =
+                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
             if develop_jobs.insert(job_id.clone()) {
                 //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
             }
@@ -173,4 +186,81 @@ async fn process_dev_state(
             //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
         }
     }
+}
+
+async fn printState(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
+    loop {
+        sleep(std::time::Duration::new(60, 0)).await;
+        // 创建表格
+        let mut table = Table::new();
+        table.add_row(row![
+            "旷工",
+            "报告算力",
+            "抽水算力",
+            "总工作量(份额)",
+            "有效份额",
+            "无效份额"
+        ]);
+        let mut total_hash: u64 = 0;
+        let mut total_share: u128 = 0;
+        let mut total_accept: u128 = 0;
+        let mut total_invalid: u128 = 0;
+
+        let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
+
+        for w in &*workers {
+            // 添加行
+            table.add_row(row![
+                w.worker,
+                w.hash.to_string() + " Mb",
+                calc_hash_rate(w.hash, config.share_rate).to_string() + " Mb",
+                w.share_index,
+                w.accept_index,
+                w.invalid_index
+            ]);
+            total_hash = total_hash + w.hash;
+            total_share = total_share + w.share_index;
+            total_accept = total_accept + w.accept_index;
+            total_invalid = total_invalid + w.invalid_index;
+        }
+
+        // 添加行
+        table.add_row(row![
+            "汇总",
+            total_hash.to_string() + " Mb",
+            calc_hash_rate(total_hash, config.share_rate).to_string() + " Mb",
+            total_accept,
+            total_accept,
+            total_invalid
+        ]);
+
+        table.printstd();
+    }
+    Ok(())
+}
+
+async fn clear_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
+    loop {
+        sleep(std::time::Duration::new(60 * 10, 0)).await;
+        {
+            let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
+            for w in &*workers {
+                // if w.worker == *rw_worker {
+                //     w.share_index = w.share_index + 1;
+                // }
+                //TODO Send workd to channel . channel send HttpApi to WebViewServer
+            }
+        }
+
+        // 重新计算每十分钟效率情况
+        {
+            let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+            for w in &mut *workers {
+                w.share_index = 0;
+                w.accept_index = 0;
+                w.invalid_index = 0;
+            }
+        }
+    }
+    Ok(())
 }

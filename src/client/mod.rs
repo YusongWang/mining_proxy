@@ -17,8 +17,8 @@ use tokio::{
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
-    state::State,
-    util::config::Settings,
+    state::{State, Worker},
+    util::{config::Settings, hex_to_int},
 };
 
 pub mod tcp;
@@ -26,7 +26,8 @@ pub mod tls;
 
 async fn client_to_server<R, W>(
     state: Arc<RwLock<State>>,
-    mut config: Settings,
+    worker: Arc<RwLock<String>>,
+    config: Settings,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     //state_send: UnboundedSender<String>,
@@ -38,13 +39,14 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let mut worker = String::new();
+    //let mut worker = String::new();
 
     loop {
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
         if len == 0 {
-            info!("Worker {} 客户端断开连接.", worker);
+            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+            info!("Worker {} 客户端断开连接.", *rw_worker);
             return w.shutdown().await;
         }
 
@@ -59,9 +61,15 @@ where
                     //TODO 重构随机数函数。
                     {
                         //新增一个share
-                        let mut mapped =
-                            RwLockWriteGuard::map(state.write().await, |s| &mut s.proxy_share);
-                        *mapped = *mapped + 1;
+                        let mut workers =
+                            RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        for w in &mut *workers {
+                            if w.worker == *rw_worker {
+                                w.share_index = w.share_index + 1;
+                            }
+                        }
                         //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                     }
 
@@ -80,7 +88,7 @@ where
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
                                     jsonrpc: "2.0".into(),
-                                    result: true,
+                                    result: false,
                                 };
 
                                 tx.send(s).expect("不能发送给客户端已接受");
@@ -103,7 +111,7 @@ where
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
                                     jsonrpc: "2.0".into(),
-                                    result: true,
+                                    result: false,
                                 };
 
                                 tx.send(s).expect("不能发送给客户端已接受");
@@ -117,17 +125,24 @@ where
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         {
-                            //新增一个share
-                            let mut hash = RwLockWriteGuard::map(state.write().await, |s| {
-                                &mut s.report_hashrate
-                            });
+                            let mut workers =
+                                RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
 
-                            if hash.get(&worker).is_some() {
-                                hash.remove(&worker);
-                                hash.insert(worker.clone(), hashrate.clone());
-                            } else {
-                                hash.insert(worker.clone(), hashrate.clone());
+                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                            for w in &mut *workers {
+                                if w.worker == *rw_worker {
+                                    if let Some(h) = hex_to_int(&hashrate[2..hashrate.len()]) {
+                                        w.hash = (h as u64) / 1000 / 1000;
+                                    }
+                                }
                             }
+                            // let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                            // if hash.get(&*rw_worker).is_some() {
+                            //     hash.remove(&*rw_worker);
+                            //     hash.insert(rw_worker.clone(), hashrate.clone());
+                            // } else {
+                            //     hash.insert(rw_worker.clone(), hashrate.clone());
+                            // }
                         }
 
                         // if let Some(h) = crate::util::hex_to_int(&hashrate[2..hashrate.len()]) {
@@ -138,10 +153,12 @@ where
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
                     if let Some(wallet) = client_json_rpc.params.get(0) {
-                        worker = wallet.clone();
-                        worker.push_str(".");
-                        worker = worker + client_json_rpc.worker.as_str();
-                        info!("✅ Worker :{} 请求登录", client_json_rpc.worker);
+                        let mut temp_worker = wallet.clone();
+                        temp_worker.push_str(".");
+                        temp_worker = temp_worker + client_json_rpc.worker.as_str();
+                        let mut rw_worker = RwLockWriteGuard::map(worker.write().await, |s| s);
+                        *rw_worker = temp_worker.clone();
+                        info!("✅ Worker :{} 请求登录", *rw_worker);
                     } else {
                         //debug!("❎ 登录错误，未找到登录参数");
                     }
@@ -151,18 +168,20 @@ where
 
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    info!("✅ Worker: {} 服务器断开连接.", worker);
+                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                    info!("✅ Worker: {} 服务器断开连接.", *rw_worker);
                     return w.shutdown().await;
                 }
             } else if let Ok(_) = serde_json::from_slice::<ClientGetWork>(&buf[0..len]) {
                 //debug!("获得任务:{:?}", client_json_rpc);
 
-                info!("🚜 Worker: {} 请求计算任务", worker);
+                //info!("🚜 Worker: {} 请求计算任务", worker);
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
+                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                     info!(
                         "✅ Worker: {} 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。",
-                        worker
+                        rw_worker
                     );
                     return w.shutdown().await;
                 }
@@ -173,6 +192,7 @@ where
 
 async fn server_to_client<R, W>(
     state: Arc<RwLock<State>>,
+    worker: Arc<RwLock<String>>,
     mut config: Settings,
     mut jobs_recv: broadcast::Receiver<String>,
     mut r: ReadHalf<R>,
@@ -208,8 +228,25 @@ where
                 //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                        info!("✅ 登录成功");
-                        is_login = true;
+
+                        if server_json_rpc.id == 1 && server_json_rpc.result {
+                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                            let wallet:Vec<_>= rw_worker.split(".").collect();
+                            let mut workers =
+                            RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+                            workers.push(Worker::new(
+                                rw_worker.clone(),
+                                wallet[1].clone().to_string(),
+                                wallet[0].clone().to_string(),
+                            ));
+                            is_login = true;
+                            info!("✅ {} 登录成功",rw_worker);
+                        } else {
+                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                            info!("❎ {} 登录失败",rw_worker);
+                            return w.shutdown().await;
+                        }
+
                     } else {
                         // debug!(
                         //     "❎ 登录失败{:?}",
@@ -220,11 +257,24 @@ where
                 } else {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                         //debug!("Got Result :{:?}", server_json_rpc);
-                        if server_json_rpc.id == 6 {
-                            info!("🚜 算力提交成功");
-                        }  else if server_json_rpc.result {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        let mut workers =
+                        RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+                        if server_json_rpc.id == 6{
+
+                        } else if server_json_rpc.result {
+                            for w in &mut *workers {
+                                if w.worker == *rw_worker {
+                                    w.accept_index = w.accept_index + 1;
+                                }
+                            }
                             info!("👍 Share Accept");
                         } else {
+                            for w in &mut *workers {
+                                if w.worker == *rw_worker {
+                                    w.invalid_index = w.invalid_index + 1;
+                                }
+                            }
                             info!("❗ Share Reject",);
                         }
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {

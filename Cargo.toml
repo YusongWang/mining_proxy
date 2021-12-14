@@ -24,5 +24,6 @@ hostname = "0.3.1"
 rand = "0.8.3"
 rand_chacha = "0.3.1"
 hex = "0.4.3"
+prettytable-rs = "^0.8"
 [profile.release]
 panic = 'abort'

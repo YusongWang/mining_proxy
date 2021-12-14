@@ -3,13 +3,13 @@ use std::{net::ToSocketAddrs, sync::Arc};
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
     state::State,
-    util::config::Settings,
+    util::{calc_hash_rate, config::Settings}, FEE,
 };
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 
-
+use log::info;
 //use log::{debug, info};
 use native_tls::TlsConnector;
 use tokio::{
@@ -139,7 +139,7 @@ impl Mine {
             let mut buf = vec![0; 1024];
             let len = r.read(&mut buf).await.expect("从服务器读取失败.");
             if len == 0 {
-                panic!("❗❎ 服务端断开连接");
+                info!("❗❎ 服务端断开连接");
                 return Ok(());
                 //return w_server.shutdown().await;
             }
@@ -147,13 +147,15 @@ impl Mine {
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
                     if server_json_rpc.result == false {
-                        panic!("❗❎ 矿池登录失败，请尝试重启程序");
+                        info!("❗❎ 矿池登录失败，请尝试重启程序");
+                        std::process::exit(18);
                     }
 
                     //info!("✅✅ 登录成功");
                     is_login = true;
                 } else {
-                    panic!("❗❎ 矿池登录失败，请尝试重启程序");
+                    info!("❗❎ 矿池登录失败，请尝试重启程序");
+                    std::process::exit(19);
                     // debug!(
                     //     "❗❎ 登录失败{:?}",
                     //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
@@ -178,7 +180,6 @@ impl Mine {
 
                             diff = job_diff.clone();
                             {
-
                                 //清理队列。
                                 let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                     &mut s.develop_jobs_queue
@@ -307,8 +308,6 @@ impl Mine {
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg);
 
-
-
         let eth_get_work = ClientGetWork {
             id: 5,
             method: "eth_getWork".into(),
@@ -321,21 +320,11 @@ impl Mine {
         loop {
             let mut my_hash_rate: u64 = 0;
             {
-                //新增一个share
-                let hash = RwLockReadGuard::map(state.read().await, |s| &s.report_hashrate);
-
-                for (worker, hashrate) in &*hash {
-                    if let Some(h) = crate::util::hex_to_int(&hashrate[2..hashrate.len()]) {
-                        my_hash_rate = my_hash_rate + h as u64;
-                    }
+                let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
+                for w in &*workers {
+                    my_hash_rate = my_hash_rate + w.hash;
                 }
             }
-
-            // info!(
-            //     "目前总算力 : {} MB 抽水算力 {} MB",
-            //     my_hash_rate / 1000 / 1000,
-            //     ((my_hash_rate / 1000 / 1000) as f64 * crate::FEE) as u64
-            // );
 
             //计算速率
             let submit_hashrate = Client {
@@ -344,7 +333,7 @@ impl Mine {
                 params: [
                     format!(
                         "0x{:x}",
-                        ((my_hash_rate / 1000 / 1000) as f64 * crate::FEE) as u64
+                        calc_hash_rate(my_hash_rate, FEE),
                     ),
                     hex::encode(self.hostname.clone()),
                 ]
@@ -355,11 +344,9 @@ impl Mine {
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg);
 
-
-
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg);
-            sleep(std::time::Duration::new(10, 0)).await;
+            sleep(std::time::Duration::new(5, 0)).await;
         }
     }
 }

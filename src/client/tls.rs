@@ -1,4 +1,5 @@
 use std::net::ToSocketAddrs;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -86,7 +87,7 @@ async fn transfer_ssl(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let client_stream = tls_acceptor.accept(inbound).await?;
+    let client_stream = tls_acceptor.accept(inbound).await.expect("连接到远程SSL矿池失败请检查网络或更换矿池链接！！");
 
     info!("😄 tls_acceptor Success!");
     //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
@@ -114,10 +115,12 @@ async fn transfer_ssl(
     use tokio::sync::mpsc;
     //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();
     let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
+    let mut worker = Arc::new(RwLock::new(String::new()));
 
     tokio::try_join!(
         client_to_server(
             state.clone(),
+            worker.clone(),
             config.clone(),
             r_client,
             w_server,
@@ -128,6 +131,7 @@ async fn transfer_ssl(
         ),
         server_to_client(
             state.clone(),
+            worker.clone(),
             config.clone(),
             jobs_recv,
             r_server,

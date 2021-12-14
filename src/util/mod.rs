@@ -53,6 +53,10 @@ pub fn hex_to_int(string: &str) -> Option<i64> {
             parse_hex_digit(c).and_then(|n| acc.map(|acc| acc + n * base.pow(pos as u32)))
         })
 }
+
+pub fn calc_hash_rate(my_hash_rate: u64, share_rate: f32) -> u64 {
+    ((my_hash_rate) as f32 * share_rate) as u64
+}
 pub mod logger {
 
     pub fn init(app_name: &str, path: String, log_level: u32) -> Result<(), fern::InitError> {
