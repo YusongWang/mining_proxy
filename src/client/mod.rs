@@ -58,6 +58,8 @@ where
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
+
+                    let mut rpc_id = 0;
                     //TODO 重构随机数函数。
                     {
                         //新增一个share
@@ -68,6 +70,7 @@ where
                         for w in &mut *workers {
                             if w.worker == *rw_worker {
                                 w.share_index = w.share_index + 1;
+                                rpc_id = w.share_index;
                             }
                         }
                         //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -121,7 +124,7 @@ where
                         }
                     }
 
-                    info!("✅ Worker :{} Share", client_json_rpc.worker);
+                    info!("✅ Worker :{} Share #{}", client_json_rpc.worker,rpc_id);
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         {
@@ -263,19 +266,24 @@ where
                         if server_json_rpc.id == 6{
 
                         } else if server_json_rpc.result {
+                            let mut rpc_id = 0;
                             for w in &mut *workers {
                                 if w.worker == *rw_worker {
                                     w.accept_index = w.accept_index + 1;
+                                    rpc_id = w.share_index;
                                 }
                             }
-                            info!("👍 Share Accept");
+                            info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);
                         } else {
+                            let mut rpc_id = 0;
                             for w in &mut *workers {
                                 if w.worker == *rw_worker {
                                     w.invalid_index = w.invalid_index + 1;
+                                    rpc_id = w.share_index;
                                 }
                             }
-                            info!("❗ Share Reject",);
+
+                            info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
                         }
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                             {
