@@ -58,7 +58,6 @@ where
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
                 if client_json_rpc.method == "eth_submitWork" {
-
                     let mut rpc_id = 0;
                     //TODO 重构随机数函数。
                     {
@@ -123,8 +122,10 @@ where
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                         }
                     }
-
-                    info!("✅ Worker :{} Share #{}", client_json_rpc.worker,rpc_id);
+                    {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        info!("✅ Worker :{} Share #{}", rw_worker, rpc_id);
+                    }
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         {
@@ -251,6 +252,8 @@ where
                         }
 
                     } else {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        info!("❎ {} 登录失败 01",rw_worker);
                         // debug!(
                         //     "❎ 登录失败{:?}",
                         //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
@@ -264,7 +267,7 @@ where
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
                         if server_json_rpc.id == 6{
-
+                            
                         } else if server_json_rpc.result {
                             let mut rpc_id = 0;
                             for w in &mut *workers {
