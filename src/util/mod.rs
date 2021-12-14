@@ -67,8 +67,8 @@ pub mod logger {
             1 => log::LevelFilter::Debug,
             _ => log::LevelFilter::Info,
         };
-
-        let log = fern::DateBased::new(path, format!("{}.log.%Y-%m-%d.%H", app_name))
+        if log_level <= 1 {
+            let log = fern::DateBased::new(path, format!("{}.log.%Y-%m-%d.%H", app_name))
             .utc_time()
             .local_time();
         fern::Dispatch::new()
@@ -88,6 +88,26 @@ pub mod logger {
             .chain(std::io::stdout())
             .chain(log)
             .apply()?;
+        } else {
+            let log = fern::DateBased::new(path, format!("{}.log.%Y-%m-%d.%H", app_name))
+            .utc_time()
+            .local_time();
+        fern::Dispatch::new()
+            .format(move |out, message, record| {
+                out.finish(format_args!(
+                    "[{}] [{}] {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    record.level(),
+                    message
+                ))
+            })
+            .level(lavel)
+            //.level_for("engine", log::LevelFilter::Debug)
+            .chain(std::io::stdout())
+            .chain(log)
+            .apply()?;
+        }
+
         Ok(())
     }
 }
