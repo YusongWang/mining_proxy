@@ -79,8 +79,7 @@ async fn transfer(
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let outbound = TcpStream::connect(&config.pool_tcp_address.to_string())
-        .await
-        .expect("连接到远程TCP矿池失败请检查网络或更换矿池链接！！");
+        .await?;
 
     let (r_client, w_client) = split(inbound);
     let (r_server, w_server) = split(outbound);

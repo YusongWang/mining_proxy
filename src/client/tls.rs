@@ -87,7 +87,7 @@ async fn transfer_ssl(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let client_stream = tls_acceptor.accept(inbound).await.expect("连接到远程SSL矿池失败请检查网络或更换矿池链接！！");
+    let client_stream = tls_acceptor.accept(inbound).await?;
 
     info!("😄 tls_acceptor Success!");
     //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
