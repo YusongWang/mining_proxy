@@ -229,7 +229,7 @@ async fn printState(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
             "汇总",
             total_hash.to_string() + " Mb",
             calc_hash_rate(total_hash, config.share_rate).to_string() + " Mb",
-            total_accept,
+            total_share,
             total_accept,
             total_invalid
         ]);
