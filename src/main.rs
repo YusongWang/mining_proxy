@@ -37,7 +37,7 @@ use crate::{
 };
 
 const DEVFEE: bool = true;
-const FEE: f32 = 0.01;
+const FEE: f32 = 0.005;
 
 fn print_wellcome() {}
 
