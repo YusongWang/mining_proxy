@@ -49,7 +49,7 @@ where
 
             match remove_worker(state.clone(), rw_worker.clone()).await {
                 Ok(_) => {}
-                Err(_) => info!("清理全局变量失败 Code: {}", line!()),
+                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
             }
             info!("Worker {} 客户端断开连接.", *rw_worker);
             return w.shutdown().await;
@@ -231,7 +231,7 @@ where
 
                 let len = len?;
                 if len == 0 {
-                    info!("服务端断开连接.");
+                    info!("❗ 服务端断开连接.");
                     let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                     match remove_worker(state.clone(),rw_worker.clone()).await {
                         Ok(_) =>{},
@@ -420,7 +420,7 @@ where
 
                 let len = w.write(&buf[0..len]).await?;
                 if len == 0 {
-                    info!("服务端写入失败 断开连接.");
+                    info!("❗ 服务端写入失败 断开连接.");
                     let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                     match remove_worker(state.clone(),rw_worker.clone()).await {
                         Ok(_) =>{},

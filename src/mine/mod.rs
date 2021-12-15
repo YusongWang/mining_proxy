@@ -162,7 +162,7 @@ impl Mine {
             let mut buf = vec![0; 1024];
             let len = r.read(&mut buf).await.expect("从服务器读取失败.");
             if len == 0 {
-                info!("服务端断开连接.");
+                info!("❗❎ 服务端断开连接.");
                 return Ok(());
                 //return w_server.shutdown().await;
             }
