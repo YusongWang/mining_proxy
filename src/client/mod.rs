@@ -1,7 +1,7 @@
 use rand_chacha::ChaCha20Rng;
 use std::{cmp::Ordering, rc::Rc, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 
 use bytes::{BufMut, BytesMut};
 use log::{debug, info};
@@ -461,12 +461,17 @@ where
 
 async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> {
     //新增一个share
-    let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-
-    for w in &mut *workers {
-        if w.worker == worker {
-            drop(w);
+    {
+        let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+        let idx: usize = 0;
+        while idx <= worker.len() {
+            if workers[idx].worker == worker {
+                workers.remove(idx);
+                return Ok(());
+            }
         }
     }
-    Ok(())
+
+    return Err(anyhow::Error::msg("未找到旷工"));
+    //anyhow::private::Err(Error::msg(format_args!("未找到旷工: {}", worker)))
 }
