@@ -65,6 +65,7 @@ async fn main() -> Result<()> {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
         std::process::exit(1);
     };
+
     if config.share != 0 && config.share_wallet.is_empty() {
         info!("❎ 抽水模式钱包为空。");
         std::process::exit(1);
@@ -95,7 +96,7 @@ async fn main() -> Result<()> {
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
 
-    let _ = tokio::join!(
+    let res = tokio::try_join!(
         accept_tcp(
             state.clone(),
             config.clone(),
@@ -127,6 +128,10 @@ async fn main() -> Result<()> {
         print_state(state.clone(), config.clone()),
         clear_state(state.clone(), config.clone()),
     );
+
+    if let Err(err) = res {
+        info!("processing failed; error = {}", err);
+    }
 
     Ok(())
 }

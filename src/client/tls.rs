@@ -2,17 +2,18 @@ use std::net::ToSocketAddrs;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use log::info;
 
 use tokio::io::split;
 use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
-use native_tls::{Identity, TlsConnector};
+use native_tls::{Identity, TlsConnector, TlsStream};
 
 use futures::FutureExt;
 use tokio::sync::mpsc::{Sender, UnboundedSender};
 use tokio::sync::{broadcast, RwLock};
+
 
 use crate::client::{client_to_server, server_to_client};
 
@@ -91,26 +92,44 @@ async fn transfer_ssl(
 
     info!("😄 tls_acceptor Success!");
     //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
+    let mut server_stream: Option<TlsStream<TcpStream>>;
+    let mut outbound: Option<TcpStream> = None;
+    for address in &config.pool_tcp_address {
+        let addr = match address.to_socket_addrs()?.next() {
+            Some(address) => {
+                //info!("{} :ttl {}",address, address.ttl()?);
+                Some(address)
+            }
+            None => continue,
+        };
 
-    let addr = config
-        .pool_ssl_address
-        .to_socket_addrs()?
-        .next()
-        .ok_or("failed to resolve")
-        .expect("parse address Error");
-    info!("😄 connect to {:?}", &addr);
-    let socket = TcpStream::connect(&addr).await?;
-    let cx = TlsConnector::builder().build()?;
-    let cx = tokio_native_tls::TlsConnector::from(cx);
-    info!("😄 connectd {:?}", &addr);
+        outbound = match TcpStream::connect(addr.unwrap()).await {
+            Ok(bound) => {
+                info!("{} :ttl {}", address, bound.ttl()?);
+                Some(bound)
+            }
+            Err(_) => continue,
+        };
+        let cx = TlsConnector::builder().build()?;
+        let cx = tokio_native_tls::TlsConnector::from(cx);
+        info!("😄 connectd {:?}", &addr);
 
-    let domain: Vec<&str> = config.pool_ssl_address.split(":").collect();
-    let server_stream = cx.connect(domain[0], socket).await?;
+        let domain: Vec<&str> = address.split(":").collect();
+        let server_stream = match cx.connect(domain[0], outbound.unwrap()).await {
+            Ok(stream) => {
+                //info!("{} :ttl {}",address);
+                Some(stream)
+            }
+            Err(_) => continue,
+        };
+    }
 
-    info!("😄 connectd {:?} with TLS", &addr);
+    if server_stream.is_none() {
+        return bail!("所有矿池都连接失败了。");
+    }
 
     let (r_client, w_client) = split(client_stream);
-    let (r_server, w_server) = split(server_stream);
+    let (r_server, w_server) = split(server_stream.unwrap());
 
     use tokio::sync::mpsc;
     //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();

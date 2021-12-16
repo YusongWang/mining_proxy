@@ -56,19 +56,16 @@ impl Mine {
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
-    ) {
+    ) -> Result<()> {
         if self.config.share == 1 {
             info!("✅✅ 开启TCP矿池抽水{}", self.config.share_tcp_address);
-            self.accept_tcp(state, jobs_send.clone(), send, recv)
-                .await
-                .expect("❎❎ TCP 抽水线程启动失败");
+            self.accept_tcp(state, jobs_send.clone(), send, recv).await
         } else if self.config.share == 2 {
             info!("✅✅ 开启TLS矿池抽水{}", self.config.share_ssl_address);
-            self.accept_tcp_with_tls(state, jobs_send, send, recv)
-                .await
-                .expect("❎❎ TLS 抽水线程启动失败");
+            self.accept_tcp_with_tls(state, jobs_send, send, recv).await
         } else {
             info!("✅✅ 未开启抽水");
+            return Ok(());
         }
     }
 
@@ -184,7 +181,6 @@ impl Mine {
                         "❗❎ 登录失败{:?}",
                         String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
                     );
-                    
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
@@ -200,7 +196,7 @@ impl Mine {
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     if let Some(job_diff) = server_json_rpc.result.get(3) {
                         #[cfg(debug_assertions)]
-                        debug!("当前难度:{}",diff);
+                        debug!("当前难度:{}", diff);
                         if diff != *job_diff {
                             //新的难度发现。
                             //debug!("新的难度发现。");
@@ -216,7 +212,7 @@ impl Mine {
                         }
                     }
                     #[cfg(debug_assertions)]
-                    debug!("Got jobs {:?}",server_json_rpc);
+                    debug!("Got jobs {:?}", server_json_rpc);
                     //新增一个share
                     if let Some(job_id) = server_json_rpc.result.get(0) {
                         //0 工作任务HASH
@@ -249,7 +245,6 @@ impl Mine {
                     //     //debug!("✅ Got Job Diff {}", diff);
                     // }
                 } else {
-
                     #[cfg(debug_assertions)]
                     debug!(
                         "❗ ------未捕获封包:{:?}",
@@ -389,7 +384,7 @@ impl Mine {
                 sleep(std::time::Duration::new(20, 0)).await;
             } else if my_hash_rate <= 10000 {
                 sleep(std::time::Duration::new(10, 0)).await;
-            } else if my_hash_rate <= 100000{
+            } else if my_hash_rate <= 100000 {
                 sleep(std::time::Duration::new(1, 0)).await;
             }
         }

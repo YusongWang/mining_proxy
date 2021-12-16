@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use log::info;
 
@@ -78,11 +78,24 @@ async fn transfer(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let outbound = TcpStream::connect(&config.pool_tcp_address.to_string())
-        .await?;
+    let mut outbound: Option<TcpStream> = None;
+    for address in &config.pool_tcp_address {
+        outbound = match TcpStream::connect(address).await {
+            Ok(bound) => {
+                info!("{} :ttl {}",address, bound.ttl()?);
+                Some(bound)
+            }
+            Err(_) => continue,
+        };
+    }
+
+    if outbound.is_none() {
+        return bail!("所有矿池都连接失败了。");
+    }
+
 
     let (r_client, w_client) = split(inbound);
-    let (r_server, w_server) = split(outbound);
+    let (r_server, w_server) = split(outbound.unwrap());
     use tokio::sync::mpsc;
     let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
     let worker = Arc::new(RwLock::new(String::new()));
