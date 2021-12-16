@@ -187,7 +187,7 @@ pub async fn get_pool_stream_with_tls(
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .min_protocol_version(Some(Protocol::Tlsv11))
-            .max_protocol_version(Some(Protocol::Tlsv12))
+            .max_protocol_version(Some(Protocol::Sslv3))
             .build()
         {
             Ok(con) => con,
