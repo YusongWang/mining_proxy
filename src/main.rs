@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
     );
 
     if let Err(err) = res {
-        info!("processing failed; error = {}", err);
+        info!("错误: {}", err);
     }
 
     Ok(())

@@ -8,12 +8,12 @@ use log::info;
 use tokio::io::split;
 use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
-use native_tls::{Identity, TlsConnector, TlsStream};
+use native_tls::{Identity, TlsConnector};
 
 use futures::FutureExt;
 use tokio::sync::mpsc::{Sender, UnboundedSender};
 use tokio::sync::{broadcast, RwLock};
-
+use tokio_native_tls::TlsStream;
 
 use crate::client::{client_to_server, server_to_client};
 
@@ -89,48 +89,19 @@ async fn transfer_ssl(
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
-
     info!("😄 tls_acceptor Success!");
-    //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
-    let mut server_stream: Option<TlsStream<TcpStream>>;
-    let mut outbound: Option<TcpStream> = None;
-    for address in &config.pool_tcp_address {
-        let addr = match address.to_socket_addrs()?.next() {
-            Some(address) => {
-                //info!("{} :ttl {}",address, address.ttl()?);
-                Some(address)
-            }
-            None => continue,
-        };
 
-        outbound = match TcpStream::connect(addr.unwrap()).await {
-            Ok(bound) => {
-                info!("{} :ttl {}", address, bound.ttl()?);
-                Some(bound)
-            }
-            Err(_) => continue,
-        };
-        let cx = TlsConnector::builder().build()?;
-        let cx = tokio_native_tls::TlsConnector::from(cx);
-        info!("😄 connectd {:?}", &addr);
+    let (stream, addr) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address).await {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            info!("所有SSL矿池均不可链接。请修改后重试");
+            std::process::exit(100);
+        }
+    };
 
-        let domain: Vec<&str> = address.split(":").collect();
-        let server_stream = match cx.connect(domain[0], outbound.unwrap()).await {
-            Ok(stream) => {
-                //info!("{} :ttl {}",address);
-                Some(stream)
-            }
-            Err(_) => continue,
-        };
-    }
-
-    if server_stream.is_none() {
-        return bail!("所有矿池都连接失败了。");
-    }
 
     let (r_client, w_client) = split(client_stream);
-    let (r_server, w_server) = split(server_stream.unwrap());
-
+    let (r_server, w_server) = split(stream);
     use tokio::sync::mpsc;
     //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();
     let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();

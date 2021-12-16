@@ -86,27 +86,15 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let addr = "asia2.ethermine.org:5555"
-            .to_socket_addrs()?
-            .next()
-            .ok_or("failed to resolve")
-            .expect("❗ 启动失败请检查网络，稍后重试");
+        let (server_stream, addr) = match crate::util::get_pool_stream_with_tls(&self.config.pool_ssl_address).await {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                info!("所有SSL矿池均不可链接。请修改后重试");
+                std::process::exit(100);
+            }
+        };
 
-        //info!("✅✅ connect to {:?}", &addr);
-        let socket = TcpStream::connect(&addr).await?;
-        let cx = TlsConnector::builder()
-            .danger_accept_invalid_certs(true)
-            .danger_accept_invalid_hostnames(true)
-            .build()?;
-        let cx = tokio_native_tls::TlsConnector::from(cx);
-        //info!("✅✅ connectd {:?}", &addr);
-
-        //let domain: Vec<&str> = "asia2.ethermine.org:5555".split(":").collect();
-        let server_stream = cx
-            .connect("asia2.ethermine.org", socket)
-            .await
-            .expect("❗ 启动失败请检查网络，稍后重试");
-
+      
         let (r_server, w_server) = split(server_stream);
 
         tokio::try_join!(

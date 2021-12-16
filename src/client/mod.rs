@@ -1,7 +1,7 @@
 use rand_chacha::ChaCha20Rng;
 use std::{cmp::Ordering, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 use bytes::{BufMut, BytesMut};
 use log::{debug, info};
@@ -21,10 +21,10 @@ use crate::{
     util::{config::Settings, hex_to_int},
 };
 
+pub mod pool;
 pub mod tcp;
 pub mod tls;
 pub mod worker;
-pub mod pool;
 
 async fn client_to_server<R, W>(
     state: Arc<RwLock<State>>,
@@ -46,6 +46,7 @@ where
     loop {
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
+
         if len == 0 {
             let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
 
@@ -228,10 +229,17 @@ where
 
     loop {
         let mut buf = vec![0; 1024];
+
         tokio::select! {
             len = r.read(&mut buf) => {
+                let len = match len{
+                    Ok(len) => len,
 
-                let len = len?;
+                    Err(e) => return anyhow::private::Err(e),
+
+                };
+
+
                 if len == 0 {
                     info!("❗ 服务端断开连接.");
                     let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
@@ -465,11 +473,13 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
     //新增一个share
     {
         let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-        let idx: usize = 0;
-        while idx <= worker.len() {
-            if workers[idx].worker == worker {
-                workers.remove(idx);
-                return Ok(());
+        if !worker.is_empty() {
+            let idx: usize = 0;
+            while idx <= worker.len() {
+                if workers[idx].worker == worker {
+                    workers.remove(idx);
+                    return Ok(());
+                }
             }
         }
     }

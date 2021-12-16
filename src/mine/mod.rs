@@ -50,7 +50,7 @@ impl Mine {
         })
     }
 
-    pub async fn accept(
+    async fn worker(
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
@@ -65,8 +65,21 @@ impl Mine {
             self.accept_tcp_with_tls(state, jobs_send, send, recv).await
         } else {
             info!("✅✅ 未开启抽水");
-            return Ok(());
+            Ok(())
         }
+    }
+
+    pub async fn accept(
+        &self,
+        state: Arc<RwLock<State>>,
+        jobs_send: broadcast::Sender<String>,
+        send: UnboundedSender<String>,
+        recv: UnboundedReceiver<String>,
+    ) -> Result<()> {
+        //loop {
+        self.worker(state.clone(), jobs_send.clone(), send.clone(), recv).await
+
+        //}
     }
 
     async fn accept_tcp(
@@ -76,7 +89,15 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let outbound = TcpStream::connect(&self.config.share_tcp_address.to_string()).await?;
+        let (stream, addr) = match crate::util::get_pool_stream(&self.config.pool_ssl_address) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                info!("所有SSL矿池均不可链接。请修改后重试");
+                std::process::exit(100);
+            }
+        };
+
+        let outbound = TcpStream::from_std(stream)?;
         let (r_server, w_server) = split(outbound);
 
         // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
@@ -103,28 +124,13 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let addr = self
-            .config
-            .share_ssl_address
-            .to_socket_addrs()?
-            .next()
-            .ok_or("failed to resolve")
-            .expect("parse address Error");
-
-        info!("✅✅ connect to {:?}", &addr);
-        let socket = TcpStream::connect(&addr).await?;
-        let cx = TlsConnector::builder()
-            .danger_accept_invalid_certs(true)
-            .danger_accept_invalid_hostnames(true)
-            .build()?;
-        let cx = tokio_native_tls::TlsConnector::from(cx);
-        info!("✅✅ connectd {:?}", &addr);
-
-        let domain: Vec<&str> = self.config.share_ssl_address.split(":").collect();
-        let server_stream = cx
-            .connect(domain[0], socket)
-            .await
-            .expect("❗❎ 与矿池SSL握手失败");
+        let (server_stream, addr) = match crate::util::get_pool_stream_with_tls(&self.config.pool_ssl_address).await {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                info!("所有SSL矿池均不可链接。请修改后重试");
+                std::process::exit(100);
+            }
+        };
 
         let (r_server, w_server) = split(server_stream);
 
@@ -175,12 +181,13 @@ impl Mine {
                     is_login = true;
                 } else {
                     info!("❗❎ 矿池登录失败，请尝试重启程序");
-                    std::process::exit(1);
+
                     #[cfg(debug_assertions)]
                     debug!(
                         "❗❎ 登录失败{:?}",
                         String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
                     );
+                    std::process::exit(1);
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {

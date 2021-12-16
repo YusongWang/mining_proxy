@@ -1,10 +1,14 @@
+use std::io::{Read, Write};
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
+use std::time::Duration;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
+use bytes::{buf, BufMut};
 use log::info;
 
-use tokio::io::split;
+use tokio::io::{split, AsyncReadExt};
 use tokio::net::{TcpListener, TcpStream};
 
 use futures::FutureExt;
@@ -60,9 +64,11 @@ pub async fn accept_tcp(
             )
             .map(|r| {
                 if let Err(e) = r {
-                    info!("❎ 线程退出 : error={}", e);
+                    info!("❎ 线程退出 : {}", e);
                 }
             });
+
+            info!("初始化完成");
             tokio::spawn(transfer);
         });
     }
@@ -78,28 +84,22 @@ async fn transfer(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let mut outbound: Option<TcpStream> = None;
-    for address in &config.pool_tcp_address {
-        outbound = match TcpStream::connect(address).await {
-            Ok(bound) => {
-                info!("{} :ttl {}",address, bound.ttl()?);
-                Some(bound)
-            }
-            Err(_) => continue,
-        };
-    }
+    let (stream,addr) = match crate::util::get_pool_stream(&config.pool_ssl_address) {
+        Some((stream,addr)) => (stream,addr),
+        None => {
+            info!("所有SSL矿池均不可链接。请修改后重试");
+            std::process::exit(100);
+        }
+    };
 
-    if outbound.is_none() {
-        return bail!("所有矿池都连接失败了。");
-    }
-
-
+    let outbound = TcpStream::from_std(stream)?;
     let (r_client, w_client) = split(inbound);
-    let (r_server, w_server) = split(outbound.unwrap());
-    use tokio::sync::mpsc;
-    let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
+    let (r_server, w_server) = split(outbound);
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
     let worker = Arc::new(RwLock::new(String::new()));
 
+    info!("start client and server");
     tokio::try_join!(
         client_to_server(
             state.clone(),
