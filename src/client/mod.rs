@@ -23,6 +23,8 @@ use crate::{
 
 pub mod tcp;
 pub mod tls;
+pub mod worker;
+pub mod pool;
 
 async fn client_to_server<R, W>(
     state: Arc<RwLock<State>>,

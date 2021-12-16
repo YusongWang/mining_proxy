@@ -30,7 +30,7 @@ use util::{
 };
 
 use crate::{
-    client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
+    client::{pool, tcp::accept_tcp, tls::accept_tcp_with_tls},
     mine::Mine,
     protocol::rpc::eth::Server,
     state::State,
@@ -48,6 +48,19 @@ async fn main() -> Result<()> {
         config.log_path.clone(),
         config.log_level,
     )?;
+
+    info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
+    // 分配任务给矿机channel
+    let (state_send, state_recv) = mpsc::unbounded_channel::<String>();
+    // 分配dev任务给矿机channel
+    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<String>();
+
+    // let pool = pool::Pool::new(config.clone(), state_send.clone(), dev_state_send.clone());
+
+    // let _ = tokio::join!(
+    //     pool.serve(),
+    // );
+
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
         std::process::exit(1);
@@ -66,13 +79,9 @@ async fn main() -> Result<()> {
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
 
     info!("✅ config init success!");
-    info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
+
     // 分配任务给矿机channel
-    let (job_send, _) = broadcast::channel::<String>(1);
-    // 分配任务给矿机channel
-    let (state_send, state_recv) = mpsc::unbounded_channel::<String>();
-    // 分配dev任务给矿机channel
-    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<String>();
+    let (job_send, _) = broadcast::channel::<String>(100);
 
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
@@ -233,7 +242,6 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
 
         table.printstd();
     }
-
 }
 
 async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
@@ -259,5 +267,4 @@ async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
             }
         }
     }
- 
 }
