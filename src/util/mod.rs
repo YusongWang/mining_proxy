@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 use log::info;
-use native_tls::TlsConnector;
+use native_tls::{TlsConnector, Protocol};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
 
@@ -186,6 +186,7 @@ pub async fn get_pool_stream_with_tls(
         let cx = match TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
+            .min_protocol_version(Some(Protocol::Tlsv11))
             .build()
         {
             Ok(con) => con,
@@ -197,6 +198,7 @@ pub async fn get_pool_stream_with_tls(
         let cx = tokio_native_tls::TlsConnector::from(cx);
         let addr_str = addr.to_string();
         let domain: Vec<&str> = addr_str.split(":").collect();
+        info!("{:?}",domain);
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
             Err(err) => {
