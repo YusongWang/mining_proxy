@@ -233,7 +233,7 @@ impl Mine {
                             let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                 &mut s.mine_jobs_queue
                             });
-                            jobs.insert(job);
+                            jobs.push_back(job);
                         }
 
                         // debug!("发送到等待队列进行工作: {}", job_id);

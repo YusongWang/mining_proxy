@@ -3,9 +3,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
-use log::{debug, info};
+use log::info;
 use native_tls::Identity;
-use prettytable::{cell, row, Cell, Row, Table};
+use prettytable::{cell, row, Table};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
@@ -36,9 +36,7 @@ use crate::{
     state::State,
 };
 
-const DEVFEE: bool = true;
 const FEE: f32 = 0.005;
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -72,9 +70,9 @@ async fn main() -> Result<()> {
     // 分配任务给矿机channel
     let (job_send, _) = broadcast::channel::<String>(1);
     // 分配任务给矿机channel
-    let (state_send, mut state_recv) = mpsc::unbounded_channel::<String>();
+    let (state_send, state_recv) = mpsc::unbounded_channel::<String>();
     // 分配dev任务给矿机channel
-    let (dev_state_send, mut dev_state_recv) = mpsc::unbounded_channel::<String>();
+    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<String>();
 
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
@@ -117,7 +115,7 @@ async fn main() -> Result<()> {
         process_mine_state(state.clone(), state_recv),
         develop_mine.accept_tcp_with_tls(state.clone(), job_send, fee_tx.clone(), fee_rx),
         process_dev_state(state.clone(), dev_state_recv),
-        printState(state.clone(), config.clone()),
+        print_state(state.clone(), config.clone()),
         clear_state(state.clone(), config.clone()),
     );
 
@@ -143,15 +141,15 @@ async fn process_mine_state(
         }
 
         //debug!("Job_id {} 写入成功", job_id);
-        let job_str = serde_json::to_string(&job)?;
-        {
-            let mut mine_queue =
-                RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-            if mine_queue.remove(&job_str) {
-                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
-            }
-            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
-        }
+        // let job_str = serde_json::to_string(&job)?;
+        // {
+        //     let mut mine_queue =
+        //         RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
+        //     if mine_queue.remove(&job_str) {
+        //         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
+        //     }
+        //     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
+        // }
     }
 }
 
@@ -175,19 +173,19 @@ async fn process_dev_state(
         }
 
         //debug!("Job_id {} 写入成功", job_id);
-        let job_str = serde_json::to_string(&job)?;
-        {
-            let mut mine_queue =
-                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-            if mine_queue.remove(&job_str) {
-                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
-            }
-            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
-        }
+        // let job_str = serde_json::to_string(&job)?;
+        // {
+        //     let mut mine_queue =
+        //         RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+        //     if mine_queue.remove(&job_str) {
+        //         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
+        //     }
+        //     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
+        // }
     }
 }
 
-async fn printState(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
+async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
     loop {
         sleep(std::time::Duration::new(60, 0)).await;
         // 创建表格
@@ -235,15 +233,15 @@ async fn printState(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
 
         table.printstd();
     }
-    Ok(())
+
 }
 
-async fn clear_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
+async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
     loop {
         sleep(std::time::Duration::new(60 * 10, 0)).await;
         {
             let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
-            for w in &*workers {
+            for _ in &*workers {
                 // if w.worker == *rw_worker {
                 //     w.share_index = w.share_index + 1;
                 // }
@@ -261,5 +259,5 @@ async fn clear_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
             }
         }
     }
-    Ok(())
+ 
 }

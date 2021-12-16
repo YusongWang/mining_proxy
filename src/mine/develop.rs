@@ -209,7 +209,7 @@ impl Mine {
                             let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                 &mut s.develop_jobs_queue
                             });
-                            jobs.insert(job);
+                            jobs.push_back(job);
                         }
 
                         // let job = serde_json::to_string(&server_json_rpc)?;

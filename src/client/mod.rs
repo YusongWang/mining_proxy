@@ -1,7 +1,7 @@
 use rand_chacha::ChaCha20Rng;
-use std::{cmp::Ordering, rc::Rc, sync::Arc};
+use std::{cmp::Ordering, sync::Arc};
 
-use anyhow::{Error, Result};
+use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 use log::{debug, info};
@@ -10,7 +10,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::{
         broadcast,
-        mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
+        mpsc::{UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
 };
@@ -27,7 +27,7 @@ pub mod tls;
 async fn client_to_server<R, W>(
     state: Arc<RwLock<State>>,
     worker: Arc<RwLock<String>>,
-    config: Settings,
+    _: Settings,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     //state_send: UnboundedSender<String>,
@@ -284,7 +284,7 @@ where
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
                         if server_json_rpc.id == 6{
-
+                            continue;
                         } else if server_json_rpc.result {
                             let mut rpc_id = 0;
                             for w in &mut *workers {
@@ -321,10 +321,10 @@ where
                                             //state.lock().await();
                                             // 将任务加入队列。
                                             {
-                                                let jobs_queue =
-                                                RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
-                                                if jobs_queue.iter().len() > 0 {
-                                                    let a = jobs_queue.iter().next().unwrap();
+                                                let mut jobs_queue =
+                                                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                                if jobs_queue.len() > 0 {
+                                                    let a = jobs_queue.pop_back().unwrap();
                                                     let job = serde_json::from_str::<Server>(&*a)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
@@ -377,8 +377,8 @@ where
                                             {
                                                 let mut jobs_queue =
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-                                                if jobs_queue.iter().len() > 0{
-                                                    let a = jobs_queue.iter().next().unwrap();
+                                                if jobs_queue.len() > 0{
+                                                    let a = jobs_queue.pop_back().unwrap();
                                                     let job = serde_json::from_str::<Server>(&*a)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
