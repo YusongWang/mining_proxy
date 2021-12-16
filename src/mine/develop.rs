@@ -3,13 +3,14 @@ use std::{net::ToSocketAddrs, sync::Arc};
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
     state::State,
-    util::{calc_hash_rate, config::Settings}, FEE,
+    util::{calc_hash_rate, config::Settings},
+    FEE,
 };
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 
-use log::info;
+use log::{debug, info};
 //use log::{debug, info};
 use native_tls::TlsConnector;
 use tokio::{
@@ -140,6 +141,8 @@ impl Mine {
             let len = r.read(&mut buf).await.expect("从服务器读取失败.");
             if len == 0 {
                 info!("❗❎ 服务端断开连接");
+                #[cfg(debug_assertions)]
+                debug!("❗❎ 服务端断开连接",);
                 return Ok(());
                 //return w_server.shutdown().await;
             }
@@ -155,16 +158,17 @@ impl Mine {
                     is_login = true;
                 } else {
                     info!("❗❎ 矿池登录失败，请尝试重启程序");
+                    #[cfg(debug_assertions)]
+                    debug!(
+                        "❗❎ 登录失败{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
                     std::process::exit(19);
-                    // debug!(
-                    //     "❗❎ 登录失败{:?}",
-                    //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    // );
-                    //return w_server.shutdown().await;
                 }
             } else {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    //debug!("收到抽水矿机返回 {:?}", server_json_rpc);
+                    #[cfg(debug_assertions)]
+                    debug!("收到抽水矿机返回 {:?}", server_json_rpc);
                     // if server_json_rpc.id == 6 {
                     //     //info!("🚜🚜 算力提交成功");
                     // } else if server_json_rpc.result {
@@ -174,13 +178,16 @@ impl Mine {
                     // }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
                     if let Some(job_diff) = server_json_rpc.result.get(3) {
-                        //debug!("当前难度:{}",diff);
+                        #[cfg(debug_assertions)]
+                        debug!("当前难度:{}", diff);
                         if diff != *job_diff {
                             //新的难度发现。
 
                             diff = job_diff.clone();
                             {
                                 //清理队列。
+                                #[cfg(debug_assertions)]
+                                debug!("清理队列。:{}", diff);
                                 let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                     &mut s.develop_jobs_queue
                                 });
@@ -189,7 +196,8 @@ impl Mine {
                         }
                     }
 
-                    //debug!("Got jobs {}",server_json_rpc);
+                    #[cfg(debug_assertions)]
+                    debug!("Got jobs {:?}", server_json_rpc);
                     //新增一个share
                     if let Some(job_id) = server_json_rpc.result.get(0) {
                         //0 工作任务HASH
@@ -205,7 +213,9 @@ impl Mine {
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
                         {
-                            //将任务加入队列。
+                            //
+                            #[cfg(debug_assertions)]
+                            debug!("将任务加入队列。{:?}", job);
                             let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                 &mut s.develop_jobs_queue
                             });
@@ -220,10 +230,11 @@ impl Mine {
                     //     //debug!("✅ Got Job Diff {}", diff);
                     // }
                 } else {
-                    // debug!(
-                    //     "❗ ------未捕获封包:{:?}",
-                    //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    // );
+                    #[cfg(debug_assertions)]
+                    debug!(
+                        "❗ ------未捕获封包:{:?}",
+                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    );
                 }
             }
         }
@@ -331,10 +342,7 @@ impl Mine {
                 id: 6,
                 method: "eth_submitHashrate".into(),
                 params: [
-                    format!(
-                        "0x{:x}",
-                        calc_hash_rate(my_hash_rate, FEE),
-                    ),
+                    format!("0x{:x}", calc_hash_rate(my_hash_rate, FEE),),
                     hex::encode(self.hostname.clone()),
                 ]
                 .to_vec(),
