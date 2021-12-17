@@ -21,10 +21,8 @@ use crate::{
     util::{config::Settings, hex_to_int},
 };
 
-
 pub mod tcp;
 pub mod tls;
-
 
 async fn client_to_server<R, W>(
     state: Arc<RwLock<State>>,
@@ -41,20 +39,23 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    //let mut worker = String::new();
-
     loop {
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
 
         if len == 0 {
-            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+            let worker_name: String;
+            {
+                let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                worker_name = rw_worker.clone();
+            }
 
-            match remove_worker(state.clone(), rw_worker.clone()).await {
+            match remove_worker(state.clone(), worker_name.clone()).await {
                 Ok(_) => {}
                 Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
             }
-            info!("Worker {} 客户端断开连接.", *rw_worker);
+
+            info!("Worker {} 客户端断开连接.", worker_name);
             return w.shutdown().await;
         }
 
@@ -117,7 +118,9 @@ where
 
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                dev_fee_send.send(rpc).expect("可以提交给矿池任务失败。通道异常了");
+                                dev_fee_send
+                                    .send(rpc)
+                                    .expect("可以提交给矿池任务失败。通道异常了");
 
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
@@ -181,12 +184,18 @@ where
 
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                    match remove_worker(state.clone(), rw_worker.clone()).await {
-                        Ok(_) => {}
-                        Err(_) => info!("清理全局变量失败 Code: {}", line!()),
+                    let worker_name: String;
+                    {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        worker_name = rw_worker.clone();
                     }
-                    info!("✅ Worker: {} 服务器断开连接.", *rw_worker);
+
+                    match remove_worker(state.clone(), worker_name.clone()).await {
+                        Ok(_) => {}
+                        Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+                    }
+
+                    info!("✅ Worker: {} 服务器断开连接.", worker_name);
                     return w.shutdown().await;
                 }
             } else if let Ok(_) = serde_json::from_slice::<ClientGetWork>(&buf[0..len]) {
@@ -195,14 +204,20 @@ where
                 //info!("🚜 Worker: {} 请求计算任务", worker);
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                    match remove_worker(state.clone(), rw_worker.clone()).await {
-                        Ok(_) => {}
-                        Err(_) => info!("清理全局变量失败 Code: {}", line!()),
+                    let worker_name: String;
+                    {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        worker_name = rw_worker.clone();
                     }
+
+                    match remove_worker(state.clone(), worker_name.clone()).await {
+                        Ok(_) => {}
+                        Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+                    }
+
                     info!(
                         "✅ Worker: {} 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。",
-                        rw_worker
+                        worker_name
                     );
                     return w.shutdown().await;
                 }
@@ -241,15 +256,20 @@ where
 
 
                 if len == 0 {
-                    info!("❗ 服务端断开连接.");
+                    let worker_name: String;
                     {
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        match remove_worker(state.clone(),rw_worker.clone()).await {
-                            Ok(_) =>{},
-                            Err(_) => info!("清理全局变量失败 Code: {}",line!()),
-                        }
+                        worker_name = rw_worker.clone();
                     }
 
+                    match remove_worker(state.clone(), worker_name.clone()).await {
+                        Ok(_) => {}
+                        Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+                    }
+                    info!(
+                        "✅ Worker: {} 读取失败。链接失效。",
+                        worker_name
+                    );
                     return w.shutdown().await;
                 }
 
@@ -347,10 +367,15 @@ where
                                                     //debug!("发送指派任务给矿机 {:?}",job);
                                                     let w_len = w.write_buf(&mut byte).await?;
                                                     if w_len == 0 {
-                                                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                                                        match remove_worker(state.clone(),rw_worker.clone()).await{
-                                                            Ok(_) =>{},
-                                                            Err(_) => info!("清理全局变量失败 Code: {}",line!()),
+                                                        let worker_name: String;
+                                                        {
+                                                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                                                            worker_name = rw_worker.clone();
+                                                        }
+
+                                                        match remove_worker(state.clone(), worker_name).await {
+                                                            Ok(_) => {}
+                                                            Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                                                         }
                                                         //debug!("矿机任务写入失败 {:?}",job);
                                                         return w.shutdown().await;
@@ -402,10 +427,15 @@ where
                                                     let w_len = w.write_buf(&mut byte).await?;
                                                     if w_len == 0 {
                                                         //debug!("矿机任务写入失败 {:?}",job);
-                                                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                                                        match remove_worker(state.clone(),rw_worker.clone()).await {
-                                                            Ok(_) =>{},
-                                                            Err(_) => info!("清理全局变量失败 Code: {}",line!()),
+                                                        let worker_name: String;
+                                                        {
+                                                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                                                            worker_name = rw_worker.clone();
+                                                        }
+
+                                                        match remove_worker(state.clone(), worker_name).await {
+                                                            Ok(_) => {}
+                                                            Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                                                         }
                                                         return w.shutdown().await;
                                                     }
@@ -434,10 +464,15 @@ where
                 let len = w.write(&buf[0..len]).await?;
                 if len == 0 {
                     info!("❗ 服务端写入失败 断开连接.");
-                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                    match remove_worker(state.clone(),rw_worker.clone()).await {
-                        Ok(_) =>{},
-                        Err(_) => info!("清理全局变量失败 Code: {}",line!()),
+                    let worker_name: String;
+                    {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        worker_name = rw_worker.clone();
+                    }
+
+                    match remove_worker(state.clone(), worker_name).await {
+                        Ok(_) => {}
+                        Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                     }
                     return w.shutdown().await;
                 }
