@@ -91,7 +91,7 @@ async fn transfer_ssl(
     let client_stream = tls_acceptor.accept(inbound).await?;
     info!("😄 tls_acceptor Success!");
 
-    let (stream, addr) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address).await {
+    let (stream, addr) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address,"proxy".into()).await {
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有SSL矿池均不可链接。请修改后重试");
