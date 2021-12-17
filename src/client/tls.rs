@@ -1,19 +1,18 @@
-use std::net::ToSocketAddrs;
-use std::rc::Rc;
+
 use std::sync::Arc;
 
-use anyhow::{bail, Result};
+use anyhow::{Result};
 use log::info;
 
 use tokio::io::split;
 use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
-use native_tls::{Identity, TlsConnector};
+use native_tls::Identity;
 
 use futures::FutureExt;
-use tokio::sync::mpsc::{Sender, UnboundedSender};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{broadcast, RwLock};
-use tokio_native_tls::TlsStream;
+
 
 use crate::client::{client_to_server, server_to_client};
 
@@ -91,7 +90,7 @@ async fn transfer_ssl(
     let client_stream = tls_acceptor.accept(inbound).await?;
     info!("😄 tls_acceptor Success!");
 
-    let (stream, addr) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address,"proxy".into()).await {
+    let (stream, _) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address,"proxy".into()).await {
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有SSL矿池均不可链接。请修改后重试");
@@ -104,8 +103,8 @@ async fn transfer_ssl(
     let (r_server, w_server) = split(stream);
     use tokio::sync::mpsc;
     //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();
-    let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
-    let mut worker = Arc::new(RwLock::new(String::new()));
+    let (tx, rx) = mpsc::unbounded_channel::<ServerId1>();
+    let worker = Arc::new(RwLock::new(String::new()));
 
     tokio::try_join!(
         client_to_server(

@@ -1,21 +1,15 @@
-use std::io::{Read, Write};
-use std::net::ToSocketAddrs;
 use std::sync::Arc;
-use std::time::Duration;
 
-use anyhow::{bail, Result};
-
-use bytes::{buf, BufMut};
+use anyhow::Result;
 use log::info;
 
-use tokio::io::{split, AsyncReadExt};
+use tokio::io::split;
 use tokio::net::{TcpListener, TcpStream};
 
 use futures::FutureExt;
 use tokio::sync::broadcast;
 
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::{mpsc::Sender, RwLock};
+use tokio::sync::{mpsc::UnboundedSender, RwLock};
 
 use crate::client::{client_to_server, server_to_client};
 use crate::protocol::rpc::eth::ServerId1;
@@ -84,8 +78,8 @@ async fn transfer(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let (stream,addr) = match crate::util::get_pool_stream(&config.pool_ssl_address) {
-        Some((stream,addr)) => (stream,addr),
+    let (stream, _) = match crate::util::get_pool_stream(&config.pool_ssl_address) {
+        Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有SSL矿池均不可链接。请修改后重试");
             std::process::exit(100);
@@ -96,7 +90,7 @@ async fn transfer(
     let (r_client, w_client) = split(inbound);
     let (r_server, w_server) = split(outbound);
 
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
     let worker = Arc::new(RwLock::new(String::new()));
 
     info!("start client and server");

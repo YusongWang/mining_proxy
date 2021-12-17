@@ -1,4 +1,4 @@
-use std::{net::ToSocketAddrs, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
@@ -11,14 +11,12 @@ use anyhow::Result;
 use bytes::{BufMut, BytesMut};
 
 use log::{debug, info};
-//use log::{debug, info};
-use native_tls::TlsConnector;
+
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
-    net::TcpStream,
     sync::{
         broadcast,
-        mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
+        mpsc::{UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
@@ -86,8 +84,12 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-
-        let (server_stream, addr) = match crate::util::get_pool_stream_with_tls(&self.config.pool_ssl_address,"Develop".into()).await {
+        let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
+            &self.config.pool_ssl_address,
+            "Develop".into(),
+        )
+        .await
+        {
             Some((stream, addr)) => (stream, addr),
             None => {
                 info!("所有SSL矿池均不可链接。请修改后重试");
@@ -95,7 +97,6 @@ impl Mine {
             }
         };
 
-      
         let (r_server, w_server) = split(server_stream);
 
         tokio::try_join!(
@@ -115,8 +116,8 @@ impl Mine {
     async fn server_to_client<R>(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
+        _: broadcast::Sender<String>,
+        _: UnboundedSender<String>,
         mut r: ReadHalf<R>,
     ) -> Result<(), std::io::Error>
     where
@@ -188,7 +189,7 @@ impl Mine {
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {:?}", server_json_rpc);
                     //新增一个share
-                    if let Some(job_id) = server_json_rpc.result.get(0) {
+                    if let Some(_) = server_json_rpc.result.get(0) {
                         //0 工作任务HASH
                         //1 DAG
                         //2 diff
@@ -231,9 +232,9 @@ impl Mine {
 
     async fn client_to_server<W>(
         &self,
-        state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
+        _: Arc<RwLock<State>>,
+        _: broadcast::Sender<String>,
+        _: UnboundedSender<String>,
         mut w: WriteHalf<W>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<(), std::io::Error>
@@ -296,7 +297,7 @@ impl Mine {
     async fn login_and_getwork(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
+        _: broadcast::Sender<String>,
         send: UnboundedSender<String>,
     ) -> Result<(), std::io::Error> {
         let login = Client {

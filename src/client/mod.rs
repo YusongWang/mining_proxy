@@ -1,7 +1,7 @@
 use rand_chacha::ChaCha20Rng;
 use std::{cmp::Ordering, sync::Arc};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 use log::{debug, info};
@@ -21,10 +21,10 @@ use crate::{
     util::{config::Settings, hex_to_int},
 };
 
-pub mod pool;
+
 pub mod tcp;
 pub mod tls;
-pub mod worker;
+
 
 async fn client_to_server<R, W>(
     state: Arc<RwLock<State>>,
@@ -117,7 +117,7 @@ where
 
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                dev_fee_send.send(rpc).expect("可以提交给矿池任务失败。通道异常了");;
+                                dev_fee_send.send(rpc).expect("可以提交给矿池任务失败。通道异常了");
 
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
@@ -215,10 +215,10 @@ async fn server_to_client<R, W>(
     state: Arc<RwLock<State>>,
     worker: Arc<RwLock<String>>,
     mut config: Settings,
-    mut jobs_recv: broadcast::Receiver<String>,
+    _: broadcast::Receiver<String>,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
-    proxy_fee_send: UnboundedSender<String>,
+    _: UnboundedSender<String>,
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
     mut rx: UnboundedReceiver<ServerId1>,
@@ -317,7 +317,7 @@ where
 
                             info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
                         }
-                    } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                    } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
                             {
                                 let mut rng = ChaCha20Rng::from_entropy();
                                 let secret_number = rng.gen_range(1..1000);

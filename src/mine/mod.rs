@@ -1,23 +1,23 @@
-use std::{net::ToSocketAddrs, sync::Arc};
+use std::sync::Arc;
 pub mod develop;
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
     state::State,
-    util::{calc_hash_rate, config::Settings, hex_to_int},
+    util::{calc_hash_rate, config::Settings},
 };
 use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 
 use log::{debug, info};
-use native_tls::TlsConnector;
+
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     net::TcpStream,
     sync::{
         broadcast,
-        mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
+        mpsc::{UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
@@ -89,7 +89,7 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let (stream, addr) = match crate::util::get_pool_stream(&self.config.pool_ssl_address) {
+        let (stream, _) = match crate::util::get_pool_stream(&self.config.pool_ssl_address) {
             Some((stream, addr)) => (stream, addr),
             None => {
                 info!("所有SSL矿池均不可链接。请修改后重试");
@@ -124,7 +124,7 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let (server_stream, addr) = match crate::util::get_pool_stream_with_tls(&self.config.pool_ssl_address,"Mine".into()).await {
+        let (server_stream, _) = match crate::util::get_pool_stream_with_tls(&self.config.pool_ssl_address,"Mine".into()).await {
             Some((stream, addr)) => (stream, addr),
             None => {
                 info!("所有SSL矿池均不可链接。请修改后重试");
@@ -151,8 +151,8 @@ impl Mine {
     async fn server_to_client<R>(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
+        _: broadcast::Sender<String>,
+        _: UnboundedSender<String>,
         mut r: ReadHalf<R>,
     ) -> Result<(), std::io::Error>
     where
@@ -264,9 +264,9 @@ impl Mine {
 
     async fn client_to_server<W>(
         &self,
-        state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
+        _: Arc<RwLock<State>>,
+        _: broadcast::Sender<String>,
+        _: UnboundedSender<String>,
         mut w: WriteHalf<W>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<(), std::io::Error>
@@ -334,7 +334,7 @@ impl Mine {
     async fn login_and_getwork(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
+        _: broadcast::Sender<String>,
         send: UnboundedSender<String>,
     ) -> Result<(), std::io::Error> {
         let login = Client {

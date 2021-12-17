@@ -30,7 +30,7 @@ use util::{
 };
 
 use crate::{
-    client::{pool, tcp::accept_tcp, tls::accept_tcp_with_tls},
+    client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
     mine::Mine,
     protocol::rpc::eth::Server,
     state::State,

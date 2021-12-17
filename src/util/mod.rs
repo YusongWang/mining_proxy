@@ -13,7 +13,7 @@ use native_tls::{Protocol, TlsConnector};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
 
-use self::config::Settings;
+
 
 pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(crate_name!())
