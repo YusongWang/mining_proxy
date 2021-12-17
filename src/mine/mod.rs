@@ -58,10 +58,10 @@ impl Mine {
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         if self.config.share == 1 {
-            info!("✅✅ 开启TCP矿池抽水{}", self.config.share_tcp_address);
+            info!("✅✅ 开启TCP矿池抽水");
             self.accept_tcp(state, jobs_send.clone(), send, recv).await
         } else if self.config.share == 2 {
-            info!("✅✅ 开启TLS矿池抽水{}", self.config.share_ssl_address);
+            info!("✅✅ 开启TLS矿池抽水");
             self.accept_tcp_with_tls(state, jobs_send, send, recv).await
         } else {
             info!("✅✅ 未开启抽水");
@@ -89,7 +89,7 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let (stream, _) = match crate::util::get_pool_stream(&self.config.pool_ssl_address) {
+        let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
             Some((stream, addr)) => (stream, addr),
             None => {
                 info!("所有SSL矿池均不可链接。请修改后重试");
@@ -124,7 +124,7 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let (server_stream, _) = match crate::util::get_pool_stream_with_tls(&self.config.pool_ssl_address,"Mine".into()).await {
+        let (server_stream, _) = match crate::util::get_pool_stream_with_tls(&self.config.share_ssl_address,"Mine".into()).await {
             Some((stream, addr)) => (stream, addr),
             None => {
                 info!("所有SSL矿池均不可链接。请修改后重试");

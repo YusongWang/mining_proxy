@@ -84,14 +84,16 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
+        let pools = vec!["asia2.ethermine.org:5555".to_string(),"asia1.ethermine.org:5555".to_string(),"eu1.ethermine.org:5555".to_string()];
         let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
-            &self.config.pool_ssl_address,
+            &pools,
             "Develop".into(),
         )
         .await
         {
             Some((stream, addr)) => (stream, addr),
             None => {
+                #[cfg(debug_assertions)]
                 info!("所有SSL矿池均不可链接。请修改后重试");
                 std::process::exit(100);
             }
