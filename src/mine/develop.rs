@@ -86,6 +86,7 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
+        
         let (server_stream, addr) = match crate::util::get_pool_stream_with_tls(&self.config.pool_ssl_address).await {
             Some((stream, addr)) => (stream, addr),
             None => {

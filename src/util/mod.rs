@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 use log::info;
-use native_tls::{TlsConnector, Protocol};
+use native_tls::{Protocol, TlsConnector};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
 
@@ -157,12 +157,13 @@ pub fn get_pool_stream(
 
 pub async fn get_pool_stream_with_tls(
     pool_tcp_address: &Vec<String>,
+    name: String,
 ) -> Option<(TlsStream<TcpStream>, SocketAddr)> {
     for address in pool_tcp_address {
         let addr = match address.to_socket_addrs().unwrap().next() {
             Some(address) => address,
             None => {
-                info!("{} 访问不通。切换备用矿池！！！！", address);
+                info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -170,7 +171,7 @@ pub async fn get_pool_stream_with_tls(
         let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(3, 0)) {
             Ok(straem) => straem,
             Err(_) => {
-                info!("{} 访问不通。切换备用矿池！！！！", address);
+                info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -178,7 +179,7 @@ pub async fn get_pool_stream_with_tls(
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
             Err(_) => {
-                info!("{} 访问不通。切换备用矿池！！！！", address);
+                info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -192,23 +193,23 @@ pub async fn get_pool_stream_with_tls(
         {
             Ok(con) => con,
             Err(_) => {
-                info!("{} SSL 校验失败！！！！", address);
+                info!("{} {} SSL 校验失败！！！！", name, address);
                 continue;
             }
         };
         let cx = tokio_native_tls::TlsConnector::from(cx);
         let addr_str = addr.to_string();
         let domain: Vec<&str> = addr_str.split(":").collect();
-        info!("{:?}",domain);
+        info!("{:?}", domain);
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
             Err(err) => {
-                info!("{} SSL 链接失败！！！！ {:?}", address, err);
+                info!("{} {} SSL 链接失败！！！！ {:?}", name, address, err);
                 continue;
             }
         };
 
-        info!("conteactd to {}", address);
+        info!("{} conteactd to {}", name, address);
         return Some((server_stream, addr));
     }
 
