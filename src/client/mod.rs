@@ -236,19 +236,20 @@ where
             len = r.read(&mut buf) => {
                 let len = match len{
                     Ok(len) => len,
-
                     Err(e) => return anyhow::private::Err(e),
-
                 };
 
 
                 if len == 0 {
                     info!("❗ 服务端断开连接.");
-                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                    match remove_worker(state.clone(),rw_worker.clone()).await {
-                        Ok(_) =>{},
-                        Err(_) => info!("清理全局变量失败 Code: {}",line!()),
+                    {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        match remove_worker(state.clone(),rw_worker.clone()).await {
+                            Ok(_) =>{},
+                            Err(_) => info!("清理全局变量失败 Code: {}",line!()),
+                        }
                     }
+
                     return w.shutdown().await;
                 }
 
