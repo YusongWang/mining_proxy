@@ -306,8 +306,8 @@ impl Mine {
             worker: self.hostname.clone(),
         };
         let login_msg = serde_json::to_string(&login)?;
-        send.send(login_msg);
-
+        send.send(login_msg).unwrap();
+        //RECV the work.Login package success or fail
         let eth_get_work = ClientGetWork {
             id: 5,
             method: "eth_getWork".into(),
@@ -315,7 +315,7 @@ impl Mine {
         };
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-        send.send(eth_get_work_msg);
+        send.send(eth_get_work_msg).unwrap();
 
         loop {
             let mut my_hash_rate: u64 = 0;
@@ -339,10 +339,10 @@ impl Mine {
             };
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
-            send.send(submit_hashrate_msg);
+            send.send(submit_hashrate_msg).unwrap();
 
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-            send.send(eth_get_work_msg);
+            send.send(eth_get_work_msg).unwrap();
             sleep(std::time::Duration::new(5, 0)).await;
         }
     }

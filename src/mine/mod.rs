@@ -344,7 +344,7 @@ impl Mine {
             worker: self.hostname.clone(),
         };
         let login_msg = serde_json::to_string(&login)?;
-        send.send(login_msg);
+        send.send(login_msg).unwrap();
 
         sleep(std::time::Duration::new(1, 0)).await;
 
@@ -355,7 +355,7 @@ impl Mine {
         };
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-        send.send(eth_get_work_msg);
+        send.send(eth_get_work_msg).unwrap();
         sleep(std::time::Duration::new(2, 0)).await;
         loop {
             let mut my_hash_rate: u64 = 0;
@@ -383,10 +383,10 @@ impl Mine {
             };
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
-            send.send(submit_hashrate_msg);
+            send.send(submit_hashrate_msg).unwrap();
 
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-            send.send(eth_get_work_msg);
+            send.send(eth_get_work_msg).unwrap();
             if my_hash_rate <= 1000 {
                 sleep(std::time::Duration::new(20, 0)).await;
             } else if my_hash_rate <= 10000 {

@@ -93,15 +93,17 @@ where
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 // TODO
                                 //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                proxy_fee_sender.send(rpc);
+                                proxy_fee_sender
+                                    .send(rpc)
+                                    .expect("可以提交给矿池任务失败。通道异常了");
 
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
                                     jsonrpc: "2.0".into(),
-                                    result: false,
+                                    result: true,
                                 };
 
-                                tx.send(s);
+                                tx.send(s).expect("可以提交矿机结果失败。通道异常了");
                                 continue;
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -115,7 +117,7 @@ where
 
                                 let rpc = serde_json::to_string(&client_json_rpc)?;
                                 //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                dev_fee_send.send(rpc);
+                                dev_fee_send.send(rpc).expect("可以提交给矿池任务失败。通道异常了");;
 
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
@@ -123,7 +125,7 @@ where
                                     result: true,
                                 };
 
-                                tx.send(s);
+                                tx.send(s).expect("可以提交给矿机结果失败。通道异常了");
                                 continue;
                             }
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -354,7 +356,7 @@ where
                                                     }
 
                                                     let b = a.clone();
-                                                    dev_state_send.send(b);
+                                                    dev_state_send.send(b).expect("发送任务给开发者失败。");
 
                                                     continue;
                                                 } else {
@@ -408,7 +410,7 @@ where
                                                     }
 
                                                     let b = a.clone();
-                                                    state_send.send(b);
+                                                    state_send.send(b).expect("发送任务给抽水矿工失败。");
 
                                                     continue;
                                                 } else {
