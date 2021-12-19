@@ -28,7 +28,9 @@ pub async fn accept_tcp(
     if config.pool_tcp_address.is_empty() {
         return Ok(());
     }
-
+    if config.pool_tcp_address[0] == "" {
+        return Ok(());
+    }
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tcp On: {}", &address);
