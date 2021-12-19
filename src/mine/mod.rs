@@ -77,7 +77,8 @@ impl Mine {
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         //loop {
-        self.worker(state.clone(), jobs_send.clone(), send.clone(), recv).await
+        self.worker(state.clone(), jobs_send.clone(), send.clone(), recv)
+            .await
 
         //}
     }
@@ -124,30 +125,32 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        loop{
- 
-            let (server_stream, _) = match crate::util::get_pool_stream_with_tls(&self.config.share_ssl_address,"Mine".into()).await {
-                Some((stream, addr)) => (stream, addr),
-                None => {
-                    info!("所有SSL矿池均不可链接。请修改后重试");
-                    std::process::exit(100);
-                }
-            };
-    
-            let (r_server, w_server) = split(server_stream);
-    
-            tokio::try_join!(
-                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
-                self.client_to_server(
-                    state.clone(),
-                    jobs_send.clone(),
-                    send.clone(),
-                    w_server,
-                    recv
-                ),
-                self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
-            )?;
-        }
+        let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
+            &self.config.share_ssl_address,
+            "Mine".into(),
+        )
+        .await
+        {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                info!("所有SSL矿池均不可链接。请修改后重试");
+                std::process::exit(100);
+            }
+        };
+
+        let (r_server, w_server) = split(server_stream);
+
+        tokio::try_join!(
+            self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+            self.client_to_server(
+                state.clone(),
+                jobs_send.clone(),
+                send.clone(),
+                w_server,
+                recv
+            ),
+            self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
+        )?;
 
         Ok(())
     }
