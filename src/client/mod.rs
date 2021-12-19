@@ -39,25 +39,17 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let mut worker_name: String = String::new();
     loop {
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
         info!("读取成功{} 字节", len);
 
         if len == 0 {
-            let mut worker_name: String;
-            {
-                let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                worker_name = rw_worker.clone();
+            match remove_worker(state.clone(), worker_name.clone()).await {
+                Ok(_) => {}
+                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
             }
-
-            {
-                match remove_worker(state.clone(), worker_name.clone()).await {
-                    Ok(_) => {}
-                    Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                }
-            }
-
 
             info!("Worker {} 客户端断开连接.", worker_name);
             return Ok(());
@@ -188,6 +180,7 @@ where
                         temp_worker = temp_worker + client_json_rpc.worker.as_str();
                         let mut rw_worker = RwLockWriteGuard::map(worker.write().await, |s| s);
                         *rw_worker = temp_worker.clone();
+                        worker_name = temp_worker.clone();
                         info!("✅ Worker :{} 请求登录", *rw_worker);
                     } else {
                         //debug!("❎ 登录错误，未找到登录参数");
@@ -198,12 +191,6 @@ where
 
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    let worker_name: String;
-                    {
-                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        worker_name = rw_worker.clone();
-                    }
-
                     match remove_worker(state.clone(), worker_name.clone()).await {
                         Ok(_) => {}
                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
@@ -218,12 +205,6 @@ where
                 //info!("🚜 Worker: {} 请求计算任务", worker);
                 let write_len = w.write(&buf[0..len]).await?;
                 if write_len == 0 {
-                    let worker_name: String;
-                    {
-                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        worker_name = rw_worker.clone();
-                    }
-
                     match remove_worker(state.clone(), worker_name.clone()).await {
                         Ok(_) => {}
                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
@@ -275,12 +256,14 @@ where
 
 
                 if len == 0 {
-                    let worker_name: String;
+                    let mut worker_name: String;
                     {
-                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        worker_name = rw_worker.clone();
+                        let guard = worker.read().await;
+                        let rw_worker = RwLockReadGuard::map(guard, |s| s);
+                        worker_name = rw_worker.to_string();
                     }
 
+                    info!("worker {} ",worker_name);
                     match remove_worker(state.clone(), worker_name.clone()).await {
                         Ok(_) => {}
                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
@@ -487,12 +470,14 @@ where
                 let len = w.write(&buf).await?;
                 if len == 0 {
                     info!("❗ 服务端写入失败 断开连接.");
-                    let worker_name: String;
+                    let mut worker_name: String;
                     {
-                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        worker_name = rw_worker.clone();
+                        let guard = worker.read().await;
+                        let rw_worker = RwLockReadGuard::map(guard, |s| s);
+                        worker_name = rw_worker.to_string();
                     }
 
+                    info!("worker {} ",worker_name);
                     match remove_worker(state.clone(), worker_name).await {
                         Ok(_) => {}
                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
@@ -532,19 +517,18 @@ where
 }
 
 async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> {
-
     info!("旷工下线 {}", worker);
     {
-        // let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-        // if !worker.is_empty() {
-        //     let idx: usize = 0;
-        //     while idx <= workers.len() {
-        //         if workers[idx].worker == worker {
-        //             workers.remove(idx);
-        //             return Ok(());
-        //         }
-        //     }
-        // }
+        let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+        if !worker.is_empty() {
+            let idx: usize = 0;
+            while idx <= workers.len() {
+                if workers[idx].worker == worker {
+                    workers.remove(idx);
+                    return Ok(());
+                }
+            }
+        }
     }
 
     info!("未找到旷工 {}", worker);
@@ -553,8 +537,7 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
 
 #[test]
 fn test_remove_worker() {
-    let mut a = Arc::new(RwLock::new(State::new()));
-    {}
+    let mut a = RwLock::new(State::new());
 
     let mut worker_name: String;
     {
