@@ -42,6 +42,7 @@ where
     loop {
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
+        info!("读取成功{} 字节", len);
 
         if len == 0 {
             let worker_name: String;
@@ -61,9 +62,12 @@ where
 
         match String::from_utf8(buf[0..len].to_vec()) {
             Ok(rpc) => {
-                debug!("矿机 -> 矿池 #{:?}",rpc);
+                debug!("矿机 -> 矿池 #{:?}", rpc);
             }
-            Err(_) => return Ok(()),
+            Err(_) => {
+                info!("格式化为字符串失败。{:?}", buf[0..len].to_vec());
+                return Ok(());
+            }
         }
 
         // debug!(
@@ -260,7 +264,10 @@ where
             len = r.read(&mut buf) => {
                 let len = match len{
                     Ok(len) => len,
-                    Err(e) => return anyhow::private::Err(e),
+                    Err(e) => {
+                        info!("{:?}",e);
+                        return anyhow::private::Err(e);
+                    },
                 };
 
 
