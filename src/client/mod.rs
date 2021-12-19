@@ -43,6 +43,7 @@ where
     loop {
         let mut buf = vec![0; 1024];
         let len = r.read(&mut buf).await?;
+        #[cfg(debug_assertions)]
         info!("读取成功{} 字节", len);
 
         if len == 0 {
@@ -55,6 +56,7 @@ where
             return Ok(());
         }
 
+        #[cfg(debug_assertions)]
         match String::from_utf8(buf[0..len].to_vec()) {
             Ok(rpc) => {
                 debug!("矿机 -> 矿池 #{:?}", rpc);
@@ -284,7 +286,7 @@ where
                     if buf.is_empty() {
                         continue;
                     }
-
+                #[cfg(debug_assertions)]
                 debug!("Got jobs {}",String::from_utf8(buf.to_vec()).unwrap());
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
@@ -524,7 +526,7 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
             info!("共有{}个旷工在线 ", workers.len());
             let mut idx: usize = 0;
             while idx <= workers.len() {
-                info!("index {}, {:?}", idx,workers[idx]);
+                info!("index {}, {:?}", idx, workers[idx]);
                 if workers[idx].worker == worker {
                     workers.remove(idx);
                     return Ok(());

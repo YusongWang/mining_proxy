@@ -336,6 +336,7 @@ impl Mine {
                 } else if client_json_rpc.method == "eth_submitHashrate" {
                     #[cfg(debug_assertions)]
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
+                        #[cfg(debug_assertions)]
                         debug!(
                             "✅✅ 矿机 :{} 提交本地算力 {}",
                             client_json_rpc.worker, hashrate
