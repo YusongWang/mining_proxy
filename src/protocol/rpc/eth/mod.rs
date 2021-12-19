@@ -39,6 +39,7 @@ pub struct Server {
 pub struct ServerJobsWichHeigh {
     pub id: i64,
     pub result: Vec<String>,
+    pub jsonrpc:String,
     pub height: String,
 }
 
