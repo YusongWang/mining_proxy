@@ -139,6 +139,12 @@ impl Mine {
                 return Ok(());
                 //return w_server.shutdown().await;
             }
+            
+            #[cfg(debug_assertions)]
+            debug!(
+                "-------- 矿池 to 开发者矿机 RPC #{:?}",
+                String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+            );
 
             if !is_login {
                 if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
@@ -246,7 +252,8 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            //debug!("-------- M to S RPC #{:?}", client_msg);
+            #[cfg(debug_assertions)]
+            debug!("-------- 开发者矿机 to 矿池 RPC #{:?}", client_msg);
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
@@ -345,13 +352,19 @@ impl Mine {
             };
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
+            #[cfg(debug_assertions)]
+            debug!("开发者 提交本地算力{:?}", &submit_hashrate_msg);
             send.send(submit_hashrate_msg).unwrap();
+
             sleep(std::time::Duration::new(2, 0)).await;
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
+            #[cfg(debug_assertions)]
+            debug!("开发者 发送获取工作任务{:?}", &eth_get_work_msg);
             send.send(eth_get_work_msg).unwrap();
+
             if my_hash_rate <= 1000 {
                 sleep(std::time::Duration::new(20, 0)).await;
-            } else{
+            } else {
                 sleep(std::time::Duration::new(10, 0)).await;
             }
         }
