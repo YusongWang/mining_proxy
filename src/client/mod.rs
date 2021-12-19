@@ -16,7 +16,7 @@ use tokio::{
 };
 
 use crate::{
-    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
+    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerError, ServerId1, BinanceError},
     state::{State, Worker},
     util::{config::Settings, hex_to_int},
 };
@@ -461,6 +461,27 @@ where
                             }
                         }
 
+                    } else if let Ok(rpc) = serde_json::from_slice::<ServerError>(&buf) {
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        let mut workers =
+                        RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+                        let mut rpc_id = 0;
+                        for w in &mut *workers {
+                            if w.worker == *rw_worker {
+                                w.invalid_index = w.invalid_index + 1;
+                                rpc_id = w.share_index;
+                            }
+                        }
+
+                        // if let Ok(rpc) = serde_json::from_str::<BinanceError>(&rpc.error){
+                        //     if rpc.code <= 
+                        // }
+
+                        info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
+                        // debug!(
+                        //     "❗ ------未捕获封包:{:?}",
+                        //     String::from_utf8(buf.clone().to_vec()).unwrap()
+                        // );
                     } else {
                         debug!(
                             "❗ ------未捕获封包:{:?}",
@@ -522,7 +543,7 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
     info!("旷工下线 {}", worker);
     {
         let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-        if !worker.is_empty() {
+        if !worker.is_empty() && !workers.is_empty() {
             info!("共有{}个旷工在线 ", workers.len());
             let mut idx: usize = 0;
             while idx <= workers.len() {

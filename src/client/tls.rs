@@ -137,7 +137,7 @@ async fn transfer_ssl(
     );
 
     if let Err(err) = res {
-        info!("矿机错误或者代理池错误: {}", err);
+        info!("{}", err);
     }
     // let client_to_server = async {
     //     loop {
