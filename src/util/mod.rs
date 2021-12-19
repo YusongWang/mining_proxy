@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 use log::info;
-use native_tls::{Protocol, TlsConnector};
+use native_tls::{TlsConnector};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
 

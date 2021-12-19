@@ -76,7 +76,22 @@ impl Mine {
     //     )?;
     //     Ok(())
     // }
-
+    pub async fn accept(
+        &self,
+        state: Arc<RwLock<State>>,
+        jobs_send: broadcast::Sender<String>,
+        send: UnboundedSender<String>,
+        recv: UnboundedReceiver<String>,
+    ) -> Result<()> {
+        if self.config.share != 0 {
+            //info!("✅✅ 开启TCP矿池抽水");
+            self.accept_tcp_with_tls(state, jobs_send.clone(), send, recv)
+                .await
+        } else {
+            //info!("✅✅ 未开启抽水");
+            Ok(())
+        }
+    }
     pub async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,
@@ -139,7 +154,7 @@ impl Mine {
                 return Ok(());
                 //return w_server.shutdown().await;
             }
-            
+
             #[cfg(debug_assertions)]
             debug!(
                 "-------- 矿池 to 开发者矿机 RPC #{:?}",
