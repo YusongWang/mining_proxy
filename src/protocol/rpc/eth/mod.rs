@@ -33,6 +33,15 @@ pub struct Server {
     pub result: Vec<String>,
 }
 
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerJobsWichHeigh {
+    pub id: i64,
+    pub result: Vec<String>,
+    pub height: String,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerId1 {
