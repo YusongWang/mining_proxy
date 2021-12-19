@@ -100,7 +100,7 @@ where
 
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
-                                    jsonrpc: "2.0".into(),
+                                    //jsonrpc: "2.0".into(),
                                     result: true,
                                 };
 
@@ -124,7 +124,7 @@ where
 
                                 let s = ServerId1 {
                                     id: client_json_rpc.id,
-                                    jsonrpc: "2.0".into(),
+                                    //jsonrpc: "2.0".into(),
                                     result: true,
                                 };
 
