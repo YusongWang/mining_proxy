@@ -529,22 +529,29 @@ where
 }
 
 async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> {
-    //新增一个share
-    {
-        let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-        if !worker.is_empty() {
-            let idx: usize = 0;
-            while idx <= workers.len() {
-                if workers[idx].worker == worker {
-                    workers.remove(idx);
-                    return Ok(());
-                }
+
+    info!("旷工下线 {}", worker);
+    let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+    if !worker.is_empty() {
+        let idx: usize = 0;
+        while idx <= workers.len() {
+            if workers[idx].worker == worker {
+                workers.remove(idx);
+                return Ok(());
             }
-        } else {
-            return Ok(());
         }
     }
+    info!("未找到旷工 {}", worker);
+    return Ok(());
+}
 
-    return Err(anyhow::Error::msg("未找到旷工"));
-    //anyhow::private::Err(Error::msg(format_args!("未找到旷工: {}", worker)))
+#[test]
+fn test_remove_worker() {
+    let mut a = Arc::new(RwLock::new(State::new()));
+    {}
+
+    let mut worker_name: String;
+    {
+        worker_name = "test00001".to_string();
+    }
 }
