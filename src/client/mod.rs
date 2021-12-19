@@ -465,7 +465,7 @@ where
                     }
                 }
 
-                let len = w.write(&buf[0..len]).await?;
+                let len = w.write(&buf).await?;
                 if len == 0 {
                     info!("❗ 服务端写入失败 断开连接.");
                     let worker_name: String;
