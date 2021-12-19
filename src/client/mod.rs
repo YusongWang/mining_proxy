@@ -51,10 +51,13 @@ where
                 worker_name = rw_worker.clone();
             }
 
-            match remove_worker(state.clone(), worker_name.clone()).await {
-                Ok(_) => {}
-                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+            {
+                match remove_worker(state.clone(), worker_name.clone()).await {
+                    Ok(_) => {}
+                    Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+                }
             }
+
 
             info!("Worker {} 客户端断开连接.", worker_name);
             return Ok(());
