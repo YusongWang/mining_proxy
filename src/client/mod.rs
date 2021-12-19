@@ -59,10 +59,10 @@ where
             return w.shutdown().await;
         }
 
-        // debug!(
-        //     "C to S RPC #{:?}",
-        //     String::from_utf8(buf[0..len].to_vec()).unwrap()
-        // );
+        debug!(
+            "矿机 -> 矿池 #{:?}",
+            String::from_utf8(buf[0..len].to_vec()).unwrap()
+        );
 
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
@@ -283,7 +283,7 @@ where
                         continue;
                     }
 
-                //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
+                debug!("Got jobs {}",String::from_utf8(buf.to_vec()).unwrap());
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
                         if server_json_rpc.id == 1 && server_json_rpc.result {
@@ -315,7 +315,7 @@ where
                     }
                 } else {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
-                        //debug!("Got Result :{:?}", server_json_rpc);
+                        
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
