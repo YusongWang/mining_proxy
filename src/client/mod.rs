@@ -285,8 +285,7 @@ where
 
                 //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
                 if !is_login {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-
+                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
                         if server_json_rpc.id == 1 && server_json_rpc.result {
                             let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                             let wallet:Vec<_>= rw_worker.split(".").collect();
@@ -310,12 +309,12 @@ where
                         info!("❎ {} 登录失败 01",rw_worker);
                         // debug!(
                         //     "❎ 登录失败{:?}",
-                        //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                        //     String::from_utf8(buf.clone().to_vec()).unwrap()
                         // );
                         return w.shutdown().await;
                     }
                 } else {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
+                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
                         //debug!("Got Result :{:?}", server_json_rpc);
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         let mut workers =
@@ -342,7 +341,7 @@ where
 
                             info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
                         }
-                    } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
+                    } else if let Ok(_) = serde_json::from_slice::<Server>(&buf) {
 
                             if config.share != 0 {
                                 {
@@ -459,10 +458,10 @@ where
                         }
 
                     } else {
-                        // debug!(
-                        //     "❗ ------未捕获封包:{:?}",
-                        //     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                        // );
+                        debug!(
+                            "❗ ------未捕获封包:{:?}",
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
+                        );
                     }
                 }
 

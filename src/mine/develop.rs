@@ -162,11 +162,11 @@ impl Mine {
                 #[cfg(debug_assertions)]
                 debug!(
                     "-------- 矿池 to 开发者矿机 RPC #{:?}",
-                    String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                    String::from_utf8(buf.clone().to_vec()).unwrap()
                 );
 
                 if !is_login {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
+                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
                         if server_json_rpc.result == false {
                             info!("❗❎ 矿池登录失败，请尝试重启程序");
                             std::process::exit(18);
@@ -179,12 +179,12 @@ impl Mine {
                         #[cfg(debug_assertions)]
                         debug!(
                             "❗❎ 登录失败{:?}",
-                            String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
                         std::process::exit(19);
                     }
                 } else {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
+                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
                         #[cfg(debug_assertions)]
                         debug!("收到抽水矿机返回 {:?}", server_json_rpc);
                         // if server_json_rpc.id == 6 {
@@ -195,7 +195,7 @@ impl Mine {
                         //     info!("❗❗ Share Reject",);
                         // }
                     } else if let Ok(server_json_rpc) =
-                        serde_json::from_slice::<Server>(&buf[0..len])
+                        serde_json::from_slice::<Server>(&buf)
                     {
                         if let Some(job_diff) = server_json_rpc.result.get(3) {
                             if job_diff == "00" {
@@ -282,7 +282,7 @@ impl Mine {
                         #[cfg(debug_assertions)]
                         debug!(
                             "❗ ------未捕获封包:{:?}",
-                            String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
                     }
                 }
