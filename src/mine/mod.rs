@@ -230,6 +230,9 @@ impl Mine {
                                             jobs.clear();
                                         }
                                     }
+                                } else {
+                                    #[cfg(debug_assertions)]
+                                    debug!("当前难度:{:?}", String::from_utf8(buf.clone().to_vec()).unwrap());
                                 }
                             } else {
                                 #[cfg(debug_assertions)]
