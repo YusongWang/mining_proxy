@@ -521,8 +521,10 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
     {
         let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
         if !worker.is_empty() {
+            info!("共有{}个旷工在线 ", workers.len());
             let idx: usize = 0;
             while idx <= workers.len() {
+                info!("index {}", idx);
                 if workers[idx].worker == worker {
                     workers.remove(idx);
                     return Ok(());
