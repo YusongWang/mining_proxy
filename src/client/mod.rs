@@ -57,7 +57,6 @@ where
 
             info!("Worker {} 客户端断开连接.", worker_name);
             return Ok(());
-            //return Ok(());
         }
 
         debug!(
@@ -223,6 +222,8 @@ where
                     return Ok(());
                 }
             }
+        } else {
+            return Ok(());
         }
     }
 }
@@ -525,6 +526,8 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
                     return Ok(());
                 }
             }
+        } else {
+            return Ok(());
         }
     }
 
