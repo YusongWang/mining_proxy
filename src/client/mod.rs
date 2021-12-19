@@ -45,7 +45,7 @@ where
         info!("读取成功{} 字节", len);
 
         if len == 0 {
-            let worker_name: String;
+            let mut worker_name: String;
             {
                 let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                 worker_name = rw_worker.clone();
