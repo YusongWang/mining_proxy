@@ -96,7 +96,7 @@ async fn transfer(
     let worker = Arc::new(RwLock::new(String::new()));
 
     info!("start client and server");
-    tokio::try_join!(
+    let res = tokio::try_join!(
         client_to_server(
             state.clone(),
             worker.clone(),
@@ -120,7 +120,11 @@ async fn transfer(
             dev_state_send.clone(),
             rx
         )
-    )?;
+    );
 
+    if let Err(err) = res {
+        info!("矿机错误或者代理池错误: {}", err);
+    }
+    
     Ok(())
 }

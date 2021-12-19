@@ -143,8 +143,8 @@ pub fn get_pool_stream(
             }
         };
         std_stream.set_nonblocking(true).unwrap();
-        std_stream.set_read_timeout(Some(Duration::from_millis(2))).expect("读取超时");
-        std_stream.set_write_timeout(Some(Duration::from_millis(2))).expect("读取超时");
+        std_stream.set_read_timeout(Some(Duration::from_millis(1))).expect("读取超时");
+        std_stream.set_write_timeout(Some(Duration::from_millis(1))).expect("读取超时");
         info!(
             "{} conteact to {}",
             std_stream.local_addr().unwrap(),
@@ -176,9 +176,13 @@ pub async fn get_pool_stream_with_tls(
                 continue;
             }
         };
+
+
         std_stream.set_nonblocking(true).unwrap();
-        std_stream.set_read_timeout(Some(Duration::from_millis(2))).expect("读取超时");
-        std_stream.set_write_timeout(Some(Duration::from_millis(2))).expect("写入超时");
+        std_stream.set_read_timeout(Some(Duration::from_millis(1))).expect("读取超时");
+        std_stream.set_write_timeout(Some(Duration::from_millis(1))).expect("读取超时");
+
+
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
             Err(_) => {
@@ -191,7 +195,7 @@ pub async fn get_pool_stream_with_tls(
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .min_protocol_version(Some(native_tls::Protocol::Tlsv11))
-            .disable_built_in_roots(true)
+            //.disable_built_in_roots(true)
             .build()
         {
             Ok(con) => con,
@@ -200,8 +204,10 @@ pub async fn get_pool_stream_with_tls(
                 continue;
             }
         };
+
+
         let cx = tokio_native_tls::TlsConnector::from(cx);
-        //let addr_str = addr.to_string();
+
         let domain: Vec<&str> = address.split(":").collect();
         info!("{} {:?}",name,domain);
         let server_stream = match cx.connect(domain[0], stream).await {
