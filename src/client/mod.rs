@@ -56,7 +56,8 @@ where
             }
 
             info!("Worker {} 客户端断开连接.", worker_name);
-            return w.shutdown().await;
+            return Ok(());
+            //return Ok(());
         }
 
         debug!(
@@ -196,7 +197,7 @@ where
                     }
 
                     info!("✅ Worker: {} 服务器断开连接.", worker_name);
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             } else if let Ok(_) = serde_json::from_slice::<ClientGetWork>(&buf[0..len]) {
                 //debug!("获得任务:{:?}", client_json_rpc);
@@ -219,7 +220,7 @@ where
                         "✅ Worker: {} 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。",
                         worker_name
                     );
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             }
         }
@@ -270,7 +271,7 @@ where
                         "✅ Worker: {} 读取失败。链接失效。",
                         worker_name
                     );
-                    return w.shutdown().await;
+                    return Ok(());
                 }
 
                 // debug!(
@@ -301,7 +302,7 @@ where
                         } else {
                             let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                             info!("❎ {} 登录失败",rw_worker);
-                            return w.shutdown().await;
+                            return Ok(());
                         }
 
                     } else {
@@ -311,7 +312,7 @@ where
                         //     "❎ 登录失败{:?}",
                         //     String::from_utf8(buf.clone().to_vec()).unwrap()
                         // );
-                        return w.shutdown().await;
+                        return Ok(());
                     }
                 } else {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
@@ -383,7 +384,7 @@ where
                                                                 Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                                                             }
                                                             //debug!("矿机任务写入失败 {:?}",job);
-                                                            return w.shutdown().await;
+                                                            return Ok(());
                                                         }
 
                                                         let b = a.clone();
@@ -441,7 +442,7 @@ where
                                                             Ok(_) => {}
                                                             Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                                                         }
-                                                        return w.shutdown().await;
+                                                        return Ok(());
                                                     }
 
                                                     let b = a.clone();
@@ -478,7 +479,7 @@ where
                         Ok(_) => {}
                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                     }
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             }
             },
@@ -491,7 +492,7 @@ where
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             },
             // job = jobs_recv.recv() => {
@@ -505,7 +506,7 @@ where
             //     byte.put_u8(b'\n');
             //     let w_len = w.write_buf(&mut byte).await?;
             //     if w_len == 0 {
-            //         return w.shutdown().await;
+            //         return Ok(());
             //     }
             // }
         }

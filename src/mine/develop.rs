@@ -338,7 +338,7 @@ impl Mine {
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             } else if let Ok(client_json_rpc) =
                 serde_json::from_slice::<ClientGetWork>(client_msg.as_bytes())
@@ -349,7 +349,7 @@ impl Mine {
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             }
         }
