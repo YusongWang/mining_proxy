@@ -78,7 +78,7 @@ async fn transfer(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let (stream, _) = match crate::util::get_pool_stream(&config.pool_ssl_address) {
+    let (stream, _) = match crate::util::get_pool_stream(&config.pool_tcp_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有SSL矿池均不可链接。请修改后重试");
