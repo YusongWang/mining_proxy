@@ -262,8 +262,7 @@ impl Mine {
                         // if let Some(diff) = server_json_rpc.result.get(3) {
                         //     //debug!("✅ Got Job Diff {}", diff);
                         // }
-                    }
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
+                    } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
                         if let Some(job_diff) = server_json_rpc.result.get(3) {
                             #[cfg(debug_assertions)]
                             debug!("当前难度:{}", diff);
