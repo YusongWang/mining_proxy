@@ -277,7 +277,11 @@ where
                 //     "S to C RPC #{:?}",
                 //     String::from_utf8(buf[0..len].to_vec()).unwrap()
                 // );
-
+                let buffer = buf[0..len].split(|c| *c == b'\n');
+                for buf in buffer {
+                    if buf.is_empty() {
+                        continue;
+                    }
 
                 //debug!("Got jobs {}",String::from_utf8(buf.clone()).unwrap());
                 if !is_login {
@@ -344,7 +348,7 @@ where
                                 {
                                     let mut rng = ChaCha20Rng::from_entropy();
                                     let secret_number = rng.gen_range(1..1000);
-    
+
                                     let max = (1000.0 * crate::FEE) as u32;
                                     let max = 1000 - max; //900
                                     match secret_number.cmp(&max) {
@@ -374,7 +378,7 @@ where
                                                                 let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                                                                 worker_name = rw_worker.clone();
                                                             }
-    
+
                                                             match remove_worker(state.clone(), worker_name).await {
                                                                 Ok(_) => {}
                                                                 Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
@@ -382,10 +386,10 @@ where
                                                             //debug!("矿机任务写入失败 {:?}",job);
                                                             return w.shutdown().await;
                                                         }
-    
+
                                                         let b = a.clone();
                                                         dev_state_send.send(b).expect("发送任务给开发者失败。");
-    
+
                                                         continue;
                                                     } else {
                                                         //几率不高。但是要打日志出来。
@@ -477,6 +481,7 @@ where
                     }
                     return w.shutdown().await;
                 }
+            }
             },
             id1 = rx.recv() => {
                 let msg = id1.expect("解析Server封包错误");
