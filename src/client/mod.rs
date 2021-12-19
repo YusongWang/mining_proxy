@@ -524,7 +524,7 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
             info!("共有{}个旷工在线 ", workers.len());
             let mut idx: usize = 0;
             while idx <= workers.len() {
-                info!("index {}", idx);
+                info!("index {}, {:?}", idx,workers[idx]);
                 if workers[idx].worker == worker {
                     workers.remove(idx);
                     return Ok(());
