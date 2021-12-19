@@ -179,6 +179,9 @@ impl Mine {
 
             let buffer = buf[0..len].split(|c| *c == b'\n');
             for buf in buffer {
+                if buf.is_empty() {
+                    continue;
+                }
                 // 封装为函数?
                 if !is_login {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
