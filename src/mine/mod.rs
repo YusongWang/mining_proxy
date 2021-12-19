@@ -210,76 +210,46 @@ impl Mine {
                         } else {
                             info!("❗❗ Share Reject",);
                         }
-                    } else if let Ok(server_json_rpc) =
-                        serde_json::from_slice::<ServerJobsWichHeigh>(&buf)
-                    {
-                        #[cfg(debug_assertions)]
-                        debug!("当前难度:{}", diff);
-                        if diff != server_json_rpc.height {
-                            //新的难度发现。
-                            //debug!("新的难度发现。");
-                            diff = server_json_rpc.height.clone();
-                            {
-                                //debug!("清理队列。");
-                                //清理队列。
-                                let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
-                                    &mut s.mine_jobs_queue
-                                });
-                                jobs.clear();
-                            }
-                        }
-
-                        #[cfg(debug_assertions)]
-                        debug!("Got jobs {:?}", server_json_rpc);
-                        //新增一个share
-                        if let Some(job_id) = server_json_rpc.result.get(0) {
-                            //0 工作任务HASH
-                            //1 DAG
-                            //2 diff
-
-                            // 判断是丢弃任务还是通知任务。
-
-                            // 测试阶段全部通知
-
-                            // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
-                            #[cfg(debug_assertions)]
-                            debug!("发送到等待队列进行工作: {}", job_id);
-                            // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
-                            let job = serde_json::to_string(&server_json_rpc)?;
-                            {
-                                //将任务加入队列。
-                                let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
-                                    &mut s.mine_jobs_queue
-                                });
-                                jobs.push_back(job);
-                            }
-                            #[cfg(debug_assertions)]
-                            debug!("发送完成: {}", job_id);
-                            // let job = serde_json::to_string(&server_json_rpc)?;
-                            // jobs_send.send(job);
-                        }
-
-                        // if let Some(diff) = server_json_rpc.result.get(3) {
-                        //     //debug!("✅ Got Job Diff {}", diff);
-                        // }
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
                         if let Some(job_diff) = server_json_rpc.result.get(3) {
-                            #[cfg(debug_assertions)]
-                            debug!("当前难度:{}", diff);
-                            if diff != *job_diff {
-                                //新的难度发现。
-                                //debug!("新的难度发现。");
-                                diff = job_diff.clone();
-                                {
-                                    //debug!("清理队列。");
-                                    //清理队列。
-                                    let mut jobs =
-                                        RwLockWriteGuard::map(state.write().await, |s| {
-                                            &mut s.mine_jobs_queue
-                                        });
-                                    jobs.clear();
+                            if job_diff == "00" {
+                                if let Ok(json) = serde_json::from_slice::<ServerJobsWichHeigh>(&buf) {
+                                    #[cfg(debug_assertions)]
+                                    debug!("当前难度:{}", diff);
+                                    if diff != json.height {
+                                        //新的难度发现。
+                                        //debug!("新的难度发现。");
+                                        diff = json.height.clone();
+                                        {
+                                            //debug!("清理队列。");
+                                            //清理队列。
+                                            let mut jobs =
+                                                RwLockWriteGuard::map(state.write().await, |s| {
+                                                    &mut s.mine_jobs_queue
+                                                });
+                                            jobs.clear();
+                                        }
+                                    }
+                                }
+                            } else {
+                                #[cfg(debug_assertions)]
+                                debug!("当前难度:{}", diff);
+                                if diff != *job_diff {
+                                    //新的难度发现。
+                                    //debug!("新的难度发现。");
+                                    diff = job_diff.clone();
+                                    {
+                                        //debug!("清理队列。");
+                                        //清理队列。
+                                        let mut jobs =
+                                            RwLockWriteGuard::map(state.write().await, |s| {
+                                                &mut s.mine_jobs_queue
+                                            });
+                                        jobs.clear();
+                                    }
                                 }
                             }
+
                         }
                         #[cfg(debug_assertions)]
                         debug!("Got jobs {:?}", server_json_rpc);
