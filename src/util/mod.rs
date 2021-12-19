@@ -135,7 +135,7 @@ pub fn get_pool_stream(
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(3, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(2, 0)) {
             Ok(straem) => straem,
             Err(_) => {
                 info!("{} 访问不通。切换备用矿池！！！！", address);
@@ -143,7 +143,8 @@ pub fn get_pool_stream(
             }
         };
         std_stream.set_nonblocking(true).unwrap();
-
+        std_stream.set_read_timeout(Some(Duration::from_millis(2))).expect("读取超时");
+        std_stream.set_write_timeout(Some(Duration::from_millis(2))).expect("读取超时");
         info!(
             "{} conteact to {}",
             std_stream.local_addr().unwrap(),
@@ -176,6 +177,8 @@ pub async fn get_pool_stream_with_tls(
             }
         };
         std_stream.set_nonblocking(true).unwrap();
+        std_stream.set_read_timeout(Some(Duration::from_millis(2))).expect("读取超时");
+        std_stream.set_write_timeout(Some(Duration::from_millis(2))).expect("写入超时");
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
             Err(_) => {
@@ -187,8 +190,8 @@ pub async fn get_pool_stream_with_tls(
         let cx = match TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
-            //.min_protocol_version(Some(Protocol::Tlsv12))
-            //.max_protocol_version(Some(Protocol::Sslv3))
+            .min_protocol_version(Some(native_tls::Protocol::Tlsv11))
+            .disable_built_in_roots(true)
             .build()
         {
             Ok(con) => con,

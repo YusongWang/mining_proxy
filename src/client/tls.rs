@@ -98,7 +98,7 @@ async fn transfer_ssl(
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有SSL矿池均不可链接。请修改后重试");
-            std::process::exit(100);
+            return Ok(());
         }
     };
 
