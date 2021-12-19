@@ -214,12 +214,13 @@ impl Mine {
                         if let Some(job_diff) = server_json_rpc.result.get(3) {
                             if job_diff == "00" {
                                 if let Ok(json) = serde_json::from_slice::<ServerJobsWichHeigh>(&buf) {
+                                    let job_diff = json.height.to_string();
                                     #[cfg(debug_assertions)]
                                     debug!("当前难度:{}", diff);
-                                    if diff != json.height {
+                                    if diff != job_diff {
                                         //新的难度发现。
                                         //debug!("新的难度发现。");
-                                        diff = json.height.clone();
+                                        diff = job_diff.clone();
                                         {
                                             //debug!("清理队列。");
                                             //清理队列。
