@@ -59,10 +59,17 @@ where
             return Ok(());
         }
 
-        debug!(
-            "矿机 -> 矿池 #{:?}",
-            String::from_utf8(buf[0..len].to_vec()).unwrap()
-        );
+        match String::from_utf8(buf[0..len].to_vec()) {
+            Ok(rpc) => {
+                debug!("矿机 -> 矿池 #{:?}",rpc);
+            }
+            Err(_) => return Ok(()),
+        }
+
+        // debug!(
+        //     "矿机 -> 矿池 #{:?}",
+        //     String::from_utf8(buf[0..len].to_vec()).unwrap()
+        // );
 
         if len > 5 {
             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
@@ -317,7 +324,7 @@ where
                     }
                 } else {
                     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
-                        
+
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
