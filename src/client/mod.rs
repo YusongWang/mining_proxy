@@ -540,11 +540,13 @@ where
 }
 
 async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> {
-    info!("旷工下线 {}", worker);
+    #[cfg(debug_assertions)]
+    debug!("旷工下线 {}", worker);
     {
         let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
         if !worker.is_empty() && !workers.is_empty() {
-            info!("共有{}个旷工在线 ", workers.len());
+            #[cfg(debug_assertions)]
+            debug!("共有{}个旷工在线 ", workers.len());
             let mut idx: usize = 0;
             while idx <= workers.len() {
                 info!("index {}, {:?}", idx, workers[idx]);
@@ -556,8 +558,8 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
             }
         }
     }
-
-    info!("未找到旷工 {}", worker);
+    #[cfg(debug_assertions)]
+    debug!("未找到旷工 {}", worker);
     return Ok(());
 }
 
