@@ -318,7 +318,7 @@ impl Mine {
                         #[cfg(debug_assertions)]
                         debug!(
                             "❗ ------未捕获封包:{:?}",
-                            String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
                     }
                 }
