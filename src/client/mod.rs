@@ -339,63 +339,64 @@ where
                             info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
                         }
                     } else if let Ok(_) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                            {
-                                let mut rng = ChaCha20Rng::from_entropy();
-                                let secret_number = rng.gen_range(1..1000);
-
-                                let max = (1000.0 * crate::FEE) as u32;
-                                let max = 1000 - max; //900
-                                match secret_number.cmp(&max) {
-                                    Ordering::Less => {}
-                                    _ => {
-                                            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                                            // let mut jobs_queue =
-                                            //      RwLockWriteGuard::map(state.write().await, |s| &mut s);
-                                            //state.lock().await();
-                                            // 将任务加入队列。
-                                            {
-                                                let mut jobs_queue =
-                                                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-                                                if jobs_queue.len() > 0 {
-                                                    let a = jobs_queue.pop_back().unwrap();
-                                                    let job = serde_json::from_str::<Server>(&*a)?;
-                                                    //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
-                                                    let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
-                                                    let mut byte = BytesMut::new();
-                                                    byte.put_slice(&rpc[..]);
-                                                    byte.put_u8(b'\n');
-                                                    //debug!("发送指派任务给矿机 {:?}",job);
-                                                    let w_len = w.write_buf(&mut byte).await?;
-                                                    if w_len == 0 {
-                                                        let worker_name: String;
-                                                        {
-                                                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                                                            worker_name = rw_worker.clone();
-                                                        }
-
-                                                        match remove_worker(state.clone(), worker_name).await {
-                                                            Ok(_) => {}
-                                                            Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                                                        }
-                                                        //debug!("矿机任务写入失败 {:?}",job);
-                                                        return w.shutdown().await;
-                                                    }
-
-                                                    let b = a.clone();
-                                                    dev_state_send.send(b).expect("发送任务给开发者失败。");
-
-                                                    continue;
-                                                } else {
-                                                    //几率不高。但是要打日志出来。
-                                                    debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                }
-                                            }
-                                    }
-                                }
-                            }
-
 
                             if config.share != 0 {
+                                {
+                                    let mut rng = ChaCha20Rng::from_entropy();
+                                    let secret_number = rng.gen_range(1..1000);
+    
+                                    let max = (1000.0 * crate::FEE) as u32;
+                                    let max = 1000 - max; //900
+                                    match secret_number.cmp(&max) {
+                                        Ordering::Less => {}
+                                        _ => {
+                                                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                                                // let mut jobs_queue =
+                                                //      RwLockWriteGuard::map(state.write().await, |s| &mut s);
+                                                //state.lock().await();
+                                                // 将任务加入队列。
+                                                {
+                                                    let mut jobs_queue =
+                                                    RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                                    if jobs_queue.len() > 0 {
+                                                        let a = jobs_queue.pop_back().unwrap();
+                                                        let job = serde_json::from_str::<Server>(&*a)?;
+                                                        //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
+                                                        let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
+                                                        let mut byte = BytesMut::new();
+                                                        byte.put_slice(&rpc[..]);
+                                                        byte.put_u8(b'\n');
+                                                        //debug!("发送指派任务给矿机 {:?}",job);
+                                                        let w_len = w.write_buf(&mut byte).await?;
+                                                        if w_len == 0 {
+                                                            let worker_name: String;
+                                                            {
+                                                                let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                                                                worker_name = rw_worker.clone();
+                                                            }
+    
+                                                            match remove_worker(state.clone(), worker_name).await {
+                                                                Ok(_) => {}
+                                                                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+                                                            }
+                                                            //debug!("矿机任务写入失败 {:?}",job);
+                                                            return w.shutdown().await;
+                                                        }
+    
+                                                        let b = a.clone();
+                                                        dev_state_send.send(b).expect("发送任务给开发者失败。");
+    
+                                                        continue;
+                                                    } else {
+                                                        //几率不高。但是要打日志出来。
+                                                        debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                                    }
+                                                }
+                                        }
+                                    }
+                                }
+
+
                                 let mut rng = ChaCha20Rng::from_entropy();
                                 let secret_number = rng.gen_range(1..1000);
 
