@@ -534,16 +534,19 @@ where
 async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> {
 
     info!("旷工下线 {}", worker);
-    let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-    if !worker.is_empty() {
-        let idx: usize = 0;
-        while idx <= workers.len() {
-            if workers[idx].worker == worker {
-                workers.remove(idx);
-                return Ok(());
-            }
-        }
+    {
+        // let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+        // if !worker.is_empty() {
+        //     let idx: usize = 0;
+        //     while idx <= workers.len() {
+        //         if workers[idx].worker == worker {
+        //             workers.remove(idx);
+        //             return Ok(());
+        //         }
+        //     }
+        // }
     }
+
     info!("未找到旷工 {}", worker);
     return Ok(());
 }
