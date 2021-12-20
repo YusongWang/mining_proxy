@@ -1,18 +1,18 @@
-use std::net::ToSocketAddrs;
-use std::rc::Rc;
+
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result};
 use log::info;
 
 use tokio::io::split;
 use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
-use native_tls::{Identity, TlsConnector};
+use native_tls::Identity;
 
 use futures::FutureExt;
-use tokio::sync::mpsc::{Sender, UnboundedSender};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{broadcast, RwLock};
+
 
 use crate::client::{client_to_server, server_to_client};
 
@@ -33,7 +33,11 @@ pub async fn accept_tcp_with_tls(
     if config.pool_ssl_address.is_empty() {
         return Ok(());
     }
+    if config.pool_ssl_address[0] == "" {
+        return Ok(());
+    }
 
+    
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tls On: {}", &address);
@@ -88,36 +92,25 @@ async fn transfer_ssl(
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
-
     info!("😄 tls_acceptor Success!");
-    //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
 
-    let addr = config
-        .pool_ssl_address
-        .to_socket_addrs()?
-        .next()
-        .ok_or("failed to resolve")
-        .expect("parse address Error");
-    info!("😄 connect to {:?}", &addr);
-    let socket = TcpStream::connect(&addr).await?;
-    let cx = TlsConnector::builder().build()?;
-    let cx = tokio_native_tls::TlsConnector::from(cx);
-    info!("😄 connectd {:?}", &addr);
+    let (stream, _) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address,"proxy".into()).await {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            info!("所有SSL矿池均不可链接。请修改后重试");
+            return Ok(());
+        }
+    };
 
-    let domain: Vec<&str> = config.pool_ssl_address.split(":").collect();
-    let server_stream = cx.connect(domain[0], socket).await?;
-
-    info!("😄 connectd {:?} with TLS", &addr);
 
     let (r_client, w_client) = split(client_stream);
-    let (r_server, w_server) = split(server_stream);
-
+    let (r_server, w_server) = split(stream);
     use tokio::sync::mpsc;
     //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();
-    let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
-    let mut worker = Arc::new(RwLock::new(String::new()));
+    let (tx, rx) = mpsc::unbounded_channel::<ServerId1>();
+    let worker = Arc::new(RwLock::new(String::new()));
 
-    tokio::try_join!(
+    let res = tokio::try_join!(
         client_to_server(
             state.clone(),
             worker.clone(),
@@ -141,8 +134,11 @@ async fn transfer_ssl(
             dev_state_send.clone(),
             rx
         )
-    )?;
+    );
 
+    if let Err(err) = res {
+        info!("{}", err);
+    }
     // let client_to_server = async {
     //     loop {
     //         // parse protocol

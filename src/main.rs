@@ -48,10 +48,24 @@ async fn main() -> Result<()> {
         config.log_path.clone(),
         config.log_level,
     )?;
+
+    info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
+    // 分配任务给矿机channel
+    let (state_send, state_recv) = mpsc::unbounded_channel::<String>();
+    // 分配dev任务给矿机channel
+    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<String>();
+
+    // let pool = pool::Pool::new(config.clone(), state_send.clone(), dev_state_send.clone());
+
+    // let _ = tokio::join!(
+    //     pool.serve(),
+    // );
+
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
         std::process::exit(1);
     };
+
     if config.share != 0 && config.share_wallet.is_empty() {
         info!("❎ 抽水模式钱包为空。");
         std::process::exit(1);
@@ -66,13 +80,9 @@ async fn main() -> Result<()> {
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
 
     info!("✅ config init success!");
-    info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
+
     // 分配任务给矿机channel
-    let (job_send, _) = broadcast::channel::<String>(1);
-    // 分配任务给矿机channel
-    let (state_send, state_recv) = mpsc::unbounded_channel::<String>();
-    // 分配dev任务给矿机channel
-    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<String>();
+    let (job_send, _) = broadcast::channel::<String>(100);
 
     // 中转抽水费用
     let mine = Mine::new(config.clone()).await?;
@@ -86,7 +96,7 @@ async fn main() -> Result<()> {
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
 
-    let _ = tokio::join!(
+    let res = tokio::try_join!(
         accept_tcp(
             state.clone(),
             config.clone(),
@@ -113,11 +123,15 @@ async fn main() -> Result<()> {
             proxy_fee_recver
         ),
         process_mine_state(state.clone(), state_recv),
-        develop_mine.accept_tcp_with_tls(state.clone(), job_send, fee_tx.clone(), fee_rx),
+        develop_mine.accept(state.clone(), job_send, fee_tx.clone(), fee_rx),
         process_dev_state(state.clone(), dev_state_recv),
         print_state(state.clone(), config.clone()),
         clear_state(state.clone(), config.clone()),
     );
+
+    if let Err(err) = res {
+        info!("错误: {}", err);
+    }
 
     Ok(())
 }
@@ -233,7 +247,6 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
 
         table.printstd();
     }
-
 }
 
 async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
@@ -259,5 +272,4 @@ async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
             }
         }
     }
- 
 }

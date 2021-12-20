@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-
 use log::info;
 
 use tokio::io::split;
@@ -10,8 +9,7 @@ use tokio::net::{TcpListener, TcpStream};
 use futures::FutureExt;
 use tokio::sync::broadcast;
 
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::{mpsc::Sender, RwLock};
+use tokio::sync::{mpsc::UnboundedSender, RwLock};
 
 use crate::client::{client_to_server, server_to_client};
 use crate::protocol::rpc::eth::ServerId1;
@@ -30,7 +28,9 @@ pub async fn accept_tcp(
     if config.pool_tcp_address.is_empty() {
         return Ok(());
     }
-
+    if config.pool_tcp_address[0] == "" {
+        return Ok(());
+    }
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tcp On: {}", &address);
@@ -60,9 +60,11 @@ pub async fn accept_tcp(
             )
             .map(|r| {
                 if let Err(e) = r {
-                    info!("❎ 线程退出 : error={}", e);
+                    info!("❎ 线程退出 : {}", e);
                 }
             });
+
+            info!("初始化完成");
             tokio::spawn(transfer);
         });
     }
@@ -78,16 +80,23 @@ async fn transfer(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
-    let outbound = TcpStream::connect(&config.pool_tcp_address.to_string())
-        .await?;
+    let (stream, _) = match crate::util::get_pool_stream(&config.pool_tcp_address) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            info!("所有SSL矿池均不可链接。请修改后重试");
+            return Ok(());
+        }
+    };
 
+    let outbound = TcpStream::from_std(stream)?;
     let (r_client, w_client) = split(inbound);
     let (r_server, w_server) = split(outbound);
-    use tokio::sync::mpsc;
-    let (tx, mut rx) = mpsc::unbounded_channel::<ServerId1>();
+
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
     let worker = Arc::new(RwLock::new(String::new()));
 
-    tokio::try_join!(
+    info!("start client and server");
+    let res = tokio::try_join!(
         client_to_server(
             state.clone(),
             worker.clone(),
@@ -111,7 +120,11 @@ async fn transfer(
             dev_state_send.clone(),
             rx
         )
-    )?;
+    );
 
+    if let Err(err) = res {
+        info!("矿机错误或者代理池错误: {}", err);
+    }
+    
     Ok(())
 }

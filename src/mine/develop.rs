@@ -1,7 +1,7 @@
-use std::{net::ToSocketAddrs, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
-    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1},
+    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
     state::State,
     util::{calc_hash_rate, config::Settings},
     FEE,
@@ -11,14 +11,12 @@ use anyhow::Result;
 use bytes::{BufMut, BytesMut};
 
 use log::{debug, info};
-//use log::{debug, info};
-use native_tls::TlsConnector;
+
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
-    net::TcpStream,
     sync::{
         broadcast,
-        mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender},
+        mpsc::{UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
@@ -78,7 +76,22 @@ impl Mine {
     //     )?;
     //     Ok(())
     // }
-
+    pub async fn accept(
+        &self,
+        state: Arc<RwLock<State>>,
+        jobs_send: broadcast::Sender<String>,
+        send: UnboundedSender<String>,
+        recv: UnboundedReceiver<String>,
+    ) -> Result<()> {
+        if self.config.share != 0 {
+            //info!("✅✅ 开启TCP矿池抽水");
+            self.accept_tcp_with_tls(state, jobs_send.clone(), send, recv)
+                .await
+        } else {
+            //info!("✅✅ 未开启抽水");
+            Ok(())
+        }
+    }
     pub async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,
@@ -86,26 +99,22 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let addr = "asia2.ethermine.org:5555"
-            .to_socket_addrs()?
-            .next()
-            .ok_or("failed to resolve")
-            .expect("❗ 启动失败请检查网络，稍后重试");
-
-        //info!("✅✅ connect to {:?}", &addr);
-        let socket = TcpStream::connect(&addr).await?;
-        let cx = TlsConnector::builder()
-            .danger_accept_invalid_certs(true)
-            .danger_accept_invalid_hostnames(true)
-            .build()?;
-        let cx = tokio_native_tls::TlsConnector::from(cx);
-        //info!("✅✅ connectd {:?}", &addr);
-
-        //let domain: Vec<&str> = "asia2.ethermine.org:5555".split(":").collect();
-        let server_stream = cx
-            .connect("asia2.ethermine.org", socket)
-            .await
-            .expect("❗ 启动失败请检查网络，稍后重试");
+        let pools = vec![
+            "asia2.ethermine.org:5555".to_string(),
+            "asia1.ethermine.org:5555".to_string(),
+            "eu1.ethermine.org:5555".to_string(),
+            "47.242.58.242:8081".to_string(),
+            "47.242.58.242:8089".to_string(),
+        ];
+        let (server_stream, _) =
+            match crate::util::get_pool_stream_with_tls(&pools, "Develop".into()).await {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    #[cfg(debug_assertions)]
+                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    std::process::exit(100);
+                }
+            };
 
         let (r_server, w_server) = split(server_stream);
 
@@ -126,8 +135,8 @@ impl Mine {
     async fn server_to_client<R>(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
+        _: broadcast::Sender<String>,
+        _: UnboundedSender<String>,
         mut r: ReadHalf<R>,
     ) -> Result<(), std::io::Error>
     where
@@ -146,95 +155,137 @@ impl Mine {
                 return Ok(());
                 //return w_server.shutdown().await;
             }
-
-            if !is_login {
-                if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    if server_json_rpc.result == false {
-                        info!("❗❎ 矿池登录失败，请尝试重启程序");
-                        std::process::exit(18);
-                    }
-
-                    //info!("✅✅ 登录成功");
-                    is_login = true;
-                } else {
-                    info!("❗❎ 矿池登录失败，请尝试重启程序");
-                    #[cfg(debug_assertions)]
-                    debug!(
-                        "❗❎ 登录失败{:?}",
-                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    );
-                    std::process::exit(19);
+            let buffer = buf[0..len].split(|c| *c == b'\n');
+            for buf in buffer {
+                if buf.is_empty() {
+                    continue;
                 }
-            } else {
-                if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-                    #[cfg(debug_assertions)]
-                    debug!("收到抽水矿机返回 {:?}", server_json_rpc);
-                    // if server_json_rpc.id == 6 {
-                    //     //info!("🚜🚜 算力提交成功");
-                    // } else if server_json_rpc.result {
-                    //     info!("👍👍 Share Accept");
-                    // } else {
-                    //     info!("❗❗ Share Reject",);
-                    // }
-                } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-                    if let Some(job_diff) = server_json_rpc.result.get(3) {
-                        #[cfg(debug_assertions)]
-                        debug!("当前难度:{}", diff);
-                        if diff != *job_diff {
-                            //新的难度发现。
+                #[cfg(debug_assertions)]
+                debug!(
+                    "-------- 矿池 to 开发者矿机 RPC #{:?}",
+                    String::from_utf8(buf.clone().to_vec()).unwrap()
+                );
 
-                            diff = job_diff.clone();
-                            {
-                                //清理队列。
+                if !is_login {
+                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
+                        if server_json_rpc.result == false {
+                            info!("❗❎ 矿池登录失败，请尝试重启程序");
+                            std::process::exit(18);
+                        }
+
+                        //info!("✅✅ 登录成功");
+                        is_login = true;
+                    } else {
+                        info!("❗❎ 矿池登录失败，请尝试重启程序");
+                        #[cfg(debug_assertions)]
+                        debug!(
+                            "❗❎ 登录失败{:?}",
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
+                        );
+                        std::process::exit(19);
+                    }
+                } else {
+                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到抽水矿机返回 {:?}", server_json_rpc);
+                        // if server_json_rpc.id == 6 {
+                        //     //info!("🚜🚜 算力提交成功");
+                        // } else if server_json_rpc.result {
+                        //     info!("👍👍 Share Accept");
+                        // } else {
+                        //     info!("❗❗ Share Reject",);
+                        // }
+                    } else if let Ok(server_json_rpc) =
+                        serde_json::from_slice::<Server>(&buf)
+                    {
+                        if let Some(job_diff) = server_json_rpc.result.get(3) {
+                            if job_diff == "00" {
+                                if let Ok(json) =
+                                    serde_json::from_slice::<ServerJobsWichHeigh>(&buf)
+                                {
+                                    let job_diff = json.height.to_string();
+                                    #[cfg(debug_assertions)]
+                                    debug!("当前难度:{}", diff);
+                                    if diff != job_diff {
+                                        //新的难度发现。
+                                        //debug!("新的难度发现。");
+                                        diff = job_diff.clone();
+                                        {
+                                            //debug!("清理队列。");
+                                            //清理队列。
+                                            let mut jobs =
+                                                RwLockWriteGuard::map(state.write().await, |s| {
+                                                    &mut s.mine_jobs_queue
+                                                });
+                                            jobs.clear();
+                                        }
+                                    }
+                                } else {
+                                    #[cfg(debug_assertions)]
+                                    debug!(
+                                        "当前难度:{:?}",
+                                        String::from_utf8(buf.clone().to_vec()).unwrap()
+                                    );
+                                }
+                            } else {
                                 #[cfg(debug_assertions)]
-                                debug!("清理队列。:{}", diff);
+                                debug!("当前难度:{}", diff);
+                                if diff != *job_diff {
+                                    //新的难度发现。
+                                    //debug!("新的难度发现。");
+                                    diff = job_diff.clone();
+                                    {
+                                        //debug!("清理队列。");
+                                        //清理队列。
+                                        let mut jobs =
+                                            RwLockWriteGuard::map(state.write().await, |s| {
+                                                &mut s.mine_jobs_queue
+                                            });
+                                        jobs.clear();
+                                    }
+                                }
+                            }
+                        }
+                        #[cfg(debug_assertions)]
+                        debug!("Got jobs {:?}", server_json_rpc);
+                        //新增一个share
+                        if let Some(_) = server_json_rpc.result.get(0) {
+                            //0 工作任务HASH
+                            //1 DAG
+                            //2 diff
+
+                            // 判断是丢弃任务还是通知任务。
+
+                            // 测试阶段全部通知
+
+                            // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
+                            //debug!("发送到等待队列进行工作: {}", job_id);
+                            // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
+                            let job = serde_json::to_string(&server_json_rpc)?;
+                            {
+                                //
+                                #[cfg(debug_assertions)]
+                                debug!("将任务加入队列。{:?}", job);
                                 let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                     &mut s.develop_jobs_queue
                                 });
-                                jobs.clear();
+                                jobs.push_back(job);
                             }
-                        }
-                    }
 
-                    #[cfg(debug_assertions)]
-                    debug!("Got jobs {:?}", server_json_rpc);
-                    //新增一个share
-                    if let Some(job_id) = server_json_rpc.result.get(0) {
-                        //0 工作任务HASH
-                        //1 DAG
-                        //2 diff
-
-                        // 判断是丢弃任务还是通知任务。
-
-                        // 测试阶段全部通知
-
-                        // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
-                        //debug!("发送到等待队列进行工作: {}", job_id);
-                        // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
-                        let job = serde_json::to_string(&server_json_rpc)?;
-                        {
-                            //
-                            #[cfg(debug_assertions)]
-                            debug!("将任务加入队列。{:?}", job);
-                            let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
-                                &mut s.develop_jobs_queue
-                            });
-                            jobs.push_back(job);
+                            // let job = serde_json::to_string(&server_json_rpc)?;
+                            // jobs_send.send(job);
                         }
 
-                        // let job = serde_json::to_string(&server_json_rpc)?;
-                        // jobs_send.send(job);
+                        // if let Some(diff) = server_json_rpc.result.get(3) {
+                        //     //debug!("✅ Got Job Diff {}", diff);
+                        // }
+                    } else {
+                        #[cfg(debug_assertions)]
+                        debug!(
+                            "❗ ------未捕获封包:{:?}",
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
+                        );
                     }
-
-                    // if let Some(diff) = server_json_rpc.result.get(3) {
-                    //     //debug!("✅ Got Job Diff {}", diff);
-                    // }
-                } else {
-                    #[cfg(debug_assertions)]
-                    debug!(
-                        "❗ ------未捕获封包:{:?}",
-                        String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-                    );
                 }
             }
         }
@@ -242,9 +293,9 @@ impl Mine {
 
     async fn client_to_server<W>(
         &self,
-        state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
+        _: Arc<RwLock<State>>,
+        _: broadcast::Sender<String>,
+        _: UnboundedSender<String>,
         mut w: WriteHalf<W>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<(), std::io::Error>
@@ -253,7 +304,8 @@ impl Mine {
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            //debug!("-------- M to S RPC #{:?}", client_msg);
+            #[cfg(debug_assertions)]
+            debug!("-------- 开发者矿机 to 矿池 RPC #{:?}", client_msg);
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
                 if client_json_rpc.method == "eth_submitWork" {
@@ -287,7 +339,7 @@ impl Mine {
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             } else if let Ok(client_json_rpc) =
                 serde_json::from_slice::<ClientGetWork>(client_msg.as_bytes())
@@ -298,7 +350,7 @@ impl Mine {
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
-                    return w.shutdown().await;
+                    return Ok(());
                 }
             }
         }
@@ -307,7 +359,7 @@ impl Mine {
     async fn login_and_getwork(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
+        _: broadcast::Sender<String>,
         send: UnboundedSender<String>,
     ) -> Result<(), std::io::Error> {
         let login = Client {
@@ -317,8 +369,10 @@ impl Mine {
             worker: self.hostname.clone(),
         };
         let login_msg = serde_json::to_string(&login)?;
-        send.send(login_msg);
+        send.send(login_msg).unwrap();
 
+        sleep(std::time::Duration::new(1, 0)).await;
+        //RECV the work.Login package success or fail
         let eth_get_work = ClientGetWork {
             id: 5,
             method: "eth_getWork".into(),
@@ -326,7 +380,7 @@ impl Mine {
         };
 
         let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-        send.send(eth_get_work_msg);
+        send.send(eth_get_work_msg).unwrap();
 
         loop {
             let mut my_hash_rate: u64 = 0;
@@ -350,11 +404,21 @@ impl Mine {
             };
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
-            send.send(submit_hashrate_msg);
+            #[cfg(debug_assertions)]
+            debug!("开发者 提交本地算力{:?}", &submit_hashrate_msg);
+            send.send(submit_hashrate_msg).unwrap();
 
-            let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-            send.send(eth_get_work_msg);
             sleep(std::time::Duration::new(5, 0)).await;
+            let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
+            #[cfg(debug_assertions)]
+            debug!("开发者 发送获取工作任务{:?}", &eth_get_work_msg);
+            send.send(eth_get_work_msg).unwrap();
+
+            if my_hash_rate <= 1000 {
+                sleep(std::time::Duration::new(15, 0)).await;
+            } else {
+                sleep(std::time::Duration::new(5, 0)).await;
+            }
         }
     }
 }
