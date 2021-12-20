@@ -76,7 +76,13 @@ where
         //     "矿机 -> 矿池 #{:?}",
         //     String::from_utf8(buf[0..len].to_vec()).unwrap()
         // );
-        let buffer_string = String::from_utf8(buf[0..len].to_vec()).unwrap();
+        let buffer_string = match String::from_utf8(buf[0..len].to_vec()){
+            Ok(s) => s,
+            Err(_) => {
+                info!("错误的封包格式。");
+                return Ok(());},
+        };
+        
         let buffer: Vec<_> = buffer_string.split("\n").collect();
         //let buffer = buf[0..len].split(|c| *c == b'\n');
         //let buffer = buf[0..len].split();
