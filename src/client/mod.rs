@@ -40,6 +40,13 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let mut r = tokio_io_timeout::TimeoutReader::new(r);
+    r.set_timeout(Some(std::time::Duration::from_millis(1000)));
+    tokio::pin!(r);
+
+    let mut w = tokio_io_timeout::TimeoutWriter::new(w);
+    w.set_timeout(Some(std::time::Duration::from_millis(1000)));
+    tokio::pin!(w);
     let mut worker_name: String = String::new();
     loop {
         let mut buf = vec![0; 1024];
@@ -304,6 +311,13 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let mut r = tokio_io_timeout::TimeoutReader::new(r);
+    r.set_timeout(Some(std::time::Duration::from_millis(1000)));
+    tokio::pin!(r);
+
+    let mut w = tokio_io_timeout::TimeoutWriter::new(w);
+    w.set_timeout(Some(std::time::Duration::from_millis(1000)));
+    tokio::pin!(w);
     let mut is_login = false;
 
     loop {
@@ -393,7 +407,7 @@ where
                                 let rw_worker = RwLockReadGuard::map(guard, |s| s);
                                 worker_name = rw_worker.to_string();
                             }
-        
+
                             info!("worker {} ",worker_name);
                             match remove_worker(state.clone(), worker_name).await {
                                 Ok(_) => {}
@@ -470,7 +484,7 @@ where
                                 let rw_worker = RwLockReadGuard::map(guard, |s| s);
                                 worker_name = rw_worker.to_string();
                             }
-        
+
                             info!("worker {} ",worker_name);
                             match remove_worker(state.clone(), worker_name).await {
                                 Ok(_) => {}
@@ -609,7 +623,7 @@ where
                                 let rw_worker = RwLockReadGuard::map(guard, |s| s);
                                 worker_name = rw_worker.to_string();
                             }
-        
+
                             info!("worker {} ",worker_name);
                             match remove_worker(state.clone(), worker_name).await {
                                 Ok(_) => {}
@@ -651,7 +665,7 @@ where
                                 let rw_worker = RwLockReadGuard::map(guard, |s| s);
                                 worker_name = rw_worker.to_string();
                             }
-        
+
                             info!("worker {} ",worker_name);
                             match remove_worker(state.clone(), worker_name).await {
                                 Ok(_) => {}
@@ -683,7 +697,7 @@ where
                                 let rw_worker = RwLockReadGuard::map(guard, |s| s);
                                 worker_name = rw_worker.to_string();
                             }
-        
+
                             info!("worker {} ",worker_name);
                             match remove_worker(state.clone(), worker_name).await {
                                 Ok(_) => {}
@@ -694,7 +708,7 @@ where
                     }
                 }
 
-               
+
             }
             },
             id1 = rx.recv() => {
