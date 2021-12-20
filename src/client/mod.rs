@@ -514,13 +514,12 @@ where
                         );
                     }
                 }
-                //buf.push(b'\r');
-                //buf.push(b'\n');
+
                 let mut byte = BytesMut::new();
-                byte.put_slice(&buf[..]);
+                byte.put_slice(&buf);
                 byte.put_u8(b'\r');
                 byte.put_u8(b'\n');
-                let len = w.write(&byte).await?;
+                let len = w.write_buf(&mut byte).await?;
                 if len == 0 {
                     info!("❗ 服务端写入失败 断开连接.");
                     let worker_name: String;
