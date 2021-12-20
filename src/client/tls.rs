@@ -103,8 +103,8 @@ async fn transfer_ssl(
     };
 
     let mut s = tokio_io_timeout::TimeoutStream::new(stream);
-    s.set_read_timeout(Some(std::time::Duration::from_millis(1000)));
-    s.set_write_timeout(Some(std::time::Duration::from_millis(1000)));
+    s.set_read_timeout(Some(std::time::Duration::new(2,0)));
+    s.set_write_timeout(Some(std::time::Duration::new(2,0)));
     tokio::pin!(s);
 
     let (r_client, w_client) = split(client_stream);

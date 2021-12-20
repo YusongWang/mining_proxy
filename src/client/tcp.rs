@@ -90,8 +90,8 @@ async fn transfer(
 
     let outbound = TcpStream::from_std(stream)?;
     let mut outbound = tokio_io_timeout::TimeoutStream::new(outbound);
-    outbound.set_read_timeout(Some(std::time::Duration::from_millis(1000)));
-    outbound.set_write_timeout(Some(std::time::Duration::from_millis(1000)));
+    outbound.set_read_timeout(Some(std::time::Duration::new(2,0)));
+    outbound.set_write_timeout(Some(std::time::Duration::new(2,0)));
     tokio::pin!(outbound);
     let (r_client, w_client) = split(inbound);
     let (r_server, w_server) = split(outbound);
