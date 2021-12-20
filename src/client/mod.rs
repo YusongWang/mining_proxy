@@ -768,15 +768,15 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
         if !worker.is_empty() && !workers.is_empty() {
             #[cfg(debug_assertions)]
             debug!("共有{}个旷工在线 ", workers.len());
-            let mut idx: usize = 0;
-            while idx <= workers.len() {
+            //let mut idx: usize = 0;
+            for idx in 0..workers.len() {
                 #[cfg(debug_assertions)]
                 info!("index {}, {:?}", idx, workers[idx]);
                 if workers[idx].worker == worker {
                     workers.remove(idx);
                     return Ok(());
                 }
-                idx = idx + 1;
+                //idx = idx + 1;
             }
         }
     }
