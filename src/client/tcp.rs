@@ -94,12 +94,13 @@ async fn transfer(
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
     let worker = Arc::new(RwLock::new(String::new()));
-
+    let client_rpc_id = Arc::new(RwLock::new(0u64));
     info!("start client and server");
     let res = tokio::try_join!(
         client_to_server(
             state.clone(),
             worker.clone(),
+            client_rpc_id.clone(),
             config.clone(),
             r_client,
             w_server,
@@ -111,6 +112,7 @@ async fn transfer(
         server_to_client(
             state.clone(),
             worker,
+            client_rpc_id,
             config.clone(),
             jobs_recv,
             r_server,

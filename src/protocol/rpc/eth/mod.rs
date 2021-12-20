@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Client {
-    pub id: i64,
+    pub id: u64,
     pub method: String,
     pub params: Vec<String>,
     pub worker: String,
@@ -13,7 +13,7 @@ pub struct Client {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientGetWork {
-    pub id: i64,
+    pub id: u64,
     pub method: String,
     pub params: Vec<String>,
 }
@@ -21,7 +21,7 @@ pub struct ClientGetWork {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientSubmitHashrate {
-    pub id: i64,
+    pub id: u64,
     pub method: String,
     pub params: Vec<String>,
 }
@@ -29,14 +29,14 @@ pub struct ClientSubmitHashrate {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Server {
-    pub id: i64,
+    pub id: u64,
     pub result: Vec<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerError {
-    pub id: i64,
+    pub id: u64,
     pub jsonrpc:String,
     pub error: String,
 }
@@ -44,14 +44,14 @@ pub struct ServerError {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BinanceError {
-    pub code: i64,
+    pub code: u64,
     pub message: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerJobsWichHeigh {
-    pub id: i64,
+    pub id: u64,
     pub result: Vec<String>,
     pub jsonrpc:String,
     pub height: u64,
@@ -62,6 +62,6 @@ pub struct ServerJobsWichHeigh {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerId1 {
-    pub id: i64,
+    pub id: u64,
     pub result: bool,
 }
