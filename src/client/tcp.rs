@@ -88,7 +88,7 @@ async fn transfer(
     let (stream, _) = match crate::util::get_pool_stream(&config.pool_tcp_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
-            info!("所有SSL矿池均不可链接。请修改后重试");
+            info!("所有TCP矿池均不可链接。请修改后重试");
             return Ok(());
         }
     };
