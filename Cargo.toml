@@ -25,6 +25,7 @@ rand = "0.8.3"
 rand_chacha = "0.3.1"
 hex = "0.4.3"
 prettytable-rs = "^0.8"
+tokio-io-timeout = "1.1.1"
 
 #cargo-features = "["strip"]
 [profile.release]

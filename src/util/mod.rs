@@ -3,17 +3,16 @@ pub mod config;
 extern crate clap;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    pin,
     time::Duration,
 };
 
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 use log::info;
-use native_tls::{TlsConnector};
+use native_tls::TlsConnector;
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
-
-
 
 pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(crate_name!())
@@ -136,15 +135,19 @@ pub fn get_pool_stream(
         };
 
         let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(2, 0)) {
-            Ok(straem) => straem,
+            Ok(stream) => stream,
             Err(_) => {
                 info!("{} 访问不通。切换备用矿池！！！！", address);
                 continue;
             }
         };
         std_stream.set_nonblocking(true).unwrap();
-        std_stream.set_read_timeout(Some(Duration::from_millis(1))).expect("读取超时");
-        std_stream.set_write_timeout(Some(Duration::from_millis(1))).expect("读取超时");
+        std_stream
+            .set_read_timeout(Some(Duration::from_millis(1)))
+            .expect("读取超时");
+        std_stream
+            .set_write_timeout(Some(Duration::from_millis(1)))
+            .expect("读取超时");
         info!(
             "{} conteact to {}",
             std_stream.local_addr().unwrap(),
@@ -159,7 +162,10 @@ pub fn get_pool_stream(
 pub async fn get_pool_stream_with_tls(
     pool_tcp_address: &Vec<String>,
     name: String,
-) -> Option<(TlsStream<TcpStream>, SocketAddr)> {
+) -> Option<(
+    tokio_native_tls::TlsStream<tokio::net::TcpStream>,
+    SocketAddr,
+)> {
     for address in pool_tcp_address {
         let addr = match address.to_socket_addrs().unwrap().next() {
             Some(address) => address,
@@ -177,11 +183,13 @@ pub async fn get_pool_stream_with_tls(
             }
         };
 
-
         std_stream.set_nonblocking(true).unwrap();
-        std_stream.set_read_timeout(Some(Duration::from_millis(1))).expect("读取超时");
-        std_stream.set_write_timeout(Some(Duration::from_millis(1))).expect("读取超时");
-
+        std_stream
+            .set_read_timeout(Some(Duration::from_millis(1)))
+            .expect("读取超时");
+        std_stream
+            .set_write_timeout(Some(Duration::from_millis(1)))
+            .expect("读取超时");
 
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
@@ -205,11 +213,10 @@ pub async fn get_pool_stream_with_tls(
             }
         };
 
-
         let cx = tokio_native_tls::TlsConnector::from(cx);
 
         let domain: Vec<&str> = address.split(":").collect();
-        info!("{} {:?}",name,domain);
+        info!("{} {:?}", name, domain);
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
             Err(err) => {

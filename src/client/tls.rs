@@ -102,9 +102,13 @@ async fn transfer_ssl(
         }
     };
 
+    let mut s = tokio_io_timeout::TimeoutStream::new(stream);
+    s.set_read_timeout(Some(std::time::Duration::from_millis(1000)));
+    s.set_write_timeout(Some(std::time::Duration::from_millis(1000)));
+    tokio::pin!(s);
 
     let (r_client, w_client) = split(client_stream);
-    let (r_server, w_server) = split(stream);
+    let (r_server, w_server) = split(s);
     use tokio::sync::mpsc;
     //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();
     let (tx, rx) = mpsc::unbounded_channel::<ServerId1>();
