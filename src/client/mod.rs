@@ -291,6 +291,7 @@ where
                 //     String::from_utf8(buf[0..len].to_vec()).unwrap()
                 // );
                 let buffer = buf[0..len].split(|c| *c == b'\n');
+                //let buffer = buf[0..len].split();
                 for buf in buffer {
                     if buf.is_empty() {
                         continue;
@@ -394,6 +395,7 @@ where
                                                         let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                         let mut byte = BytesMut::new();
                                                         byte.put_slice(&rpc[..]);
+                                                        byte.put_u8(b'\r');
                                                         byte.put_u8(b'\n');
                                                         //debug!("发送指派任务给矿机 {:?}",job);
                                                         let w_len = w.write_buf(&mut byte).await?;
@@ -452,6 +454,7 @@ where
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                     let mut byte = BytesMut::new();
                                                     byte.put_slice(&rpc[..]);
+                                                    byte.put_u8(b'\r');
                                                     byte.put_u8(b'\n');
                                                     //debug!("发送指派任务给矿机 {:?}",job);
                                                     let w_len = w.write_buf(&mut byte).await?;
@@ -511,8 +514,13 @@ where
                         );
                     }
                 }
-
-                let len = w.write(&buf).await?;
+                //buf.push(b'\r');
+                //buf.push(b'\n');
+                let mut byte = BytesMut::new();
+                byte.put_slice(&buf[..]);
+                byte.put_u8(b'\r');
+                byte.put_u8(b'\n');
+                let len = w.write(&byte).await?;
                 if len == 0 {
                     info!("❗ 服务端写入失败 断开连接.");
                     let worker_name: String;
@@ -537,6 +545,7 @@ where
                 let rpc = serde_json::to_vec(&msg)?;
                 let mut byte = BytesMut::new();
                 byte.put_slice(&rpc[0..rpc.len()]);
+                byte.put_u8(b'\r');
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
@@ -571,6 +580,7 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
             debug!("共有{}个旷工在线 ", workers.len());
             let mut idx: usize = 0;
             while idx <= workers.len() {
+                #[cfg(debug_assertions)]
                 info!("index {}, {:?}", idx, workers[idx]);
                 if workers[idx].worker == worker {
                     workers.remove(idx);
