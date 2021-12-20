@@ -92,6 +92,11 @@ async fn transfer_ssl(
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
+    let mut inbound = tokio_io_timeout::TimeoutStream::new(client_stream);
+    inbound.set_read_timeout(Some(std::time::Duration::new(10,0)));
+    inbound.set_write_timeout(Some(std::time::Duration::new(10,0)));
+    tokio::pin!(inbound);
+
     info!("😄 tls_acceptor Success!");
 
     let (stream, _) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address,"proxy".into()).await {
@@ -104,7 +109,7 @@ async fn transfer_ssl(
 
 
 
-    let (r_client, w_client) = split(client_stream);
+    let (r_client, w_client) = split(inbound);
     let (r_server, w_server) = split(stream);
     use tokio::sync::mpsc;
     //let (tx, mut rx): ServerId1 = mpsc::unbounded_channel();

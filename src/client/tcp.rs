@@ -80,6 +80,14 @@ async fn transfer(
     state_send: UnboundedSender<String>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
+
+
+    let mut inbound = tokio_io_timeout::TimeoutStream::new(inbound);
+    inbound.set_read_timeout(Some(std::time::Duration::new(10,0)));
+    inbound.set_write_timeout(Some(std::time::Duration::new(10,0)));
+    tokio::pin!(inbound);
+
+
     let (stream, _) = match crate::util::get_pool_stream(&config.pool_tcp_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -87,7 +95,6 @@ async fn transfer(
             return Ok(());
         }
     };
-
     let outbound = TcpStream::from_std(stream)?;
 
     let (r_client, w_client) = split(inbound);

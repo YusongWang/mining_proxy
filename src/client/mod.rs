@@ -40,17 +40,16 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    // let mut r = tokio_io_timeout::TimeoutReader::new(r);
-    // r.set_timeout(Some(std::time::Duration::from_millis(1000)));
-    // tokio::pin!(r);
+
 
     // let mut w = tokio_io_timeout::TimeoutWriter::new(w);
-    // w.set_timeout(Some(std::time::Duration::from_millis(1000)));
     // tokio::pin!(w);
     let mut worker_name: String = String::new();
     loop {
         let mut buf = vec![0; 1024];
+
         let len = r.read(&mut buf).await?;
+
         #[cfg(debug_assertions)]
         info!("读取成功{} 字节", len);
 
@@ -472,6 +471,7 @@ where
                             let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
                             server_json_rpc.id = *rpc_id;
                         }
+
                         let to_client_buf = serde_json::to_string(&server_json_rpc).expect("格式化RPC失败");
                         let mut byte = BytesMut::from(to_client_buf.as_str());
                         byte.put_u8(b'\n');
