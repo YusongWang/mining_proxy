@@ -5,6 +5,7 @@ pub struct Worker {
     pub worker: String,
     pub worker_name: String,
     pub worker_wallet: String,
+    pub rpc_id:u64,
     pub hash: u64,
     pub share_index: u128,
     pub accept_index: u128,
@@ -21,6 +22,7 @@ impl Worker {
             share_index: 0,
             accept_index: 0,
             invalid_index: 0,
+            rpc_id: 0,
         }
     }
 }

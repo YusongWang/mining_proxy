@@ -86,6 +86,7 @@ where
                         for w in &mut *workers {
                             if w.worker == *rw_worker {
                                 w.share_index = w.share_index + 1;
+                                w.rpc_id = client_json_rpc.id as u64;
                                 rpc_id = w.share_index;
                             }
                         }
@@ -149,6 +150,18 @@ where
                         info!("✅ Worker :{} Share #{}", rw_worker, rpc_id);
                     }
                 } else if client_json_rpc.method == "eth_submitHashrate" {
+                    {
+                        //新增一个share
+                        let mut workers =
+                            RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        for w in &mut *workers {
+                            if w.worker == *rw_worker {
+                                w.rpc_id = client_json_rpc.id as u64;
+                            }
+                        }
+                    }
                     client_json_rpc.id = 99998;
                     if let Some(hashrate) = client_json_rpc.params.get(0) {
                         {
@@ -179,6 +192,18 @@ where
                         // }
                     }
                 } else if client_json_rpc.method == "eth_submitLogin" {
+                    {
+                        //新增一个share
+                        let mut workers =
+                            RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+
+                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                        for w in &mut *workers {
+                            if w.worker == *rw_worker {
+                                w.rpc_id = client_json_rpc.id as u64;
+                            }
+                        }
+                    }
                     client_json_rpc.id = 99999;
                     if let Some(wallet) = client_json_rpc.params.get(0) {
                         let mut temp_worker = wallet.clone();
@@ -209,6 +234,18 @@ where
             } else if let Ok(mut client_json_rpc) =
                 serde_json::from_slice::<ClientGetWork>(&buf[0..len])
             {
+                {
+                    //新增一个share
+                    let mut workers =
+                        RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+
+                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                    for w in &mut *workers {
+                        if w.worker == *rw_worker {
+                            w.rpc_id = client_json_rpc.id as u64;
+                        }
+                    }
+                }
                 client_json_rpc.id = 99997;
                 //debug!("获得任务:{:?}", client_json_rpc);
                 let mut rpc = serde_json::to_string(&client_json_rpc)?;
@@ -290,16 +327,20 @@ where
                 //     "S to C RPC #{:?}",
                 //     String::from_utf8(buf[0..len].to_vec()).unwrap()
                 // );
-                let buffer = buf[0..len].split(|c| *c == b'\n');
+
+                let mut buffer_string =  String::from_utf8(buf[0..len].to_vec()).unwrap();
+                let mut buffer:Vec<_> = buffer_string.split("\n").collect();
+                //let buffer = buf[0..len].split(|c| *c == b'\n');
                 //let buffer = buf[0..len].split();
                 for buf in buffer {
                     if buf.is_empty() {
                         continue;
                     }
+
                 #[cfg(debug_assertions)]
-                debug!("Got jobs {}",String::from_utf8(buf.to_vec()).unwrap());
+                debug!("Got jobs {}",buf);
                 if !is_login {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
+                    if let Ok(server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
                         if server_json_rpc.id == 99999 && server_json_rpc.result {
                             let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                             let wallet:Vec<_>= rw_worker.split(".").collect();
@@ -328,7 +369,7 @@ where
                         return Ok(());
                     }
                 } else {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
+                    if let Ok(server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
 
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         let mut workers =
@@ -368,7 +409,7 @@ where
                                 info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
                             }
                         }
-                    } else if let Ok(_) = serde_json::from_slice::<Server>(&buf) {
+                    } else if let Ok(_) = serde_json::from_str::<Server>(&buf) {
 
                             if config.share != 0 {
                                 {
@@ -395,7 +436,7 @@ where
                                                         let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                         let mut byte = BytesMut::new();
                                                         byte.put_slice(&rpc[..]);
-                                                        byte.put_u8(b'\r');
+
                                                         byte.put_u8(b'\n');
                                                         //debug!("发送指派任务给矿机 {:?}",job);
                                                         let w_len = w.write_buf(&mut byte).await?;
@@ -454,7 +495,7 @@ where
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                     let mut byte = BytesMut::new();
                                                     byte.put_slice(&rpc[..]);
-                                                    byte.put_u8(b'\r');
+
                                                     byte.put_u8(b'\n');
                                                     //debug!("发送指派任务给矿机 {:?}",job);
                                                     let w_len = w.write_buf(&mut byte).await?;
@@ -486,7 +527,7 @@ where
                             }
                         }
 
-                    } else if let Ok(_) = serde_json::from_slice::<ServerError>(&buf) {
+                    } else if let Ok(_) = serde_json::from_str::<ServerError>(&buf) {
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
@@ -510,14 +551,13 @@ where
                     } else {
                         debug!(
                             "❗ ------未捕获封包:{:?}",
-                            String::from_utf8(buf.clone().to_vec()).unwrap()
+                            buf
                         );
                     }
                 }
 
-                let mut byte = BytesMut::new();
-                byte.put_slice(&buf);
-                byte.put_u8(b'\r');
+                let mut byte = BytesMut::from(buf);
+
                 byte.put_u8(b'\n');
                 let len = w.write_buf(&mut byte).await?;
                 if len == 0 {
@@ -544,7 +584,7 @@ where
                 let rpc = serde_json::to_vec(&msg)?;
                 let mut byte = BytesMut::new();
                 byte.put_slice(&rpc[0..rpc.len()]);
-                byte.put_u8(b'\r');
+
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
