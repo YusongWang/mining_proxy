@@ -195,9 +195,7 @@ impl Mine {
                         // } else {
                         //     info!("❗❗ Share Reject",);
                         // }
-                    } else if let Ok(server_json_rpc) =
-                        serde_json::from_slice::<Server>(&buf)
-                    {
+                    } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
                         if let Some(job_diff) = server_json_rpc.result.get(3) {
                             if job_diff == "00" {
                                 if let Ok(json) =
@@ -408,17 +406,13 @@ impl Mine {
             debug!("开发者 提交本地算力{:?}", &submit_hashrate_msg);
             send.send(submit_hashrate_msg).unwrap();
 
-            sleep(std::time::Duration::new(5, 0)).await;
+
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             #[cfg(debug_assertions)]
             debug!("开发者 发送获取工作任务{:?}", &eth_get_work_msg);
             send.send(eth_get_work_msg).unwrap();
 
-            if my_hash_rate <= 1000 {
-                sleep(std::time::Duration::new(15, 0)).await;
-            } else {
-                sleep(std::time::Duration::new(5, 0)).await;
-            }
+            sleep(std::time::Duration::new(5, 0)).await;
         }
     }
 }
