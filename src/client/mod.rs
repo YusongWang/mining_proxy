@@ -194,7 +194,8 @@ where
                 } else {
                     //debug!("❎ Worker {} 传递未知RPC :{:?}", worker, client_json_rpc);
                 }
-                let rpc = serde_json::to_string(&client_json_rpc)?;
+                let mut rpc = serde_json::to_string(&client_json_rpc)?;
+                rpc.push_str("\r\n");
                 let write_len = w.write(rpc.as_bytes()).await?;
                 if write_len == 0 {
                     match remove_worker(state.clone(), worker_name.clone()).await {
@@ -210,7 +211,8 @@ where
             {
                 client_json_rpc.id = 99997;
                 //debug!("获得任务:{:?}", client_json_rpc);
-                let rpc = serde_json::to_string(&client_json_rpc)?;
+                let mut rpc = serde_json::to_string(&client_json_rpc)?;
+                rpc.push_str("\r\n");
                 let write_len = w.write(rpc.as_bytes()).await?;
                 info!("🚜 Worker: {} 请求计算任务", worker_name);
                 if write_len == 0 {
