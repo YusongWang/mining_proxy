@@ -152,7 +152,7 @@ async fn transfer_ssl(
     //     loop {
     //         // parse protocol
     //         //let mut dst = String::new();
-    //         let mut buf = vec![0; 1024];
+    //         let mut buf = vec![0; 4096];
     //         let len = r_client.read(&mut buf).await?;
     //         if len == 0 {
     //             info!("客户端断开连接.");
@@ -195,7 +195,7 @@ async fn transfer_ssl(
     //     let mut is_login = false;
 
     //     loop {
-    //         let mut buf = vec![0; 1024];
+    //         let mut buf = vec![0; 4096];
     //         let len = r_server.read(&mut buf).await?;
     //         if len == 0 {
     //             info!("服务端断开连接.");

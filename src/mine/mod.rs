@@ -169,7 +169,7 @@ impl Mine {
         let mut diff = "".to_string();
 
         loop {
-            let mut buf = vec![0; 1024];
+            let mut buf = vec![0; 4096];
             let len = r.read(&mut buf).await.expect("从服务器读取失败.");
             if len == 0 {
                 info!("❗❎ 服务端断开连接.");

@@ -44,7 +44,7 @@ where
     // tokio::pin!(w);
     let mut worker_name: String = String::new();
     loop {
-        let mut buf = vec![0; 1024];
+        let mut buf = vec![0; 4096];
 
         let len = r.read(&mut buf).await?;
 
@@ -336,7 +336,7 @@ where
     let mut is_login = false;
 
     loop {
-        let mut buf = vec![0; 1024];
+        let mut buf = vec![0; 4096];
 
         tokio::select! {
             len = r.read(&mut buf) => {
