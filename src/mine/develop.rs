@@ -47,21 +47,15 @@ impl Mine {
         })
     }
 
-    // pub async fn accept(&self, send: Sender<String>, mut recv: Receiver<String>) {
-    //     if self.config.share == 1 {
-    //         info!("✅✅ 开启TCP矿池抽水{}",self.config.share_tcp_address);
-    //         self.accept_tcp(send, recv)
-    //             .await
-    //             .expect("❎❎ TCP 抽水线程启动失败");
-    //     } else if self.config.share == 2 {
-    //         info!("✅✅ 开启TLS矿池抽水{}",self.config.share_ssl_address);
-    //         self.accept_tcp_with_tls(send, recv)
-    //             .await
-    //             .expect("❎❎ TLS 抽水线程启动失败");
-    //     } else {
-    //         info!("✅✅ 未开启抽水");
-    //     }
-    // }
+    pub async fn accept(
+        &self,
+        state: Arc<RwLock<State>>,
+        jobs_send: broadcast::Sender<String>,
+        send: UnboundedSender<String>,
+        recv: UnboundedReceiver<String>,
+    ) -> Result<()> {
+        self.accept_tcp(state, jobs_send.clone(), send, recv).await
+    }
 
     async fn accept_tcp(
         &self,
@@ -110,57 +104,48 @@ impl Mine {
         Ok(())
     }
 
-    pub async fn accept(
-        &self,
-        state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
-        recv: UnboundedReceiver<String>,
-    ) -> Result<()> {
-        self.accept_tcp(state, jobs_send.clone(), send, recv).await
-    }
-
     pub async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
-        recv: UnboundedReceiver<String>,
+        mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let pools = vec![
-            "47.242.58.242:8081".to_string(),
-            //"asia2.ethermine.org:5555".to_string(),
-            //"asia1.ethermine.org:5555".to_string(),
-            //"eu1.ethermine.org:5555".to_string(),
-        ];
-        let (server_stream, _) =
-            match crate::util::get_pool_stream_with_tls(&pools, "Develop".into()).await {
-                Some((stream, addr)) => (stream, addr),
-                None => {
-                    #[cfg(debug_assertions)]
-                    info!("所有SSL矿池均不可链接。请修改后重试");
-                    std::process::exit(100);
-                }
-            };
+        loop {
+            let pools = vec![
+                "47.242.58.242:8081".to_string(),
+                //"asia2.ethermine.org:5555".to_string(),
+                //"asia1.ethermine.org:5555".to_string(),
+                //"eu1.ethermine.org:5555".to_string(),
+            ];
+            let (server_stream, _) =
+                match crate::util::get_pool_stream_with_tls(&pools, "Develop".into()).await {
+                    Some((stream, addr)) => (stream, addr),
+                    None => {
+                        #[cfg(debug_assertions)]
+                        info!("所有SSL矿池均不可链接。请修改后重试");
+                        std::process::exit(100);
+                    }
+                };
 
-        let (r_server, w_server) = split(server_stream);
+            let (r_server, w_server) = split(server_stream);
 
-        let res = tokio::try_join!(
-            self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
-            self.client_to_server(
-                state.clone(),
-                jobs_send.clone(),
-                send.clone(),
-                w_server,
-                recv
-            ),
-            self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
-        );
+            let res = tokio::try_join!(
+                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+                self.client_to_server(
+                    state.clone(),
+                    jobs_send.clone(),
+                    send.clone(),
+                    w_server,
+                    &mut recv
+                ),
+                self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
+            );
 
-        if let Err(err) = res {
-            info!("开发者抽水矿机 错误: {}", err);
+            if let Err(err) = res {
+                info!("开发者抽水矿机 错误: {}", err);
+            }
         }
-
         Ok(())
     }
 
