@@ -78,9 +78,12 @@ async fn main() -> Result<()> {
     let read_key_len = p12.read_buf(&mut buffer).await?;
     info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
-
+    let _guard = sentry::init(("https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709", sentry::ClientOptions {
+        release: sentry::release_name!(),
+        ..Default::default()
+    }));
     info!("✅ config init success!");
-
+    panic!("Everything is on fire!");
     // 分配任务给矿机channel
     let (job_send, _) = broadcast::channel::<String>(100);
 
