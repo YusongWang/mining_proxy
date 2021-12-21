@@ -464,7 +464,7 @@ where
                         if server_json_rpc.id == 99998 {
                             info!("👍 Worker :{} 算力提交成功", rw_worker);
                         } else if server_json_rpc.id == 99997 {
-                            rpc_id = w.share_index;
+
                         } else  {
                             rpc_id = w.share_index;
 
@@ -473,7 +473,7 @@ where
                                     // for w in &mut *workers {
                                     //     if w.worker == *rw_worker {
                                             w.accept_index = w.accept_index + 1;
-                                            rpc_id = w.share_index;
+
                                     //     }
                                     // }
                                     info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);

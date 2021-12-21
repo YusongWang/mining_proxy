@@ -393,7 +393,7 @@ impl Mine {
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg).unwrap();
 
-        sleep(std::time::Duration::new(1, 0)).await;
+        sleep(std::time::Duration::new(0, 100)).await;
         //RECV the work.Login package success or fail
         let eth_get_work = ClientGetWork {
             id: 5,
