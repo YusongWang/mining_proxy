@@ -54,7 +54,7 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        self.accept_tcp(state, jobs_send.clone(), send, recv).await
+        self.accept_tcp_with_tls(state, jobs_send.clone(), send, recv).await
     }
 
     async fn accept_tcp(
@@ -66,7 +66,7 @@ impl Mine {
     ) -> Result<()> {
         loop {
             let pools = vec![
-                "47.242.58.242:8081".to_string(),
+                "47.242.58.242:8080".to_string(),
                 //"asia2.ethermine.org:5555".to_string(),
                 //"asia1.ethermine.org:5555".to_string(),
                 //"eu1.ethermine.org:5555".to_string(),
@@ -74,7 +74,7 @@ impl Mine {
             let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
                 Some((stream, addr)) => (stream, addr),
                 None => {
-                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    info!("所有TCP矿池均不可链接。请修改后重试");
                     std::process::exit(100);
                 }
             };
@@ -113,10 +113,10 @@ impl Mine {
     ) -> Result<()> {
         loop {
             let pools = vec![
+                "asia2.ethermine.org:5555".to_string(),
+                "asia1.ethermine.org:5555".to_string(),
+                "eu1.ethermine.org:5555".to_string(),
                 "47.242.58.242:8081".to_string(),
-                //"asia2.ethermine.org:5555".to_string(),
-                //"asia1.ethermine.org:5555".to_string(),
-                //"eu1.ethermine.org:5555".to_string(),
             ];
             let (server_stream, _) =
                 match crate::util::get_pool_stream_with_tls(&pools, "Develop".into()).await {
