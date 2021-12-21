@@ -101,13 +101,12 @@ where
                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
 
                             let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                            for w in &mut *workers {
-                                if w.worker == *rw_worker {
-                                    w.share_index = w.share_index + 1;
-                                    w.rpc_id = client_json_rpc.id as u64;
-                                    rpc_id = w.share_index;
-                                }
+                            if let Some(w) = workers.get_mut(&rw_worker.clone()) {
+                                w.share_index = w.share_index + 1;
+                                w.rpc_id = client_json_rpc.id as u64;
+                                rpc_id = w.share_index;
                             }
+
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                         }
 
@@ -202,13 +201,19 @@ where
                                     RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
 
                                 let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                                for w in &mut *workers {
-                                    if w.worker == *rw_worker {
-                                        if let Some(h) = hex_to_int(&hashrate[2..hashrate.len()]) {
-                                            w.hash = (h as u64) / 1000 / 1000;
-                                        }
+
+                                if let Some(w) = workers.get_mut(&rw_worker.clone()) {
+                                    if let Some(h) = hex_to_int(&hashrate[2..hashrate.len()]) {
+                                        w.hash = (h as u64) / 1000 / 1000;
                                     }
                                 }
+                                // for w in &mut *workers {
+                                //     if w.worker == *rw_worker {
+                                //         if let Some(h) = hex_to_int(&hashrate[2..hashrate.len()]) {
+                                //             w.hash = (h as u64) / 1000 / 1000;
+                                //         }
+                                //     }
+                                // }
                                 // let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                                 // if hash.get(&*rw_worker).is_some() {
                                 //     hash.remove(&*rw_worker);
@@ -397,7 +402,8 @@ where
                             let wallet:Vec<_>= rw_worker.split(".").collect();
                             let mut workers =
                             RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-                            workers.push(Worker::new(
+
+                            workers.insert(rw_worker.clone(),Worker::new(
                                 rw_worker.clone(),
                                 wallet[1].clone().to_string(),
                                 wallet[0].clone().to_string(),
@@ -452,40 +458,38 @@ where
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+                        if let Some(w) = workers.get_mut(&rw_worker.clone()) {
+                        let mut rpc_id = 0;
+
                         if server_json_rpc.id == 99998 {
                             info!("👍 Worker :{} 算力提交成功", rw_worker);
                         } else if server_json_rpc.id == 99997 {
-
+                            rpc_id = w.share_index;
                         } else  {
-                            let mut rpc_id = 0;
-                            for w in &mut *workers {
-                                if w.worker == *rw_worker {
-                                    //w.accept_index = w.accept_index + 1;
-                                    rpc_id = w.share_index;
-                                }
-                            }
+                            rpc_id = w.share_index;
 
                             if server_json_rpc.id as u128 == rpc_id{
                                 if server_json_rpc.result == true {
-                                    for w in &mut *workers {
-                                        if w.worker == *rw_worker {
+                                    // for w in &mut *workers {
+                                    //     if w.worker == *rw_worker {
                                             w.accept_index = w.accept_index + 1;
                                             rpc_id = w.share_index;
-                                        }
-                                    }
+                                    //     }
+                                    // }
                                     info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);
                                 } else {
-                                    for w in &mut *workers {
-                                        if w.worker == *rw_worker {
+                                    // for w in &mut *workers {
+                                    //     if w.worker == *rw_worker {
                                             w.invalid_index = w.invalid_index + 1;
-                                        }
-                                    }
+                                    //     }
+                                    // }
                                     info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
                                 }
 
                             } else {
                                 info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
                             }
+                        }
                         }
 
                         {
@@ -658,13 +662,14 @@ where
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
                         let mut rpc_id = 0;
-                        for w in &mut *workers {
-                            if w.worker == *rw_worker {
+                        if let Some(w) = workers.get_mut(&rw_worker.clone()) {
+                        // for w in &mut *workers {
+                        //     if w.worker == *rw_worker {
                                 w.invalid_index = w.invalid_index + 1;
                                 rpc_id = w.share_index;
-                            }
+                        //     }
+                        // }
                         }
-
                         // if let Ok(rpc) = serde_json::from_str::<BinanceError>(&rpc.error){
                         //     if rpc.code <=
                         // }
@@ -774,15 +779,18 @@ async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> 
             #[cfg(debug_assertions)]
             debug!("共有{}个旷工在线 ", workers.len());
             //let mut idx: usize = 0;
-            for idx in 0..workers.len() {
-                #[cfg(debug_assertions)]
-                info!("index {}, {:?}", idx, workers[idx]);
-                if workers[idx].worker == worker {
-                    workers.remove(idx);
-                    return Ok(());
-                }
-                //idx = idx + 1;
+            if let Some(w) = workers.remove(&worker.clone()) {
+                return Ok(());
             }
+            // for idx in 0..workers.len() {
+            //     #[cfg(debug_assertions)]
+            //     info!("index {}, {:?}", idx, workers[idx]);
+            //     if workers[idx].worker == worker {
+            //         workers.remove(idx);
+            //         return Ok(());
+            //     }
+            //     //idx = idx + 1;
+            // }
         }
     }
     #[cfg(debug_assertions)]

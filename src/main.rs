@@ -220,7 +220,7 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
 
         let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
 
-        for w in &*workers {
+        for (_,w) in &*workers {
             // 添加行
             table.add_row(row![
                 w.worker,
@@ -266,7 +266,7 @@ async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
         // 重新计算每十分钟效率情况
         {
             let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-            for w in &mut *workers {
+            for (_,w) in &mut *workers {
                 w.share_index = 0;
                 w.accept_index = 0;
                 w.invalid_index = 0;

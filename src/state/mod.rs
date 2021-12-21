@@ -32,7 +32,7 @@ impl Worker {
 #[derive(Debug)]
 pub struct State {
     pub report_hashrate: HashMap<String, String>,
-    pub workers: Vec<Worker>,
+    pub workers: HashMap<String,Worker>,
     pub proxy_jobs: HashSet<String>,
     pub proxy_share: u64,
     pub mine_jobs: HashSet<String>,
@@ -55,7 +55,7 @@ impl State {
             develop_share: 0,
             mine_jobs_queue: VecDeque::new(),
             develop_jobs_queue: VecDeque::new(),
-            workers: vec![],
+            workers: HashMap::new(),
         }
     }
 }

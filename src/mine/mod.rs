@@ -422,7 +422,7 @@ impl Mine {
 
             {
                 let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
-                for w in &*workers {
+                for (_,w) in &*workers {
                     my_hash_rate = my_hash_rate + w.hash;
                 }
             }
