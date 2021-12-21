@@ -84,9 +84,8 @@ pub mod logger {
         let (lavel, logger) = fern::Dispatch::new()
             .format(move |out, message, record| {
                 out.finish(format_args!(
-                    "[{}] [{}] [{}:{}] [{}] {}",
+                    "[{}] [{}:{}] [{}] {}",
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                    record.target(),
                     record.file().unwrap(),
                     record.line().unwrap(),
                     record.level(),

@@ -10,6 +10,7 @@ use anyhow::Result;
 
 use bytes::{BufMut, BytesMut};
 
+use futures::future;
 use log::{debug, info};
 
 use tokio::{
@@ -51,7 +52,7 @@ impl Mine {
     }
 
     async fn worker(
-        &self,
+        self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
@@ -70,17 +71,27 @@ impl Mine {
     }
 
     pub async fn accept(
-        &self,
+        self,
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        //loop {
-        self.worker(state.clone(), jobs_send.clone(), send.clone(), recv)
-            .await
+        //let mut v = vec![];
+        self.worker(state.clone(), jobs_send.clone(), send.clone(), recv).await?;
 
-        //}
+
+
+        // for i in 0..50 {
+        //     let worker = tokio::spawn(async move {
+                
+        //     });
+        //     v.push(worker);
+        // }
+
+        //let outputs = future::try_join_all(v.into_iter().map(tokio::spawn)).await?;
+
+        Ok(())
     }
 
     async fn accept_tcp(
@@ -132,33 +143,38 @@ impl Mine {
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
-            &self.config.share_ssl_address,
-            "Mine".into(),
-        )
-        .await
-        {
-            Some((stream, addr)) => (stream, addr),
-            None => {
-                info!("所有SSL矿池均不可链接。请修改后重试");
-                std::process::exit(100);
+        loop {
+            let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
+                &self.config.share_ssl_address,
+                "Mine".into(),
+            )
+            .await
+            {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    std::process::exit(100);
+                }
+            };
+
+            let (r_server, w_server) = split(server_stream);
+
+            let res = tokio::try_join!(
+                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+                self.client_to_server(
+                    state.clone(),
+                    jobs_send.clone(),
+                    send.clone(),
+                    w_server,
+                    &mut recv
+                ),
+                self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
+            );
+
+            if let Err(err) = res {
+                info!("抽水线程 错误: {}", err);
             }
-        };
-
-        let (r_server, w_server) = split(server_stream);
-
-        tokio::try_join!(
-            self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
-            self.client_to_server(
-                state.clone(),
-                jobs_send.clone(),
-                send.clone(),
-                w_server,
-                &mut recv
-            ),
-            self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
-        )?;
-
+        }
         Ok(())
     }
 
@@ -422,7 +438,7 @@ impl Mine {
 
             {
                 let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
-                for (_,w) in &*workers {
+                for (_, w) in &*workers {
                     my_hash_rate = my_hash_rate + w.hash;
                 }
             }
