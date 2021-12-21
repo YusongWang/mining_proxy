@@ -393,7 +393,7 @@ impl Mine {
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg).unwrap();
 
-        sleep(std::time::Duration::new(0, 100)).await;
+        sleep(std::time::Duration::new(1, 0)).await;
         //RECV the work.Login package success or fail
         let eth_get_work = ClientGetWork {
             id: 5,
@@ -401,8 +401,8 @@ impl Mine {
             params: vec![],
         };
 
-        let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-        send.send(eth_get_work_msg).unwrap();
+        // let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
+        // send.send(eth_get_work_msg).unwrap();
 
         loop {
             let mut my_hash_rate: u64 = 0;
@@ -435,7 +435,7 @@ impl Mine {
             debug!("开发者 发送获取工作任务{:?}", &eth_get_work_msg);
             send.send(eth_get_work_msg).unwrap();
 
-            sleep(std::time::Duration::new(5, 0)).await;
+            sleep(std::time::Duration::new(20, 0)).await;
         }
     }
 }

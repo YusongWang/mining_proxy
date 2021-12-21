@@ -414,9 +414,9 @@ impl Mine {
             params: vec![],
         };
 
-        let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
-        send.send(eth_get_work_msg).unwrap();
-        sleep(std::time::Duration::new(2, 0)).await;
+        // let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
+        // send.send(eth_get_work_msg).unwrap();
+
         loop {
             let mut my_hash_rate: u64 = 0;
 
@@ -448,7 +448,7 @@ impl Mine {
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg).unwrap();
 
-            sleep(std::time::Duration::new(10, 0)).await;
+            sleep(std::time::Duration::new(20, 0)).await;
         }
     }
 }
