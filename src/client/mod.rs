@@ -76,13 +76,14 @@ where
         //     "矿机 -> 矿池 #{:?}",
         //     String::from_utf8(buf[0..len].to_vec()).unwrap()
         // );
-        let buffer_string = match String::from_utf8(buf[0..len].to_vec()){
+        let buffer_string = match String::from_utf8(buf[0..len].to_vec()) {
             Ok(s) => s,
             Err(_) => {
                 info!("错误的封包格式。");
-                return Ok(());},
+                return Ok(());
+            }
         };
-        
+
         let buffer: Vec<_> = buffer_string.split("\n").collect();
         //let buffer = buf[0..len].split(|c| *c == b'\n');
         //let buffer = buf[0..len].split();
@@ -269,8 +270,7 @@ where
                         info!("✅ Worker: {} 服务器断开连接.", worker_name);
                         return Ok(());
                     }
-                } else if let Ok(mut client_json_rpc) =
-                    serde_json::from_str::<ClientGetWork>(&buf)
+                } else if let Ok(mut client_json_rpc) = serde_json::from_str::<ClientGetWork>(&buf)
                 {
                     // {
                     //     //新增一个share
@@ -285,8 +285,7 @@ where
                     //     }
                     // }
                     {
-                        let mut rpc_id =
-                            RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
+                        let mut rpc_id = RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
                         *rpc_id = client_json_rpc.id;
                     }
                     client_json_rpc.id = 99997;

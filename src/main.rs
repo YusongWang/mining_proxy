@@ -78,12 +78,9 @@ async fn main() -> Result<()> {
     let read_key_len = p12.read_buf(&mut buffer).await?;
     info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
-    let _guard = sentry::init(("https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709", sentry::ClientOptions {
-        release: sentry::release_name!(),
-        ..Default::default()
-    }));
+
     info!("✅ config init success!");
-    panic!("Everything is on fire!");
+
     // 分配任务给矿机channel
     let (job_send, _) = broadcast::channel::<String>(100);
 
@@ -139,6 +136,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[tracing::instrument]
 async fn process_mine_state(
     state: Arc<RwLock<State>>,
     mut state_recv: UnboundedReceiver<String>,
@@ -169,7 +167,7 @@ async fn process_mine_state(
         // }
     }
 }
-
+#[tracing::instrument]
 async fn process_dev_state(
     state: Arc<RwLock<State>>,
     mut state_recv: UnboundedReceiver<String>,
@@ -201,7 +199,7 @@ async fn process_dev_state(
         // }
     }
 }
-
+#[tracing::instrument]
 async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
     loop {
         sleep(std::time::Duration::new(60, 0)).await;
@@ -251,7 +249,7 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
         table.printstd();
     }
 }
-
+#[tracing::instrument]
 async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
     loop {
         sleep(std::time::Duration::new(60 * 10, 0)).await;

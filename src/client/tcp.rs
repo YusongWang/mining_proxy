@@ -132,6 +132,6 @@ async fn transfer(
     if let Err(err) = res {
         info!("矿机错误或者代理池错误: {}", err);
     }
-    
+
     Ok(())
 }

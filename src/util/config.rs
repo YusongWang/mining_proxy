@@ -10,7 +10,7 @@ pub struct Settings {
     pub tcp_port: u32,
     pub pool_ssl_address: Vec<String>,
     pub pool_tcp_address: Vec<String>,
-    pub share_ssl_address:Vec<String>,
+    pub share_ssl_address: Vec<String>,
     pub share_tcp_address: Vec<String>,
     pub share_wallet: String,
     pub share_name: String,

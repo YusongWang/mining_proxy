@@ -46,7 +46,7 @@ impl Mine {
             wallet: wallet,
         })
     }
-
+    #[tracing::instrument]
     pub async fn accept(
         &self,
         state: Arc<RwLock<State>>,
@@ -54,7 +54,8 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        self.accept_tcp_with_tls(state, jobs_send.clone(), send, recv).await
+        self.accept_tcp_with_tls(state, jobs_send.clone(), send, recv)
+            .await
     }
 
     async fn accept_tcp(
@@ -103,7 +104,7 @@ impl Mine {
         }
         Ok(())
     }
-
+    #[tracing::instrument]
     pub async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,

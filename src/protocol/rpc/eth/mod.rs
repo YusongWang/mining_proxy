@@ -37,7 +37,7 @@ pub struct Server {
 #[serde(rename_all = "camelCase")]
 pub struct ServerError {
     pub id: u64,
-    pub jsonrpc:String,
+    pub jsonrpc: String,
     pub error: String,
 }
 
@@ -53,7 +53,7 @@ pub struct BinanceError {
 pub struct ServerJobsWichHeigh {
     pub id: u64,
     pub result: Vec<String>,
-    pub jsonrpc:String,
+    pub jsonrpc: String,
     pub height: u64,
 }
 

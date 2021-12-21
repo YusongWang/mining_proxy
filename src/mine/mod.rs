@@ -105,7 +105,7 @@ impl Mine {
             // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
             // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
 
-            let res =tokio::try_join!(
+            let res = tokio::try_join!(
                 self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
                 self.client_to_server(
                     state.clone(),
@@ -327,7 +327,7 @@ impl Mine {
         _: broadcast::Sender<String>,
         _: UnboundedSender<String>,
         mut w: WriteHalf<W>,
-        recv: & mut UnboundedReceiver<String>,
+        recv: &mut UnboundedReceiver<String>,
     ) -> Result<(), std::io::Error>
     where
         W: AsyncWriteExt,

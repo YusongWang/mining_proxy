@@ -1,7 +1,6 @@
-
 use std::sync::Arc;
 
-use anyhow::{Result};
+use anyhow::Result;
 use log::info;
 
 use tokio::io::split;
@@ -12,7 +11,6 @@ use native_tls::Identity;
 use futures::FutureExt;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{broadcast, RwLock};
-
 
 use crate::client::{client_to_server, server_to_client};
 
@@ -37,7 +35,6 @@ pub async fn accept_tcp_with_tls(
         return Ok(());
     }
 
-    
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tls On: {}", &address);
@@ -99,15 +96,15 @@ async fn transfer_ssl(
 
     info!("😄 tls_acceptor Success!");
 
-    let (stream, _) = match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address,"proxy".into()).await {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            info!("所有SSL矿池均不可链接。请修改后重试");
-            return Ok(());
-        }
-    };
-
-
+    let (stream, _) =
+        match crate::util::get_pool_stream_with_tls(&config.pool_ssl_address, "proxy".into()).await
+        {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                info!("所有SSL矿池均不可链接。请修改后重试");
+                return Ok(());
+            }
+        };
 
     let (r_client, w_client) = split(client_stream);
     let (r_server, w_server) = split(stream);
