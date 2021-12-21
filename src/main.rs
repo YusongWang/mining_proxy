@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
+use futures::future;
 use log::info;
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
@@ -85,7 +86,8 @@ async fn main() -> Result<()> {
     let (job_send, _) = broadcast::channel::<String>(100);
 
     // 中转抽水费用
-    let mine = Mine::new(config.clone()).await?;
+    let mine = Mine::new(config.clone(), 0).await?;
+    let (proxy_job_channel, _) = broadcast::channel(100);
     let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
 
     // 开发者费用
@@ -116,21 +118,53 @@ async fn main() -> Result<()> {
             dev_state_send.clone(),
             cert
         ),
-        mine.accept(
-            state.clone(),
-            job_send.clone(),
-            proxy_fee_sender.clone(),
-            proxy_fee_recver
-        ),
+        // mine.accept(
+        //     state.clone(),
+        //     job_send.clone(),
+        //     proxy_fee_sender.clone(),
+        //     proxy_fee_recver
+        // ),
         process_mine_state(state.clone(), state_recv),
-        develop_mine.accept(state.clone(), job_send, fee_tx.clone(), fee_rx),
+        //develop_mine.accept(state.clone(), job_send, fee_tx.clone(), fee_rx),
         process_dev_state(state.clone(), dev_state_recv),
+        proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
         print_state(state.clone(), config.clone()),
         clear_state(state.clone(), config.clone()),
     );
 
     if let Err(err) = res {
         info!("错误: {}", err);
+    }
+
+    Ok(())
+}
+
+// 中转代理抽水服务
+async fn proxy_accept(
+    state: Arc<RwLock<State>>,
+    config: Settings,
+    jobs_send: broadcast::Sender<String>,
+) -> Result<()> {
+    let mut v = vec![];
+    //let mut a = Arc::new(AtomicU64::new(0));
+
+    for i in 0..50 {
+        info!("{}", i);
+        let mine = Mine::new(config.clone(), i).await?;
+        let send = jobs_send.clone();
+        //let send1 = jobs_send.clone();
+        let recv = send.subscribe();
+        let s = state.clone();
+        let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+        v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+    }
+
+
+    info!("Join {}",v.len());
+    let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
+
+    if let Err(e) =res {
+        info!("{}",e);
     }
 
     Ok(())
@@ -206,7 +240,7 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
         // 创建表格
         let mut table = Table::new();
         table.add_row(row![
-            "旷工",
+            "矿工",
             "报告算力",
             "抽水算力",
             "总工作量(份额)",
@@ -220,10 +254,10 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
 
         let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
 
-        for (_,w) in &*workers {
+        for (_, w) in &*workers {
             // 添加行
             table.add_row(row![
-                w.worker,
+                w.worker_name,
                 w.hash.to_string() + " Mb",
                 calc_hash_rate(w.hash, config.share_rate).to_string() + " Mb",
                 w.share_index,
@@ -266,7 +300,7 @@ async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
         // 重新计算每十分钟效率情况
         {
             let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-            for (_,w) in &mut *workers {
+            for (_, w) in &mut *workers {
                 w.share_index = 0;
                 w.accept_index = 0;
                 w.invalid_index = 0;

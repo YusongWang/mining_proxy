@@ -190,69 +190,57 @@ impl Mine {
                     String::from_utf8(buf.clone().to_vec()).unwrap()
                 );
 
-                if !is_login {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
-                        if server_json_rpc.result == false {
-                            info!("❗❎ 矿池登录失败，请尝试重启程序");
-                            std::process::exit(18);
-                        }
+                // if !is_login {
+                //     if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
+                //         if server_json_rpc.result == false {
+                //             info!("❗❎ 矿池登录失败，请尝试重启程序");
+                //             std::process::exit(18);
+                //         }
 
-                        //info!("✅✅ 登录成功");
-                        is_login = true;
+                //         //info!("✅✅ 登录成功");
+                //         is_login = true;
+                //     } else {
+                //         info!("❗❎ 矿池登录失败，请尝试重启程序");
+                //         #[cfg(debug_assertions)]
+                //         debug!(
+                //             "❗❎ 登录失败{:?}",
+                //             String::from_utf8(buf.clone().to_vec()).unwrap()
+                //         );
+                //         std::process::exit(19);
+                //     }
+                // } else {
+                if let Ok(rpc) = serde_json::from_slice::<ServerId1>(&buf) {
+                    #[cfg(debug_assertions)]
+                    debug!("收到抽水矿机返回 {:?}", rpc);
+
+                    if rpc.id == 9999999 {
+                        if rpc.result == true {
+                            info!("✅✅ 登录成功");
+                            is_login = true;
+                        } else {
+                            debug!(
+                                "❗❎ 登录失败{:?}",
+                                String::from_utf8(buf.clone().to_vec()).unwrap()
+                            );
+                            info!("❗❎ 矿池登录失败，请尝试重启程序");
+                            return Ok(());
+                        }
+                        // 登录。
+                    } else if rpc.id == 6 {
+                        info!("🚜🚜 算力提交成功");
+                    } else if rpc.result {
+                        info!("👍👍 Share Accept");
                     } else {
-                        info!("❗❎ 矿池登录失败，请尝试重启程序");
-                        #[cfg(debug_assertions)]
-                        debug!(
-                            "❗❎ 登录失败{:?}",
-                            String::from_utf8(buf.clone().to_vec()).unwrap()
-                        );
-                        std::process::exit(19);
+                        info!("❗❗ Share Reject",);
                     }
-                } else {
-                    if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf) {
-                        #[cfg(debug_assertions)]
-                        debug!("收到抽水矿机返回 {:?}", server_json_rpc);
-                        // if server_json_rpc.id == 6 {
-                        //     //info!("🚜🚜 算力提交成功");
-                        // } else if server_json_rpc.result {
-                        //     info!("👍👍 Share Accept");
-                        // } else {
-                        //     info!("❗❗ Share Reject",);
-                        // }
-                    } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
-                        if let Some(job_diff) = server_json_rpc.result.get(3) {
-                            if job_diff == "00" {
-                                if let Ok(json) =
-                                    serde_json::from_slice::<ServerJobsWichHeigh>(&buf)
-                                {
-                                    let job_diff = json.height.to_string();
-                                    #[cfg(debug_assertions)]
-                                    debug!("当前难度:{}", diff);
-                                    if diff != job_diff {
-                                        //新的难度发现。
-                                        //debug!("新的难度发现。");
-                                        diff = job_diff.clone();
-                                        {
-                                            //debug!("清理队列。");
-                                            //清理队列。
-                                            let mut jobs =
-                                                RwLockWriteGuard::map(state.write().await, |s| {
-                                                    &mut s.mine_jobs_queue
-                                                });
-                                            jobs.clear();
-                                        }
-                                    }
-                                } else {
-                                    #[cfg(debug_assertions)]
-                                    debug!(
-                                        "当前难度:{:?}",
-                                        String::from_utf8(buf.clone().to_vec()).unwrap()
-                                    );
-                                }
-                            } else {
+                } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
+                    if let Some(job_diff) = server_json_rpc.result.get(3) {
+                        if job_diff == "00" {
+                            if let Ok(json) = serde_json::from_slice::<ServerJobsWichHeigh>(&buf) {
+                                let job_diff = json.height.to_string();
                                 #[cfg(debug_assertions)]
                                 debug!("当前难度:{}", diff);
-                                if diff != *job_diff {
+                                if diff != job_diff {
                                     //新的难度发现。
                                     //debug!("新的难度发现。");
                                     diff = job_diff.clone();
@@ -266,49 +254,73 @@ impl Mine {
                                         jobs.clear();
                                     }
                                 }
-                            }
-                        }
-                        #[cfg(debug_assertions)]
-                        debug!("Got jobs {:?}", server_json_rpc);
-                        //新增一个share
-                        if let Some(_) = server_json_rpc.result.get(0) {
-                            //0 工作任务HASH
-                            //1 DAG
-                            //2 diff
-
-                            // 判断是丢弃任务还是通知任务。
-
-                            // 测试阶段全部通知
-
-                            // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
-                            //debug!("发送到等待队列进行工作: {}", job_id);
-                            // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
-                            let job = serde_json::to_string(&server_json_rpc)?;
-                            {
-                                //
+                            } else {
                                 #[cfg(debug_assertions)]
-                                debug!("将任务加入队列。{:?}", job);
-                                let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
-                                    &mut s.develop_jobs_queue
-                                });
-                                jobs.push_back(job);
+                                debug!(
+                                    "当前难度:{:?}",
+                                    String::from_utf8(buf.clone().to_vec()).unwrap()
+                                );
                             }
+                        } else {
+                            #[cfg(debug_assertions)]
+                            debug!("当前难度:{}", diff);
+                            if diff != *job_diff {
+                                //新的难度发现。
+                                //debug!("新的难度发现。");
+                                diff = job_diff.clone();
+                                {
+                                    //debug!("清理队列。");
+                                    //清理队列。
+                                    let mut jobs =
+                                        RwLockWriteGuard::map(state.write().await, |s| {
+                                            &mut s.mine_jobs_queue
+                                        });
+                                    jobs.clear();
+                                }
+                            }
+                        }
+                    }
+                    #[cfg(debug_assertions)]
+                    debug!("Got jobs {:?}", server_json_rpc);
+                    //新增一个share
+                    if let Some(_) = server_json_rpc.result.get(0) {
+                        //0 工作任务HASH
+                        //1 DAG
+                        //2 diff
 
-                            // let job = serde_json::to_string(&server_json_rpc)?;
-                            // jobs_send.send(job);
+                        // 判断是丢弃任务还是通知任务。
+
+                        // 测试阶段全部通知
+
+                        // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
+                        //debug!("发送到等待队列进行工作: {}", job_id);
+                        // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
+                        let job = serde_json::to_string(&server_json_rpc)?;
+                        {
+                            //
+                            #[cfg(debug_assertions)]
+                            debug!("将任务加入队列。{:?}", job);
+                            let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
+                                &mut s.develop_jobs_queue
+                            });
+                            jobs.push_back(job);
                         }
 
-                        // if let Some(diff) = server_json_rpc.result.get(3) {
-                        //     //debug!("✅ Got Job Diff {}", diff);
-                        // }
-                    } else {
-                        #[cfg(debug_assertions)]
-                        debug!(
-                            "❗ ------未捕获封包:{:?}",
-                            String::from_utf8(buf.clone().to_vec()).unwrap()
-                        );
+                        // let job = serde_json::to_string(&server_json_rpc)?;
+                        // jobs_send.send(job);
                     }
+
+                    // if let Some(diff) = server_json_rpc.result.get(3) {
+                    //     //debug!("✅ Got Job Diff {}", diff);
+                    // }
+                } else {
+                    #[cfg(debug_assertions)]
+                    debug!(
+                        "❗ ------未捕获封包:{:?}",
+                        String::from_utf8(buf.clone().to_vec()).unwrap()
+                    );
                 }
+                //}
             }
         }
     }
@@ -385,7 +397,7 @@ impl Mine {
         send: UnboundedSender<String>,
     ) -> Result<(), std::io::Error> {
         let login = Client {
-            id: 1,
+            id: 9999999,
             method: "eth_submitLogin".into(),
             params: vec![self.wallet.clone(), "x".into()],
             worker: self.hostname.clone(),
@@ -408,7 +420,7 @@ impl Mine {
             let mut my_hash_rate: u64 = 0;
             {
                 let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
-                for (_,w) in &*workers {
+                for (_, w) in &*workers {
                     my_hash_rate = my_hash_rate + w.hash;
                 }
             }
