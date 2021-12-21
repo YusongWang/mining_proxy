@@ -88,33 +88,40 @@ impl Mine {
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
-        recv: UnboundedReceiver<String>,
+        mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
-            Some((stream, addr)) => (stream, addr),
-            None => {
-                info!("所有SSL矿池均不可链接。请修改后重试");
-                std::process::exit(100);
+        loop {
+            let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    std::process::exit(100);
+                }
+            };
+
+            let outbound = TcpStream::from_std(stream)?;
+            let (r_server, w_server) = split(outbound);
+
+            // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
+            // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
+
+            let res =tokio::try_join!(
+                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+                self.client_to_server(
+                    state.clone(),
+                    jobs_send.clone(),
+                    send.clone(),
+                    w_server,
+                    &mut recv
+                ),
+                self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
+            );
+
+            if let Err(err) = res {
+                info!("抽水线程 错误: {}", err);
             }
-        };
+        }
 
-        let outbound = TcpStream::from_std(stream)?;
-        let (r_server, w_server) = split(outbound);
-
-        // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
-        // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
-
-        tokio::try_join!(
-            self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
-            self.client_to_server(
-                state.clone(),
-                jobs_send.clone(),
-                send.clone(),
-                w_server,
-                recv
-            ),
-            self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
-        )?;
         Ok(())
     }
 
@@ -123,7 +130,7 @@ impl Mine {
         state: Arc<RwLock<State>>,
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
-        recv: UnboundedReceiver<String>,
+        mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
             &self.config.share_ssl_address,
@@ -147,7 +154,7 @@ impl Mine {
                 jobs_send.clone(),
                 send.clone(),
                 w_server,
-                recv
+                &mut recv
             ),
             self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
         )?;
@@ -170,7 +177,14 @@ impl Mine {
 
         loop {
             let mut buf = vec![0; 4096];
-            let len = r.read(&mut buf).await.expect("从服务器读取失败.");
+            let len = match r.read(&mut buf).await {
+                Ok(len) => len,
+                Err(e) => {
+                    debug!("从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
+                    return Ok(());
+                }
+            };
+
             if len == 0 {
                 info!("❗❎ 服务端断开连接.");
                 return Ok(());
@@ -216,7 +230,9 @@ impl Mine {
                     } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
                         if let Some(job_diff) = server_json_rpc.result.get(3) {
                             if job_diff == "00" {
-                                if let Ok(json) = serde_json::from_slice::<ServerJobsWichHeigh>(&buf) {
+                                if let Ok(json) =
+                                    serde_json::from_slice::<ServerJobsWichHeigh>(&buf)
+                                {
                                     let job_diff = json.height.to_string();
                                     #[cfg(debug_assertions)]
                                     debug!("当前难度:{}", diff);
@@ -236,7 +252,10 @@ impl Mine {
                                     }
                                 } else {
                                     #[cfg(debug_assertions)]
-                                    debug!("当前难度:{:?}", String::from_utf8(buf.clone().to_vec()).unwrap());
+                                    debug!(
+                                        "当前难度:{:?}",
+                                        String::from_utf8(buf.clone().to_vec()).unwrap()
+                                    );
                                 }
                             } else {
                                 #[cfg(debug_assertions)]
@@ -256,7 +275,6 @@ impl Mine {
                                     }
                                 }
                             }
-
                         }
                         #[cfg(debug_assertions)]
                         debug!("Got jobs {:?}", server_json_rpc);
@@ -309,7 +327,7 @@ impl Mine {
         _: broadcast::Sender<String>,
         _: UnboundedSender<String>,
         mut w: WriteHalf<W>,
-        mut recv: UnboundedReceiver<String>,
+        recv: & mut UnboundedReceiver<String>,
     ) -> Result<(), std::io::Error>
     where
         W: AsyncWriteExt,

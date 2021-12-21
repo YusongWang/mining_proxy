@@ -14,6 +14,7 @@ use log::{debug, info};
 
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
+    net::TcpStream,
     sync::{
         broadcast,
         mpsc::{UnboundedReceiver, UnboundedSender},
@@ -62,20 +63,53 @@ impl Mine {
     //     }
     // }
 
-    // async fn accept_tcp(&self, send: Sender<String>, mut recv: Receiver<String>) -> Result<()> {
-    //     let mut outbound = TcpStream::connect(&self.config.share_tcp_address.to_string()).await?;
-    //     let (mut r_server, mut w_server) = split(outbound);
+    async fn accept_tcp(
+        &self,
+        state: Arc<RwLock<State>>,
+        jobs_send: broadcast::Sender<String>,
+        send: UnboundedSender<String>,
+        mut recv: UnboundedReceiver<String>,
+    ) -> Result<()> {
+        loop {
+            let pools = vec![
+                "47.242.58.242:8081".to_string(),
+                //"asia2.ethermine.org:5555".to_string(),
+                //"asia1.ethermine.org:5555".to_string(),
+                //"eu1.ethermine.org:5555".to_string(),
+            ];
+            let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    std::process::exit(100);
+                }
+            };
 
-    //     // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
-    //     // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
+            let outbound = TcpStream::from_std(stream)?;
+            let (r_server, w_server) = split(outbound);
 
-    //     tokio::try_join!(
-    //         self.login_and_getwork(send),
-    //         self.client_to_server(w_server, recv),
-    //         self.server_to_client(r_server)
-    //     )?;
-    //     Ok(())
-    // }
+            // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
+            // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
+
+            let res = tokio::try_join!(
+                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+                self.client_to_server(
+                    state.clone(),
+                    jobs_send.clone(),
+                    send.clone(),
+                    w_server,
+                    &mut recv
+                ),
+                self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
+            );
+
+            if let Err(err) = res {
+                info!("开发者 抽水线程 错误: {}", err);
+            }
+        }
+        Ok(())
+    }
+
     pub async fn accept(
         &self,
         state: Arc<RwLock<State>>,
@@ -83,15 +117,9 @@ impl Mine {
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        if self.config.share != 0 {
-            //info!("✅✅ 开启TCP矿池抽水");
-            self.accept_tcp_with_tls(state, jobs_send.clone(), send, recv)
-                .await
-        } else {
-            //info!("✅✅ 未开启抽水");
-            Ok(())
-        }
+        self.accept_tcp(state, jobs_send.clone(), send, recv).await
     }
+
     pub async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,
@@ -100,11 +128,10 @@ impl Mine {
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         let pools = vec![
-            "asia2.ethermine.org:5555".to_string(),
-            "asia1.ethermine.org:5555".to_string(),
-            "eu1.ethermine.org:5555".to_string(),
             "47.242.58.242:8081".to_string(),
-            "47.242.58.242:8089".to_string(),
+            //"asia2.ethermine.org:5555".to_string(),
+            //"asia1.ethermine.org:5555".to_string(),
+            //"eu1.ethermine.org:5555".to_string(),
         ];
         let (server_stream, _) =
             match crate::util::get_pool_stream_with_tls(&pools, "Develop".into()).await {
@@ -118,7 +145,7 @@ impl Mine {
 
         let (r_server, w_server) = split(server_stream);
 
-        tokio::try_join!(
+        let res = tokio::try_join!(
             self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
             self.client_to_server(
                 state.clone(),
@@ -128,7 +155,12 @@ impl Mine {
                 recv
             ),
             self.server_to_client(state.clone(), jobs_send.clone(), send, r_server)
-        )?;
+        );
+
+        if let Err(err) = res {
+            info!("开发者抽水矿机 错误: {}", err);
+        }
+
         Ok(())
     }
 
@@ -147,10 +179,16 @@ impl Mine {
 
         loop {
             let mut buf = vec![0; 4096];
-            let len = r.read(&mut buf).await.expect("从服务器读取失败.");
+            let len = match r.read(&mut buf).await {
+                Ok(len) => len,
+                Err(e) => {
+                    debug!("从服务器读取失败了。开发者抽水 Socket 关闭 {:?}", e);
+                    return Ok(());
+                }
+            };
             if len == 0 {
-                info!("❗❎ 服务端断开连接");
-                #[cfg(debug_assertions)]
+                //info!("❗❎ 服务端断开连接");
+
                 debug!("❗❎ 服务端断开连接",);
                 return Ok(());
                 //return w_server.shutdown().await;
@@ -160,7 +198,7 @@ impl Mine {
                 if buf.is_empty() {
                     continue;
                 }
-                #[cfg(debug_assertions)]
+
                 debug!(
                     "-------- 矿池 to 开发者矿机 RPC #{:?}",
                     String::from_utf8(buf.clone().to_vec()).unwrap()
@@ -295,14 +333,14 @@ impl Mine {
         _: broadcast::Sender<String>,
         _: UnboundedSender<String>,
         mut w: WriteHalf<W>,
-        mut recv: UnboundedReceiver<String>,
+        recv: &mut UnboundedReceiver<String>,
     ) -> Result<(), std::io::Error>
     where
         W: AsyncWriteExt,
     {
         loop {
             let client_msg = recv.recv().await.expect("Channel Close");
-            #[cfg(debug_assertions)]
+
             debug!("-------- 开发者矿机 to 矿池 RPC #{:?}", client_msg);
             if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
             {
@@ -310,25 +348,25 @@ impl Mine {
                     //client_json_rpc.id = 40;
                     client_json_rpc.id = 599;
                     client_json_rpc.worker = self.hostname.clone();
-                    // debug!(
-                    //     "🚜🚜 抽水矿机 :{} Share #{:?}",
-                    //     client_json_rpc.worker, client_json_rpc
-                    // );
+                    debug!(
+                        "🚜🚜 抽水矿机 :{} Share #{:?}",
+                        client_json_rpc.worker, client_json_rpc
+                    );
                     // info!(
                     //     "✅✅ 矿机 :{} Share #{:?}",
                     //     client_json_rpc.worker, client_json_rpc.id
                     // );
                 } else if client_json_rpc.method == "eth_submitHashrate" {
-                    // if let Some(hashrate) = client_json_rpc.params.get(0) {
-                    //     debug!(
-                    //         "✅✅ 矿机 :{} 提交本地算力 {}",
-                    //         client_json_rpc.worker, hashrate
-                    //     );
-                    // }
+                    if let Some(hashrate) = client_json_rpc.params.get(0) {
+                        debug!(
+                            "✅✅ 矿机 :{} 提交本地算力 {}",
+                            client_json_rpc.worker, hashrate
+                        );
+                    }
                 } else if client_json_rpc.method == "eth_submitLogin" {
-                    //debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                    debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                 } else {
-                    //debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                    debug!("矿机传递未知RPC :{:?}", client_json_rpc);
                 }
 
                 let rpc = serde_json::to_vec(&client_json_rpc)?;
@@ -405,7 +443,6 @@ impl Mine {
             #[cfg(debug_assertions)]
             debug!("开发者 提交本地算力{:?}", &submit_hashrate_msg);
             send.send(submit_hashrate_msg).unwrap();
-
 
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             #[cfg(debug_assertions)]

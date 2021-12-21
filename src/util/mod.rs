@@ -142,12 +142,12 @@ pub fn get_pool_stream(
             }
         };
         std_stream.set_nonblocking(true).unwrap();
-        std_stream
-            .set_read_timeout(Some(Duration::from_millis(1)))
-            .expect("读取超时");
-        std_stream
-            .set_write_timeout(Some(Duration::from_millis(1)))
-            .expect("读取超时");
+        // std_stream
+        //     .set_read_timeout(Some(Duration::from_millis(1)))
+        //     .expect("读取超时");
+        // std_stream
+        //     .set_write_timeout(Some(Duration::from_millis(1)))
+        //     .expect("读取超时");
         info!(
             "{} conteact to {}",
             std_stream.local_addr().unwrap(),
@@ -184,12 +184,12 @@ pub async fn get_pool_stream_with_tls(
         };
 
         std_stream.set_nonblocking(true).unwrap();
-        std_stream
-            .set_read_timeout(Some(Duration::from_millis(1)))
-            .expect("读取超时");
-        std_stream
-            .set_write_timeout(Some(Duration::from_millis(1)))
-            .expect("读取超时");
+        // std_stream
+        //     .set_read_timeout(Some(Duration::from_millis(1)))
+        //     .expect("读取超时");
+        // std_stream
+        //     .set_write_timeout(Some(Duration::from_millis(1)))
+        //     .expect("读取超时");
 
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
