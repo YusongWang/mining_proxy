@@ -50,12 +50,14 @@ impl Mine {
         hostname += name.to_str().unwrap();
         hostname += "_";
         hostname += s.as_str();
+        hostname += "_";
+        hostname += id.to_string().as_str();
 
         info!("{}",hostname);
         Ok(Self {
             id,
             config,
-            hostname: hostname + "_" + id.to_string().as_str(),
+            hostname: hostname,
             wallet: wallet,
         })
     }

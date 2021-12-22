@@ -102,7 +102,7 @@ async fn main() -> Result<()> {
     //let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<(u64,String)>();
 
     // 开发者费用
-    let (fee_tx, fee_rx) = broadcast::channel::<(u64, String)>(100);
+    let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
@@ -188,7 +188,7 @@ async fn develop_accept(
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
-    for i in 0..50 {
+    for i in 0..2 {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
