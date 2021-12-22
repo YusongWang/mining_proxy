@@ -93,7 +93,7 @@ where
             if len > 5 {
                 if let Ok(mut client_json_rpc) = serde_json::from_str::<Client>(&buf) {
                     if client_json_rpc.method == "eth_submitWork" {
-                        let mut rpc_id = 0;
+                        let mut submit_idx_id = 0;
                         {
                             //新增一个share
                             let mut workers =
@@ -103,7 +103,7 @@ where
                             if let Some(w) = workers.get_mut(&rw_worker.clone()) {
                                 w.share_index = w.share_index + 1;
                                 //w.rpc_id = client_json_rpc.id as u64;
-                                rpc_id = w.share_index;
+                                submit_idx_id = w.share_index;
                                 info!("rpc_id : {}",w.share_index);
                             }
 
@@ -169,14 +169,15 @@ where
 
                         //写入公共rpc_id
                         {
-                            let mut id = RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
-                            *id = client_json_rpc.id;
+                            let mut rpc_id =
+                                RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
+                            *rpc_id = client_json_rpc.id;
                         }
 
-                        client_json_rpc.id = rpc_id as u64;
+                        client_json_rpc.id = submit_idx_id as u64;
                         {
                             let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                            info!("✅ Worker :{} Share #{}", rw_worker, rpc_id);
+                            info!("✅ Worker :{} Share #{}", rw_worker, submit_idx_id);
                         }
                     } else if client_json_rpc.method == "eth_submitHashrate" {
                         // {
@@ -250,7 +251,6 @@ where
                         //         w.rpc_id = client_json_rpc.id as u64;
                         //     }
                         // }
-
                         client_json_rpc.id = CLIENT_LOGIN;
                         if let Some(wallet) = client_json_rpc.params.get(0) {
                             let mut temp_worker = wallet.clone();
@@ -397,7 +397,7 @@ where
                         continue;
                     }
 
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     debug!("Got jobs {}",buf);
                     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
 
