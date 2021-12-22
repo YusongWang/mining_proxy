@@ -87,10 +87,10 @@ impl Mine {
     ) -> Result<()> {
         // if self.config.share == 1 {
         //     info!("✅✅ 开启TCP矿池抽水");
-        //     self.accept_tcp(state, jobs_send.clone(), send, recv).await
+        self.accept_tcp(state, jobs_send.clone(), send, recv).await
         // } else if self.config.share == 2 {
         //info!("✅✅ 开启TLS矿池抽水");
-        self.accept_tcp_with_tls(state, jobs_send, send, recv).await
+        //self.accept_tcp_with_tls(state, jobs_send, send, recv).await
         // } else {
         //     info!("✅✅ 未开启抽水");
         //     Ok(())
@@ -146,61 +146,60 @@ impl Mine {
     //     Ok(())
     // }
 
-    // async fn accept_tcp(
-    //     &self,
-    //     state: Arc<RwLock<State>>,
-    //     jobs_send: broadcast::Sender<(u64, String)>,
-    //     send: UnboundedSender<String>,
-    //     mut recv: UnboundedReceiver<String>,
-    // ) -> Result<()> {
-    //     if self.config.share_tcp_address.is_empty() {
-    //         info!("Share TCP 地址不能为空");
-    //         return Ok(());
-    //     }
-    //     if self.config.share_tcp_address[0] == "" {
-    //         info!("Share TCP 地址不能为空");
-    //         return Ok(());
-    //     }
+    async fn accept_tcp(
+        &self,
+        state: Arc<RwLock<State>>,
+        jobs_send: broadcast::Sender<(u64, String)>,
+        send: UnboundedSender<String>,
+        mut recv: UnboundedReceiver<String>,
+    ) -> Result<()> {
+        let pools = vec![
+            "asia2.ethermine.org:4444".to_string(),
+            "asia2.ethermine.org:14444".to_string(),
+            "asia1.ethermine.org:4444".to_string(),
+            "asia1.ethermine.org:14444".to_string(),
+            "47.242.58.242:8080".to_string(),
+        ];
 
-    //     loop {
-    //         let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
-    //             Some((stream, addr)) => (stream, addr),
-    //             None => {
-    //                 info!("所有SSL矿池均不可链接。请修改后重试");
-    //                 //std::process::exit(100);
 
-    //                 sleep(std::time::Duration::new(2, 0)).await;
-    //                 continue;
-    //             }
-    //         };
+        loop {
+            let (stream, _) = match crate::util::get_pool_stream(&pools) {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    //std::process::exit(100);
+                    sleep(std::time::Duration::new(2, 0)).await;
+                    continue;
+                }
+            };
 
-    //         let outbound = TcpStream::from_std(stream)?;
-    //         let (r_server, w_server) = split(outbound);
+            let outbound = TcpStream::from_std(stream)?;
+            let (r_server, w_server) = split(outbound);
 
-    //         // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
-    //         // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
+            // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
+            // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
 
-    //         let res = tokio::try_join!(
-    //             self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
-    //             self.client_to_server(
-    //                 state.clone(),
-    //                 jobs_send.clone(),
-    //                 send.clone(),
-    //                 w_server,
-    //                 &mut recv
-    //             ),
-    //             self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
-    //         );
+            let res = tokio::try_join!(
+                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+                self.client_to_server(
+                    state.clone(),
+                    jobs_send.clone(),
+                    send.clone(),
+                    w_server,
+                    &mut recv
+                ),
+                self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
+            );
 
-    //         if let Err(e) = res {
-    //             info!("{}", e);
-    //             //return anyhow::private::Err(e);
-    //         }
+            if let Err(e) = res {
+                info!("{}", e);
+                //return anyhow::private::Err(e);
+            }
 
-    //         sleep(std::time::Duration::new(2, 0)).await;
-    //     }
-    //     Ok(())
-    // }
+            sleep(std::time::Duration::new(2, 0)).await;
+        }
+        Ok(())
+    }
 
     async fn accept_tcp_with_tls(
         &self,
