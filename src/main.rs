@@ -158,7 +158,7 @@ async fn proxy_accept(
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
 
-    for i in 0..100 {
+    for i in 0..50 {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
@@ -171,8 +171,8 @@ async fn proxy_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
     if let Err(e) = res {
-        log::error!("抽水矿机 {}", e);
-        info!("抽水矿机 {}", e);
+        log::error!("抽水矿机00 {}", e);
+        //info!("抽水矿机 {}", e);
     }
 
     Ok(())
@@ -187,7 +187,7 @@ async fn develop_accept(
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
-    for i in 0..50 {
+    for i in 0..30 {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
@@ -200,7 +200,7 @@ async fn develop_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
     if let Err(e) = res {
-        log::error!("开发者抽水矿机 {}", e);
+        log::error!("抽水矿机01 {}", e);
         //info!("抽水矿机 {}", e);
     }
 
