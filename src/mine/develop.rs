@@ -41,6 +41,7 @@ impl Mine {
         if name.is_empty() {
             hostname = "proxy_wallet_mine".into();
         }
+
         let s: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(7)
@@ -363,7 +364,7 @@ impl Mine {
             };
 
             if len == 0 {
-                log::error!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
+                //log::error!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
                 bail!("读取Socket 失败。收到0个字节");
             }
 
