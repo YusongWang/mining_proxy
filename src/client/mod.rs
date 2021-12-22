@@ -32,7 +32,7 @@ async fn client_to_server<R, W>(
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
     //state_send: UnboundedSender<String>,
-    proxy_fee_sender: UnboundedSender<String>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
     dev_fee_send: UnboundedSender<String>,
     tx: UnboundedSender<ServerId1>,
 ) -> Result<(), std::io::Error>
@@ -115,52 +115,57 @@ where
                                 let mut mine = RwLockWriteGuard::map(state.write().await, |s| {
                                     &mut s.mine_jobs
                                 });
-                                if mine.contains(job_id) {
-                                    mine.remove(job_id);
+                                if mine.contains_key(job_id) {
+                                    if let Some(thread_id) = mine.remove(job_id) {
+                                        let rpc = serde_json::to_string(&client_json_rpc)?;
 
-                                    let rpc = serde_json::to_string(&client_json_rpc)?;
-                                    // TODO
-                                    //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                    proxy_fee_sender
-                                        .send(rpc)
-                                        .expect("可以提交给矿池任务失败。通道异常了");
+                                        debug!(
+                                            "------- 收到 指派任务。可以提交给矿池了 {:?}",
+                                            job_id
+                                        );
 
-                                    let s = ServerId1 {
-                                        id: client_json_rpc.id,
-                                        //jsonrpc: "2.0".into(),
-                                        result: true,
-                                    };
+                                        
+                                        proxy_fee_sender
+                                            .send((thread_id, rpc))
+                                            .expect("可以提交给矿池任务失败。通道异常了");
 
-                                    tx.send(s).expect("可以提交矿机结果失败。通道异常了");
-                                    continue;
+                                        let s = ServerId1 {
+                                            id: client_json_rpc.id,
+                                            //jsonrpc: "2.0".into(),
+                                            result: true,
+                                        };
+
+                                        tx.send(s).expect("可以提交矿机结果失败。通道异常了");
+                                        continue;
+                                    }
                                 }
                                 //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                             }
 
-                            {
-                                let mut mine = RwLockWriteGuard::map(state.write().await, |s| {
-                                    &mut s.develop_jobs
-                                });
-                                if mine.contains(job_id) {
-                                    mine.remove(job_id);
+                            // {
+                            //     let mut mine = RwLockWriteGuard::map(state.write().await, |s| {
+                            //         &mut s.develop_jobs
+                            //     });
+                            //     if mine.contains(job_id) {
+                            //         mine.remove(job_id);
 
-                                    let rpc = serde_json::to_string(&client_json_rpc)?;
-                                    //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                                    dev_fee_send
-                                        .send(rpc)
-                                        .expect("可以提交给矿池任务失败。通道异常了");
+                            //         let rpc = serde_json::to_string(&client_json_rpc)?;
+                            //         //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                            //         dev_fee_send
+                            //             .send(rpc)
+                            //             .expect("可以提交给矿池任务失败。通道异常了");
 
-                                    let s = ServerId1 {
-                                        id: client_json_rpc.id,
-                                        //jsonrpc: "2.0".into(),
-                                        result: true,
-                                    };
+                            //         let s = ServerId1 {
+                            //             id: client_json_rpc.id,
+                            //             //jsonrpc: "2.0".into(),
+                            //             result: true,
+                            //         };
 
-                                    tx.send(s).expect("可以提交给矿机结果失败。通道异常了");
-                                    continue;
-                                }
-                                //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
-                            }
+                            //         tx.send(s).expect("可以提交给矿机结果失败。通道异常了");
+                            //         continue;
+                            //     }
+                            //     //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+                            // }
                         }
 
                         //写入公共rpc_id
@@ -327,8 +332,8 @@ async fn server_to_client<R, W>(
     _: broadcast::Receiver<String>,
     mut r: ReadHalf<R>,
     mut w: WriteHalf<W>,
-    _: UnboundedSender<String>,
-    state_send: UnboundedSender<String>,
+    _: broadcast::Sender<(u64, String)>,
+    state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<String>,
     mut rx: UnboundedReceiver<ServerId1>,
 ) -> Result<(), std::io::Error>
@@ -599,8 +604,8 @@ where
                                                 let mut jobs_queue =
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
                                                 if jobs_queue.len() > 0{
-                                                    let a = jobs_queue.pop_back().unwrap();
-                                                    let job = serde_json::from_str::<Server>(&*a)?;
+                                                    let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
+                                                    let job = serde_json::from_str::<Server>(&*queue_job)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                     let mut byte = BytesMut::new();
@@ -624,8 +629,8 @@ where
                                                         return Ok(());
                                                     }
 
-                                                    let b = a.clone();
-                                                    state_send.send(b).expect("发送任务给抽水矿工失败。");
+                                                    //let b = a.clone();
+                                                    state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
 
                                                     continue;
                                                 } else {

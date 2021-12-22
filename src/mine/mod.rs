@@ -11,7 +11,6 @@ use anyhow::{bail, Error, Result};
 
 use bytes::{BufMut, BytesMut};
 
-
 use log::{debug, info};
 
 use tokio::{
@@ -27,6 +26,7 @@ use tokio::{
 
 #[derive(Debug)]
 pub struct Mine {
+    id: u64,
     config: Settings,
     hostname: String,
     wallet: String,
@@ -46,6 +46,7 @@ impl Mine {
 
         let w = config.clone();
         Ok(Self {
+            id,
             config,
             hostname: hostname + id.to_string().as_str(),
             wallet: w.share_wallet.clone(),
@@ -74,7 +75,7 @@ impl Mine {
     async fn new_worker(
         self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
@@ -92,7 +93,7 @@ impl Mine {
     pub async fn new_accept(
         self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
@@ -137,7 +138,7 @@ impl Mine {
     async fn accept_tcp(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
@@ -193,7 +194,7 @@ impl Mine {
     async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,
-        jobs_send: broadcast::Sender<String>,
+        jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
@@ -206,7 +207,6 @@ impl Mine {
             info!("Share SSL 地址不能为空");
             return Ok(());
         }
-
 
         loop {
             let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
@@ -333,7 +333,7 @@ impl Mine {
     async fn server_to_client<R>(
         &self,
         state: Arc<RwLock<State>>,
-        _: broadcast::Sender<String>,
+        _: broadcast::Sender<(u64, String)>,
         _: UnboundedSender<String>,
         mut r: ReadHalf<R>,
     ) -> Result<()>
@@ -485,7 +485,7 @@ impl Mine {
                             let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
                                 &mut s.mine_jobs_queue
                             });
-                            jobs.push_back(job);
+                            jobs.push_back((self.id, job));
                         }
                         #[cfg(debug_assertions)]
                         debug!("发送完成: {}", job_id);
@@ -510,7 +510,7 @@ impl Mine {
     async fn client_to_server<W>(
         &self,
         _: Arc<RwLock<State>>,
-        _: broadcast::Sender<String>,
+        job_send: broadcast::Sender<(u64, String)>,
         _: UnboundedSender<String>,
         mut w: WriteHalf<W>,
         recv: &mut UnboundedReceiver<String>,
@@ -518,60 +518,81 @@ impl Mine {
     where
         W: AsyncWriteExt,
     {
+        let mut jobs_recv = job_send.subscribe();
+
         loop {
-            let client_msg = recv.recv().await.expect("Channel Close");
-            #[cfg(debug_assertions)]
-            debug!("-------- M to S RPC #{:?}", client_msg);
-            if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
-            {
-                if client_json_rpc.method == "eth_submitWork" {
-                    //client_json_rpc.id = 40;
-                    client_json_rpc.id = 499;
-                    client_json_rpc.worker = self.hostname.clone();
+            tokio::select! {
+                Some(client_msg) = recv.recv() => {
+
                     #[cfg(debug_assertions)]
-                    debug!(
-                        "🚜🚜 抽水矿机 :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc
-                    );
-                    info!(
-                        "✅✅ 矿机 :{} Share #{:?}",
-                        client_json_rpc.worker, client_json_rpc.id
-                    );
-                } else if client_json_rpc.method == "eth_submitHashrate" {
-                    #[cfg(debug_assertions)]
-                    if let Some(hashrate) = client_json_rpc.params.get(0) {
-                        #[cfg(debug_assertions)]
-                        debug!(
-                            "✅✅ 矿机 :{} 提交本地算力 {}",
-                            client_json_rpc.worker, hashrate
-                        );
+                    debug!("-------- M to S RPC #{:?}", client_msg);
+                    if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
+                    {
+                        if client_json_rpc.method == "eth_submitWork" {
+                            //client_json_rpc.id = 40;
+                            client_json_rpc.id = 499;
+                            client_json_rpc.worker = self.hostname.clone();
+                            #[cfg(debug_assertions)]
+                            debug!(
+                                "🚜🚜 抽水矿机 :{} Share #{:?}",
+                                client_json_rpc.worker, client_json_rpc
+                            );
+                            info!(
+                                "✅✅ 矿机 :{} Share #{:?}",
+                                client_json_rpc.worker, client_json_rpc.id
+                            );
+                        } else if client_json_rpc.method == "eth_submitHashrate" {
+                            #[cfg(debug_assertions)]
+                            if let Some(hashrate) = client_json_rpc.params.get(0) {
+                                #[cfg(debug_assertions)]
+                                debug!(
+                                    "✅✅ 矿机 :{} 提交本地算力 {}",
+                                    client_json_rpc.worker, hashrate
+                                );
+                            }
+                        } else if client_json_rpc.method == "eth_submitLogin" {
+                            #[cfg(debug_assertions)]
+                            debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                        } else {
+                            #[cfg(debug_assertions)]
+                            debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                        }
+
+                        let rpc = serde_json::to_vec(&client_json_rpc)?;
+                        let mut byte = BytesMut::new();
+                        byte.put_slice(&rpc[0..rpc.len()]);
+                        byte.put_u8(b'\n');
+                        let w_len = w.write_buf(&mut byte).await?;
+                        if w_len == 0 {
+                            bail!("矿池写入失败.0");
+                        }
+                    } else if let Ok(client_json_rpc) =
+                        serde_json::from_slice::<ClientGetWork>(client_msg.as_bytes())
+                    {
+                        let rpc = serde_json::to_vec(&client_json_rpc)?;
+                        let mut byte = BytesMut::new();
+                        byte.put_slice(&rpc[0..rpc.len()]);
+                        byte.put_u8(b'\n');
+                        let w_len = w.write_buf(&mut byte).await?;
+                        if w_len == 0 {
+                            bail!("矿池写入失败.1");
+                        }
                     }
-                } else if client_json_rpc.method == "eth_submitLogin" {
-                    #[cfg(debug_assertions)]
-                    debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
-                } else {
-                    #[cfg(debug_assertions)]
-                    debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+
                 }
 
-                let rpc = serde_json::to_vec(&client_json_rpc)?;
-                let mut byte = BytesMut::new();
-                byte.put_slice(&rpc[0..rpc.len()]);
-                byte.put_u8(b'\n');
-                let w_len = w.write_buf(&mut byte).await?;
-                if w_len == 0 {
-                    bail!("矿池写入失败.0");
-                }
-            } else if let Ok(client_json_rpc) =
-                serde_json::from_slice::<ClientGetWork>(client_msg.as_bytes())
-            {
-                let rpc = serde_json::to_vec(&client_json_rpc)?;
-                let mut byte = BytesMut::new();
-                byte.put_slice(&rpc[0..rpc.len()]);
-                byte.put_u8(b'\n');
-                let w_len = w.write_buf(&mut byte).await?;
-                if w_len == 0 {
-                    bail!("矿池写入失败.1");
+                Ok((id,job)) = jobs_recv.recv() => {
+                    if id == self.id {
+                        debug!("{} 线程 获得抽水任务Share #{}",id,0);
+                        let mut byte = BytesMut::new();
+                        byte.put_slice(job.as_bytes());
+                        byte.put_u8(b'\n');
+                        let w_len = w.write_buf(&mut byte).await?;
+                        if w_len == 0 {
+                            debug!("写入远程失败。可能远程关闭 {} 线程 获得抽水任务Share #{}",id,0);
+                            return Ok(());
+                        }
+                    }
                 }
             }
         }
@@ -580,7 +601,7 @@ impl Mine {
     async fn login_and_getwork(
         &self,
         state: Arc<RwLock<State>>,
-        _: broadcast::Sender<String>,
+        _: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
     ) -> Result<()> {
         let login = Client {

@@ -22,9 +22,9 @@ pub async fn accept_tcp_with_tls(
     state: Arc<RwLock<State>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
-    proxy_fee_sender: UnboundedSender<String>,
+    proxy_fee_sender: broadcast::Sender<(u64,String)>,
     fee_send: UnboundedSender<String>,
-    state_send: UnboundedSender<String>,
+    state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<String>,
     cert: Identity,
 ) -> Result<()> {
@@ -83,9 +83,9 @@ async fn transfer_ssl(
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     inbound: TcpStream,
     config: Settings,
-    proxy_fee_sender: UnboundedSender<String>,
+    proxy_fee_sender: broadcast::Sender<(u64,String)>,
     fee: UnboundedSender<String>,
-    state_send: UnboundedSender<String>,
+    state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;

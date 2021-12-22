@@ -4,7 +4,7 @@ use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
 use futures::future;
-use log::info;
+use log::{info, debug};
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
 use tokio::{
@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
 
     info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
     // 分配任务给矿机channel
-    let (state_send, state_recv) = mpsc::unbounded_channel::<String>();
+    let (state_send, state_recv) = mpsc::unbounded_channel::<(u64, String)>();
     // 分配dev任务给矿机channel
     let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<String>();
 
@@ -82,13 +82,13 @@ async fn main() -> Result<()> {
 
     info!("✅ config init success!");
 
-    // 分配任务给矿机channel
+    // 分配任务给 抽水矿机
     let (job_send, _) = broadcast::channel::<String>(100);
 
     // 中转抽水费用
-    let mine = Mine::new(config.clone(), 0).await?;
-    let (proxy_job_channel, _) = broadcast::channel(100);
-    let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+    //let mine = Mine::new(config.clone(), 0).await?;
+    let (proxy_job_channel, _) = broadcast::channel::<(u64,String)>(100);
+    //let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<(u64,String)>();
 
     // 开发者费用
     let (fee_tx, fee_rx) = mpsc::unbounded_channel::<String>();
@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
             state.clone(),
             config.clone(),
             job_send.clone(),
-            proxy_fee_sender.clone(),
+            proxy_job_channel.clone(),
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
@@ -112,7 +112,7 @@ async fn main() -> Result<()> {
             state.clone(),
             config.clone(),
             job_send.clone(),
-            proxy_fee_sender.clone(),
+            proxy_job_channel.clone(),
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
@@ -143,7 +143,7 @@ async fn main() -> Result<()> {
 async fn proxy_accept(
     state: Arc<RwLock<State>>,
     config: Settings,
-    jobs_send: broadcast::Sender<String>,
+    jobs_send: broadcast::Sender<(u64,String)>,
 ) -> Result<()> {
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
@@ -153,18 +153,17 @@ async fn proxy_accept(
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
-        let recv = send.subscribe();
+        //let recv = send.subscribe();
         let s = state.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
     }
 
-
-    info!("Join {}",v.len());
+    info!("Join {}", v.len());
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
-    if let Err(e) =res {
-        info!("{}",e);
+    if let Err(e) = res {
+        info!("{}", e);
     }
 
     Ok(())
@@ -173,20 +172,21 @@ async fn proxy_accept(
 #[tracing::instrument]
 async fn process_mine_state(
     state: Arc<RwLock<State>>,
-    mut state_recv: UnboundedReceiver<String>,
+    mut state_recv: UnboundedReceiver<(u64, String)>,
 ) -> Result<()> {
     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
     loop {
-        let job = state_recv.recv().await.expect("从队列获得任务失败.");
+        let (phread_id,queue_job) = state_recv.recv().await.expect("从队列获得任务失败.");
         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
-        let job = serde_json::from_str::<Server>(&*job)?;
+        let job = serde_json::from_str::<Server>(&*queue_job)?;
         let job_id = job.result.get(0).expect("封包格式错误");
         {
             let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-            if mine_jobs.insert(job_id.clone()) {
-                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+            if let Some(_) =mine_jobs.insert(job_id.clone(),phread_id){
+                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+            } else {
+                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
             }
-            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
         }
 
         //debug!("Job_id {} 写入成功", job_id);

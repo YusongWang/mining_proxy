@@ -20,9 +20,9 @@ pub async fn accept_tcp(
     state: Arc<RwLock<State>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
-    proxy_fee_sender: UnboundedSender<String>,
+    proxy_fee_sender: broadcast::Sender<(u64,String)>,
     develop_fee_sender: UnboundedSender<String>,
-    state_send: UnboundedSender<String>,
+    state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     if config.pool_tcp_address.is_empty() {
@@ -75,9 +75,9 @@ async fn transfer(
     jobs_recv: broadcast::Receiver<String>,
     inbound: TcpStream,
     config: Settings,
-    proxy_fee_send: UnboundedSender<String>,
+    proxy_fee_sender: broadcast::Sender<(u64,String)>,
     fee: UnboundedSender<String>,
-    state_send: UnboundedSender<String>,
+    state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
     // let mut inbound = tokio_io_timeout::TimeoutStream::new(inbound);
@@ -109,7 +109,7 @@ async fn transfer(
             config.clone(),
             r_client,
             w_server,
-            proxy_fee_send.clone(),
+            proxy_fee_sender.clone(),
             //state_send.clone(),
             fee.clone(),
             tx.clone()
@@ -122,7 +122,7 @@ async fn transfer(
             jobs_recv,
             r_server,
             w_client,
-            proxy_fee_send.clone(),
+            proxy_fee_sender.clone(),
             state_send.clone(),
             dev_state_send.clone(),
             rx
