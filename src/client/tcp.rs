@@ -20,7 +20,7 @@ pub async fn accept_tcp(
     state: Arc<RwLock<State>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
-    proxy_fee_sender: broadcast::Sender<(u64,String)>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
     develop_fee_sender: UnboundedSender<String>,
     state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<String>,
@@ -75,62 +75,124 @@ async fn transfer(
     jobs_recv: broadcast::Receiver<String>,
     inbound: TcpStream,
     config: Settings,
-    proxy_fee_sender: broadcast::Sender<(u64,String)>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
     fee: UnboundedSender<String>,
     state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<String>,
 ) -> Result<()> {
+    let (r_client, w_client) = split(inbound);
+
     // let mut inbound = tokio_io_timeout::TimeoutStream::new(inbound);
     // inbound.set_read_timeout(Some(std::time::Duration::new(10,0)));
     // inbound.set_write_timeout(Some(std::time::Duration::new(10,0)));
     // tokio::pin!(inbound);
-
-    let (stream, _) = match crate::util::get_pool_stream(&config.pool_tcp_address) {
-        Some((stream, addr)) => (stream, addr),
+    let (stream_type, pools) = match crate::util::get_pool_ip_and_type(&config) {
+        Some(pool) => pool,
         None => {
             info!("所有TCP矿池均不可链接。请修改后重试");
             return Ok(());
         }
     };
-    let outbound = TcpStream::from_std(stream)?;
+    if stream_type == crate::util::TCP {
+        let (outbound, _) = match crate::util::get_pool_stream(&pools) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                info!("所有TCP矿池均不可链接。请修改后重试");
+                return Ok(());
+            }
+        };
 
-    let (r_client, w_client) = split(inbound);
-    let (r_server, w_server) = split(outbound);
+        let stream = TcpStream::from_std(outbound)?;
 
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
-    let worker = Arc::new(RwLock::new(String::new()));
-    let client_rpc_id = Arc::new(RwLock::new(0u64));
-    info!("start client and server");
-    let res = tokio::try_join!(
-        client_to_server(
-            state.clone(),
-            worker.clone(),
-            client_rpc_id.clone(),
-            config.clone(),
-            r_client,
-            w_server,
-            proxy_fee_sender.clone(),
-            //state_send.clone(),
-            fee.clone(),
-            tx.clone()
-        ),
-        server_to_client(
-            state.clone(),
-            worker,
-            client_rpc_id,
-            config.clone(),
-            jobs_recv,
-            r_server,
-            w_client,
-            proxy_fee_sender.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-            rx
-        )
-    );
+        let (r_server, w_server) = split(stream);
 
-    if let Err(err) = res {
-        info!("矿机错误或者代理池错误: {}", err);
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
+        let worker = Arc::new(RwLock::new(String::new()));
+        let client_rpc_id = Arc::new(RwLock::new(0u64));
+        info!("start client and server");
+        let res = tokio::try_join!(
+            client_to_server(
+                state.clone(),
+                worker.clone(),
+                client_rpc_id.clone(),
+                config.clone(),
+                r_client,
+                w_server,
+                proxy_fee_sender.clone(),
+                //state_send.clone(),
+                fee.clone(),
+                tx.clone()
+            ),
+            server_to_client(
+                state.clone(),
+                worker,
+                client_rpc_id,
+                config.clone(),
+                jobs_recv,
+                r_server,
+                w_client,
+                proxy_fee_sender.clone(),
+                state_send.clone(),
+                dev_state_send.clone(),
+                rx
+            )
+        );
+
+        if let Err(err) = res {
+            info!("矿机错误或者代理池错误: {}", err);
+        }
+    } else if stream_type == crate::util::SSL {
+        let (outbound, _) =
+            match crate::util::get_pool_stream_with_tls(&pools, "proxy".into()).await {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    return Ok(());
+                }
+            };
+
+        let stream = outbound;
+
+        let (r_server, w_server) = split(stream);
+
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
+        let worker = Arc::new(RwLock::new(String::new()));
+        let client_rpc_id = Arc::new(RwLock::new(0u64));
+        info!("start client and server");
+        let res = tokio::try_join!(
+            client_to_server(
+                state.clone(),
+                worker.clone(),
+                client_rpc_id.clone(),
+                config.clone(),
+                r_client,
+                w_server,
+                proxy_fee_sender.clone(),
+                //state_send.clone(),
+                fee.clone(),
+                tx.clone()
+            ),
+            server_to_client(
+                state.clone(),
+                worker,
+                client_rpc_id,
+                config.clone(),
+                jobs_recv,
+                r_server,
+                w_client,
+                proxy_fee_sender.clone(),
+                state_send.clone(),
+                dev_state_send.clone(),
+                rx
+            )
+        );
+
+        if let Err(err) = res {
+            info!("矿机错误或者代理池错误: {}", err);
+        }
+    } else {
+        info!("未选择矿池方式");
+        return Ok(());
     }
 
     Ok(())

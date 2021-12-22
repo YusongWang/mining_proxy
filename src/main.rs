@@ -39,6 +39,8 @@ use crate::{
 
 const FEE: f32 = 0.005;
 
+
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = get_app_command_matches().await?;
@@ -49,6 +51,8 @@ async fn main() -> Result<()> {
         config.log_path.clone(),
         config.log_level,
     )?;
+    
+    // TODO 校验矿池选项是否正确。 判断各个参数设置是否正确。
 
     info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
     // 分配任务给矿机channel

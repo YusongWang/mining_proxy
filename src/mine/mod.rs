@@ -410,7 +410,7 @@ impl Mine {
                         }
                         // 登录。
                     } else if rpc.id == CLIENT_SUBHASHRATE {
-                        info!("🚜🚜 算力提交成功");
+                        //info!("🚜🚜 算力提交成功");
                     } else if rpc.result {
                         info!("👍👍 Share Accept");
                     } else {

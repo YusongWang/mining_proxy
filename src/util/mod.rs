@@ -1,4 +1,7 @@
 pub mod config;
+pub mod logger;
+pub const TCP: i32 = 1;
+pub const SSL: i32 = 2;
 use log::info;
 
 extern crate clap;
@@ -28,6 +31,7 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
         .get_matches();
     Ok(matches)
 }
+
 fn parse_hex_digit(c: char) -> Option<i64> {
     match c {
         '0' => Some(0),
@@ -66,77 +70,23 @@ pub fn calc_hash_rate(my_hash_rate: u64, share_rate: f32) -> u64 {
     ((my_hash_rate) as f32 * share_rate) as u64
 }
 
-pub mod logger {
-
-    pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> {
-        // parse log_laver
-        let lavel = match log_level {
-            3 => log::LevelFilter::Error,
-            2 => log::LevelFilter::Info,
-            1 => log::LevelFilter::Debug,
-            _ => log::LevelFilter::Info,
-        };
-
-        //if log_level <= 1 {
-        let log = fern::DateBased::new(path, format!("{}.log.%Y-%m-%d.%H", app_name))
-            .utc_time()
-            .local_time();
-        let (lavel, logger) = fern::Dispatch::new()
-            .format(move |out, message, record| {
-                out.finish(format_args!(
-                    "[{}] [{}:{}] [{}] {}",
-                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                    record.file().unwrap(),
-                    record.line().unwrap(),
-                    record.level(),
-                    message
-                ))
-            })
-            .level(lavel)
-            //.level_for("engine", log::LevelFilter::Debug)
-            .chain(std::io::stdout())
-            .chain(log)
-            .into_log();
-
-        let logger = sentry_log::SentryLogger::with_dest(logger);
-        log::set_boxed_logger(Box::new(logger)).unwrap();
-        log::set_max_level(lavel);
-        // } else {
-        //     let log = fern::DateBased::new(path, format!("{}.log.%Y-%m-%d.%H", app_name))
-        //         .utc_time()
-        //         .local_time();
-        //     fern::Dispatch::new()
-        //         .format(move |out, message, record| {
-        //             out.finish(format_args!(
-        //                 "[{}] [{}] {}",
-        //                 chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-        //                 record.level(),
-        //                 message
-        //             ))
-        //         })
-        //         .level(lavel)
-        //         //.level_for("engine", log::LevelFilter::Debug)
-        //         .chain(std::io::stdout())
-        //         .chain(log)
-        //         .into_log();
-        // }
-        //use sentry_tracing;
-        //use tracing_subscriber::prelude::*;
-
-        //tracing_subscriber::registry().init();
-        //.unwrap();
-        // log::set_boxed_logger(Box::new(logger)).unwrap();
-        // log::set_max_level(log::LevelFilter::Info);
-
-        let _guard = sentry::init((
-            "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-            sentry::ClientOptions {
-                release: sentry::release_name!(),
-                ..Default::default()
-            },
-        ));
-
-        Ok(())
+// 从配置文件返回 连接矿池类型及连接地址
+pub fn get_pool_ip_and_type(config: &config::Settings) -> Option<(i32, Vec<String>)> {
+    // if config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] == "" || if !config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] != "" {
+    //     Ok((2,config.pool_ssl_address.clone()))
+    // }else{
+    //     Ok((1,config.pool_ssl_address.clone()))
+    // }
+    if (config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] == "")
+        && (!config.pool_ssl_address.is_empty() && config.pool_ssl_address[0] != "")
+    {
+        Some((SSL, config.pool_ssl_address.clone()))
+    } else if (config.pool_ssl_address.is_empty() && config.pool_ssl_address[0] == "")
+        && (!config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] != "")
+    {
+        Some((TCP, config.pool_tcp_address.clone()))
+    } else {
+        None
     }
 }
 
