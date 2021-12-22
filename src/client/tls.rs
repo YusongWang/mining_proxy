@@ -28,13 +28,6 @@ pub async fn accept_tcp_with_tls(
     dev_state_send: UnboundedSender<String>,
     cert: Identity,
 ) -> Result<()> {
-    if config.pool_ssl_address.is_empty() {
-        return Ok(());
-    }
-    if config.pool_ssl_address[0] == "" {
-        return Ok(());
-    }
-
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tls On: {}", &address);
