@@ -47,15 +47,44 @@ impl Worker {
     }
 }
 
-#[cfg(tests)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_new_work() {
-        let w = Worker::new("".into(),"".into(),"".into());
-        assert_eq!(w.share_index,0);
-    }
+
+
+#[test]
+fn test_new_work() {
+    let w = Worker::new("".into(),"".into(),"".into());
+    assert_eq!(w.share_index,0);
+    assert_eq!(w.accept_index,0);
+    assert_eq!(w.invalid_index,0);
 }
+
+#[test]
+fn test_share_index_add() {
+    let mut w = Worker::new("".into(),"".into(),"".into());
+    w.share_index_add();
+    assert_eq!(w.share_index,1);
+    assert_eq!(w.accept_index,0);
+    assert_eq!(w.invalid_index,0);
+}
+
+#[test]
+fn test_share_accept() {
+    let mut w = Worker::new("".into(),"".into(),"".into());
+    w.share_accept();
+    assert_eq!(w.share_index,0);
+    assert_eq!(w.accept_index,1);
+    assert_eq!(w.invalid_index,0);
+}
+
+#[test]
+fn test_share_reject() {
+    let mut w = Worker::new("".into(),"".into(),"".into());
+    w.share_reject();
+    assert_eq!(w.share_index,0);
+    assert_eq!(w.accept_index,0);
+    assert_eq!(w.invalid_index,1);
+}
+
+
 //TODO 分成四个变量是否可以提升速度。减少同一变量写锁的时间
 // 或者就保留目前的全局状态值。方便处理。
 #[derive(Debug)]
