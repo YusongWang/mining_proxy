@@ -146,7 +146,10 @@ impl Mine {
                 Some((stream, addr)) => (stream, addr),
                 None => {
                     info!("所有SSL矿池均不可链接。请修改后重试");
-                    std::process::exit(100);
+                    //std::process::exit(100);
+
+                    sleep(std::time::Duration::new(2, 0)).await;
+                    continue;
                 }
             };
 
@@ -195,13 +198,14 @@ impl Mine {
                 Some((stream, addr)) => (stream, addr),
                 None => {
                     info!("所有SSL矿池均不可链接。请修改后重试");
-                    std::process::exit(100);
+                    sleep(std::time::Duration::new(2, 0)).await;
+                    continue;
                 }
             };
 
             let (r_server, w_server) = split(server_stream);
 
-            let (res, res1, res2) = tokio::join!(
+            let res = tokio::try_join!(
                 self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
                 self.client_to_server(
                     state.clone(),
@@ -213,8 +217,12 @@ impl Mine {
                 self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
             );
 
-            panic!(123);
-            info!("返回:");
+            if let Err(e) = res {
+                info!("{}", e);
+                //return anyhow::private::Err(e);
+            }
+
+            sleep(std::time::Duration::new(10, 0)).await;
         }
         Ok(())
     }
@@ -356,11 +364,11 @@ impl Mine {
                 //         std::process::exit(1);
                 //     }
                 // } else {
-                    #[cfg(debug_assertions)]
-                    debug!(
-                        "❗ ------矿池到矿机捕获封包:{:?}",
-                        String::from_utf8(buf.clone().to_vec()).unwrap()
-                    );
+                #[cfg(debug_assertions)]
+                debug!(
+                    "❗ ------矿池到矿机捕获封包:{:?}",
+                    String::from_utf8(buf.clone().to_vec()).unwrap()
+                );
                 if let Ok(rpc) = serde_json::from_slice::<ServerId1>(&buf) {
                     #[cfg(debug_assertions)]
                     debug!("收到抽水矿机返回 {:?}", rpc);
