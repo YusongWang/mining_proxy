@@ -104,7 +104,7 @@ where
                                 w.share_index = w.share_index + 1;
                                 //w.rpc_id = client_json_rpc.id as u64;
                                 submit_idx_id = w.share_index;
-                                info!("rpc_id : {}", w.share_index);
+                                //info!("rpc_id : {}", w.share_index);
                             }
 
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -356,7 +356,7 @@ where
                 let len = match len{
                     Ok(len) => len,
                     Err(e) => {
-                        info!("{:?}",e);
+                        //info!("{:?}",e);
                         return anyhow::private::Err(e);
                     },
                 };
@@ -396,7 +396,7 @@ where
                         continue;
                     }
 
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("Got jobs {}",buf);
                     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
 
@@ -428,7 +428,7 @@ where
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
                                     );
                                     info!("矿池登录失败");
-                                    log::error!(
+                                    log::warn!(
                                         "矿池登录失败 {}",
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
                                     );
@@ -453,14 +453,14 @@ where
                                         } else {
                                             w.invalid_index = w.invalid_index + 1;
                                             info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
-                                            log::error!(
+                                            log::warn!(
                                                 " Worker :{} Share #{} Reject",
                                                 rw_worker,rpc_id
                                             );
                                         }
                                     } else {
                                         info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
-                                        log::error!(
+                                        log::warn!(
                                             "❗ Worker :{} Got Unpackage Idx {}",
                                             rw_worker,rpc_id
                                         );
@@ -539,7 +539,7 @@ where
                                             } else {
                                                 //几率不高。但是要打日志出来。
                                                 //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                log::error!(
+                                                log::warn!(
                                                     "开发者-跳过本次抽水。没有任务处理了"
                                                 );
                                             }
@@ -596,7 +596,7 @@ where
                                                 } else {
                                                     //几率不高。但是要打日志出来。
                                                     //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                    log::error!(
+                                                    log::warn!(
                                                         "抽水-跳过本次抽水。没有任务处理了"
                                                     );
                                                 }
@@ -626,7 +626,7 @@ where
                         }
                         continue;
                     } else {
-                        log::error!(
+                        log::warn!(
                             "❗ ------未捕获封包:{:?}",
                             buf
                         );

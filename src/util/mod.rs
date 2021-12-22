@@ -88,7 +88,7 @@ pub fn get_pool_stream(
         let addr = match address.to_socket_addrs().unwrap().next() {
             Some(address) => address,
             None => {
-                info!("{} 访问不通。切换备用矿池！！！！", address);
+                //info!("{} 访问不通。切换备用矿池！！！！", address);
                 continue;
             }
         };
@@ -96,7 +96,7 @@ pub fn get_pool_stream(
         let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(2, 0)) {
             Ok(stream) => stream,
             Err(_) => {
-                info!("{} 访问不通。切换备用矿池！！！！", address);
+                //info!("{} 访问不通。切换备用矿池！！！！", address);
                 continue;
             }
         };
@@ -107,11 +107,11 @@ pub fn get_pool_stream(
         // std_stream
         //     .set_write_timeout(Some(Duration::from_millis(1)))
         //     .expect("读取超时");
-        info!(
-            "{} conteact to {}",
-            std_stream.local_addr().unwrap(),
-            address
-        );
+        // info!(
+        //     "{} conteact to {}",
+        //     std_stream.local_addr().unwrap(),
+        //     address
+        // );
         return Some((std_stream, addr));
     }
 
@@ -129,7 +129,7 @@ pub async fn get_pool_stream_with_tls(
         let addr = match address.to_socket_addrs().unwrap().next() {
             Some(address) => address,
             None => {
-                info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -137,7 +137,7 @@ pub async fn get_pool_stream_with_tls(
         let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(2, 0)) {
             Ok(straem) => straem,
             Err(_) => {
-                info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -153,7 +153,7 @@ pub async fn get_pool_stream_with_tls(
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
             Err(_) => {
-                info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -167,7 +167,7 @@ pub async fn get_pool_stream_with_tls(
         {
             Ok(con) => con,
             Err(_) => {
-                info!("{} {} SSL 校验失败！！！！", name, address);
+                //info!("{} {} SSL 校验失败！！！！", name, address);
                 continue;
             }
         };
@@ -179,12 +179,12 @@ pub async fn get_pool_stream_with_tls(
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
             Err(err) => {
-                info!("{} {} SSL 链接失败！！！！ {:?}", name, address, err);
+                //info!("{} {} SSL 链接失败！！！！ {:?}", name, address, err);
                 continue;
             }
         };
 
-        info!("{} conteactd to {}", name, address);
+        //info!("{} conteactd to {}", name, address);
         return Some((server_stream, addr));
     }
 

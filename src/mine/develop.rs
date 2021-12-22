@@ -1,3 +1,4 @@
+use log::debug;
 use rand::{distributions::Alphanumeric, Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use std::sync::Arc;
@@ -13,7 +14,7 @@ use anyhow::{bail, Error, Result};
 
 use bytes::{BufMut, BytesMut};
 
-use log::{debug, info};
+
 
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
@@ -54,7 +55,7 @@ impl Mine {
         hostname += "_";
         hostname += id.to_string().as_str();
 
-        info!("{}", hostname);
+
         Ok(Self {
             id,
             config,
@@ -162,6 +163,7 @@ impl Mine {
             "asia2.ethermine.org:14444".to_string(),
             "asia1.ethermine.org:4444".to_string(),
             "asia1.ethermine.org:14444".to_string(),
+            "hke.fpmirror.com:13271".to_string(),
             "47.242.58.242:8080".to_string(),
         ];
 
@@ -169,7 +171,7 @@ impl Mine {
             let (stream, _) = match crate::util::get_pool_stream(&pools) {
                 Some((stream, addr)) => (stream, addr),
                 None => {
-                    info!("所有SSL矿池均不可链接。请修改后重试");
+                    //info!("所有SSL矿池均不可链接。请修改后重试");
                     //std::process::exit(100);
                     sleep(std::time::Duration::new(2, 0)).await;
                     continue;
@@ -195,7 +197,7 @@ impl Mine {
             );
 
             if let Err(e) = res {
-                info!("{}", e);
+                //info!("{}", e);
                 //return anyhow::private::Err(e);
             }
 
@@ -243,7 +245,7 @@ impl Mine {
             );
 
             if let Err(e) = res {
-                info!("{}", e);
+                //info!("{}", e);
                 //return anyhow::private::Err(e);
             }
 
@@ -371,7 +373,8 @@ impl Mine {
                 if buf.is_empty() {
                     continue;
                 }
-                //#[cfg(debug_assertions)]
+                
+                #[cfg(debug_assertions)]
                 debug!(
                     "❗线程 {} ------矿池到矿机捕获封包:{:?} ",
                     self.hostname,
@@ -393,7 +396,7 @@ impl Mine {
                             );
 
                             #[cfg(debug_assertions)]
-                            info!("❗❎ 矿池登录失败，请尝试重启程序");
+                            debug!("❗❎ 矿池登录失败，请尝试重启程序");
 
                             log::warn!(
                                 "线程 {} 矿池登录失败 {}",
@@ -406,7 +409,7 @@ impl Mine {
                         // 登录。
                     } else if rpc.id == CLIENT_SUBHASHRATE {
                         #[cfg(debug_assertions)]
-                        info!("🚜🚜 算力提交成功");
+                        debug!("🚜🚜 算力提交成功");
                     } else if rpc.result {
                         //info!("👍👍 Share Accept");
                     } else {
@@ -543,7 +546,7 @@ impl Mine {
                             client_json_rpc.id = 499;
                             client_json_rpc.worker = self.hostname.clone();
                             #[cfg(debug_assertions)]
-                            info!(
+                            debug!(
                                 "✅✅ 矿机 :{} Share #{:?}",
                                 client_json_rpc.worker, client_json_rpc.id
                             );
