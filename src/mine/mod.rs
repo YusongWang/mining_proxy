@@ -14,7 +14,7 @@ use bytes::{BufMut, BytesMut};
 
 use log::{debug, info};
 
-use rand::{SeedableRng, Rng};
+use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},

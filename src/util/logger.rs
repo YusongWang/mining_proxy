@@ -58,7 +58,5 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
     // log::set_boxed_logger(Box::new(logger)).unwrap();
     // log::set_max_level(log::LevelFilter::Info);
 
-
-
     Ok(())
 }

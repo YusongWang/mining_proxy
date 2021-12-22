@@ -104,7 +104,7 @@ where
                                 w.share_index = w.share_index + 1;
                                 //w.rpc_id = client_json_rpc.id as u64;
                                 submit_idx_id = w.share_index;
-                                info!("rpc_id : {}",w.share_index);
+                                info!("rpc_id : {}", w.share_index);
                             }
 
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -236,11 +236,10 @@ where
                     } else if client_json_rpc.method == "eth_submitLogin" {
                         //写入公共rpc_id
                         {
-                            let mut id =
-                                RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
+                            let mut id = RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
                             *id = client_json_rpc.id;
                         }
-                        
+
                         // //新增一个share
                         // let mut workers =
                         //     RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
@@ -400,7 +399,7 @@ where
                     //#[cfg(debug_assertions)]
                     debug!("Got jobs {}",buf);
                     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
-                        
+
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         // let mut workers =
                         // RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
@@ -413,7 +412,7 @@ where
                                     let wallet:Vec<_>= rw_worker.split(".").collect();
                                     let mut workers =
                                     RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-        
+
                                     workers.insert(rw_worker.clone(),Worker::new(
                                         rw_worker.clone(),
                                         wallet[1].clone().to_string(),
@@ -421,7 +420,7 @@ where
                                     ));
                                     is_login = true;
                                     info!("✅ {} 登录成功",rw_worker);
-                                
+
                                 } else {
                                     #[cfg(debug_assertions)]
                                     debug!(
@@ -441,39 +440,34 @@ where
                             } else if server_json_rpc.id == CLIENT_GETWORK {
 
                             } else  {
-                                
-                                rpc_id = w.share_index;
-                                if server_json_rpc.id as u128 == rpc_id{
-                                    if server_json_rpc.result == true {
-                                        // for w in &mut *workers {
-                                        //     if w.worker == *rw_worker {
-                                                w.accept_index = w.accept_index + 1;
+                                let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                                let mut workers =
+                                RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+                                if let Some(w) = workers.get_mut(&rw_worker.clone()) {
+                                    rpc_id = w.share_index;
+                                    if server_json_rpc.id as u128 == rpc_id{
+                                        if server_json_rpc.result == true {
 
-                                        //     }
-                                        // }
-                                        info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);
+                                            w.accept_index = w.accept_index + 1;
+                                            info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);
+                                        } else {
+                                            w.invalid_index = w.invalid_index + 1;
+                                            info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
+                                            log::error!(
+                                                " Worker :{} Share #{} Reject",
+                                                rw_worker,rpc_id
+                                            );
+                                        }
                                     } else {
-                                        // for w in &mut *workers {
-                                        //     if w.worker == *rw_worker {
-                                                w.invalid_index = w.invalid_index + 1;
-                                        //     }
-                                        // }
-                                        info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
+                                        info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
                                         log::error!(
-                                            " Worker :{} Share #{} Reject",
+                                            "❗ Worker :{} Got Unpackage Idx {}",
                                             rw_worker,rpc_id
                                         );
                                     }
-
-                                } else {
-                                    info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
-                                    log::error!(
-                                        "❗ Worker :{} Got Unpackage Idx {}",
-                                        rw_worker,rpc_id
-                                    );
                                 }
                             }
-                        
+
                         {
                             let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
                             server_json_rpc.id = *rpc_id;
