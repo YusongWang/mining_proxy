@@ -46,7 +46,7 @@ impl Mine {
             wallet: wallet,
         })
     }
-    #[tracing::instrument]
+    
     pub async fn accept(
         &self,
         state: Arc<RwLock<State>>,
@@ -104,7 +104,7 @@ impl Mine {
         }
         Ok(())
     }
-    #[tracing::instrument]
+    
     pub async fn accept_tcp_with_tls(
         &self,
         state: Arc<RwLock<State>>,

@@ -169,7 +169,7 @@ async fn proxy_accept(
     Ok(())
 }
 
-#[tracing::instrument]
+
 async fn process_mine_state(
     state: Arc<RwLock<State>>,
     mut state_recv: UnboundedReceiver<(u64, String)>,
@@ -201,7 +201,7 @@ async fn process_mine_state(
         // }
     }
 }
-#[tracing::instrument]
+
 async fn process_dev_state(
     state: Arc<RwLock<State>>,
     mut state_recv: UnboundedReceiver<String>,
@@ -233,7 +233,7 @@ async fn process_dev_state(
         // }
     }
 }
-#[tracing::instrument]
+
 async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
     loop {
         sleep(std::time::Duration::new(60, 0)).await;
@@ -283,7 +283,7 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
         table.printstd();
     }
 }
-#[tracing::instrument]
+
 async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
     loop {
         sleep(std::time::Duration::new(60 * 10, 0)).await;

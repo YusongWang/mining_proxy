@@ -27,8 +27,8 @@ prettytable-rs = "^0.8"
 sentry = "0.23.0"
 sentry-log = "0.23.0"
 fern = "0.5"
-tracing = "0.1"
-tracing-subscriber = "0.2"
+# tracing = "0.1"
+# tracing-subscriber = "0.2"
 
 #cargo-features = "["strip"]
 [profile.release]
