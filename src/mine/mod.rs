@@ -518,7 +518,7 @@ impl Mine {
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
                     log::error!(
-                        "开发者抽水矿机 ------未捕获封包:{}",
+                        "抽水矿机 ------未捕获封包:{}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
                     //TODO 上报

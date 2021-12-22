@@ -415,7 +415,7 @@ impl Mine {
                     } else {
                         //info!("❗❗ Share Reject");
                         log::error!(
-                            "开发者抽水矿机 Share Reject:{}",
+                            "抽水矿机01 Share Reject:{}",
                             String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
                         #[cfg(debug_assertions)]

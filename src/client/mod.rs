@@ -517,7 +517,7 @@ where
                                                 let mut byte = BytesMut::new();
                                                 byte.put_slice(&rpc[..]);
                                                 byte.put_u8(b'\n');
-                                                debug!("发送指派任务给开发者矿机 {:?}",job);
+
                                                 let w_len = w.write_buf(&mut byte).await?;
                                                 if w_len == 0 {
                                                     let worker_name: String;
@@ -570,9 +570,8 @@ where
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                     let mut byte = BytesMut::new();
                                                     byte.put_slice(&rpc[..]);
-
                                                     byte.put_u8(b'\n');
-                                                    //debug!("发送指派任务给矿机 {:?}",job);
+
                                                     let w_len = w.write_buf(&mut byte).await?;
                                                     if w_len == 0 {
                                                         //debug!("矿机任务写入失败 {:?}",job);
@@ -589,7 +588,7 @@ where
                                                         return Ok(());
                                                     }
 
-                                                    //let b = a.clone();
+                                                    
                                                     state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
 
                                                     continue;
