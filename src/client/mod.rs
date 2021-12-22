@@ -553,11 +553,6 @@ where
                                 match secret_number.cmp(&max) {
                                     Ordering::Less => {}
                                     _ => {
-                                            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                                            // let mut jobs_queue =
-                                            //      RwLockWriteGuard::map(state.write().await, |s| &mut s);
-                                            //state.lock().await();
-                                            // 将任务加入队列。
                                             {
                                                 let mut jobs_queue =
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
@@ -708,6 +703,8 @@ where
                     let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
                     msg.id = *rpc_id;
                 }
+
+                info!("被抽取RPC{:?}",msg);
                 let rpc = serde_json::to_vec(&msg)?;
                 let mut byte = BytesMut::new();
                 byte.put_slice(&rpc[0..rpc.len()]);
