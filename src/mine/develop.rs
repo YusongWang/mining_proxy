@@ -51,6 +51,7 @@ impl Mine {
         hostname += "_";
         hostname += s.as_str();
 
+        info!("{}",hostname);
         Ok(Self {
             id,
             config,

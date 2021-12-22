@@ -137,7 +137,7 @@ async fn main() -> Result<()> {
         //develop_mine.accept(state.clone(), job_send, fee_tx.clone(), fee_rx),
         process_dev_state(state.clone(), dev_state_recv),
         proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
-        develop_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
+        develop_accept(state.clone(), config.clone(), fee_tx.clone()),
         print_state(state.clone(), config.clone()),
         clear_state(state.clone(), config.clone()),
     );
