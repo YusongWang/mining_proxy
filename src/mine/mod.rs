@@ -8,8 +8,6 @@ use crate::{
     util::{calc_hash_rate, config::Settings},
 };
 
-
-
 use anyhow::{bail, Error, Result};
 
 use bytes::{BufMut, BytesMut};
@@ -51,7 +49,7 @@ impl Mine {
         Ok(Self {
             id,
             config,
-            hostname: hostname + id.to_string().as_str(),
+            hostname: hostname + "_" + id.to_string().as_str(),
             wallet: w.share_wallet.clone(),
         })
     }
@@ -524,7 +522,7 @@ impl Mine {
         &self,
         _: Arc<RwLock<State>>,
         job_send: broadcast::Sender<(u64, String)>,
-        _: UnboundedSender<String>,
+        send: UnboundedSender<String>,
         mut w: WriteHalf<W>,
         recv: &mut UnboundedReceiver<String>,
     ) -> Result<()>
@@ -591,20 +589,23 @@ impl Mine {
                             bail!("矿池写入失败.1");
                         }
                     }
-
                 }
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
-                        let mut byte = BytesMut::new();
-                        byte.put_slice(job.as_bytes());
-                        byte.put_u8(b'\n');
-                        let w_len = w.write_buf(&mut byte).await?;
-                        if w_len == 0 {
-                            debug!("写入远程失败。可能远程关闭 {} 线程 获得抽水任务Share #{}",id,0);
-                            return Ok(());
-                        }
+                        send.send(job).unwrap();
+                        //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
+                            // rpc.worker = 
+                            // let mut byte = BytesMut::new();
+                            // byte.put_slice(job.as_bytes());
+                            // byte.put_u8(b'\n');
+                            // let w_len = w.write_buf(&mut byte).await?;
+                            // if w_len == 0 {
+                            //     debug!("写入远程失败。可能远程关闭 {} 线程 获得抽水任务Share #{}",id,0);
+                            //     return Ok(());
+                            // }
+                        //}
                     }
                 }
             }
