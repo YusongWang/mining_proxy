@@ -21,11 +21,10 @@ pub async fn accept_tcp(
     config: Settings,
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: UnboundedSender<String>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
     state_send: UnboundedSender<(u64, String)>,
-    dev_state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<(u64, String)>,
 ) -> Result<()> {
-
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tcp On: {}", &address);
@@ -71,9 +70,9 @@ async fn transfer(
     inbound: TcpStream,
     config: Settings,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    fee: UnboundedSender<String>,
+    fee: broadcast::Sender<(u64, String)>,
     state_send: UnboundedSender<(u64, String)>,
-    dev_state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<(u64, String)>,
 ) -> Result<()> {
     let (r_client, w_client) = split(inbound);
 

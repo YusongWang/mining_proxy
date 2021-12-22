@@ -23,9 +23,9 @@ pub async fn accept_tcp_with_tls(
     config: Settings,
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    fee_send: UnboundedSender<String>,
+    fee_send: broadcast::Sender<(u64, String)>,
     state_send: UnboundedSender<(u64, String)>,
-    dev_state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<(u64, String)>,
     cert: Identity,
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.ssl_port);
@@ -77,9 +77,9 @@ async fn transfer_ssl(
     inbound: TcpStream,
     config: Settings,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    fee: UnboundedSender<String>,
+    fee: broadcast::Sender<(u64, String)>,
     state_send: UnboundedSender<(u64, String)>,
-    dev_state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<(u64, String)>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
     let (r_client, w_client) = split(client_stream);
@@ -107,7 +107,6 @@ async fn transfer_ssl(
         }
     };
 
-    
     if stream_type == crate::util::TCP {
         let (outbound, _) = match crate::util::get_pool_stream(&pools) {
             Some((stream, addr)) => (stream, addr),

@@ -596,7 +596,7 @@ impl Mine {
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                         //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
-                            // rpc.worker = 
+                            // rpc.worker =
                             // let mut byte = BytesMut::new();
                             // byte.put_slice(job.as_bytes());
                             // byte.put_u8(b'\n');

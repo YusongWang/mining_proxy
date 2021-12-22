@@ -47,43 +47,40 @@ impl Worker {
     }
 }
 
-
-
 #[test]
 fn test_new_work() {
-    let w = Worker::new("".into(),"".into(),"".into());
-    assert_eq!(w.share_index,0);
-    assert_eq!(w.accept_index,0);
-    assert_eq!(w.invalid_index,0);
+    let w = Worker::new("".into(), "".into(), "".into());
+    assert_eq!(w.share_index, 0);
+    assert_eq!(w.accept_index, 0);
+    assert_eq!(w.invalid_index, 0);
 }
 
 #[test]
 fn test_share_index_add() {
-    let mut w = Worker::new("".into(),"".into(),"".into());
+    let mut w = Worker::new("".into(), "".into(), "".into());
     w.share_index_add();
-    assert_eq!(w.share_index,1);
-    assert_eq!(w.accept_index,0);
-    assert_eq!(w.invalid_index,0);
+    assert_eq!(w.share_index, 1);
+    assert_eq!(w.accept_index, 0);
+    assert_eq!(w.invalid_index, 0);
 }
 
 #[test]
 fn test_share_accept() {
-    let mut w = Worker::new("".into(),"".into(),"".into());
+    let mut w = Worker::new("".into(), "".into(), "".into());
     w.share_accept();
-    assert_eq!(w.share_index,0);
-    assert_eq!(w.accept_index,1);
-    assert_eq!(w.invalid_index,0);
+    assert_eq!(w.share_index, 0);
+    assert_eq!(w.accept_index, 1);
+    assert_eq!(w.invalid_index, 0);
 }
 
 #[test]
 fn test_share_reject() {
-    let mut w = Worker::new("".into(),"".into(),"".into());
+    let mut w = Worker::new("".into(), "".into(), "".into());
     w.share_reject();
-    assert_eq!(w.share_index,0);
-    assert_eq!(w.accept_index,0);
-    assert_eq!(w.invalid_index,1);
+    assert_eq!(w.share_index, 0);
+    assert_eq!(w.accept_index, 0);
+    assert_eq!(w.invalid_index, 1);
 }
-
 
 //TODO 分成四个变量是否可以提升速度。减少同一变量写锁的时间
 // 或者就保留目前的全局状态值。方便处理。
@@ -96,8 +93,8 @@ pub struct State {
     pub mine_jobs: HashMap<String, u64>,
     pub mine_jobs_queue: VecDeque<(u64, String)>,
     pub mine_share: u64,
-    pub develop_jobs: HashSet<String>,
-    pub develop_jobs_queue: VecDeque<String>,
+    pub develop_jobs: HashMap<String, u64>,
+    pub develop_jobs_queue: VecDeque<(u64, String)>,
     pub develop_share: u64,
 }
 
@@ -107,7 +104,7 @@ impl State {
             report_hashrate: HashMap::new(),
             proxy_jobs: HashSet::new(),
             mine_jobs: HashMap::new(),
-            develop_jobs: HashSet::new(),
+            develop_jobs: HashMap::new(),
             proxy_share: 0,
             mine_share: 0,
             develop_share: 0,

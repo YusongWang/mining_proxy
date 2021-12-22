@@ -18,7 +18,7 @@ use tokio::{
 use crate::{
     protocol::{
         rpc::eth::{Client, ClientGetWork, Server, ServerError, ServerId1},
-        CLIENT_GETWORK, CLIENT_LOGIN,
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     state::{State, Worker},
     util::{config::Settings, hex_to_int},
@@ -36,7 +36,7 @@ async fn client_to_server<R, W>(
     mut w: WriteHalf<W>,
     //state_send: UnboundedSender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    dev_fee_send: UnboundedSender<String>,
+    dev_fee_send: broadcast::Sender<(u64, String)>,
     tx: UnboundedSender<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -201,7 +201,7 @@ where
                                 RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
                             *rpc_id = client_json_rpc.id;
                         }
-                        client_json_rpc.id = 99998;
+                        client_json_rpc.id = CLIENT_SUBHASHRATE;
                         if let Some(hashrate) = client_json_rpc.params.get(0) {
                             {
                                 let mut workers =
@@ -254,7 +254,7 @@ where
                         //     }
                         // }
 
-                        client_json_rpc.id = 99999;
+                        client_json_rpc.id = CLIENT_LOGIN;
                         if let Some(wallet) = client_json_rpc.params.get(0) {
                             let mut temp_worker = wallet.clone();
                             temp_worker.push_str(".");
@@ -336,7 +336,7 @@ async fn server_to_client<R, W>(
     mut w: WriteHalf<W>,
     _: broadcast::Sender<(u64, String)>,
     state_send: UnboundedSender<(u64, String)>,
-    dev_state_send: UnboundedSender<String>,
+    dev_state_send: UnboundedSender<(u64, String)>,
     mut rx: UnboundedReceiver<ServerId1>,
 ) -> Result<(), std::io::Error>
 where
@@ -424,7 +424,7 @@ where
                                     return Ok(());
                                 }
                                 // 登录。
-                            } else if server_json_rpc.id == CLIENT_GETWORK {
+                            } else if server_json_rpc.id == CLIENT_SUBHASHRATE {
                                 info!("👍 Worker :{} 算力提交成功", rw_worker);
                             } else if server_json_rpc.id == CLIENT_GETWORK {
 
@@ -494,49 +494,40 @@ where
                                     match secret_number.cmp(&max) {
                                         Ordering::Less => {}
                                         _ => {
-                                                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                                                // let mut jobs_queue =
-                                                //      RwLockWriteGuard::map(state.write().await, |s| &mut s);
-                                                //state.lock().await();
-                                                // 将任务加入队列。
-                                                // {
-                                                //     let mut jobs_queue =
-                                                //     RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-                                                //     if jobs_queue.len() > 0 {
-                                                //         let a = jobs_queue.pop_back().unwrap();
-                                                //         let job = serde_json::from_str::<Server>(&*a)?;
-                                                //         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
-                                                //         let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
-                                                //         let mut byte = BytesMut::new();
-                                                //         byte.put_slice(&rpc[..]);
+                                            let mut jobs_queue =
+                                            RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                            if jobs_queue.len() > 0 {
+                                                let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
+                                                let job = serde_json::from_str::<Server>(&*queue_job)?;
 
-                                                //         byte.put_u8(b'\n');
-                                                //         //debug!("发送指派任务给矿机 {:?}",job);
-                                                //         let w_len = w.write_buf(&mut byte).await?;
-                                                //         if w_len == 0 {
-                                                //             let worker_name: String;
-                                                //             {
-                                                //                 let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                                                //                 worker_name = rw_worker.clone();
-                                                //             }
+                                                let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
+                                                let mut byte = BytesMut::new();
+                                                byte.put_slice(&rpc[..]);
+                                                byte.put_u8(b'\n');
+                                                debug!("发送指派任务给开发者矿机 {:?}",job);
+                                                let w_len = w.write_buf(&mut byte).await?;
+                                                if w_len == 0 {
+                                                    let worker_name: String;
+                                                    {
+                                                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                                                        worker_name = rw_worker.clone();
+                                                    }
 
-                                                //             match remove_worker(state.clone(), worker_name).await {
-                                                //                 Ok(_) => {}
-                                                //                 Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                                                //             }
-                                                //             //debug!("矿机任务写入失败 {:?}",job);
-                                                //             return Ok(());
-                                                //         }
+                                                    match remove_worker(state.clone(), worker_name).await {
+                                                        Ok(_) => {}
+                                                        Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+                                                    }
+                                                    //debug!("矿机任务写入失败 {:?}",job);
+                                                    return Ok(());
+                                                }
 
-                                                //         let b = a.clone();
-                                                //         dev_state_send.send(b).expect("发送任务给开发者失败。");
+                                                dev_state_send.send((phread_id,queue_job)).expect("发送任务给开发者失败。");
+                                                continue;
+                                            } else {
+                                                //几率不高。但是要打日志出来。
+                                                debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                            }
 
-                                                //         continue;
-                                                //     } else {
-                                                //         //几率不高。但是要打日志出来。
-                                                //         debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                //     }
-                                                // }
                                         }
                                     }
                                 }

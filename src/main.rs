@@ -5,6 +5,7 @@ use bytes::BytesMut;
 use clap::{crate_name, crate_version};
 use futures::future;
 use log::{debug, info};
+use mine::develop;
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
 use tokio::{
@@ -56,7 +57,7 @@ async fn main() -> Result<()> {
     // 分配任务给矿机channel
     let (state_send, state_recv) = mpsc::unbounded_channel::<(u64, String)>();
     // 分配dev任务给矿机channel
-    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<String>();
+    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
 
     // let pool = pool::Pool::new(config.clone(), state_send.clone(), dev_state_send.clone());
 
@@ -93,9 +94,7 @@ async fn main() -> Result<()> {
     //let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<(u64,String)>();
 
     // 开发者费用
-    let (fee_tx, fee_rx) = mpsc::unbounded_channel::<String>();
-    let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
-    let develop_mine = mine::develop::Mine::new(config.clone(), develop_account).await?;
+    let (fee_tx, fee_rx) = broadcast::channel::<(u64, String)>(100);
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
@@ -130,6 +129,7 @@ async fn main() -> Result<()> {
         //develop_mine.accept(state.clone(), job_send, fee_tx.clone(), fee_rx),
         process_dev_state(state.clone(), dev_state_recv),
         proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
+        develop_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
         print_state(state.clone(), config.clone()),
         clear_state(state.clone(), config.clone()),
     );
@@ -152,6 +152,34 @@ async fn proxy_accept(
 
     for i in 0..2 {
         let mine = Mine::new(config.clone(), i).await?;
+        let send = jobs_send.clone();
+        //let send1 = jobs_send.clone();
+        //let recv = send.subscribe();
+        let s = state.clone();
+        let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+        v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+    }
+
+    let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
+
+    if let Err(e) = res {
+        info!("抽水矿机 {}", e);
+    }
+
+    Ok(())
+}
+
+// 中转代理抽水服务
+async fn develop_accept(
+    state: Arc<RwLock<State>>,
+    config: Settings,
+    jobs_send: broadcast::Sender<(u64, String)>,
+) -> Result<()> {
+    let mut v = vec![];
+    //let mut a = Arc::new(AtomicU64::new(0));
+    let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
+    for i in 0..50 {
+        let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
         //let recv = send.subscribe();
@@ -192,18 +220,18 @@ async fn process_mine_state(
 
 async fn process_dev_state(
     state: Arc<RwLock<State>>,
-    mut state_recv: UnboundedReceiver<String>,
+    mut state_recv: UnboundedReceiver<(u64, String)>,
 ) -> Result<()> {
     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
     loop {
-        let job = state_recv.recv().await.expect("从队列获得任务失败.");
+        let (phread_id, queue_job) = state_recv.recv().await.expect("从队列获得任务失败.");
         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
-        let job = serde_json::from_str::<Server>(&*job)?;
+        let job = serde_json::from_str::<Server>(&*queue_job)?;
         let job_id = job.result.get(0).expect("封包格式错误");
         {
             let mut develop_jobs =
                 RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
-            if develop_jobs.insert(job_id.clone()) {
+            if let None = develop_jobs.insert(job_id.clone(), phread_id) {
                 //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
             }
             //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);

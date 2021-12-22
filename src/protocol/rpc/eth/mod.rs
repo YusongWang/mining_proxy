@@ -65,4 +65,3 @@ pub struct ServerId1 {
     pub id: u64,
     pub result: bool,
 }
-

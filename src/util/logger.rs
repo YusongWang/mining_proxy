@@ -1,4 +1,3 @@
-
 pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> {
     // parse log_laver
     let lavel = match log_level {
