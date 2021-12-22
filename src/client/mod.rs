@@ -168,9 +168,9 @@ where
 
                         //写入公共rpc_id
                         {
-                            let mut rpc_id =
+                            let mut id =
                                 RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
-                            *rpc_id = client_json_rpc.id;
+                            *id = client_json_rpc.id;
                         }
 
                         client_json_rpc.id = rpc_id as u64;
