@@ -563,7 +563,7 @@ where
                                             {
                                                 let mut jobs_queue =
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-                                                if jobs_queue.len() > 0{
+                                                if jobs_queue.len() > 0 {
                                                     let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
                                                     let job = serde_json::from_str::<Server>(&*queue_job)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
@@ -587,8 +587,6 @@ where
                                                         }
                                                         return Ok(());
                                                     }
-
-                                                    
                                                     state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
 
                                                     continue;
