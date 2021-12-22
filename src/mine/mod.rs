@@ -11,7 +11,7 @@ use anyhow::{bail, Error, Result};
 
 use bytes::{BufMut, BytesMut};
 
-use futures::future;
+
 use log::{debug, info};
 
 use tokio::{
@@ -142,9 +142,11 @@ impl Mine {
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         if self.config.share_tcp_address.is_empty() {
+            info!("Share TCP 地址不能为空");
             return Ok(());
         }
         if self.config.share_tcp_address[0] == "" {
+            info!("Share TCP 地址不能为空");
             return Ok(());
         }
 
@@ -196,13 +198,16 @@ impl Mine {
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         if self.config.share_ssl_address.is_empty() {
-            return Ok(());
-        }
-        if self.config.share_ssl_address[0] == "" {
+            info!("Share SSL 地址不能为空");
             return Ok(());
         }
 
-        
+        if self.config.share_ssl_address[0] == "" {
+            info!("Share SSL 地址不能为空");
+            return Ok(());
+        }
+
+
         loop {
             let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
                 &self.config.share_ssl_address,
