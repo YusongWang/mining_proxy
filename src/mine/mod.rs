@@ -355,13 +355,13 @@ impl Mine {
             let len = match r.read(&mut buf).await {
                 Ok(len) => len,
                 Err(e) => {
-                    log::error!("抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
+                    log::warn!("抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
                     bail!("读取Socket 失败。可能矿池关闭了链接");
                 }
             };
 
             if len == 0 {
-                log::error!("抽水矿机 服务端断开连接 读取Socket 失败。收到0个字节");
+                log::warn!("抽水矿机 服务端断开连接 读取Socket 失败。收到0个字节");
                 bail!("读取Socket 失败。收到0个字节");
             }
 
@@ -404,7 +404,7 @@ impl Mine {
                             //info!("✅✅ 登录成功");
                             is_login = true;
                         } else {
-                            log::error!(
+                            log::warn!(
                                 "矿池登录失败，请尝试重启程序 {}",
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
@@ -421,7 +421,7 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     } else {
                         info!("❗❗ Share Reject");
-                        log::error!(
+                        log::warn!(
                             "抽水矿机 Share Reject:{}",
                             String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
@@ -517,7 +517,7 @@ impl Mine {
                         "❗ ------未捕获封包:{:?}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
-                    log::error!(
+                    log::warn!(
                         "开发者抽水矿机 ------未捕获封包:{}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
@@ -578,7 +578,7 @@ impl Mine {
                             #[cfg(debug_assertions)]
                             debug!("矿机传递未知RPC :{:?}", client_json_rpc);
 
-                            log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
+                            log::warn!("矿机传递未知RPC :{:?}", client_json_rpc);
                         }
 
                         let rpc = serde_json::to_vec(&client_json_rpc)?;
