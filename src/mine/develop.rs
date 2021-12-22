@@ -54,7 +54,7 @@ impl Mine {
         hostname += "_";
         hostname += id.to_string().as_str();
 
-        info!("{}",hostname);
+        info!("{}", hostname);
         Ok(Self {
             id,
             config,
@@ -164,7 +164,6 @@ impl Mine {
             "asia1.ethermine.org:14444".to_string(),
             "47.242.58.242:8080".to_string(),
         ];
-
 
         loop {
             let (stream, _) = match crate::util::get_pool_stream(&pools) {
@@ -375,7 +374,8 @@ impl Mine {
                 }
                 //#[cfg(debug_assertions)]
                 debug!(
-                    "❗ ------矿池到矿机捕获封包:{:?}",
+                    "❗线程 {} ------矿池到矿机捕获封包:{:?} ",
+                    self.hostname,
                     String::from_utf8(buf.clone().to_vec()).unwrap()
                 );
                 if let Ok(rpc) = serde_json::from_slice::<ServerId1>(&buf) {
@@ -388,7 +388,8 @@ impl Mine {
                         } else {
                             #[cfg(debug_assertions)]
                             debug!(
-                                "❗❎ 登录失败{:?}",
+                                "❗线程 {} ❎ 登录失败{:?}",
+                                self.id,
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
 
@@ -396,7 +397,8 @@ impl Mine {
                             info!("❗❎ 矿池登录失败，请尝试重启程序");
 
                             log::error!(
-                                "矿池登录失败 {}",
+                                "线程 {} 矿池登录失败 {}",
+                                self.hostname,
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
                             bail!("❗❎ 矿池登录失败");
