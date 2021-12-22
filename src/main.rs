@@ -166,6 +166,7 @@ async fn proxy_accept(
         let s = state.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+
     }
 
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;

@@ -1,4 +1,5 @@
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{distributions::Alphanumeric, Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 use std::sync::Arc;
 
 use crate::{
@@ -88,7 +89,7 @@ impl Mine {
         //     info!("✅✅ 开启TCP矿池抽水");
         //     self.accept_tcp(state, jobs_send.clone(), send, recv).await
         // } else if self.config.share == 2 {
-        info!("✅✅ 开启TLS矿池抽水");
+        //info!("✅✅ 开启TLS矿池抽水");
         self.accept_tcp_with_tls(state, jobs_send, send, recv).await
         // } else {
         //     info!("✅✅ 未开启抽水");
@@ -104,7 +105,11 @@ impl Mine {
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         //let mut v = vec![];
-        info!("✅✅ new_accept");
+        //info!("✅✅ new_accept");
+        let mut rng = ChaCha20Rng::from_entropy();
+        let secret_number = rng.gen_range(1..1000);
+        let secret = rng.gen_range(1..10);
+        sleep(std::time::Duration::new(secret, secret_number)).await;
         self.new_worker(state.clone(), jobs_send.clone(), send, recv)
             .await
         // for i in 0..50 {

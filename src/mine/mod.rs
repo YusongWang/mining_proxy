@@ -14,6 +14,8 @@ use bytes::{BufMut, BytesMut};
 
 use log::{debug, info};
 
+use rand::{SeedableRng, Rng};
+use rand_chacha::ChaCha20Rng;
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     net::TcpStream,
@@ -99,7 +101,11 @@ impl Mine {
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         //let mut v = vec![];
-        info!("✅✅ new_accept");
+        //info!("✅✅ new_accept");
+        let mut rng = ChaCha20Rng::from_entropy();
+        let secret_number = rng.gen_range(1..1000);
+        let secret = rng.gen_range(1..10);
+        sleep(std::time::Duration::new(secret, secret_number)).await;
         self.new_worker(state.clone(), jobs_send.clone(), send, recv)
             .await
         // for i in 0..50 {
