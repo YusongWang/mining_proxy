@@ -119,10 +119,10 @@ where
                                     if let Some(thread_id) = mine.remove(job_id) {
                                         let rpc = serde_json::to_string(&client_json_rpc)?;
 
-                                        debug!(
-                                            "------- 收到 指派任务。可以提交给矿池了 {:?}",
-                                            job_id
-                                        );
+                                        // debug!(
+                                        //     "------- 收到 指派任务。可以提交给矿池了 {:?}",
+                                        //     job_id
+                                        // );
 
                                         proxy_fee_sender
                                             .send((thread_id, rpc))
@@ -428,7 +428,7 @@ where
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
                                     );
                                     info!("矿池登录失败");
-                                    log::warn!(
+                                    log::error!(
                                         "矿池登录失败 {}",
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
                                     );
@@ -453,14 +453,14 @@ where
                                         } else {
                                             w.invalid_index = w.invalid_index + 1;
                                             info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
-                                            log::warn!(
+                                            log::error!(
                                                 " Worker :{} Share #{} Reject",
                                                 rw_worker,rpc_id
                                             );
                                         }
                                     } else {
                                         info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
-                                        log::warn!(
+                                        log::error!(
                                             "❗ Worker :{} Got Unpackage Idx {}",
                                             rw_worker,rpc_id
                                         );
@@ -539,8 +539,8 @@ where
                                             } else {
                                                 //几率不高。但是要打日志出来。
                                                 //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                log::warn!(
-                                                    "开发者-跳过本次抽水。没有任务处理了"
+                                                log::error!(
+                                                    "跳过本次抽水。没有任务处理了99"
                                                 );
                                             }
 
@@ -596,8 +596,8 @@ where
                                                 } else {
                                                     //几率不高。但是要打日志出来。
                                                     //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                    log::warn!(
-                                                        "抽水-跳过本次抽水。没有任务处理了"
+                                                    log::error!(
+                                                        "跳过本次抽水。没有任务处理了88"
                                                     );
                                                 }
                                             }
@@ -626,7 +626,7 @@ where
                         }
                         continue;
                     } else {
-                        log::warn!(
+                        log::error!(
                             "❗ ------未捕获封包:{:?}",
                             buf
                         );
@@ -718,7 +718,6 @@ where
                     msg.id = *rpc_id;
                 }
 
-                info!("被抽取RPC{:?}",msg);
                 let rpc = serde_json::to_vec(&msg)?;
                 let mut byte = BytesMut::new();
                 byte.put_slice(&rpc[0..rpc.len()]);

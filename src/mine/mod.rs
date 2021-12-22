@@ -83,13 +83,13 @@ impl Mine {
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         if self.config.share == 1 {
-            info!("✅✅ 开启TCP矿池抽水");
+            //info!("✅✅ 开启TCP矿池抽水");
             self.accept_tcp(state, jobs_send.clone(), send, recv).await
         } else if self.config.share == 2 {
-            info!("✅✅ 开启TLS矿池抽水");
+            //info!("✅✅ 开启TLS矿池抽水");
             self.accept_tcp_with_tls(state, jobs_send, send, recv).await
         } else {
-            info!("✅✅ 未开启抽水");
+            //info!("✅✅ 未开启抽水");
             Ok(())
         }
     }
@@ -355,13 +355,13 @@ impl Mine {
             let len = match r.read(&mut buf).await {
                 Ok(len) => len,
                 Err(e) => {
-                    log::warn!("抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
+                    log::error!("抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
                     bail!("读取Socket 失败。可能矿池关闭了链接");
                 }
             };
 
             if len == 0 {
-                log::warn!("抽水矿机 服务端断开连接 读取Socket 失败。收到0个字节");
+                log::error!("抽水矿机 服务端断开连接 读取Socket 失败。收到0个字节");
                 bail!("读取Socket 失败。收到0个字节");
             }
 
@@ -404,7 +404,7 @@ impl Mine {
                             //info!("✅✅ 登录成功");
                             is_login = true;
                         } else {
-                            log::warn!(
+                            log::error!(
                                 "矿池登录失败，请尝试重启程序 {}",
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
@@ -421,7 +421,7 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     } else {
                         info!("❗❗ Share Reject");
-                        log::warn!(
+                        log::error!(
                             "抽水矿机 Share Reject:{}",
                             String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
@@ -517,7 +517,7 @@ impl Mine {
                         "❗ ------未捕获封包:{:?}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
-                    log::warn!(
+                    log::error!(
                         "开发者抽水矿机 ------未捕获封包:{}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
@@ -542,86 +542,79 @@ impl Mine {
 
         loop {
             tokio::select! {
-                Some(client_msg) = recv.recv() => {
+                          Some(client_msg) = recv.recv() => {
 
-                    #[cfg(debug_assertions)]
-                    debug!("-------- M to S RPC #{:?}", client_msg);
-                    if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
-                    {
-                        if client_json_rpc.method == "eth_submitWork" {
-                            //client_json_rpc.id = 40;
-                            client_json_rpc.id = 499;
-                            client_json_rpc.worker = self.hostname.clone();
-                            #[cfg(debug_assertions)]
-                            debug!(
-                                "🚜🚜 抽水矿机 :{} Share #{:?}",
-                                client_json_rpc.worker, client_json_rpc
-                            );
-                            info!(
-                                "✅✅ 抽水矿机 :{} Share #{:?}",
-                                client_json_rpc.worker, client_json_rpc.id
-                            );
+                              #[cfg(debug_assertions)]
+                              debug!("-------- M to S RPC #{:?}", client_msg);
+                              if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
+                              {
+                                  if client_json_rpc.method == "eth_submitWork" {
+                                      //client_json_rpc.id = 40;
+                                      client_json_rpc.id = 499;
+                                      client_json_rpc.worker = self.hostname.clone();
 
-                        } else if client_json_rpc.method == "eth_submitHashrate" {
-                            #[cfg(debug_assertions)]
-                            if let Some(hashrate) = client_json_rpc.params.get(0) {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "✅✅ 矿机 :{} 提交本地算力 {}",
-                                    client_json_rpc.worker, hashrate
-                                );
-                            }
-                        } else if client_json_rpc.method == "eth_submitLogin" {
-                            #[cfg(debug_assertions)]
-                            debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
-                        } else {
-                            #[cfg(debug_assertions)]
-                            debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                                      info!("✅✅ 抽水 Share #{:?}",client_json_rpc.id);
 
-                            log::warn!("矿机传递未知RPC :{:?}", client_json_rpc);
-                        }
+                                  } else if client_json_rpc.method == "eth_submitHashrate" {
+                                      #[cfg(debug_assertions)]
+                                      if let Some(hashrate) = client_json_rpc.params.get(0) {
+                                          #[cfg(debug_assertions)]
+                                          debug!(
+                                              "✅✅ 矿机 :{} 提交本地算力 {}",
+                                              client_json_rpc.worker, hashrate
+                                          );
+                                      }
+                                  } else if client_json_rpc.method == "eth_submitLogin" {
+                                      #[cfg(debug_assertions)]
+                                      debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                                  } else {
+                                      #[cfg(debug_assertions)]
+                                      debug!("矿机传递未知RPC :{:?}", client_json_rpc);
 
-                        let rpc = serde_json::to_vec(&client_json_rpc)?;
-                        let mut byte = BytesMut::new();
-                        byte.put_slice(&rpc[0..rpc.len()]);
-                        byte.put_u8(b'\n');
-                        let w_len = w.write_buf(&mut byte).await?;
-                        if w_len == 0 {
-                            bail!("矿池写入失败.0");
-                        }
-                    } else if let Ok(client_json_rpc) =
-                        serde_json::from_slice::<ClientGetWork>(client_msg.as_bytes())
-                    {
-                        let rpc = serde_json::to_vec(&client_json_rpc)?;
-                        let mut byte = BytesMut::new();
-                        byte.put_slice(&rpc[0..rpc.len()]);
-                        byte.put_u8(b'\n');
-                        let w_len = w.write_buf(&mut byte).await?;
-                        if w_len == 0 {
-                            bail!("矿池写入失败.1");
-                        }
-                    }
-                }
+                                      log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
+                                  }
 
-                Ok((id,job)) = jobs_recv.recv() => {
-                    if id == self.id {
-                        #[cfg(debug_assertions)]
-                        debug!("{} 线程 获得抽水任务Share #{}",id,0);
-                        send.send(job).unwrap();
-                        //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
-                            // rpc.worker =
-                            // let mut byte = BytesMut::new();
-                            // byte.put_slice(job.as_bytes());
-                            // byte.put_u8(b'\n');
-                            // let w_len = w.write_buf(&mut byte).await?;
-                            // if w_len == 0 {
-                            //     debug!("写入远程失败。可能远程关闭 {} 线程 获得抽水任务Share #{}",id,0);
-                            //     return Ok(());
-                            // }
-                        //}
-                    }
-                }
-            }
+                                  let rpc = serde_json::to_vec(&client_json_rpc)?;
+                                  let mut byte = BytesMut::new();
+                                  byte.put_slice(&rpc[0..rpc.len()]);
+                                  byte.put_u8(b'\n');
+                                  let w_len = w.write_buf(&mut byte).await?;
+                                  if w_len == 0 {
+                                      bail!("矿池写入失败.0");
+                                  }
+                              } else if let Ok(client_json_rpc) =
+                                  serde_json::from_slice::<ClientGetWork>(client_msg.as_bytes())
+                              {
+                                  let rpc = serde_json::to_vec(&client_json_rpc)?;
+                                  let mut byte = BytesMut::new();
+                                  byte.put_slice(&rpc[0..rpc.len()]);
+                                  byte.put_u8(b'\n');
+                                  let w_len = w.write_buf(&mut byte).await?;
+                                  if w_len == 0 {
+                                      bail!("矿池写入失败.1");
+                                  }
+                              }
+                          }
+
+                          Ok((id,job)) = jobs_recv.recv() => {
+                              if id == self.id {
+                                  #[cfg(debug_assertions)]
+                                  debug!("{} 线程 获得抽水任务Share #{}",id,0);
+                                  send.send(job).unwrap();
+                                  //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
+                                      // rpc.worker =
+                                      // let mut byte = BytesMut::new();
+                                      // byte.put_slice(job.as_bytes());
+                                      // byte.put_u8(b'\n');
+                                      // let w_len = w.write_buf(&mut byte).await?;
+                                      // if w_len == 0 {
+                                      //     debug!("写入远程失败。可能远程关闭 {} 线程 获得抽水任务Share #{}",id,0);
+                                      //     return Ok(());
+                                      // }
+                                  //}
+                              }
+                          }
+                      }
         }
     }
 

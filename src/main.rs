@@ -171,7 +171,7 @@ async fn proxy_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
     if let Err(e) = res {
-        log::warn!("抽水矿机 {}", e);
+        log::error!("抽水矿机 {}", e);
         info!("抽水矿机 {}", e);
     }
 
@@ -200,7 +200,7 @@ async fn develop_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
     if let Err(e) = res {
-        log::warn!("开发者抽水矿机 {}", e);
+        log::error!("开发者抽水矿机 {}", e);
         //info!("抽水矿机 {}", e);
     }
 

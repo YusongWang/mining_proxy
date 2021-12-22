@@ -103,7 +103,7 @@ async fn transfer(
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
-        info!("start client and server");
+
         let res = tokio::try_join!(
             client_to_server(
                 state.clone(),
@@ -133,7 +133,7 @@ async fn transfer(
         );
 
         if let Err(err) = res {
-            info!("矿机错误或者代理池错误: {}", err);
+            //info!("矿机错误或者代理池错误: {}", err);
         }
     } else if stream_type == crate::util::SSL {
         let (outbound, _) =
@@ -152,7 +152,7 @@ async fn transfer(
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
-        info!("start client and server");
+        
         let res = tokio::try_join!(
             client_to_server(
                 state.clone(),
@@ -182,7 +182,7 @@ async fn transfer(
         );
 
         if let Err(err) = res {
-            info!("Error 矿机错误或者代理池错误: {}", err);
+            //info!("Error 矿机错误或者代理池错误: {}", err);
         }
     } else {
         info!("未选择矿池方式");
