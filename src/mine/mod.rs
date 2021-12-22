@@ -7,6 +7,9 @@ use crate::{
     state::State,
     util::{calc_hash_rate, config::Settings},
 };
+
+
+
 use anyhow::{bail, Error, Result};
 
 use bytes::{BufMut, BytesMut};
@@ -344,7 +347,7 @@ impl Mine {
         let mut diff = "".to_string();
 
         loop {
-            let mut buf = vec![0; 10240];
+            let mut buf = vec![0; 4096];
             let len = match r.read(&mut buf).await {
                 Ok(len) => len,
                 Err(e) => {
@@ -397,6 +400,7 @@ impl Mine {
                             info!("✅✅ 登录成功");
                             is_login = true;
                         } else {
+                            #[cfg(debug_assertions)]
                             debug!(
                                 "❗❎ 登录失败{:?}",
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
@@ -410,11 +414,18 @@ impl Mine {
                         }
                         // 登录。
                     } else if rpc.id == CLIENT_SUBHASHRATE {
-                        //info!("🚜🚜 算力提交成功");
+                        #[cfg(debug_assertions)]
+                        info!("🚜🚜 算力提交成功");
                     } else if rpc.result {
                         info!("👍👍 Share Accept");
                     } else {
-                        info!("❗❗ Share Reject",);
+                        info!("❗❗ Share Reject");
+
+                        #[cfg(debug_assertions)]
+                        debug!(
+                            "❗❗ Share Reject{}",
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
+                        );
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
                     if let Some(job_diff) = server_json_rpc.result.get(3) {
@@ -502,6 +513,8 @@ impl Mine {
                         "❗ ------未捕获封包:{:?}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
+
+                    //TODO 上报
                 }
             }
         }

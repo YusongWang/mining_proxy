@@ -16,7 +16,10 @@ use tokio::{
 };
 
 use crate::{
-    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerError, ServerId1},
+    protocol::{
+        rpc::eth::{Client, ClientGetWork, Server, ServerError, ServerId1},
+        CLIENT_GETWORK, CLIENT_LOGIN,
+    },
     state::{State, Worker},
     util::{config::Settings, hex_to_int},
 };
@@ -124,7 +127,6 @@ where
                                             job_id
                                         );
 
-                                        
                                         proxy_fee_sender
                                             .send((thread_id, rpc))
                                             .expect("可以提交给矿池任务失败。通道异常了");
@@ -298,7 +300,7 @@ where
                         let mut rpc_id = RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
                         *rpc_id = client_json_rpc.id;
                     }
-                    client_json_rpc.id = 99997;
+                    client_json_rpc.id = CLIENT_GETWORK;
                     //debug!("获得任务:{:?}", client_json_rpc);
                     let mut rpc = serde_json::to_string(&client_json_rpc)?;
                     rpc.push_str("\r\n");
@@ -398,103 +400,59 @@ where
                         continue;
                     }
 
-                #[cfg(debug_assertions)]
-                debug!("Got jobs {}",buf);
-                if !is_login {
-                    if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
-                        if server_json_rpc.id == 99999 && server_json_rpc.result {
-                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                            let wallet:Vec<_>= rw_worker.split(".").collect();
-                            let mut workers =
-                            RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-
-                            workers.insert(rw_worker.clone(),Worker::new(
-                                rw_worker.clone(),
-                                wallet[1].clone().to_string(),
-                                wallet[0].clone().to_string(),
-                            ));
-                            is_login = true;
-                            info!("✅ {} 登录成功",rw_worker);
-                        } else {
-                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                            info!("❎ {} 登录失败",rw_worker);
-                            return Ok(());
-                        }
-
-
-                        {
-                            let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
-                            server_json_rpc.id = *rpc_id;
-                        }
-                        let to_client_buf = serde_json::to_string(&server_json_rpc).expect("格式化RPC失败");
-                        let mut byte = BytesMut::from(to_client_buf.as_str());
-                        byte.put_u8(b'\n');
-                        let len = w.write_buf(&mut byte).await?;
-                        if len == 0 {
-                            info!("❗ 服务端写入失败 断开连接.");
-                            let worker_name: String;
-                            {
-                                let guard = worker.read().await;
-                                let rw_worker = RwLockReadGuard::map(guard, |s| s);
-                                worker_name = rw_worker.to_string();
-                            }
-
-                            info!("worker {} ",worker_name);
-                            match remove_worker(state.clone(), worker_name).await {
-                                Ok(_) => {}
-                                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                            }
-                            return Ok(());
-                        }
-
-                        continue;
-                    } else {
-                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        info!("❎ {} 登录失败 01",rw_worker);
-                        // debug!(
-                        //     "❎ 登录失败{:?}",
-                        //     String::from_utf8(buf.clone().to_vec()).unwrap()
-                        // );
-                        return Ok(());
-                    }
-                } else {
+                    #[cfg(debug_assertions)]
+                    debug!("Got jobs {}",buf);
                     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
 
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         let mut workers =
                         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
                         if let Some(w) = workers.get_mut(&rw_worker.clone()) {
-                        let mut rpc_id = 0;
-
-                        if server_json_rpc.id == 99998 {
-                            info!("👍 Worker :{} 算力提交成功", rw_worker);
-                        } else if server_json_rpc.id == 99997 {
-
-                        } else  {
-                            rpc_id = w.share_index;
-
-                            if server_json_rpc.id as u128 == rpc_id{
+                            let mut rpc_id = 0;
+                            if server_json_rpc.id == CLIENT_LOGIN {
                                 if server_json_rpc.result == true {
-                                    // for w in &mut *workers {
-                                    //     if w.worker == *rw_worker {
-                                            w.accept_index = w.accept_index + 1;
-
-                                    //     }
-                                    // }
-                                    info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);
+                                    info!("✅ 登录成功");
+                                    is_login = true;
                                 } else {
-                                    // for w in &mut *workers {
-                                    //     if w.worker == *rw_worker {
-                                            w.invalid_index = w.invalid_index + 1;
-                                    //     }
-                                    // }
-                                    info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
-                                }
+                                    #[cfg(debug_assertions)]
+                                    debug!(
+                                        " 登录失败{:?}",
+                                        String::from_utf8(buf.as_bytes().to_vec()).unwrap()
+                                    );
+                                    info!(" 矿池登录失败，请尝试重启程序");
 
-                            } else {
-                                info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
+                                    return Ok(());
+                                }
+                                // 登录。
+                            } else if server_json_rpc.id == CLIENT_GETWORK {
+                                info!("👍 Worker :{} 算力提交成功", rw_worker);
+                            } else if server_json_rpc.id == CLIENT_GETWORK {
+
+                            } else  {
+                                rpc_id = w.share_index;
+
+                                if server_json_rpc.id as u128 == rpc_id{
+                                    if server_json_rpc.result == true {
+                                        // for w in &mut *workers {
+                                        //     if w.worker == *rw_worker {
+                                                w.accept_index = w.accept_index + 1;
+
+                                        //     }
+                                        // }
+                                        info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);
+                                    } else {
+                                        // for w in &mut *workers {
+                                        //     if w.worker == *rw_worker {
+                                                w.invalid_index = w.invalid_index + 1;
+                                        //     }
+                                        // }
+                                        info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
+                                    }
+
+                                } else {
+                                    info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
+                                }
                             }
-                        }
                         }
 
                         {
@@ -662,54 +620,6 @@ where
                             return Ok(());
                         }
                         continue;
-                    } else if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerError>(&buf) {
-                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        let mut workers =
-                        RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-                        let mut rpc_id = 0;
-                        if let Some(w) = workers.get_mut(&rw_worker.clone()) {
-                        // for w in &mut *workers {
-                        //     if w.worker == *rw_worker {
-                                w.invalid_index = w.invalid_index + 1;
-                                rpc_id = w.share_index;
-                        //     }
-                        // }
-                        }
-                        // if let Ok(rpc) = serde_json::from_str::<BinanceError>(&rpc.error){
-                        //     if rpc.code <=
-                        // }
-
-                        info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
-                        {
-                            let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
-                            server_json_rpc.id = *rpc_id;
-                        }
-                        let to_client_buf = serde_json::to_string(&server_json_rpc).expect("格式化RPC失败");
-                        let mut byte = BytesMut::from(to_client_buf.as_str());
-                        byte.put_u8(b'\n');
-                        let len = w.write_buf(&mut byte).await?;
-                        if len == 0 {
-                            info!("❗ 服务端写入失败 断开连接.");
-                            let worker_name: String;
-                            {
-                                let guard = worker.read().await;
-                                let rw_worker = RwLockReadGuard::map(guard, |s| s);
-                                worker_name = rw_worker.to_string();
-                            }
-
-                            info!("worker {} ",worker_name);
-                            match remove_worker(state.clone(), worker_name).await {
-                                Ok(_) => {}
-                                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                            }
-                            return Ok(());
-                        }
-
-                        continue;
-                        // debug!(
-                        //     "❗ ------未捕获封包:{:?}",
-                        //     String::from_utf8(buf.clone().to_vec()).unwrap()
-                        // );
                     } else {
                         debug!(
                             "❗ ------未捕获封包:{:?}",
@@ -737,10 +647,60 @@ where
                             return Ok(());
                         }
                     }
-                }
+
+                    // } else if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerError>(&buf) {
+                    //     let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                    //     let mut workers =
+                    //     RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+                    //     let mut rpc_id = 0;
+                    //     if let Some(w) = workers.get_mut(&rw_worker.clone()) {
+                    //     // for w in &mut *workers {
+                    //     //     if w.worker == *rw_worker {
+                    //             w.invalid_index = w.invalid_index + 1;
+                    //             rpc_id = w.share_index;
+                    //     //     }
+                    //     // }
+                    //     }
+                    //     // if let Ok(rpc) = serde_json::from_str::<BinanceError>(&rpc.error){
+                    //     //     if rpc.code <=
+                    //     // }
+
+                    //     info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
+                    //     {
+                    //         let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
+                    //         server_json_rpc.id = *rpc_id;
+                    //     }
+                    //     let to_client_buf = serde_json::to_string(&server_json_rpc).expect("格式化RPC失败");
+                    //     let mut byte = BytesMut::from(to_client_buf.as_str());
+                    //     byte.put_u8(b'\n');
+                    //     let len = w.write_buf(&mut byte).await?;
+                    //     if len == 0 {
+                    //         info!("❗ 服务端写入失败 断开连接.");
+                    //         let worker_name: String;
+                    //         {
+                    //             let guard = worker.read().await;
+                    //             let rw_worker = RwLockReadGuard::map(guard, |s| s);
+                    //             worker_name = rw_worker.to_string();
+                    //         }
+
+                    //         info!("worker {} ",worker_name);
+                    //         match remove_worker(state.clone(), worker_name).await {
+                    //             Ok(_) => {}
+                    //             Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+                    //         }
+                    //         return Ok(());
+                    //     }
+
+                    //     continue;
+                    //     // debug!(
+                    //     //     "❗ ------未捕获封包:{:?}",
+                    //     //     String::from_utf8(buf.clone().to_vec()).unwrap()
+                    //     // );
+
+                    }
 
 
-            }
+
             },
             id1 = rx.recv() => {
                 let mut msg = id1.expect("解析Server封包错误");
@@ -756,21 +716,7 @@ where
                 if w_len == 0 {
                     return Ok(());
                 }
-            },
-            // job = jobs_recv.recv() => {
-            //     let job = job.expect("解析Server封包错误");
-            //     let rpc = serde_json::from_str::<Server>(&job)?;
-            //     let rpc = serde_json::to_vec(&rpc).expect("格式化RPC失败");
-            //     //TODO 判断work是发送给那个矿机的。目前全部接受。
-            //     debug!("发送指派任务给矿机 {:?}",job);
-            //     let mut byte = BytesMut::new();
-            //     byte.put_slice(&rpc[..]);
-            //     byte.put_u8(b'\n');
-            //     let w_len = w.write_buf(&mut byte).await?;
-            //     if w_len == 0 {
-            //         return Ok(());
-            //     }
-            // }
+            }
         }
     }
 }

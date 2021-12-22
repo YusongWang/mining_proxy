@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
         .await
         .expect("证书路径错误");
 
-    let mut buffer = BytesMut::with_capacity(10240);
+    let mut buffer = BytesMut::with_capacity(4096);
     let read_key_len = p12.read_buf(&mut buffer).await?;
     info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
@@ -150,7 +150,7 @@ async fn proxy_accept(
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
 
-    for i in 0..50 {
+    for i in 0..2 {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
