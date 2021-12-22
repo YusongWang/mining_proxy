@@ -84,7 +84,7 @@ async fn transfer(
     let (stream_type, pools) = match crate::util::get_pool_ip_and_type(&config) {
         Some(pool) => pool,
         None => {
-            info!("所有TCP矿池均不可链接。请修改后重试");
+            info!("未匹配到矿池 或 均不可链接。请修改后重试");
             return Ok(());
         }
     };
@@ -183,7 +183,7 @@ async fn transfer(
         );
 
         if let Err(err) = res {
-            info!("矿机错误或者代理池错误: {}", err);
+            info!("Error 矿机错误或者代理池错误: {}", err);
         }
     } else {
         info!("未选择矿池方式");

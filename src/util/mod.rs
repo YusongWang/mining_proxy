@@ -72,19 +72,10 @@ pub fn calc_hash_rate(my_hash_rate: u64, share_rate: f32) -> u64 {
 
 // 从配置文件返回 连接矿池类型及连接地址
 pub fn get_pool_ip_and_type(config: &config::Settings) -> Option<(i32, Vec<String>)> {
-    // if config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] == "" || if !config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] != "" {
-    //     Ok((2,config.pool_ssl_address.clone()))
-    // }else{
-    //     Ok((1,config.pool_ssl_address.clone()))
-    // }
-    if (config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] == "")
-        && (!config.pool_ssl_address.is_empty() && config.pool_ssl_address[0] != "")
-    {
-        Some((SSL, config.pool_ssl_address.clone()))
-    } else if (config.pool_ssl_address.is_empty() && config.pool_ssl_address[0] == "")
-        && (!config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] != "")
-    {
+    if !config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] != "" {
         Some((TCP, config.pool_tcp_address.clone()))
+    } else if !config.pool_ssl_address.is_empty() && config.pool_ssl_address[0] != "" {
+        Some((SSL, config.pool_ssl_address.clone()))
     } else {
         None
     }
