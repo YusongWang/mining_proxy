@@ -400,16 +400,28 @@ where
                     //#[cfg(debug_assertions)]
                     debug!("Got jobs {}",buf);
                     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
-
+                        
                         let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                        let mut workers =
-                        RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-                        if let Some(w) = workers.get_mut(&rw_worker.clone()) {
-                            let mut rpc_id = 0;
+                        // let mut workers =
+                        // RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+                        // if let Some(w) = workers.get_mut(&rw_worker.clone()) {
+                                let mut rpc_id = 0;
                             if server_json_rpc.id == CLIENT_LOGIN {
-                                if server_json_rpc.result == true {
-                                    info!("✅ 登录成功");
+                                if server_json_rpc.result {
+
+                                    let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+                                    let wallet:Vec<_>= rw_worker.split(".").collect();
+                                    let mut workers =
+                                    RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+        
+                                    workers.insert(rw_worker.clone(),Worker::new(
+                                        rw_worker.clone(),
+                                        wallet[1].clone().to_string(),
+                                        wallet[0].clone().to_string(),
+                                    ));
                                     is_login = true;
+                                    info!("✅ {} 登录成功",rw_worker);
+                                
                                 } else {
                                     #[cfg(debug_assertions)]
                                     debug!(
@@ -421,7 +433,7 @@ where
                                         "矿池登录失败 {}",
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
                                     );
-                                    return Ok(());
+                                    //return Ok(());
                                 }
                                 // 登录。
                             } else if server_json_rpc.id == CLIENT_SUBHASHRATE {
@@ -429,8 +441,8 @@ where
                             } else if server_json_rpc.id == CLIENT_GETWORK {
 
                             } else  {
+                                
                                 rpc_id = w.share_index;
-
                                 if server_json_rpc.id as u128 == rpc_id{
                                     if server_json_rpc.result == true {
                                         // for w in &mut *workers {
@@ -461,8 +473,7 @@ where
                                     );
                                 }
                             }
-                        }
-
+                        
                         {
                             let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
                             server_json_rpc.id = *rpc_id;
