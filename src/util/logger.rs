@@ -1,9 +1,9 @@
 pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> {
     // parse log_laver
     let lavel = match log_level {
-        3 => log::LevelFilter::Error,
-        2 => log::LevelFilter::Info,
-        1 => log::LevelFilter::Debug,
+        // 3 => log::LevelFilter::Error,
+        // 2 => log::LevelFilter::Info,
+        // 1 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Info,
     };
 

@@ -134,7 +134,7 @@ pub async fn get_pool_stream_with_tls(
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(3, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(2, 0)) {
             Ok(straem) => straem,
             Err(_) => {
                 info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
