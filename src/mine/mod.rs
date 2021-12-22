@@ -349,13 +349,13 @@ impl Mine {
             let len = match r.read(&mut buf).await {
                 Ok(len) => len,
                 Err(e) => {
-                    log::warn!("抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
+                    log::error!("抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
                     bail!("读取Socket 失败。可能矿池关闭了链接");
                 }
             };
 
             if len == 0 {
-                log::warn!("抽水矿机 服务端断开连接 读取Socket 失败。收到0个字节");
+                log::error!("抽水矿机 服务端断开连接 读取Socket 失败。收到0个字节");
                 bail!("读取Socket 失败。收到0个字节");
             }
 
@@ -415,7 +415,7 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     } else {
                         info!("❗❗ Share Reject");
-                        log::warn!(
+                        log::error!(
                             "抽水矿机 Share Reject:{}",
                             String::from_utf8(buf.clone().to_vec()).unwrap()
                         );

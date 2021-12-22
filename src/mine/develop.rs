@@ -340,14 +340,14 @@ impl Mine {
     {
         let mut is_login = false;
         let mut diff = "".to_string();
-        log::warn!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
+        log::error!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
         loop {
             let mut buf = vec![0; 4096];
             let len = match r.read(&mut buf).await {
                 Ok(len) => len,
                 Err(e) => {
                     //debug!("从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
-                    log::warn!(
+                    log::error!(
                         "开发者抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}",
                         e
                     );
@@ -356,7 +356,7 @@ impl Mine {
             };
 
             if len == 0 {
-                log::warn!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
+                log::error!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
                 bail!("读取Socket 失败。收到0个字节");
             }
 
@@ -402,7 +402,7 @@ impl Mine {
                         //info!("👍👍 Share Accept");
                     } else {
                         //info!("❗❗ Share Reject");
-                        log::warn!(
+                        log::error!(
                             "开发者抽水矿机 Share Reject:{}",
                             String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
