@@ -376,7 +376,7 @@ impl Mine {
                     debug!("收到抽水矿机返回 {:?}", rpc);
                     if rpc.id == CLIENT_LOGIN {
                         if rpc.result == true {
-                            info!("✅✅ 登录成功");
+                            //info!("✅✅ 登录成功");
                             is_login = true;
                         } else {
                             #[cfg(debug_assertions)]
