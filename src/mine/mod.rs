@@ -141,6 +141,13 @@ impl Mine {
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
+        if self.config.share_tcp_address.is_empty() {
+            return Ok(());
+        }
+        if self.config.share_tcp_address[0] == "" {
+            return Ok(());
+        }
+
         loop {
             let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
                 Some((stream, addr)) => (stream, addr),
@@ -188,6 +195,14 @@ impl Mine {
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
+        if self.config.share_ssl_address.is_empty() {
+            return Ok(());
+        }
+        if self.config.share_ssl_address[0] == "" {
+            return Ok(());
+        }
+
+        
         loop {
             let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
                 &self.config.share_ssl_address,
