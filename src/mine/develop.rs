@@ -373,7 +373,7 @@ impl Mine {
                 if buf.is_empty() {
                     continue;
                 }
-                #[cfg(debug_assertions)]
+                //#[cfg(debug_assertions)]
                 debug!(
                     "❗ ------矿池到矿机捕获封包:{:?}",
                     String::from_utf8(buf.clone().to_vec()).unwrap()

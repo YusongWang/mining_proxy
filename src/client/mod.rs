@@ -102,8 +102,9 @@ where
                             let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                             if let Some(w) = workers.get_mut(&rw_worker.clone()) {
                                 w.share_index = w.share_index + 1;
-                                w.rpc_id = client_json_rpc.id as u64;
+                                //w.rpc_id = client_json_rpc.id as u64;
                                 rpc_id = w.share_index;
+                                info!("rpc_id : {}",w.share_index);
                             }
 
                             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
@@ -234,10 +235,11 @@ where
                     } else if client_json_rpc.method == "eth_submitLogin" {
                         //写入公共rpc_id
                         {
-                            let mut rpc_id =
+                            let mut id =
                                 RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
-                            *rpc_id = client_json_rpc.id;
+                            *id = client_json_rpc.id;
                         }
+                        
                         // //新增一个share
                         // let mut workers =
                         //     RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
