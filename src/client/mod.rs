@@ -75,10 +75,6 @@ where
             }
         }
 
-        // debug!(
-        //     "矿机 -> 矿池 #{:?}",
-        //     String::from_utf8(buf[0..len].to_vec()).unwrap()
-        // );
         let buffer_string = match String::from_utf8(buf[0..len].to_vec()) {
             Ok(s) => s,
             Err(_) => {
@@ -419,13 +415,16 @@ where
                                         " 登录失败{:?}",
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
                                     );
-                                    info!(" 矿池登录失败，请尝试重启程序");
-
+                                    info!("矿池登录失败");
+                                    log::error!(
+                                        "矿池登录失败 {}",
+                                        String::from_utf8(buf.as_bytes().to_vec()).unwrap()
+                                    );
                                     return Ok(());
                                 }
                                 // 登录。
                             } else if server_json_rpc.id == CLIENT_SUBHASHRATE {
-                                info!("👍 Worker :{} 算力提交成功", rw_worker);
+                                //info!("👍 Worker :{} 算力提交成功", rw_worker);
                             } else if server_json_rpc.id == CLIENT_GETWORK {
 
                             } else  {
@@ -447,10 +446,18 @@ where
                                         //     }
                                         // }
                                         info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
+                                        log::error!(
+                                            " Worker :{} Share #{} Reject",
+                                            rw_worker,rpc_id
+                                        );
                                     }
 
                                 } else {
                                     info!("❗ Worker :{} Got Unpackage Idx {}", rw_worker,rpc_id);
+                                    log::error!(
+                                        "❗ Worker :{} Got Unpackage Idx {}",
+                                        rw_worker,rpc_id
+                                    );
                                 }
                             }
                         }
@@ -525,7 +532,10 @@ where
                                                 continue;
                                             } else {
                                                 //几率不高。但是要打日志出来。
-                                                debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                                //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                                log::warn!(
+                                                    "开发者-跳过本次抽水。没有任务处理了"
+                                                );
                                             }
 
                                         }
@@ -579,7 +589,10 @@ where
                                                     continue;
                                                 } else {
                                                     //几率不高。但是要打日志出来。
-                                                    debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                                    //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                                    log::warn!(
+                                                        "抽水-跳过本次抽水。没有任务处理了"
+                                                    );
                                                 }
                                             }
                                 }
@@ -607,10 +620,14 @@ where
                         }
                         continue;
                     } else {
-                        debug!(
+                        log::error!(
                             "❗ ------未捕获封包:{:?}",
                             buf
                         );
+                        // debug!(
+                        //     "❗ ------未捕获封包:{:?}",
+                        //     buf
+                        // );
 
                         let mut byte = BytesMut::from(buf);
 

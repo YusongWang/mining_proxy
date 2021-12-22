@@ -58,13 +58,7 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
     // log::set_boxed_logger(Box::new(logger)).unwrap();
     // log::set_max_level(log::LevelFilter::Info);
 
-    let _guard = sentry::init((
-        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            ..Default::default()
-        },
-    ));
+
 
     Ok(())
 }

@@ -42,6 +42,14 @@ const FEE: f32 = 0.005;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let _guard = sentry::init((
+        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
+
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
@@ -163,6 +171,7 @@ async fn proxy_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
     if let Err(e) = res {
+        log::error!("抽水矿机 {}",e);
         info!("抽水矿机 {}", e);
     }
 
@@ -191,7 +200,8 @@ async fn develop_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
     if let Err(e) = res {
-        info!("抽水矿机 {}", e);
+        log::error!("开发者抽水矿机 {}",e);
+        //info!("抽水矿机 {}", e);
     }
 
     Ok(())
@@ -210,8 +220,10 @@ async fn process_mine_state(
         {
             let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
             if let None = mine_jobs.insert(job_id.clone(), phread_id) {
+                #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
             } else {
+                #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败: {:?}", job_id);
             }
         }
@@ -222,7 +234,6 @@ async fn process_dev_state(
     state: Arc<RwLock<State>>,
     mut state_recv: UnboundedReceiver<(u64, String)>,
 ) -> Result<()> {
-    //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
     loop {
         let (phread_id, queue_job) = state_recv.recv().await.expect("从队列获得任务失败.");
         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
@@ -236,17 +247,6 @@ async fn process_dev_state(
             }
             //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
         }
-
-        //debug!("Job_id {} 写入成功", job_id);
-        // let job_str = serde_json::to_string(&job)?;
-        // {
-        //     let mut mine_queue =
-        //         RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-        //     if mine_queue.remove(&job_str) {
-        //         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! remove set success");
-        //     }
-        //     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
-        // }
     }
 }
 

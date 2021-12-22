@@ -349,13 +349,13 @@ impl Mine {
             let len = match r.read(&mut buf).await {
                 Ok(len) => len,
                 Err(e) => {
-                    debug!("从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
+                    log::warn!("抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
                     bail!("读取Socket 失败。可能矿池关闭了链接");
                 }
             };
 
             if len == 0 {
-                info!("❗❎ 服务端断开连接.");
+                log::warn!("抽水矿机 服务端断开连接 读取Socket 失败。收到0个字节");
                 bail!("读取Socket 失败。收到0个字节");
             }
 
@@ -398,17 +398,14 @@ impl Mine {
                             info!("✅✅ 登录成功");
                             is_login = true;
                         } else {
-                            #[cfg(debug_assertions)]
-                            debug!(
-                                "❗❎ 登录失败{:?}",
+                            log::error!(
+                                "矿池登录失败，请尝试重启程序 {}",
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
-                            info!("❗❎ 矿池登录失败，请尝试重启程序");
                             bail!(
                                 "❗❎ 矿池登录失败，请尝试重启程序 {}",
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
-                            //return Ok(());
                         }
                         // 登录。
                     } else if rpc.id == CLIENT_SUBHASHRATE {
@@ -418,7 +415,10 @@ impl Mine {
                         info!("👍👍 Share Accept");
                     } else {
                         info!("❗❗ Share Reject");
-
+                        log::warn!(
+                            "抽水矿机 Share Reject:{}",
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
+                        );
                         #[cfg(debug_assertions)]
                         debug!(
                             "❗❗ Share Reject{}",
@@ -511,7 +511,10 @@ impl Mine {
                         "❗ ------未捕获封包:{:?}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
-
+                    log::error!(
+                        "开发者抽水矿机 ------未捕获封包:{}",
+                        String::from_utf8(buf.clone().to_vec()).unwrap()
+                    );
                     //TODO 上报
                 }
             }
@@ -549,9 +552,10 @@ impl Mine {
                                 client_json_rpc.worker, client_json_rpc
                             );
                             info!(
-                                "✅✅ 矿机 :{} Share #{:?}",
+                                "✅✅ 抽水矿机 :{} Share #{:?}",
                                 client_json_rpc.worker, client_json_rpc.id
                             );
+
                         } else if client_json_rpc.method == "eth_submitHashrate" {
                             #[cfg(debug_assertions)]
                             if let Some(hashrate) = client_json_rpc.params.get(0) {
@@ -567,6 +571,8 @@ impl Mine {
                         } else {
                             #[cfg(debug_assertions)]
                             debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+
+                            log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
                         }
 
                         let rpc = serde_json::to_vec(&client_json_rpc)?;
@@ -593,6 +599,7 @@ impl Mine {
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
+                        #[cfg(debug_assertions)]
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                         //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {

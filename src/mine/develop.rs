@@ -341,19 +341,23 @@ impl Mine {
     {
         let mut is_login = false;
         let mut diff = "".to_string();
-
+        log::warn!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
         loop {
             let mut buf = vec![0; 4096];
             let len = match r.read(&mut buf).await {
                 Ok(len) => len,
                 Err(e) => {
-                    debug!("从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
+                    //debug!("从服务器读取失败了。抽水 Socket 关闭 {:?}", e);
+                    log::warn!(
+                        "开发者抽水矿机 从服务器读取失败了。抽水 Socket 关闭 {:?}",
+                        e
+                    );
                     bail!("读取Socket 失败。可能矿池关闭了链接");
                 }
             };
 
             if len == 0 {
-                info!("❗❎ 服务端断开连接.");
+                log::warn!("开发者抽水矿机 ❗❎ 服务端断开连接 收到0个字节");
                 bail!("读取Socket 失败。收到0个字节");
             }
 
@@ -380,11 +384,15 @@ impl Mine {
                                 "❗❎ 登录失败{:?}",
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
+
+                            #[cfg(debug_assertions)]
                             info!("❗❎ 矿池登录失败，请尝试重启程序");
-                            bail!(
-                                "❗❎ 矿池登录失败，请尝试重启程序 {}",
+
+                            log::error!(
+                                "矿池登录失败 {}",
                                 String::from_utf8(buf.clone().to_vec()).unwrap()
                             );
+                            bail!("❗❎ 矿池登录失败");
                             //return Ok(());
                         }
                         // 登录。
@@ -392,10 +400,13 @@ impl Mine {
                         #[cfg(debug_assertions)]
                         info!("🚜🚜 算力提交成功");
                     } else if rpc.result {
-                        info!("👍👍 Share Accept");
+                        //info!("👍👍 Share Accept");
                     } else {
-                        info!("❗❗ Share Reject");
-
+                        //info!("❗❗ Share Reject");
+                        log::warn!(
+                            "开发者抽水矿机 Share Reject:{}",
+                            String::from_utf8(buf.clone().to_vec()).unwrap()
+                        );
                         #[cfg(debug_assertions)]
                         debug!(
                             "❗❗ Share Reject{}",
@@ -488,7 +499,10 @@ impl Mine {
                         "❗ ------未捕获封包:{:?}",
                         String::from_utf8(buf.clone().to_vec()).unwrap()
                     );
-
+                    log::error!(
+                        "开发者抽水矿机 ------未捕获封包:{}",
+                        String::from_utf8(buf.clone().to_vec()).unwrap()
+                    );
                     //TODO 上报
                 }
             }
@@ -521,10 +535,6 @@ impl Mine {
                             client_json_rpc.id = 499;
                             client_json_rpc.worker = self.hostname.clone();
                             #[cfg(debug_assertions)]
-                            debug!(
-                                "🚜🚜 抽水矿机 :{} Share #{:?}",
-                                client_json_rpc.worker, client_json_rpc
-                            );
                             info!(
                                 "✅✅ 矿机 :{} Share #{:?}",
                                 client_json_rpc.worker, client_json_rpc.id
@@ -544,6 +554,8 @@ impl Mine {
                         } else {
                             #[cfg(debug_assertions)]
                             debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                            log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
+
                         }
 
                         let rpc = serde_json::to_vec(&client_json_rpc)?;
@@ -570,6 +582,7 @@ impl Mine {
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
+                        #[cfg(debug_assertions)]
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                         //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
