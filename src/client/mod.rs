@@ -140,36 +140,35 @@ where
                                 //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
                             }
 
-                            // {
-                            //     let mut mine = RwLockWriteGuard::map(state.write().await, |s| {
-                            //         &mut s.develop_jobs
-                            //     });
-                            //     if mine.contains(job_id) {
-                            //         mine.remove(job_id);
+                            {
+                                let mut mine = RwLockWriteGuard::map(state.write().await, |s| {
+                                    &mut s.develop_jobs
+                                });
+                                if mine.contains_key(job_id) {
+                                    if let Some(thread_id) = mine.remove(job_id) {
+                                        let rpc = serde_json::to_string(&client_json_rpc)?;
+                                        //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                                        dev_fee_send
+                                            .send((thread_id, rpc))
+                                            .expect("可以提交给矿池任务失败。通道异常了");
 
-                            //         let rpc = serde_json::to_string(&client_json_rpc)?;
-                            //         //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-                            //         dev_fee_send
-                            //             .send(rpc)
-                            //             .expect("可以提交给矿池任务失败。通道异常了");
+                                        let s = ServerId1 {
+                                            id: client_json_rpc.id,
+                                            //jsonrpc: "2.0".into(),
+                                            result: true,
+                                        };
 
-                            //         let s = ServerId1 {
-                            //             id: client_json_rpc.id,
-                            //             //jsonrpc: "2.0".into(),
-                            //             result: true,
-                            //         };
-
-                            //         tx.send(s).expect("可以提交给矿机结果失败。通道异常了");
-                            //         continue;
-                            //     }
-                            //     //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
-                            // }
+                                        tx.send(s).expect("可以提交给矿机结果失败。通道异常了");
+                                        continue;
+                                    }
+                                }
+                                //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+                            }
                         }
 
                         //写入公共rpc_id
                         {
-                            let mut id =
-                                RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
+                            let mut id = RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
                             *id = client_json_rpc.id;
                         }
 
