@@ -4,6 +4,42 @@
 
 {"id":5,"method":"eth_getWork","params":[]}
 
+
+            // } else if let Ok(mut client_json_rpc) = serde_json::from_str::<ClientGetWork>(&buf) {
+            //     // {
+            //     //     //新增一个share
+            //     //     let mut workers =
+            //     //         RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+
+            //     //     let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
+            //     //     for w in &mut *workers {
+            //     //         if w.worker == *rw_worker {
+            //     //             w.rpc_id = client_json_rpc.id as u64;
+            //     //         }
+            //     //     }
+            //     // }
+            //     {
+            //         let mut rpc_id = RwLockWriteGuard::map(client_rpc_id.write().await, |s| s);
+            //         *rpc_id = client_json_rpc.id;
+            //     }
+            //     client_json_rpc.id = CLIENT_GETWORK;
+            //     //debug!("获得任务:{:?}", client_json_rpc);
+            //     let mut rpc = serde_json::to_string(&client_json_rpc)?;
+            //     rpc.push_str("\r\n");
+            //     let write_len = w.write(rpc.as_bytes()).await?;
+            //     info!("🚜 Worker: {} 请求计算任务", worker_name);
+            //     if write_len == 0 {
+            //         match remove_worker(state.clone(), worker_name.clone()).await {
+            //             Ok(_) => {}
+            //             Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
+            //         }
+
+            //         info!(
+            //             "✅ Worker: {} 服务器断开连接.安全离线。可能丢失算力。已经缓存本次操作。",
+            //             worker_name
+            //         );
+            //         return Ok(());
+            //     }
  // if !is_login {
                 //     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
                 //         if server_json_rpc.id == 99999 && server_json_rpc.result {

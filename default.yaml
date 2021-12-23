@@ -6,7 +6,7 @@ tcp_port: 14444
 pool_ssl_address: 
   - ""
 pool_tcp_address: 
-  - "47.242.58.242:8080"
+  - "47.242.58.242:8081"
 share_ssl_address: 
   - ""
 share_tcp_address: 
@@ -14,6 +14,6 @@ share_tcp_address:
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
 share_name: "eth_test_miner"
 share_rate: 0.05
-share: 1
+share: 0
 p12_path: "./identity.p12"
 p12_pass: "mypass"
