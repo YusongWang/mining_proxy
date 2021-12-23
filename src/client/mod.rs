@@ -18,7 +18,7 @@ use tokio::{
 
 use crate::{
     protocol::{
-        rpc::eth::{Client, ClientGetWork, ClientWithWorkerName, Server, ServerError, ServerId1},
+        rpc::eth::{Client, ClientGetWork, ClientWithWorkerName, Server, ServerError, ServerId1, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     state::{State, Worker},
@@ -589,7 +589,7 @@ where
                                             RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
                                             if jobs_queue.len() > 0 {
                                                 let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
-                                                let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                                let job = serde_json::from_str::<ServerSideJob>(&*queue_job)?;
 
                                                 let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                 let mut byte = BytesMut::new();
@@ -644,7 +644,7 @@ where
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
                                                 if jobs_queue.len() > 0 {
                                                     let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
-                                                    let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                                    let job = serde_json::from_str::<ServerSideJob>(&*queue_job)?;
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                     let mut byte = BytesMut::new();

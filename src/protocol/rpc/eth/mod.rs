@@ -10,7 +10,6 @@ pub struct Client {
     //pub worker: String,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientWithWorkerName {
@@ -35,6 +34,15 @@ pub struct ClientSubmitHashrate {
     pub method: String,
     pub params: Vec<String>,
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerSideJob {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: Vec<String>,
+}
+
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
