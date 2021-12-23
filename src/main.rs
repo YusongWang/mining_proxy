@@ -143,13 +143,13 @@ async fn proxy_accept(
     config: Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
+    if config.share == 0 {
+        return Ok(());
+    }
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let thread_len = (config.share_rate * 100.0) as u64; // 0.1 * 100 = 10
-    let mut thread_len = thread_len * 20;
-    if thread_len < 50 {
-        thread_len = 20;
-    }
+    let mut thread_len = thread_len * 10;
 
     for i in 0..thread_len {
         let mine = Mine::new(config.clone(), i).await?;
@@ -177,12 +177,15 @@ async fn develop_accept(
     config: Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
+    if config.share == 0 {
+        return Ok(());
+    }
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
 
     let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 10
-    let thread_len = thread_len * 20;
+    let thread_len = thread_len * 10;
 
     for i in 0..thread_len {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
