@@ -126,20 +126,13 @@ async fn main() -> Result<()> {
             state_send.clone(),
             dev_state_send.clone(),
             cert
-        ),
-        // mine.accept(
-        //     state.clone(),
-        //     job_send.clone(),
-        //     proxy_fee_sender.clone(),
-        //     proxy_fee_recver
-        // ),
-        process_mine_state(state.clone(), state_recv),
-        //develop_mine.accept(state.clone(), job_send, fee_tx.clone(), fee_rx),
-        process_dev_state(state.clone(), dev_state_recv),
-        proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
-        develop_accept(state.clone(), config.clone(), fee_tx.clone()),
-        print_state(state.clone(), config.clone()),
-        clear_state(state.clone(), config.clone()),
+        )
+        // proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
+        // develop_accept(state.clone(), config.clone(), fee_tx.clone()),
+        // process_mine_state(state.clone(), state_recv),
+        // process_dev_state(state.clone(), dev_state_recv),
+        // print_state(state.clone(), config.clone()),
+        // clear_state(state.clone(), config.clone()),
     );
 
     if let Err(err) = res {
