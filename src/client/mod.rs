@@ -533,8 +533,10 @@ where
                                     let mut phread_id =  0;
                                     let mut queue_job = String::new();
                                     {
-                                        let mut jobs_queue =
-                                        RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                        // let mut jobs_queue =
+                                        // RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                        let jobs_queue = RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
+
                                         let (id,job) = match jobs_queue.pop_back(){
                                             Some(job) => job,
                                             None => (0,"".into()),
@@ -572,8 +574,9 @@ where
                                     let mut queue_job = String::new();
                                     // 抽水
                                     {
-                                        let mut jobs_queue =
-                                        RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
+                                        //let mut jobs_queue =
+                                        //RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
+                                        let jobs_queue = RwLockReadGuard::map(state.read().await, |&s| &s.mine_jobs_queue);
                                         let (id,job) = match jobs_queue.pop_back(){
                                             Some(job) => job,
                                             None => (0,"".into()),
