@@ -537,12 +537,10 @@ where
                                         // RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
                                         let jobs_queue = RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
 
-                                        let (id,job) = match jobs_queue.pop_back(){
-                                            Some(job) => job,
-                                            None => (0,"".into()),
+                                        if let Some((id,job)) = jobs_queue.get(jobs_queue.len() - 1) {
+                                            phread_id = *id;
+                                            queue_job = job.clone();
                                         };
-                                        phread_id = id;
-                                        queue_job = job.clone();
                                     }
 
                                     if !queue_job.is_empty() {
@@ -576,13 +574,11 @@ where
                                     {
                                         //let mut jobs_queue =
                                         //RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-                                        let jobs_queue = RwLockReadGuard::map(state.read().await, |&s| &s.mine_jobs_queue);
-                                        let (id,job) = match jobs_queue.pop_back(){
-                                            Some(job) => job,
-                                            None => (0,"".into()),
+                                        let jobs_queue = RwLockReadGuard::map(state.read().await, |s| &s.mine_jobs_queue);
+                                        if let Some((id,job)) = jobs_queue.get(jobs_queue.len() - 1) {
+                                            phread_id = *id;
+                                            queue_job = job.clone();
                                         };
-                                        phread_id = id;
-                                        queue_job = job.clone();
                                     }
 
                                     if !queue_job.is_empty() {
