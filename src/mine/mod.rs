@@ -2,10 +2,11 @@ use std::{collections::VecDeque, sync::Arc};
 pub mod develop;
 
 use crate::{
+    jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
     protocol::{rpc::eth::ClientWithWorkerName, CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
     state::State,
-    util::{calc_hash_rate, config::Settings}, jobs::{JobQueue, Job},
+    util::{calc_hash_rate, config::Settings},
 };
 
 use anyhow::{bail, Error, Result};
@@ -435,7 +436,8 @@ impl Mine {
                     } else {
                         info!("❗❗ Share Reject");
                         log::error!(
-                            "抽水矿机 Share Reject:{}",
+                            "抽水矿机 {} Share Reject:{}",
+                            self.id,
                             String::from_utf8(buf.clone().to_vec()).unwrap()
                         );
                         #[cfg(debug_assertions)]
@@ -514,19 +516,18 @@ impl Mine {
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
 
-
-                        mine_jobs_queue.send(Job::new(self.id as u32,job));
+                        mine_jobs_queue.send(Job::new(self.id as u32, job));
                         //{
-                            // //将任务加入队列。
-                            // let mut jobs =
-                            //     RwLockWriteGuard::map(mine_jobs_queue.write().await, |j| j);
-                            // jobs.push_back((self.id, job));
+                        // //将任务加入队列。
+                        // let mut jobs =
+                        //     RwLockWriteGuard::map(mine_jobs_queue.write().await, |j| j);
+                        // jobs.push_back((self.id, job));
 
-                            //info!("难度: {} 当前任务量 {} ",diff, jobs.len());
+                        //info!("难度: {} 当前任务量 {} ",diff, jobs.len());
                         //}
-                        
+
                         //#[cfg(debug_assertions)]
-                        debug!("发送完成: {}", job_id);
+                        //debug!("发送完成: {}", job_id);
                         // let job = serde_json::to_string(&server_json_rpc)?;
                         // jobs_send.send(job);
                     }
@@ -621,7 +622,7 @@ impl Mine {
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
-                        #[cfg(debug_assertions)]
+                        //#[cfg(debug_assertions)]
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                         //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
