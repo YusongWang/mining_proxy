@@ -7,6 +7,16 @@ pub struct Client {
     pub id: u64,
     pub method: String,
     pub params: Vec<String>,
+    //pub worker: String,
+}
+
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientWithWorkerName {
+    pub id: u64,
+    pub method: String,
+    pub params: Vec<String>,
     pub worker: String,
 }
 
