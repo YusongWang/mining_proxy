@@ -1,4 +1,13 @@
 pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> {
+    let _guard = sentry::init((
+        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
+
+    
     // parse log_laver
     let lavel = match log_level {
         3 => log::LevelFilter::Error,

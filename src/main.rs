@@ -42,14 +42,6 @@ const FEE: f32 = 0.005;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _guard = sentry::init((
-        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            ..Default::default()
-        },
-    ));
-
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
@@ -67,12 +59,6 @@ async fn main() -> Result<()> {
     // 分配dev任务给矿机channel
     let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
 
-    // let pool = pool::Pool::new(config.clone(), state_send.clone(), dev_state_send.clone());
-
-    // let _ = tokio::join!(
-    //     pool.serve(),
-    // );
-
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
         std::process::exit(1);
@@ -82,6 +68,7 @@ async fn main() -> Result<()> {
         info!("❎ 抽水模式钱包为空。");
         std::process::exit(1);
     }
+
     let mut p12 = File::open(config.p12_path.clone())
         .await
         .expect("证书路径错误");
@@ -126,13 +113,13 @@ async fn main() -> Result<()> {
             state_send.clone(),
             dev_state_send.clone(),
             cert
-        )
-        // proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
-        // develop_accept(state.clone(), config.clone(), fee_tx.clone()),
-        // process_mine_state(state.clone(), state_recv),
-        // process_dev_state(state.clone(), dev_state_recv),
-        // print_state(state.clone(), config.clone()),
-        // clear_state(state.clone(), config.clone()),
+        ),
+        proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
+        develop_accept(state.clone(), config.clone(), fee_tx.clone()),
+        process_mine_state(state.clone(), state_recv),
+        process_dev_state(state.clone(), dev_state_recv),
+        print_state(state.clone(), config.clone()),
+        clear_state(state.clone(), config.clone()),
     );
 
     if let Err(err) = res {
