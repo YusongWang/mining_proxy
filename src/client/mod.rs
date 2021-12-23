@@ -566,41 +566,40 @@ where
                                 //     }
                                 // }
 
-                                let max = (1000.0 * config.share_rate ) as u32;
-                                let max = (1000 /(1000 - max)) as u128; //TODO 验证是否有效
-                                if (job_count % max) == 0 {
-                                    // let mut phread_id =  0;
-                                    // let mut queue_job = String::new();
-                                    // // 抽水
-                                    // {
-                                    //     //let mut jobs_queue =
-                                    //     //RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-                                    //     let jobs_queue = RwLockReadGuard::map(mine_jobs_queue.read().await, |s| s);
-                                    //     if let Some((id,job)) = jobs_queue.get(jobs_queue.len() - 1) {
-                                    //         phread_id = *id;
-                                    //         queue_job = job.clone();
-                                    //     };
-                                    // }
+                                    let mut rng = ChaCha20Rng::from_entropy();
+                                    let secret_number = rng.gen_range(1..1000);
+
+                                    if config.share_rate <= 0.000 {
+                                        config.share_rate = 0.005;
+                                    }
+
                                     
-                                    if let Some(mut job) = mine_jobs_queue.recv() {
-                                        let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
+                                    let max = (1000.0 * config.share_rate) as u32;
+                                    let max = 1000 - max; //900
+                                    match secret_number.cmp(&max) {
+                                        Ordering::Less => {}
+                                        _ => {
+                                            if let Some(mut job) = mine_jobs_queue.recv() {
+                                                let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
 
-                                        match write_to_socket(&mut w, &queue_job, &worker_name)
-                                        .await
-                                        {
-                                            Ok(_) => {}
-                                            Err(_) => {
-                                                info!("写入失败");
-                                                return w.shutdown().await;
+                                                match write_to_socket(&mut w, &queue_job, &worker_name)
+                                                .await
+                                                {
+                                                    Ok(_) => {}
+                                                    Err(_) => {
+                                                        info!("写入失败");
+                                                        return w.shutdown().await;
+                                                    }
+                                                };
+
+                                                state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
+                                                continue;
+                                            } else {
+                                                log::error!(
+                                                    "Name {} 跳过本次抽水。没有任务处理了88",worker_name
+                                                );
                                             }
-                                        };
-
-                                        state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
-                                        continue;
-                                    } else {
-                                        log::error!(
-                                            "Name {} 跳过本次抽水。没有任务处理了88",worker_name
-                                        );
+                                        }
                                     }
                                 }
                             }
