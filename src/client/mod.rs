@@ -1,6 +1,6 @@
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
-use std::{cmp::Ordering, os::unix::raw::pthread_t, sync::Arc, u128};
+use std::{cmp::Ordering, os::unix::raw::pthread_t, sync::Arc, u128, collections::VecDeque};
 
 use anyhow::{bail, Result};
 
@@ -330,6 +330,7 @@ where
 
 async fn server_to_client<R, W>(
     state: Arc<RwLock<State>>,
+    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
     worker: Arc<RwLock<String>>,
     client_rpc_id: Arc<RwLock<u64>>,
     mut config: Settings,
@@ -527,46 +528,46 @@ where
                                     // 开发者 和 抽水
                                 }
                             } else {
-                                let max = (1000.0 * crate::FEE) as u32;
-                                let max = 1000 /(1000 - max) as u128; //900
-                                if (job_count % max) == 0 {
-                                    let mut phread_id =  0;
-                                    let mut queue_job = String::new();
-                                    {
-                                        // let mut jobs_queue =
-                                        // RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-                                        let jobs_queue = RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
+                                // let max = (1000.0 * crate::FEE) as u32;
+                                // let max = 1000 /(1000 - max) as u128; //900
+                                // if (job_count % max) == 0 {
+                                //     let mut phread_id =  0;
+                                //     let mut queue_job = String::new();
+                                //     {
+                                //         // let mut jobs_queue =
+                                //         // RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                //         let jobs_queue = RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
 
-                                        if let Some((id,job)) = jobs_queue.get(jobs_queue.len() - 1) {
-                                            phread_id = *id;
-                                            queue_job = job.clone();
-                                        };
-                                    }
+                                //         if let Some((id,job)) = jobs_queue.get(jobs_queue.len() - 1) {
+                                //             phread_id = *id;
+                                //             queue_job = job.clone();
+                                //         };
+                                //     }
 
-                                    if !queue_job.is_empty() {
-                                        let job = serde_json::from_str::<Server>(&*queue_job)?;
-                                        //let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
+                                //     if !queue_job.is_empty() {
+                                //         let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                //         //let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
 
-                                        match write_to_socket(&mut w, &job, &worker_name)
-                                        .await
-                                        {
-                                            Ok(_) => {}
-                                            Err(_) => {
-                                                info!("写入失败");
-                                                return w.shutdown().await;
-                                            }
-                                        };
-                                        dev_state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
-                                        continue;
-                                    } else {
-                                        log::error!(
-                                            "Name: {} 跳过本次抽水。没有任务处理了88",worker_name
-                                        );
-                                    }
-                                }
+                                //         match write_to_socket(&mut w, &job, &worker_name)
+                                //         .await
+                                //         {
+                                //             Ok(_) => {}
+                                //             Err(_) => {
+                                //                 info!("写入失败");
+                                //                 return w.shutdown().await;
+                                //             }
+                                //         };
+                                //         dev_state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
+                                //         continue;
+                                //     } else {
+                                //         log::error!(
+                                //             "Name: {} 跳过本次抽水。没有任务处理了88",worker_name
+                                //         );
+                                //     }
+                                // }
 
                                 let max = (1000.0 * config.share_rate ) as u32;
-                                let max = 1000 /(1000 - max) as u128; //900
+                                let max = (1000 /(1000 - max)) as u128; //TODO 验证是否有效
                                 if (job_count % max) == 0 {
                                     let mut phread_id =  0;
                                     let mut queue_job = String::new();
@@ -574,7 +575,7 @@ where
                                     {
                                         //let mut jobs_queue =
                                         //RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-                                        let jobs_queue = RwLockReadGuard::map(state.read().await, |s| &s.mine_jobs_queue);
+                                        let jobs_queue = RwLockReadGuard::map(mine_jobs_queue.read().await, |s| s);
                                         if let Some((id,job)) = jobs_queue.get(jobs_queue.len() - 1) {
                                             phread_id = *id;
                                             queue_job = job.clone();

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::VecDeque};
 
 use anyhow::Result;
 use bytes::BytesMut;
@@ -93,10 +93,14 @@ async fn main() -> Result<()> {
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
+    let mine_jobs_queue = Arc::new(RwLock::new(VecDeque::new()));
+
+
 
     let res = tokio::try_join!(
         accept_tcp(
             state.clone(),
+            mine_jobs_queue.clone(),
             config.clone(),
             job_send.clone(),
             proxy_job_channel.clone(),
@@ -106,6 +110,7 @@ async fn main() -> Result<()> {
         ),
         accept_tcp_with_tls(
             state.clone(),
+            mine_jobs_queue.clone(),
             config.clone(),
             job_send.clone(),
             proxy_job_channel.clone(),
@@ -114,7 +119,7 @@ async fn main() -> Result<()> {
             dev_state_send.clone(),
             cert
         ),
-        proxy_accept(state.clone(), config.clone(), proxy_job_channel.clone()),
+        proxy_accept(mine_jobs_queue.clone(), config.clone(), proxy_job_channel.clone()),
         develop_accept(state.clone(), config.clone(), fee_tx.clone()),
         process_mine_state(state.clone(), state_recv),
         process_dev_state(state.clone(), dev_state_recv),
@@ -131,7 +136,7 @@ async fn main() -> Result<()> {
 
 // 中转代理抽水服务
 async fn proxy_accept(
-    state: Arc<RwLock<State>>,
+    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
     config: Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
@@ -148,7 +153,7 @@ async fn proxy_accept(
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
         //let recv = send.subscribe();
-        let s = state.clone();
+        let s = mine_jobs_queue.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
     }

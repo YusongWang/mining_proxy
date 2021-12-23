@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -20,6 +21,7 @@ use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
     state: Arc<RwLock<State>>,
+    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
@@ -44,12 +46,15 @@ pub async fn accept_tcp_with_tls(
         let proxy_fee_sender = proxy_fee_sender.clone();
         let fee = fee_send.clone();
         let state = state.clone();
+        let mine_jobs_queue = mine_jobs_queue.clone();
+
         let jobs_recv = job_send.subscribe();
         let state_send = state_send.clone();
         let dev_state_send = dev_state_send.clone();
         tokio::spawn(async move {
             let transfer = transfer_ssl(
                 state,
+                mine_jobs_queue,
                 jobs_recv,
                 acceptor,
                 stream,
@@ -72,6 +77,7 @@ pub async fn accept_tcp_with_tls(
 
 async fn transfer_ssl(
     state: Arc<RwLock<State>>,
+    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
     jobs_recv: broadcast::Receiver<String>,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     inbound: TcpStream,
@@ -139,6 +145,7 @@ async fn transfer_ssl(
             ),
             server_to_client(
                 state.clone(),
+                mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,
                 config.clone(),
@@ -188,6 +195,7 @@ async fn transfer_ssl(
             ),
             server_to_client(
                 state.clone(),
+                mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,
                 config.clone(),

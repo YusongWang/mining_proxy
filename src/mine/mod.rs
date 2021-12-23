@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 pub mod develop;
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
-    protocol::{CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, rpc::eth::ClientWithWorkerName},
+    protocol::{rpc::eth::ClientWithWorkerName, CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
     state::State,
     util::{calc_hash_rate, config::Settings},
 };
@@ -77,17 +77,19 @@ impl Mine {
 
     async fn new_worker(
         self,
-        state: Arc<RwLock<State>>,
+        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         if self.config.share == 1 {
             //info!("✅✅ 开启TCP矿池抽水");
-            self.accept_tcp(state, jobs_send.clone(), send, recv).await
+            self.accept_tcp(mine_jobs_queue, jobs_send, send, recv)
+                .await
         } else if self.config.share == 2 {
             //info!("✅✅ 开启TLS矿池抽水");
-            self.accept_tcp_with_tls(state, jobs_send, send, recv).await
+            self.accept_tcp_with_tls(mine_jobs_queue, jobs_send, send, recv)
+                .await
         } else {
             //info!("✅✅ 未开启抽水");
             Ok(())
@@ -95,7 +97,7 @@ impl Mine {
     }
     pub async fn new_accept(
         self,
-        state: Arc<RwLock<State>>,
+        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
@@ -106,7 +108,7 @@ impl Mine {
         let secret_number = rng.gen_range(1..1000);
         let secret = rng.gen_range(0..1000);
         sleep(std::time::Duration::new(secret, secret_number)).await;
-        self.new_worker(state.clone(), jobs_send.clone(), send, recv)
+        self.new_worker(mine_jobs_queue.clone(), jobs_send.clone(), send, recv)
             .await
         // for i in 0..50 {
         //     let worker = tokio::spawn(async move {
@@ -121,7 +123,7 @@ impl Mine {
     }
     pub async fn accept(
         self,
-        state: Arc<RwLock<State>>,
+        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
@@ -144,7 +146,7 @@ impl Mine {
 
     async fn accept_tcp(
         &self,
-        state: Arc<RwLock<State>>,
+        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
@@ -177,15 +179,20 @@ impl Mine {
             // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
 
             let res = tokio::try_join!(
-                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+                self.login_and_getwork(mine_jobs_queue.clone(), jobs_send.clone(), send.clone()),
                 self.client_to_server(
-                    state.clone(),
+                    mine_jobs_queue.clone(),
                     jobs_send.clone(),
                     send.clone(),
                     w_server,
                     &mut recv
                 ),
-                self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
+                self.server_to_client(
+                    mine_jobs_queue.clone(),
+                    jobs_send.clone(),
+                    send.clone(),
+                    r_server
+                )
             );
 
             if let Err(e) = res {
@@ -200,7 +207,7 @@ impl Mine {
 
     async fn accept_tcp_with_tls(
         &self,
-        state: Arc<RwLock<State>>,
+        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
@@ -233,15 +240,20 @@ impl Mine {
             let (r_server, w_server) = split(server_stream);
 
             let res = tokio::try_join!(
-                self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
+                self.login_and_getwork(mine_jobs_queue.clone(), jobs_send.clone(), send.clone()),
                 self.client_to_server(
-                    state.clone(),
+                    mine_jobs_queue.clone(),
                     jobs_send.clone(),
                     send.clone(),
                     w_server,
                     &mut recv
                 ),
-                self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
+                self.server_to_client(
+                    mine_jobs_queue.clone(),
+                    jobs_send.clone(),
+                    send.clone(),
+                    r_server
+                )
             );
 
             if let Err(e) = res {
@@ -339,7 +351,7 @@ impl Mine {
 
     async fn server_to_client<R>(
         &self,
-        state: Arc<RwLock<State>>,
+        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
         _: broadcast::Sender<(u64, String)>,
         _: UnboundedSender<String>,
         mut r: ReadHalf<R>,
@@ -445,10 +457,10 @@ impl Mine {
                                     {
                                         //debug!("清理队列。");
                                         //清理队列。
-                                        let mut jobs =
-                                            RwLockWriteGuard::map(state.write().await, |s| {
-                                                &mut s.mine_jobs_queue
-                                            });
+                                        let mut jobs = RwLockWriteGuard::map(
+                                            mine_jobs_queue.write().await,
+                                            |j| j,
+                                        );
                                         jobs.clear();
                                     }
                                 }
@@ -469,15 +481,20 @@ impl Mine {
                                 {
                                     //debug!("清理队列。");
                                     //清理队列。
-                                    let mut jobs =
-                                        RwLockWriteGuard::map(state.write().await, |s| {
-                                            &mut s.mine_jobs_queue
-                                        });
-                                    jobs.clear();
+                                    {
+                                        //debug!("清理队列。");
+                                        //清理队列。
+                                        let mut jobs = RwLockWriteGuard::map(
+                                            mine_jobs_queue.write().await,
+                                            |j| j,
+                                        );
+                                        jobs.clear();
+                                    }
                                 }
                             }
                         }
                     }
+
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {:?}", server_json_rpc);
                     //新增一个share
@@ -497,9 +514,8 @@ impl Mine {
                         let job = serde_json::to_string(&server_json_rpc)?;
                         {
                             //将任务加入队列。
-                            let mut jobs = RwLockWriteGuard::map(state.write().await, |s| {
-                                &mut s.mine_jobs_queue
-                            });
+                            let mut jobs =
+                                RwLockWriteGuard::map(mine_jobs_queue.write().await, |j| j);
                             jobs.push_back((self.id, job));
                         }
                         #[cfg(debug_assertions)]
@@ -529,7 +545,7 @@ impl Mine {
 
     async fn client_to_server<W>(
         &self,
-        _: Arc<RwLock<State>>,
+        _: Arc<RwLock<VecDeque<(u64, String)>>>,
         job_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut w: WriteHalf<W>,
@@ -542,85 +558,85 @@ impl Mine {
 
         loop {
             tokio::select! {
-                          Some(client_msg) = recv.recv() => {
+                Some(client_msg) = recv.recv() => {
 
-                              #[cfg(debug_assertions)]
-                              debug!("-------- M to S RPC #{:?}", client_msg);
-                              if let Ok(mut client_json_rpc) = serde_json::from_slice::<ClientWithWorkerName>(client_msg.as_bytes())
-                              {
-                                  if client_json_rpc.method == "eth_submitWork" {
-                                      //client_json_rpc.id = 40;
-                                      client_json_rpc.id = 499;
-                                      client_json_rpc.worker = self.hostname.clone();
+                    #[cfg(debug_assertions)]
+                    debug!("-------- M to S RPC #{:?}", client_msg);
+                    if let Ok(mut client_json_rpc) = serde_json::from_slice::<ClientWithWorkerName>(client_msg.as_bytes())
+                    {
+                        if client_json_rpc.method == "eth_submitWork" {
+                            //client_json_rpc.id = 40;
+                            client_json_rpc.id = 499;
+                            client_json_rpc.worker = self.hostname.clone();
 
-                                      info!("✅✅ 抽水 Share #{:?}",client_json_rpc.id);
+                            info!("✅✅ 抽水 Share #{:?}",client_json_rpc.id);
 
-                                  } else if client_json_rpc.method == "eth_submitHashrate" {
-                                      #[cfg(debug_assertions)]
-                                      if let Some(hashrate) = client_json_rpc.params.get(0) {
-                                          #[cfg(debug_assertions)]
-                                          debug!(
-                                              "✅✅ 矿机 :{} 提交本地算力 {}",
-                                              client_json_rpc.worker, hashrate
-                                          );
-                                      }
-                                  } else if client_json_rpc.method == "eth_submitLogin" {
-                                      #[cfg(debug_assertions)]
-                                      debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
-                                  } else {
-                                      #[cfg(debug_assertions)]
-                                      debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                        } else if client_json_rpc.method == "eth_submitHashrate" {
+                            #[cfg(debug_assertions)]
+                            if let Some(hashrate) = client_json_rpc.params.get(0) {
+                                #[cfg(debug_assertions)]
+                                debug!(
+                                    "✅✅ 矿机 :{} 提交本地算力 {}",
+                                    client_json_rpc.worker, hashrate
+                                );
+                            }
+                        } else if client_json_rpc.method == "eth_submitLogin" {
+                            #[cfg(debug_assertions)]
+                            debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                        } else {
+                            #[cfg(debug_assertions)]
+                            debug!("矿机传递未知RPC :{:?}", client_json_rpc);
 
-                                      log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
-                                  }
+                            log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
+                        }
 
-                                  let rpc = serde_json::to_vec(&client_json_rpc)?;
-                                  let mut byte = BytesMut::new();
-                                  byte.put_slice(&rpc[0..rpc.len()]);
-                                  byte.put_u8(b'\n');
-                                  let w_len = w.write_buf(&mut byte).await?;
-                                  if w_len == 0 {
-                                      bail!("矿池写入失败.0");
-                                  }
-                              } else if let Ok(client_json_rpc) =
-                                  serde_json::from_slice::<Client>(client_msg.as_bytes())
-                              {
-                                  let rpc = serde_json::to_vec(&client_json_rpc)?;
-                                  let mut byte = BytesMut::new();
-                                  byte.put_slice(&rpc[0..rpc.len()]);
-                                  byte.put_u8(b'\n');
-                                  let w_len = w.write_buf(&mut byte).await?;
-                                  if w_len == 0 {
-                                      bail!("矿池写入失败.1");
-                                  }
-                              }
-                          }
+                        let rpc = serde_json::to_vec(&client_json_rpc)?;
+                        let mut byte = BytesMut::new();
+                        byte.put_slice(&rpc[0..rpc.len()]);
+                        byte.put_u8(b'\n');
+                        let w_len = w.write_buf(&mut byte).await?;
+                        if w_len == 0 {
+                            bail!("矿池写入失败.0");
+                        }
+                    } else if let Ok(client_json_rpc) =
+                        serde_json::from_slice::<Client>(client_msg.as_bytes())
+                    {
+                        let rpc = serde_json::to_vec(&client_json_rpc)?;
+                        let mut byte = BytesMut::new();
+                        byte.put_slice(&rpc[0..rpc.len()]);
+                        byte.put_u8(b'\n');
+                        let w_len = w.write_buf(&mut byte).await?;
+                        if w_len == 0 {
+                            bail!("矿池写入失败.1");
+                        }
+                    }
+                }
 
-                          Ok((id,job)) = jobs_recv.recv() => {
-                              if id == self.id {
-                                  #[cfg(debug_assertions)]
-                                  debug!("{} 线程 获得抽水任务Share #{}",id,0);
-                                  send.send(job).unwrap();
-                                  //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
-                                      // rpc.worker =
-                                      // let mut byte = BytesMut::new();
-                                      // byte.put_slice(job.as_bytes());
-                                      // byte.put_u8(b'\n');
-                                      // let w_len = w.write_buf(&mut byte).await?;
-                                      // if w_len == 0 {
-                                      //     debug!("写入远程失败。可能远程关闭 {} 线程 获得抽水任务Share #{}",id,0);
-                                      //     return Ok(());
-                                      // }
-                                  //}
-                              }
-                          }
-                      }
+                Ok((id,job)) = jobs_recv.recv() => {
+                    if id == self.id {
+                        #[cfg(debug_assertions)]
+                        debug!("{} 线程 获得抽水任务Share #{}",id,0);
+                        send.send(job).unwrap();
+                        //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {
+                            // rpc.worker =
+                            // let mut byte = BytesMut::new();
+                            // byte.put_slice(job.as_bytes());
+                            // byte.put_u8(b'\n');
+                            // let w_len = w.write_buf(&mut byte).await?;
+                            // if w_len == 0 {
+                            //     debug!("写入远程失败。可能远程关闭 {} 线程 获得抽水任务Share #{}",id,0);
+                            //     return Ok(());
+                            // }
+                        //}
+                    }
+                }
+            }
         }
     }
 
     async fn login_and_getwork(
         &self,
-        state: Arc<RwLock<State>>,
+        _: Arc<RwLock<VecDeque<(u64, String)>>>,
         _: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
     ) -> Result<()> {
@@ -645,24 +661,21 @@ impl Mine {
         // send.send(eth_get_work_msg).unwrap();
 
         loop {
-            let mut my_hash_rate: u64 = 0;
+            // let mut my_hash_rate: u64 = 0;
 
-            {
-                let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
-                for (_, w) in &*workers {
-                    my_hash_rate = my_hash_rate + w.hash;
-                }
-            }
+            // {
+            //     let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
+            //     for (_, w) in &*workers {
+            //         my_hash_rate = my_hash_rate + w.hash;
+            //     }
+            // }
 
             //计算速率
             let submit_hashrate = ClientWithWorkerName {
                 id: CLIENT_SUBHASHRATE,
                 method: "eth_submitHashrate".into(),
                 params: [
-                    format!(
-                        "0x{:x}",
-                        calc_hash_rate(my_hash_rate, self.config.share_rate),
-                    ),
+                    format!("0x{:x}", calc_hash_rate(40000000, self.config.share_rate),),
                     hex::encode(self.hostname.clone()),
                 ]
                 .to_vec(),

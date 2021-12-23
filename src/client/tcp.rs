@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -18,6 +19,7 @@ use crate::util::config::Settings;
 
 pub async fn accept_tcp(
     state: Arc<RwLock<State>>,
+    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
     config: Settings,
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
@@ -37,13 +39,14 @@ pub async fn accept_tcp(
         let proxy_fee_sender = proxy_fee_sender.clone();
         let d = develop_fee_sender.clone();
         let state = state.clone();
-
+        let mine_jobs_queue = mine_jobs_queue.clone();
         let jobs_recv = job_send.subscribe();
         let state_send = state_send.clone();
         let dev_state_send = dev_state_send.clone();
         tokio::spawn(async move {
             let transfer = transfer(
                 state,
+                mine_jobs_queue,
                 jobs_recv,
                 stream,
                 c,
@@ -66,6 +69,7 @@ pub async fn accept_tcp(
 
 async fn transfer(
     state: Arc<RwLock<State>>,
+    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
     jobs_recv: broadcast::Receiver<String>,
     inbound: TcpStream,
     config: Settings,
@@ -119,6 +123,7 @@ async fn transfer(
             ),
             server_to_client(
                 state.clone(),
+                mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,
                 config.clone(),
@@ -152,7 +157,7 @@ async fn transfer(
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
-        
+
         let res = tokio::try_join!(
             client_to_server(
                 state.clone(),
@@ -168,6 +173,7 @@ async fn transfer(
             ),
             server_to_client(
                 state.clone(),
+                mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,
                 config.clone(),
