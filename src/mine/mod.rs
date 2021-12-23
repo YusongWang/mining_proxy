@@ -3,7 +3,7 @@ pub mod develop;
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
-    protocol::{CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
+    protocol::{CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, rpc::eth::ClientWithWorkerName},
     state::State,
     util::{calc_hash_rate, config::Settings},
 };
@@ -546,7 +546,7 @@ impl Mine {
 
                               #[cfg(debug_assertions)]
                               debug!("-------- M to S RPC #{:?}", client_msg);
-                              if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(client_msg.as_bytes())
+                              if let Ok(mut client_json_rpc) = serde_json::from_slice::<ClientWithWorkerName>(client_msg.as_bytes())
                               {
                                   if client_json_rpc.method == "eth_submitWork" {
                                       //client_json_rpc.id = 40;
@@ -583,7 +583,7 @@ impl Mine {
                                       bail!("矿池写入失败.0");
                                   }
                               } else if let Ok(client_json_rpc) =
-                                  serde_json::from_slice::<ClientGetWork>(client_msg.as_bytes())
+                                  serde_json::from_slice::<Client>(client_msg.as_bytes())
                               {
                                   let rpc = serde_json::to_vec(&client_json_rpc)?;
                                   let mut byte = BytesMut::new();
@@ -624,7 +624,7 @@ impl Mine {
         _: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
     ) -> Result<()> {
-        let login = Client {
+        let login = ClientWithWorkerName {
             id: CLIENT_LOGIN,
             method: "eth_submitLogin".into(),
             params: vec![self.wallet.clone(), "x".into()],
@@ -655,7 +655,7 @@ impl Mine {
             }
 
             //计算速率
-            let submit_hashrate = Client {
+            let submit_hashrate = ClientWithWorkerName {
                 id: CLIENT_SUBHASHRATE,
                 method: "eth_submitHashrate".into(),
                 params: [
