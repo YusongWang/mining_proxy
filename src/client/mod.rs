@@ -436,10 +436,11 @@ where
                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                     }
                     info!(
-                        "✅ Worker: {} 读取失败。链接失效。",
+                        "✅ 已阻止 Worker: {} 断开连接，非法请求。可能受到攻击。!!!",
                         worker_name
                     );
-                    return Ok(());
+                    return w.shutdown().await;
+
                 }
 
                 match String::from_utf8(buf[0..len].to_vec()) {
@@ -451,9 +452,11 @@ where
                     }
                     Err(_) => {
                         info!("格式化为字符串失败。{:?}", buf[0..len].to_vec());
-                        return Ok(());
+                        return w.shutdown().await;
                     }
                 }
+
+
                 let buffer_string =  String::from_utf8(buf[0..len].to_vec()).unwrap();
                 let buffer:Vec<_> = buffer_string.split("\n").collect();
                 //let buffer = buf[0..len].split(|c| *c == b'\n');
@@ -493,6 +496,7 @@ where
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
                                     );
                                     info!("矿池登录失败");
+                                    w.shutdown().await;
                                     log::error!(
                                         "矿池登录失败 {}",
                                         String::from_utf8(buf.as_bytes().to_vec()).unwrap()
@@ -563,7 +567,9 @@ where
                                 Ok(_) => {}
                                 Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                             }
-                            return Ok(());
+
+                            return w.shutdown().await;
+                            //return Ok(());
                         }
 
                         continue;
@@ -603,7 +609,8 @@ where
                                                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                                                     }
                                                     //debug!("矿机任务写入失败 {:?}",job);
-                                                    return Ok(());
+                                                    //return Ok(());
+                                                    return w.shutdown().await;
                                                 }
 
                                                 dev_state_send.send((phread_id,queue_job)).expect("发送任务给开发者失败。");
@@ -657,7 +664,8 @@ where
                                                             Ok(_) => {}
                                                             Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                                                         }
-                                                        return Ok(());
+                                                        //return Ok(());
+                                                        return w.shutdown().await;
                                                     }
                                                     state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
 
@@ -673,6 +681,7 @@ where
                                 }
                             }
                         }
+
                         let mut byte = BytesMut::from(buf);
                         byte.put_u8(b'\n');
                         let len = w.write_buf(&mut byte).await?;
@@ -690,7 +699,8 @@ where
                                 Ok(_) => {}
                                 Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                             }
-                            return Ok(());
+                            return w.shutdown().await;
+                            //return Ok(());
                         }
                         continue;
                     } else {
@@ -721,7 +731,8 @@ where
                                 Ok(_) => {}
                                 Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                             }
-                            return Ok(());
+                            //return Ok(());
+                            return w.shutdown().await;
                         }
                     }
 
@@ -792,7 +803,8 @@ where
                 byte.put_u8(b'\n');
                 let w_len = w.write_buf(&mut byte).await?;
                 if w_len == 0 {
-                    return Ok(());
+                    //return Ok(());
+                    return w.shutdown().await;
                 }
             }
         }
