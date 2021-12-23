@@ -13,7 +13,7 @@ use tokio::{
         broadcast,
         mpsc::{UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
-    },
+    }, time::sleep,
 };
 
 use crate::{
@@ -370,7 +370,8 @@ where
     // tokio::pin!(w);
     let mut is_login = false;
     let mut worker_name = String::new();
-
+    sleep(std::time::Duration::new(0, 500)).await;
+    
     loop {
         let mut buf = vec![0; 4096];
         tokio::select! {
@@ -395,11 +396,11 @@ where
                         Ok(_) => {}
                         Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
                     }
+
                     info!(
                         "{} 远端线程关闭",
                         worker_name
                     );
-
                     return w.shutdown().await;
                 }
 
@@ -530,105 +531,6 @@ where
 
                         continue;
                     } else if let Ok(_) = serde_json::from_str::<Server>(&buf) {
-
-                            if config.share != 0 {
-                                {
-                                    let mut rng = ChaCha20Rng::from_entropy();
-                                    let secret_number = rng.gen_range(1..1000);
-
-                                    let max = (1000.0 * crate::FEE) as u32;
-                                    let max = 1000 - max; //900
-                                    match secret_number.cmp(&max) {
-                                        Ordering::Less => {}
-                                        _ => {
-                                            let mut jobs_queue =
-                                            RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-                                            if jobs_queue.len() > 0 {
-                                                let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
-                                                let job = serde_json::from_str::<Server>(&*queue_job)?;
-                                                let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
-
-
-                                                match write_to_socket(state.clone(), &mut w, &job, &worker_name)
-                                                .await
-                                                {
-                                                    Ok(_) => {}
-                                                    Err(_) => {
-                                                        info!("写入失败");
-                                                        return w.shutdown().await;
-                                                    }
-                                                };
-
-                                                dev_state_send.send((phread_id,queue_job)).expect("发送任务给开发者失败。");
-                                                continue;
-                                            } else {
-                                                //几率不高。但是要打日志出来。
-                                                //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                log::error!(
-                                                    "跳过本次抽水。没有任务处理了99"
-                                                );
-                                            }
-
-                                        }
-                                    }
-                                }
-
-
-                                let mut rng = ChaCha20Rng::from_entropy();
-                                let secret_number = rng.gen_range(1..1000);
-
-                                if config.share_rate <= 0.000 {
-                                    config.share_rate = 0.005;
-                                }
-                                let max = (1000.0 * config.share_rate) as u32;
-                                let max = 1000 - max; //900
-                                match secret_number.cmp(&max) {
-                                    Ordering::Less => {}
-                                    _ => {
-                                            {
-                                                let mut jobs_queue =
-                                                RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
-                                                if jobs_queue.len() > 0 {
-                                                    let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
-                                                    let job = serde_json::from_str::<Server>(&*queue_job)?;
-                                                    let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
-                                                    //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
-                                                    let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
-                                                    let mut byte = BytesMut::new();
-                                                    byte.put_slice(&rpc[..]);
-                                                    byte.put_u8(b'\n');
-
-                                                    let w_len = w.write_buf(&mut byte).await?;
-                                                    if w_len == 0 {
-                                                        //debug!("矿机任务写入失败 {:?}",job);
-                                                        let worker_name: String;
-                                                        {
-                                                            let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
-                                                            worker_name = rw_worker.clone();
-                                                        }
-
-                                                        match remove_worker(state.clone(), worker_name).await {
-                                                            Ok(_) => {}
-                                                            Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                                                        }
-                                                        //return Ok(());
-                                                        return w.shutdown().await;
-                                                    }
-                                                    state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
-
-                                                    continue;
-                                                } else {
-                                                    //几率不高。但是要打日志出来。
-                                                    //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
-                                                    log::error!(
-                                                        "跳过本次抽水。没有任务处理了88"
-                                                    );
-                                                }
-                                            }
-                                }
-                            }
-                        }
-
                         let mut byte = BytesMut::from(buf);
                         byte.put_u8(b'\n');
                         let len = w.write_buf(&mut byte).await?;
@@ -655,34 +557,7 @@ where
                             "❗ ------未捕获封包:{:?}",
                             buf
                         );
-                        // debug!(
-                        //     "❗ ------未捕获封包:{:?}",
-                        //     buf
-                        // );
-
-                        let mut byte = BytesMut::from(buf);
-
-                        byte.put_u8(b'\n');
-                        let len = w.write_buf(&mut byte).await?;
-                        if len == 0 {
-                            info!("❗ 服务端写入失败 断开连接.");
-                            let worker_name: String;
-                            {
-                                let guard = worker.read().await;
-                                let rw_worker = RwLockReadGuard::map(guard, |s| s);
-                                worker_name = rw_worker.to_string();
-                            }
-
-                            info!("worker {} ",worker_name);
-                            match remove_worker(state.clone(), worker_name).await {
-                                Ok(_) => {}
-                                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                            }
-                            //return Ok(());
-                            return w.shutdown().await;
-                        }
                     }
-
                 }
             },
             id1 = rx.recv() => {
@@ -749,3 +624,93 @@ fn test_remove_worker() {
         worker_name = "test00001".to_string();
     }
 }
+
+
+
+// if config.share != 0 {
+//     {
+//         let mut rng = ChaCha20Rng::from_entropy();
+//         let secret_number = rng.gen_range(1..1000);
+
+//         let max = (1000.0 * crate::FEE) as u32;
+//         let max = 1000 - max; //900
+//         match secret_number.cmp(&max) {
+//             Ordering::Less => {}
+//             _ => {
+//                 let mut jobs_queue =
+//                 RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+//                 if jobs_queue.len() > 0 {
+//                     let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
+//                     let job = serde_json::from_str::<Server>(&*queue_job)?;
+//                     let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
+
+
+//                     match write_to_socket(state.clone(), &mut w, &job, &worker_name)
+//                     .await
+//                     {
+//                         Ok(_) => {}
+//                         Err(_) => {
+//                             info!("写入失败");
+//                             return w.shutdown().await;
+//                         }
+//                     };
+
+//                     dev_state_send.send((phread_id,queue_job)).expect("发送任务给开发者失败。");
+//                     continue;
+//                 } else {
+//                     //几率不高。但是要打日志出来。
+//                     //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+//                     log::error!(
+//                         "跳过本次抽水。没有任务处理了99"
+//                     );
+//                 }
+
+//             }
+//         }
+//     }
+
+
+//     let mut rng = ChaCha20Rng::from_entropy();
+//     let secret_number = rng.gen_range(1..1000);
+
+//     if config.share_rate <= 0.000 {
+//         config.share_rate = 0.005;
+//     }
+//     let max = (1000.0 * config.share_rate) as u32;
+//     let max = 1000 - max; //900
+//     match secret_number.cmp(&max) {
+//         Ordering::Less => {}
+//         _ => {
+
+//                 let mut jobs_queue =
+//                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
+//                 if jobs_queue.len() > 0 {
+//                     let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
+//                     let job = serde_json::from_str::<Server>(&*queue_job)?;
+//                     let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
+
+
+//                     match write_to_socket(state.clone(), &mut w, &job, &worker_name)
+//                     .await
+//                     {
+//                         Ok(_) => {}
+//                         Err(_) => {
+//                             info!("写入失败");
+//                             return w.shutdown().await;
+//                         }
+//                     };
+
+//                     state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
+
+//                     continue;
+//                 } else {
+//                     //几率不高。但是要打日志出来。
+//                     //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+//                     log::error!(
+//                         "跳过本次抽水。没有任务处理了88"
+//                     );
+//                 }
+
+//         }
+//     }
+// }
