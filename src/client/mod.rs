@@ -64,10 +64,10 @@ where
             return Ok(());
         }
 
-        #[cfg(debug_assertions)]
+        //#[cfg(debug_assertions)]
         match String::from_utf8(buf[0..len].to_vec()) {
             Ok(rpc) => {
-                debug!("矿机 -> 矿池 #{:?}", rpc);
+                debug!("0:  矿机 -> 矿池 {} #{:?}",worker_name, rpc);
             }
             Err(_) => {
                 info!("格式化为字符串失败。{:?}", buf[0..len].to_vec());
@@ -382,11 +382,18 @@ where
                     return Ok(());
                 }
 
-                // debug!(
-                //     "S to C RPC #{:?}",
-                //     String::from_utf8(buf[0..len].to_vec()).unwrap()
-                // );
-
+                match String::from_utf8(buf[0..len].to_vec()) {
+                    Ok(rpc) => {
+                        let guard = worker.read().await;
+                        let rw_worker = RwLockReadGuard::map(guard, |s| s);
+                        let worker_name = rw_worker.to_string();
+                        debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, rpc);
+                    }
+                    Err(_) => {
+                        info!("格式化为字符串失败。{:?}", buf[0..len].to_vec());
+                        return Ok(());
+                    }
+                }
                 let buffer_string =  String::from_utf8(buf[0..len].to_vec()).unwrap();
                 let buffer:Vec<_> = buffer_string.split("\n").collect();
                 //let buffer = buf[0..len].split(|c| *c == b'\n');
@@ -399,12 +406,10 @@ where
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {}",buf);
                     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
-
-                        let rw_worker = RwLockReadGuard::map(worker.read().await, |s| s);
                         // let mut workers =
                         // RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
                         // if let Some(w) = workers.get_mut(&rw_worker.clone()) {
-                                let mut rpc_id = 0;
+                            let mut rpc_id = 0;
                             if server_json_rpc.id == CLIENT_LOGIN {
                                 if server_json_rpc.result {
 
@@ -471,6 +476,13 @@ where
                         {
                             let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
                             server_json_rpc.id = *rpc_id;
+                        }
+                        
+                        {   
+                            let guard = worker.read().await;
+                            let rw_worker = RwLockReadGuard::map(guard, |s| s);
+                            let worker_name = rw_worker.to_string();
+                            debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, server_json_rpc);
                         }
 
                         let to_client_buf = serde_json::to_string(&server_json_rpc).expect("格式化RPC失败");
@@ -601,7 +613,6 @@ where
                                 }
                             }
                         }
-
                         let mut byte = BytesMut::from(buf);
                         byte.put_u8(b'\n');
                         let len = w.write_buf(&mut byte).await?;
