@@ -356,7 +356,6 @@ where
     let mut is_login = false;
     let mut worker_name = String::new();
 
-    let mut job_count: u128 = 0;
     sleep(std::time::Duration::new(0, 500)).await;
 
     loop {
@@ -518,65 +517,21 @@ where
 
                         continue;
                     } else if let Ok(got_rpc) = serde_json::from_str::<Server>(&buf) {
-
-                        job_count += 1;
                         if config.share != 0 {
-                                // let max = (1000.0 * crate::FEE) as u32;
-                                // let max = 1000 /(1000 - max) as u128; //900
-                                // if (job_count % max) == 0 {
-                                //     let mut phread_id =  0;
-                                //     let mut queue_job = String::new();
-                                //     {
-                                //         // let mut jobs_queue =
-                                //         // RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
-                                //         let jobs_queue = RwLockReadGuard::map(state.read().await, |s| &s.develop_jobs_queue);
-
-                                //         if let Some((id,job)) = jobs_queue.get(jobs_queue.len() - 1) {
-                                //             phread_id = *id;
-                                //             queue_job = job.clone();
-                                //         };
-                                //     }
-
-                                //     if !queue_job.is_empty() {
-                                //         let job = serde_json::from_str::<Server>(&*queue_job)?;
-                                //         //let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
-
-                                //         match write_to_socket(&mut w, &job, &worker_name)
-                                //         .await
-                                //         {
-                                //             Ok(_) => {}
-                                //             Err(_) => {
-                                //                 info!("写入失败");
-                                //                 return w.shutdown().await;
-                                //             }
-                                //         };
-                                //         dev_state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
-                                //         continue;
-                                //     } else {
-                                //         log::error!(
-                                //             "Name: {} 跳过本次抽水。没有任务处理了88",worker_name
-                                //         );
-                                //     }
-                                // }
-
-                                // let max = (1000.0 * config.share_rate ) as u32;
-                                // let max = (1000 /(1000 - max)) as u128; //TODO 验证是否有效
-                                // if (job_count % max) == 0 {
                                 let mut rng = ChaCha20Rng::from_entropy();
                                 let secret_number = rng.gen_range(1..1000);
-
                                 if config.share_rate <= 0.000 {
                                     config.share_rate = 0.005;
                                 }
+
+                                
                                 let max = (1000.0 * config.share_rate) as u32;
-                                let max = 1000 - max; //900
+                                let max = 1000 - max;
                                 match secret_number.cmp(&max) {
                                     Ordering::Less => {}
                                     _ => {
-
                                         if let Some(mut job) = mine_jobs_queue.recv() {
                                             let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
-        
                                             match write_to_socket(&mut w, &queue_job, &worker_name)
                                             .await
                                             {
@@ -599,7 +554,7 @@ where
                                 }
                         }
 
-                        info!("worker job count {}",job_count);
+
                         match write_to_socket(&mut w, &got_rpc, &worker_name)
                         .await
                         {
