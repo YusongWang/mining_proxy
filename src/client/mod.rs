@@ -18,7 +18,10 @@ use tokio::{
 
 use crate::{
     protocol::{
-        rpc::eth::{Client, ClientGetWork, ClientWithWorkerName, Server, ServerError, ServerId1, ServerSideJob},
+        rpc::eth::{
+            Client, ClientGetWork, ClientWithWorkerName, Server, ServerError, ServerId1,
+            ServerSideJob,
+        },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     state::{State, Worker},
@@ -271,12 +274,14 @@ where
                         //     info!("✅ Worker :{} 提交本地算力 {} MB", worker, hashrate);
                         // }
                     }
-                    match write_to_socket(state.clone(),&mut w,&client_json_rpc,&worker_name).await {
-                        Ok(_) => {},
+                    match write_to_socket(state.clone(), &mut w, &client_json_rpc, &worker_name)
+                        .await
+                    {
+                        Ok(_) => {}
                         Err(_) => {
                             info!("写入失败");
                             return w.shutdown().await;
-                        },
+                        }
                     };
                 } else if client_json_rpc.method == "eth_submitLogin" {
                     let mut client_json_rpc =
@@ -318,20 +323,24 @@ where
                         //debug!("❎ 登录错误，未找到登录参数");
                     }
 
-                    match write_to_socket(state.clone(),&mut w,&client_json_rpc,&worker_name).await {
-                        Ok(_) => {},
+                    match write_to_socket(state.clone(), &mut w, &client_json_rpc, &worker_name)
+                        .await
+                    {
+                        Ok(_) => {}
                         Err(_) => {
                             info!("写入失败");
                             return w.shutdown().await;
-                        },
+                        }
                     };
                 } else if client_json_rpc.method == "eth_getWork" {
-                    match write_to_socket(state.clone(),&mut w,&client_json_rpc,&worker_name).await {
-                        Ok(_) => {},
+                    match write_to_socket(state.clone(), &mut w, &client_json_rpc, &worker_name)
+                        .await
+                    {
+                        Ok(_) => {}
                         Err(_) => {
                             info!("写入失败");
                             return w.shutdown().await;
-                        },
+                        }
                     };
                 } else {
                     log::error!(
@@ -589,7 +598,8 @@ where
                                             RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
                                             if jobs_queue.len() > 0 {
                                                 let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
-                                                let job = serde_json::from_str::<ServerSideJob>(&*queue_job)?;
+                                                let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                                let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
 
                                                 let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                 let mut byte = BytesMut::new();
@@ -644,7 +654,8 @@ where
                                                 RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
                                                 if jobs_queue.len() > 0 {
                                                     let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
-                                                    let job = serde_json::from_str::<ServerSideJob>(&*queue_job)?;
+                                                    let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                                    let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
                                                     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}",job);
                                                     let rpc = serde_json::to_vec(&job).expect("格式化RPC失败");
                                                     let mut byte = BytesMut::new();
