@@ -113,20 +113,10 @@ impl Mine {
         //info!("✅✅ new_accept");
         let mut rng = ChaCha20Rng::from_entropy();
         let secret_number = rng.gen_range(1..1000);
-        let secret = rng.gen_range(1..10);
+        let secret = rng.gen_range(0..1000);
         sleep(std::time::Duration::new(secret, secret_number)).await;
         self.new_worker(state.clone(), jobs_send.clone(), send, recv)
             .await
-        // for i in 0..50 {
-        //     let worker = tokio::spawn(async move {
-
-        //     });
-        //     v.push(worker);
-        // }
-
-        //let outputs = future::try_join_all(v.into_iter().map(tokio::spawn)).await?;
-
-        //Ok(())
     }
     // pub async fn accept(
     //     self,

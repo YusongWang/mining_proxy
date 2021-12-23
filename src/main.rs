@@ -143,7 +143,7 @@ async fn proxy_accept(
         thread_len = 100;
     }
 
-    for i in 0..thread_len {
+    for i in 0..50 {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();

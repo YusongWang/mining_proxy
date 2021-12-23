@@ -104,7 +104,7 @@ impl Mine {
         //info!("✅✅ new_accept");
         let mut rng = ChaCha20Rng::from_entropy();
         let secret_number = rng.gen_range(1..1000);
-        let secret = rng.gen_range(1..10);
+        let secret = rng.gen_range(0..1000);
         sleep(std::time::Duration::new(secret, secret_number)).await;
         self.new_worker(state.clone(), jobs_send.clone(), send, recv)
             .await

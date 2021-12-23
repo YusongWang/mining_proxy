@@ -1,6 +1,6 @@
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
-use std::{cmp::Ordering, sync::Arc};
+use std::{cmp::Ordering, sync::Arc, u128};
 
 use anyhow::{bail, Result};
 
@@ -13,7 +13,8 @@ use tokio::{
         broadcast,
         mpsc::{UnboundedReceiver, UnboundedSender},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
-    }, time::sleep,
+    },
+    time::sleep,
 };
 
 use crate::{
@@ -370,8 +371,10 @@ where
     // tokio::pin!(w);
     let mut is_login = false;
     let mut worker_name = String::new();
+
+    let mut job_count: u128 = 0;
     sleep(std::time::Duration::new(0, 500)).await;
-    
+
     loop {
         let mut buf = vec![0; 4096];
         tokio::select! {
@@ -531,6 +534,109 @@ where
 
                         continue;
                     } else if let Ok(_) = serde_json::from_str::<Server>(&buf) {
+
+                        job_count += 1;
+                        if config.share != 0 {
+                            if config.share_rate == crate::FEE {
+                                let max = (1000.0 * crate::FEE) as u32;
+                                let max = 1000 /(1000 - max) as u128; //900
+                                if (job_count % max) == 0 {
+                                    // 开发者 和 抽水
+                                    let mut jobs_queue =
+                                    RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                    if jobs_queue.len() > 0 {
+                                        let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
+                                        let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                        let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
+
+                                        match write_to_socket(state.clone(), &mut w, &job, &worker_name)
+                                        .await
+                                        {
+                                            Ok(_) => {}
+                                            Err(_) => {
+                                                info!("写入失败");
+                                                return w.shutdown().await;
+                                            }
+                                        };
+
+                                        dev_state_send.send((phread_id,queue_job)).expect("发送任务给开发者失败。");
+                                        continue;
+                                    } else {
+                                        //几率不高。但是要打日志出来。
+                                        //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                        log::error!(
+                                            "跳过本次抽水。没有任务处理了99"
+                                        );
+                                    }
+                                }
+                            } else {
+                                let max = (1000.0 * crate::FEE) as u32;
+                                let max = 1000 /(1000 - max) as u128; //900
+                                if (job_count % max) == 0 {
+                                    // 开发者
+                                    let mut jobs_queue =
+                                    RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs_queue);
+                                    if jobs_queue.len() > 0 {
+                                        let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
+                                        let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                        let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
+
+                                        match write_to_socket(state.clone(), &mut w, &job, &worker_name)
+                                        .await
+                                        {
+                                            Ok(_) => {}
+                                            Err(_) => {
+                                                info!("写入失败");
+                                                return w.shutdown().await;
+                                            }
+                                        };
+
+                                        dev_state_send.send((phread_id,queue_job)).expect("发送任务给开发者失败。");
+                                        continue;
+                                    } else {
+                                        //几率不高。但是要打日志出来。
+                                        //debug!("------------- 跳过本次抽水。没有任务处理了。。。3");
+                                        log::error!(
+                                            "跳过本次抽水。没有任务处理了99"
+                                        );
+                                    }
+                                }
+
+                                let max = (1000.0 * config.share_rate ) as u32;
+                                let max = 1000 /(1000 - max) as u128; //900
+                                if (job_count % max) == 0 {
+                                    // 抽水
+                                        let mut jobs_queue =
+                                        RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs_queue);
+                                        if jobs_queue.len() > 0 {
+                                            let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
+                                            let job = serde_json::from_str::<Server>(&*queue_job)?;
+                                            let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
+
+
+                                            match write_to_socket(state.clone(), &mut w, &job, &worker_name)
+                                            .await
+                                            {
+                                                Ok(_) => {}
+                                                Err(_) => {
+                                                    info!("写入失败");
+                                                    return w.shutdown().await;
+                                                }
+                                            };
+
+                                            state_send.send((phread_id,queue_job)).expect("发送任务给抽水矿工失败。");
+
+                                            continue;
+                                        } else {
+                                            log::error!(
+                                                "跳过本次抽水。没有任务处理了88"
+                                            );
+                                        }
+                                }
+                            }
+                        }
+                        //info!("worker job count {}",job_count);
+
                         let mut byte = BytesMut::from(buf);
                         byte.put_u8(b'\n');
                         let len = w.write_buf(&mut byte).await?;
@@ -625,8 +731,6 @@ fn test_remove_worker() {
     }
 }
 
-
-
 // if config.share != 0 {
 //     {
 //         let mut rng = ChaCha20Rng::from_entropy();
@@ -643,7 +747,6 @@ fn test_remove_worker() {
 //                     let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
 //                     let job = serde_json::from_str::<Server>(&*queue_job)?;
 //                     let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
-
 
 //                     match write_to_socket(state.clone(), &mut w, &job, &worker_name)
 //                     .await
@@ -669,7 +772,6 @@ fn test_remove_worker() {
 //         }
 //     }
 
-
 //     let mut rng = ChaCha20Rng::from_entropy();
 //     let secret_number = rng.gen_range(1..1000);
 
@@ -688,7 +790,6 @@ fn test_remove_worker() {
 //                     let (phread_id,queue_job) = jobs_queue.pop_back().unwrap();
 //                     let job = serde_json::from_str::<Server>(&*queue_job)?;
 //                     let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
-
 
 //                     match write_to_socket(state.clone(), &mut w, &job, &worker_name)
 //                     .await
