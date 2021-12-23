@@ -542,6 +542,7 @@ where
                                         phread_id = id;
                                         queue_job = job.clone();
                                     }
+
                                     if !queue_job.is_empty() {
                                         let job = serde_json::from_str::<Server>(&*queue_job)?;
                                         //let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
@@ -562,7 +563,6 @@ where
                                             "Name: {} 跳过本次抽水。没有任务处理了88",worker_name
                                         );
                                     }
-
                                 }
 
                                 let max = (1000.0 * config.share_rate ) as u32;
@@ -581,9 +581,9 @@ where
                                         phread_id = id;
                                         queue_job = job.clone();
                                     }
+
                                     if !queue_job.is_empty() {
                                         let job = serde_json::from_str::<Server>(&*queue_job)?;
-                                        //let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
 
                                         match write_to_socket(&mut w, &job, &worker_name)
                                         .await
@@ -630,13 +630,6 @@ where
                     let rpc_id = RwLockReadGuard::map(client_rpc_id.read().await, |s| s);
                     msg.id = *rpc_id;
                 }
-                let worker_name: String;
-                {
-                    let guard = worker.read().await;
-                    let rw_worker = RwLockReadGuard::map(guard, |s| s);
-                    worker_name = rw_worker.to_string();
-                }
-
                 match write_to_socket(&mut w, &msg, &worker_name)
                 .await
                 {
