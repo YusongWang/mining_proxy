@@ -577,10 +577,10 @@ where
                                         continue;
                                     } else {
                                         log::error!(
-                                            "跳过本次抽水。没有任务处理了88"
+                                            "Name: {} 跳过本次抽水。没有任务处理了88",worker_name
                                         );
                                     }
-                                    
+
                                 }
 
                                 let max = (1000.0 * config.share_rate ) as u32;
@@ -616,7 +616,7 @@ where
                                         continue;
                                     } else {
                                         log::error!(
-                                            "跳过本次抽水。没有任务处理了88"
+                                            "Name {} 跳过本次抽水。没有任务处理了88",worker_name
                                         );
                                     }
                                 }
