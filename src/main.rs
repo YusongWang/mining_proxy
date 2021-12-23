@@ -157,8 +157,13 @@ async fn proxy_accept(
 ) -> Result<()> {
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
+    let thread_len = (config.share_rate * 100.0) as u64;
+    let mut thread_len = thread_len * 50;
+    if thread_len < 100 {
+        thread_len = 100;
+    }
 
-    for i in 0..500 {
+    for i in 0..thread_len {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();

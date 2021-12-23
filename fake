@@ -1,8 +1,8 @@
 {"id":6,"method":"eth_submitHashrate","params":["0x5F5E100","x"],"worker":"YusongWangdeMacBook-Pro.local"}
 
-{"id":1,"method":"eth_submitLogin","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD","x"],"worker":"YusongWangdeMacBook-Pro.local"}
+{"id":1,"method":"eth_submitLogin","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD","x"],"worker":"YusongWangdeMacBook-Pro.local.eth1.0"}
 
-
+{"id":5,"method":"eth_getWork","params":[]}
 
  // if !is_login {
                 //     if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
