@@ -533,7 +533,7 @@ where
                         }
 
                         continue;
-                    } else if let Ok(_) = serde_json::from_str::<Server>(&buf) {
+                    } else if let Ok(got_rpc) = serde_json::from_str::<Server>(&buf) {
 
                         job_count += 1;
                         if config.share != 0 {
@@ -622,29 +622,18 @@ where
                                 }
                             }
                         }
-                        //info!("worker job count {}",job_count);
 
-                        let mut byte = BytesMut::from(buf);
-                        byte.put_u8(b'\n');
-                        let len = w.write_buf(&mut byte).await?;
-                        if len == 0 {
-                            info!("❗ 服务端写入失败 断开连接.");
-                            let worker_name: String;
-                            {
-                                let guard = worker.read().await;
-                                let rw_worker = RwLockReadGuard::map(guard, |s| s);
-                                worker_name = rw_worker.to_string();
+                        info!("worker job count {}",job_count);
+                        match write_to_socket(state.clone(), &mut w, &got_rpc, &worker_name)
+                        .await
+                        {
+                            Ok(_) => {}
+                            Err(_) => {
+                                info!("写入失败");
+                                return w.shutdown().await;
                             }
-
-                            info!("worker {} ",worker_name);
-                            match remove_worker(state.clone(), worker_name).await {
-                                Ok(_) => {}
-                                Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-                            }
-                            return w.shutdown().await;
-                            //return Ok(());
-                        }
-                        continue;
+                        };
+                        
                     } else {
                         log::error!(
                             "❗ ------未捕获封包:{:?}",
