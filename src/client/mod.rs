@@ -1,6 +1,6 @@
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
-use std::{cmp::Ordering, sync::Arc, u128, os::unix::raw::pthread_t};
+use std::{cmp::Ordering, os::unix::raw::pthread_t, sync::Arc, u128};
 
 use anyhow::{bail, Result};
 
@@ -32,12 +32,7 @@ use crate::{
 pub mod tcp;
 pub mod tls;
 
-async fn write_to_socket<W, T>(
-    state: Arc<RwLock<State>>,
-    w: &mut WriteHalf<W>,
-    rpc: &T,
-    worker: &String,
-) -> Result<()>
+async fn write_to_socket<W, T>(w: &mut WriteHalf<W>, rpc: &T, worker: &String) -> Result<()>
 where
     W: AsyncWrite,
     T: Serialize,
@@ -46,10 +41,6 @@ where
     rpc.push(b'\n');
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        match remove_worker(state.clone(), worker.clone()).await {
-            Ok(_) => {}
-            Err(_) => info!("❗清理全局变量失败 Code: {}", line!()),
-        }
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
 
@@ -215,9 +206,7 @@ where
                         info!("✅ Worker :{} Share #{}", rw_worker, submit_idx_id);
                     }
 
-                    match write_to_socket(state.clone(), &mut w, &client_json_rpc, &worker_name)
-                        .await
-                    {
+                    match write_to_socket(&mut w, &client_json_rpc, &worker_name).await {
                         Ok(_) => {}
                         Err(_) => {
                             info!("写入失败");
@@ -273,9 +262,7 @@ where
                         //     info!("✅ Worker :{} 提交本地算力 {} MB", worker, hashrate);
                         // }
                     }
-                    match write_to_socket(state.clone(), &mut w, &client_json_rpc, &worker_name)
-                        .await
-                    {
+                    match write_to_socket(&mut w, &client_json_rpc, &worker_name).await {
                         Ok(_) => {}
                         Err(_) => {
                             info!("写入失败");
@@ -312,9 +299,7 @@ where
                         //debug!("❎ 登录错误，未找到登录参数");
                     }
 
-                    match write_to_socket(state.clone(), &mut w, &client_json_rpc, &worker_name)
-                        .await
-                    {
+                    match write_to_socket(&mut w, &client_json_rpc, &worker_name).await {
                         Ok(_) => {}
                         Err(_) => {
                             info!("写入失败");
@@ -322,9 +307,7 @@ where
                         }
                     };
                 } else if client_json_rpc.method == "eth_getWork" {
-                    match write_to_socket(state.clone(), &mut w, &client_json_rpc, &worker_name)
-                        .await
-                    {
+                    match write_to_socket(&mut w, &client_json_rpc, &worker_name).await {
                         Ok(_) => {}
                         Err(_) => {
                             info!("写入失败");
@@ -542,7 +525,6 @@ where
                                 let max = 1000 /(1000 - max) as u128; //900
                                 if (job_count % max) == 0 {
                                     // 开发者 和 抽水
-                                    
                                 }
                             } else {
                                 let max = (1000.0 * crate::FEE) as u32;
@@ -563,8 +545,8 @@ where
                                     if !queue_job.is_empty() {
                                         let job = serde_json::from_str::<Server>(&*queue_job)?;
                                         //let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
-    
-                                        match write_to_socket(state.clone(), &mut w, &job, &worker_name)
+
+                                        match write_to_socket(&mut w, &job, &worker_name)
                                         .await
                                         {
                                             Ok(_) => {}
@@ -602,8 +584,8 @@ where
                                     if !queue_job.is_empty() {
                                         let job = serde_json::from_str::<Server>(&*queue_job)?;
                                         //let job = ServerSideJob{ id: job.id, jsonrpc: "2.0".into(), result: job.result };
-    
-                                        match write_to_socket(state.clone(), &mut w, &job, &worker_name)
+
+                                        match write_to_socket(&mut w, &job, &worker_name)
                                         .await
                                         {
                                             Ok(_) => {}
@@ -624,7 +606,7 @@ where
                         }
 
                         info!("worker job count {}",job_count);
-                        match write_to_socket(state.clone(), &mut w, &got_rpc, &worker_name)
+                        match write_to_socket(&mut w, &got_rpc, &worker_name)
                         .await
                         {
                             Ok(_) => {}
@@ -633,7 +615,7 @@ where
                                 return w.shutdown().await;
                             }
                         };
-                        
+
                     } else {
                         log::error!(
                             "❗ ------未捕获封包:{:?}",
@@ -655,7 +637,7 @@ where
                     worker_name = rw_worker.to_string();
                 }
 
-                match write_to_socket(state.clone(), &mut w, &msg, &worker_name)
+                match write_to_socket(&mut w, &msg, &worker_name)
                 .await
                 {
                     Ok(_) => {}
