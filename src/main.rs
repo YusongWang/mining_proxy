@@ -24,6 +24,8 @@ mod mine;
 mod protocol;
 mod state;
 mod util;
+mod jobs;
+
 
 use util::{
     calc_hash_rate,
@@ -35,7 +37,7 @@ use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
     mine::Mine,
     protocol::rpc::eth::Server,
-    state::State,
+    state::State, jobs::JobQueue,
 };
 
 const FEE: f32 = 0.005;
@@ -56,6 +58,7 @@ async fn main() -> Result<()> {
     info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
     // 分配任务给矿机channel
     let (state_send, state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+
     // 分配dev任务给矿机channel
     let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
 
@@ -93,14 +96,14 @@ async fn main() -> Result<()> {
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
-    let mine_jobs_queue = Arc::new(RwLock::new(VecDeque::new()));
+    let mut mine_jobs = Arc::new(JobQueue::new(40));
 
 
 
     let res = tokio::try_join!(
         accept_tcp(
             state.clone(),
-            mine_jobs_queue.clone(),
+            mine_jobs.clone(),
             config.clone(),
             job_send.clone(),
             proxy_job_channel.clone(),
@@ -110,7 +113,7 @@ async fn main() -> Result<()> {
         ),
         accept_tcp_with_tls(
             state.clone(),
-            mine_jobs_queue.clone(),
+            mine_jobs.clone(),
             config.clone(),
             job_send.clone(),
             proxy_job_channel.clone(),
@@ -119,7 +122,7 @@ async fn main() -> Result<()> {
             dev_state_send.clone(),
             cert
         ),
-        proxy_accept(mine_jobs_queue.clone(), config.clone(), proxy_job_channel.clone()),
+        proxy_accept(mine_jobs.clone(), config.clone(), proxy_job_channel.clone()),
         develop_accept(state.clone(), config.clone(), fee_tx.clone()),
         process_mine_state(state.clone(), state_recv),
         process_dev_state(state.clone(), dev_state_recv),
@@ -136,7 +139,7 @@ async fn main() -> Result<()> {
 
 // 中转代理抽水服务
 async fn proxy_accept(
-    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+    mine_jobs_queue: Arc<JobQueue>,
     config: Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
@@ -177,7 +180,7 @@ async fn develop_accept(
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
-    for i in 0..30 {
+    for i in 0..50 {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();

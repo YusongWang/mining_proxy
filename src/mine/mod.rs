@@ -5,7 +5,7 @@ use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
     protocol::{rpc::eth::ClientWithWorkerName, CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
     state::State,
-    util::{calc_hash_rate, config::Settings},
+    util::{calc_hash_rate, config::Settings}, jobs::{JobQueue, Job},
 };
 
 use anyhow::{bail, Error, Result};
@@ -77,7 +77,7 @@ impl Mine {
 
     async fn new_worker(
         self,
-        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+        mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
@@ -95,9 +95,10 @@ impl Mine {
             Ok(())
         }
     }
+
     pub async fn new_accept(
         self,
-        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+        mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
@@ -106,7 +107,7 @@ impl Mine {
         //info!("✅✅ new_accept");
         let mut rng = ChaCha20Rng::from_entropy();
         let secret_number = rng.gen_range(1..1000);
-        let secret = rng.gen_range(0..1000);
+        let secret = rng.gen_range(0..100);
         sleep(std::time::Duration::new(secret, secret_number)).await;
         self.new_worker(mine_jobs_queue.clone(), jobs_send.clone(), send, recv)
             .await
@@ -123,7 +124,7 @@ impl Mine {
     }
     pub async fn accept(
         self,
-        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+        mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<String>,
         send: UnboundedSender<String>,
         recv: UnboundedReceiver<String>,
@@ -146,7 +147,7 @@ impl Mine {
 
     async fn accept_tcp(
         &self,
-        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+        mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
@@ -207,7 +208,7 @@ impl Mine {
 
     async fn accept_tcp_with_tls(
         &self,
-        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+        mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
@@ -351,7 +352,7 @@ impl Mine {
 
     async fn server_to_client<R>(
         &self,
-        mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+        mine_jobs_queue: Arc<JobQueue>,
         _: broadcast::Sender<(u64, String)>,
         _: UnboundedSender<String>,
         mut r: ReadHalf<R>,
@@ -444,56 +445,56 @@ impl Mine {
                         );
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
-                    if let Some(job_diff) = server_json_rpc.result.get(3) {
-                        if job_diff == "00" {
-                            if let Ok(json) = serde_json::from_slice::<ServerJobsWichHeigh>(&buf) {
-                                let job_diff = json.height.to_string();
-                                #[cfg(debug_assertions)]
-                                debug!("当前难度:{}", diff);
-                                if diff != job_diff {
-                                    //新的难度发现。
-                                    //debug!("新的难度发现。");
-                                    diff = job_diff.clone();
-                                    {
-                                        //debug!("清理队列。");
-                                        //清理队列。
-                                        let mut jobs = RwLockWriteGuard::map(
-                                            mine_jobs_queue.write().await,
-                                            |j| j,
-                                        );
-                                        jobs.clear();
-                                    }
-                                }
-                            } else {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "当前难度:{:?}",
-                                    String::from_utf8(buf.clone().to_vec()).unwrap()
-                                );
-                            }
-                        } else {
-                            #[cfg(debug_assertions)]
-                            debug!("当前难度:{}", diff);
-                            if diff != *job_diff {
-                                //新的难度发现。
-                                //debug!("新的难度发现。");
-                                diff = job_diff.clone();
-                                {
-                                    //debug!("清理队列。");
-                                    //清理队列。
-                                    {
-                                        //debug!("清理队列。");
-                                        //清理队列。
-                                        let mut jobs = RwLockWriteGuard::map(
-                                            mine_jobs_queue.write().await,
-                                            |j| j,
-                                        );
-                                        jobs.clear();
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // if let Some(job_diff) = server_json_rpc.result.get(3) {
+                    //     if job_diff == "00" {
+                    //         if let Ok(json) = serde_json::from_slice::<ServerJobsWichHeigh>(&buf) {
+                    //             let job_diff = json.height.to_string();
+                    //             #[cfg(debug_assertions)]
+                    //             debug!("当前难度:{}", diff);
+                    //             if diff != job_diff {
+                    //                 //新的难度发现。
+                    //                 //debug!("新的难度发现。");
+                    //                 diff = job_diff.clone();
+                    //                 {
+                    //                     //debug!("清理队列。");
+                    //                     //清理队列。
+                    //                     let mut jobs = RwLockWriteGuard::map(
+                    //                         mine_jobs_queue.write().await,
+                    //                         |j| j,
+                    //                     );
+                    //                     jobs.clear();
+                    //                 }
+                    //             }
+                    //         } else {
+                    //             #[cfg(debug_assertions)]
+                    //             debug!(
+                    //                 "当前难度:{:?}",
+                    //                 String::from_utf8(buf.clone().to_vec()).unwrap()
+                    //             );
+                    //         }
+                    //     } else {
+                    //         #[cfg(debug_assertions)]
+                    //         debug!("当前难度:{}", diff);
+                    //         if diff != *job_diff {
+                    //             //新的难度发现。
+                    //             //debug!("新的难度发现。");
+                    //             diff = job_diff.clone();
+                    //             {
+                    //                 //debug!("清理队列。");
+                    //                 //清理队列。
+                    //                 {
+                    //                     //debug!("清理队列。");
+                    //                     //清理队列。
+                    //                     let mut jobs = RwLockWriteGuard::map(
+                    //                         mine_jobs_queue.write().await,
+                    //                         |j| j,
+                    //                     );
+                    //                     jobs.clear();
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
 
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {:?}", server_json_rpc);
@@ -512,13 +513,19 @@ impl Mine {
                         debug!("发送到等待队列进行工作: {}", job_id);
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
-                        {
-                            //将任务加入队列。
-                            let mut jobs =
-                                RwLockWriteGuard::map(mine_jobs_queue.write().await, |j| j);
-                            jobs.push_back((self.id, job));
-                        }
-                        #[cfg(debug_assertions)]
+
+
+                        mine_jobs_queue.send(Job::new(self.id as u32,job));
+                        //{
+                            // //将任务加入队列。
+                            // let mut jobs =
+                            //     RwLockWriteGuard::map(mine_jobs_queue.write().await, |j| j);
+                            // jobs.push_back((self.id, job));
+
+                            //info!("难度: {} 当前任务量 {} ",diff, jobs.len());
+                        //}
+                        
+                        //#[cfg(debug_assertions)]
                         debug!("发送完成: {}", job_id);
                         // let job = serde_json::to_string(&server_json_rpc)?;
                         // jobs_send.send(job);
@@ -545,7 +552,7 @@ impl Mine {
 
     async fn client_to_server<W>(
         &self,
-        _: Arc<RwLock<VecDeque<(u64, String)>>>,
+        _: Arc<JobQueue>,
         job_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
         mut w: WriteHalf<W>,
@@ -636,7 +643,7 @@ impl Mine {
 
     async fn login_and_getwork(
         &self,
-        _: Arc<RwLock<VecDeque<(u64, String)>>>,
+        _: Arc<JobQueue>,
         _: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
     ) -> Result<()> {

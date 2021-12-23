@@ -15,13 +15,14 @@ use tokio::sync::{broadcast, RwLock};
 
 use crate::client::{client_to_server, server_to_client};
 
+use crate::jobs::JobQueue;
 use crate::protocol::rpc::eth::ServerId1;
 use crate::state::State;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
     state: Arc<RwLock<State>>,
-    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+    mine_jobs_queue: Arc<JobQueue>,
     config: Settings,
     job_send: broadcast::Sender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
@@ -77,7 +78,7 @@ pub async fn accept_tcp_with_tls(
 
 async fn transfer_ssl(
     state: Arc<RwLock<State>>,
-    mine_jobs_queue: Arc<RwLock<VecDeque<(u64, String)>>>,
+    mine_jobs_queue: Arc<JobQueue>,
     jobs_recv: broadcast::Receiver<String>,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     inbound: TcpStream,
