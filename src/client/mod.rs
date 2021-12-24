@@ -362,7 +362,7 @@ where
     // tokio::pin!(w);
     let mut is_login = false;
     let mut worker_name = String::new();
-    let mut hode_jobs: VecDeque<(u32, String)> = VecDeque::new();
+    let mut hode_jobs: VecDeque<(u64, String)> = VecDeque::new();
 
     sleep(std::time::Duration::new(0, 500)).await;
     let mut buffer_string = String::new();
@@ -542,8 +542,10 @@ where
                                         // }
                                         if !hode_jobs.is_empty() {
                                             let job = hode_jobs.pop_back().unwrap();
-                                            let job = serde_json::from_str::<Server>(&*job.1)?;
-                                            got_rpc.result  = job.result;
+                                            
+                                            let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
+                                            got_rpc.result  = job_rpc.result;
+                                            state_send.send(job).expect("发送任务给抽水矿工失败。");
                                         }
                                     }
                                 }
@@ -586,7 +588,7 @@ where
             },
             job = mine_jobs_queue.recv() => {
                 if let Ok(mut job) = job {
-                    hode_jobs.push_back((job.get_id(),job.get_job()));
+                    hode_jobs.push_back((job.get_id() as u64,job.get_job()));
                 }
             }
         }
