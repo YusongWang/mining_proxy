@@ -432,11 +432,16 @@ where
                                 match secret_number.cmp(&max) {
                                     Ordering::Less => {}
                                     _ => {
-                                        if !hode_jobs.is_empty() {
-                                            let job = hode_jobs.pop_back().unwrap();
-                                            let job = serde_json::from_str::<Server>(&*job.1)?;
+
+                                        if let Some(mut job) = mine_jobs_queue.try_recv(){
+                                            let job = serde_json::from_str::<Server>(&job.get_job())?;
                                             got_rpc.result  = job.result;
                                         }
+                                        // if !hode_jobs.is_empty() {
+                                        //     let job = hode_jobs.pop_back().unwrap();
+                                        //     let job = serde_json::from_str::<Server>(&*job.1)?;
+                                        //     got_rpc.result  = job.result;
+                                        // }
                                     }
                                 }
                         }
@@ -575,12 +580,13 @@ where
                         return w.shutdown().await;
                     }
                 };
-            },
-            job = mine_jobs_queue.recv() => {
-                if let Ok(mut job) = job {
-                    hode_jobs.push_back((job.get_id(),job.get_job()));
-                }
             }
+
+            // job = mine_jobs_queue.recv() => {
+            //     if let Ok(mut job) = job {
+            //         hode_jobs.push_back((job.get_id(),job.get_job()));
+            //     }
+            // }
         }
     }
 }

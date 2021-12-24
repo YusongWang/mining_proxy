@@ -6,10 +6,10 @@ pub struct Job {
     job: String,
 }
 impl Job {
-    pub fn get_job(&mut self) -> String {
+    pub fn get_job(&self) -> String {
         self.job.clone()
     }
-    pub fn get_id(&mut self) -> u32 {
+    pub fn get_id(&self) -> u32 {
         self.phread_id
     }
 
@@ -41,11 +41,12 @@ impl JobQueue {
             _ => {}
             Err(e) => match e {
                 TrySendError::Full(job) => {
-                    if let Ok(_) = self.rx.try_recv() {
-                        return self.send(job);
-                    } else {
-                        return None;
-                    }
+                    // if let Ok(_) = self.rx.try_recv() {
+                    //     return self.send(job);
+                    // } else {
+                    //     return None;
+                    // }
+                    return Some(());
                 }
                 TrySendError::Closed(i) => {
                     //println!("线程异常退出了");
