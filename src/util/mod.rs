@@ -195,47 +195,67 @@ pub async fn get_pool_stream_with_tls(
 pub fn clac_phread_num(rate: f64) -> u64 {
     (rate * 1000.0) as u64
 }
-
 #[test]
 fn test_clac_phread_num() {
-    assert_eq!(clac_phread_num(0.005),5);
+    assert_eq!(clac_phread_num(0.005), 5);
 }
 
+// 根据抽水率计算启动多少个线程
+pub fn clac_phread_num_for_real(rate: f64) -> u64 {
+    let mut num = 1;
 
-pub fn is_fee(idx:u64,fee:f64) -> bool{
+    if rate <= 0.01 {
+        num = 5;
+    } else if rate <= 0.05 {
+        num = 2;
+    } else if rate <= 0.1 {
+        num = 1;        
+    }
+
+    let mut phread_num = clac_phread_num(rate) / num;
+    if phread_num <= 0 {
+        phread_num = 1;
+    }
+    
+    extern crate num_cpus;
+    let cpu_nums = num_cpus::get();
+    // *CPU核心数。
+    phread_num * cpu_nums as u64
+}
+
+pub fn is_fee(idx: u64, fee: f64) -> bool {
     let rate = clac_phread_num(fee);
 
-    idx % (1000/rate) == 0
+    idx % (1000 / rate) == 0
 }
 
 #[test]
-fn test_is_fee(){
-    assert_eq!(is_fee(200,0.005),true);
-    assert_ne!(is_fee(201,0.005),true);
-    assert_eq!(is_fee(200,0.1),true);
+fn test_is_fee() {
+    assert_eq!(is_fee(200, 0.005), true);
+    assert_ne!(is_fee(201, 0.005), true);
+    assert_eq!(is_fee(200, 0.1), true);
     let mut idx = 0;
     for i in 0..100 {
-        if is_fee(i,0.1) {
+        if is_fee(i, 0.1) {
             idx += 1;
         }
     }
-    assert_eq!(idx,10);
+    assert_eq!(idx, 10);
 
     let mut idx = 0;
     for i in 0..1000 {
-        if is_fee(i,0.1) {
+        if is_fee(i, 0.1) {
             idx += 1;
         }
     }
-    assert_eq!(idx,100);
-
+    assert_eq!(idx, 100);
 
     let mut idx = 0;
     for i in 0..10000 {
-        if is_fee(i,0.1) {
+        if is_fee(i, 0.1) {
             idx += 1;
         }
     }
-    
-    assert_eq!(idx,1000);
+
+    assert_eq!(idx, 1000);
 }

@@ -971,6 +971,7 @@ dependencies = [
  "hostname",
  "log",
  "native-tls",
+ "num_cpus",
  "prettytable-rs",
  "rand",
  "rand_chacha",

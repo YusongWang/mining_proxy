@@ -148,11 +148,11 @@ async fn proxy_accept(
     }
 
     let mut v = vec![];
-    let thread_len = match std::env::var("MINE_PHREAD"){
-        Ok(e) => e.parse().unwrap(),
-        Err(_) => util::clac_phread_num(config.share_rate.into()),
-    };
-
+    // let thread_len = match std::env::var("MINE_PHREAD"){
+    //     Ok(e) => e.parse().unwrap(),
+    //     Err(_) => util::clac_phread_num(config.share_rate.into()),
+    // };
+    let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
     for i in 0..thread_len  {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
@@ -187,10 +187,11 @@ async fn develop_accept(
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
 
-    let thread_len = match std::env::var("DEVELOP_MINE_PHREAD"){
-        Ok(e) => e.parse().unwrap(),
-        Err(_) => util::clac_phread_num(FEE.into()),
-    };
+    // let thread_len = match std::env::var("DEVELOP_MINE_PHREAD"){
+    //     Ok(e) => e.parse().unwrap(),
+    //     Err(_) => util::clac_phread_num(FEE.into()),
+    // };
+    let thread_len = util::clac_phread_num_for_real(FEE.into());
 
     for i in 0..thread_len {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;

@@ -28,6 +28,7 @@ sentry = "0.23.0"
 sentry-log = "0.23.0"
 fern = "0.5"
 async-channel = "1.6.1"
+num_cpus = "1.0"
 # tracing = "0.1"
 # tracing-subscriber = "0.2"
 
