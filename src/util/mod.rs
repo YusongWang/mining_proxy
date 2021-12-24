@@ -192,7 +192,7 @@ pub async fn get_pool_stream_with_tls(
 }
 
 // 根据抽水率计算启动多少个线程
-fn clac_phread_num(rate: f32) -> i32 {
+pub fn clac_phread_num(rate: f32) -> i32 {
     (rate * 1000.0) as i32
 }
 

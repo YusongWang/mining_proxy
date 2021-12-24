@@ -146,7 +146,7 @@ async fn proxy_accept(
         return Ok(());
     }
     let mut v = vec![];
-    let thread_len = clac_phread_num(config.share_rate) * 2;
+    let thread_len = util::clac_phread_num(config.share_rate) * 2;
 
 
     for i in 0..thread_len {
@@ -179,13 +179,13 @@ async fn develop_accept(
         return Ok(());
     }
 
-    
+
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
 
     //let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 0.5
-    let thread_len = clac_phread_num(FEE) * 2;
+    let thread_len = util::clac_phread_num(FEE) * 2;
 
     for i in 0..thread_len {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
@@ -206,9 +206,6 @@ async fn develop_accept(
     Ok(())
 }
 
-fn clac_phread_num(fee: f32) -> _ {
-    todo!()
-}
 
 async fn process_mine_state(
     state: Arc<RwLock<State>>,
