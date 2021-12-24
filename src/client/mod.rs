@@ -532,11 +532,18 @@ where
                                     
                                     let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
                                     got_rpc.result  = job_rpc.result;
-                                    state_send.send(job).expect("发送任务给抽水矿工失败。");
+                                    info!("发送给任务了。");
+                                    {
+                                        let mut develop_jobs =
+                                        RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
+                                        if let None = develop_jobs.insert(job.1, job.0) {
+                                            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                                        }
+                                    }
                                 }
                             }
                         }
-                        
+
                         match write_to_socket(&mut w, &got_rpc, &worker_name)
                         .await
                         {
