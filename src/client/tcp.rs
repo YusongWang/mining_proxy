@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use log::info;
 
-use tokio::io::split;
+use tokio::io::{split, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
 use futures::FutureExt;
@@ -79,8 +79,9 @@ async fn transfer(
     state_send: UnboundedSender<(u64, String)>,
     dev_state_send: UnboundedSender<(u64, String)>,
 ) -> Result<()> {
+    //let inbound = BufReader::new(inbound);
     let (r_client, w_client) = split(inbound);
-
+    let r_client = BufReader::new(r_client);
     // let mut inbound = tokio_io_timeout::TimeoutStream::new(inbound);
     // inbound.set_read_timeout(Some(std::time::Duration::new(10,0)));
     // inbound.set_write_timeout(Some(std::time::Duration::new(10,0)));
@@ -102,12 +103,15 @@ async fn transfer(
         };
 
         let stream = TcpStream::from_std(outbound)?;
-
+        
         let (r_server, w_server) = split(stream);
-
+        let r_server = BufReader::new(r_server);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
+
+        // let r_client = BufReader::new(r_client);
+        // let r_server = BufReader::new(r_server);
 
         let res = tokio::try_join!(
             client_to_server(
@@ -152,9 +156,9 @@ async fn transfer(
             };
 
         let stream = outbound;
-
+        
         let (r_server, w_server) = split(stream);
-
+        let r_server = BufReader::new(r_server);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));

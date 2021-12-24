@@ -1,10 +1,9 @@
-use std::collections::VecDeque;
 use std::sync::Arc;
 
 use anyhow::Result;
 use log::info;
 
-use tokio::io::split;
+use tokio::io::{split, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
 use native_tls::Identity;
@@ -90,6 +89,7 @@ async fn transfer_ssl(
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(inbound).await?;
     let (r_client, w_client) = split(client_stream);
+    let r_client = BufReader::new(r_client);
     // let mut inbound = tokio_io_timeout::TimeoutStream::new(client_stream);
     // inbound.set_read_timeout(Some(std::time::Duration::new(10,0)));
     // inbound.set_write_timeout(Some(std::time::Duration::new(10,0)));
@@ -126,7 +126,7 @@ async fn transfer_ssl(
         let stream = TcpStream::from_std(outbound)?;
 
         let (r_server, w_server) = split(stream);
-
+        let r_server = BufReader::new(r_server);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
@@ -174,9 +174,11 @@ async fn transfer_ssl(
             };
 
         let stream = outbound;
-
+        let stream = BufReader::new(stream);
         let (r_server, w_server) = split(stream);
+        let r_server = BufReader::new(r_server);
 
+        
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
