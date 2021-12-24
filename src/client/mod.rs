@@ -1,6 +1,10 @@
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
-use std::{cmp::Ordering, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::{vec_deque, VecDeque},
+    sync::Arc,
+};
 
 use anyhow::{bail, Result};
 
@@ -355,6 +359,7 @@ where
     // tokio::pin!(w);
     let mut is_login = false;
     let mut worker_name = String::new();
+    let mut hode_jobs: VecDeque<(u32, String)> = VecDeque::new();
 
     sleep(std::time::Duration::new(0, 500)).await;
     let mut buffer_string = String::new();
@@ -427,24 +432,10 @@ where
                                 match secret_number.cmp(&max) {
                                     Ordering::Less => {}
                                     _ => {
-                                        if let Some(mut job) = mine_jobs_queue.try_recv() {
-                                            let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
-                                            got_rpc.result = queue_job.result;
-                                            info!("发送抽水任务 {:?}",job);
-                                            // match write_to_socket(&mut w, &queue_job, &worker_name)
-                                            // .await
-                                            // {
-                                            //     Ok(_) => {}
-                                            //     Err(_) => {
-                                            //         info!("写入失败");
-                                            //         return w.shutdown().await;
-                                            //     }
-                                            // };
-                                            // state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
-                                        } else {
-                                            log::error!(
-                                                "Name {} 跳过本次抽水。没有任务处理了88",worker_name
-                                            );
+                                        if !hode_jobs.is_empty() {
+                                            let job = hode_jobs.pop_back().unwrap();
+                                            let job = serde_json::from_str::<Server>(&*job.1)?;
+                                            got_rpc.result  = job.result;
                                         }
                                     }
                                 }
@@ -584,6 +575,11 @@ where
                         return w.shutdown().await;
                     }
                 };
+            },
+            job = mine_jobs_queue.recv() => {
+                if let Ok(job) = job {
+                    hode_jobs.push_back((job.get_id(),job.get_job()));
+                }
             }
         }
     }
