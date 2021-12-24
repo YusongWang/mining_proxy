@@ -692,7 +692,6 @@ impl Mine {
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
             send.send(submit_hashrate_msg).unwrap();
-            //sleep(std::time::Duration::new(5, 0)).await;
             let eth_get_work_msg = serde_json::to_string(&eth_get_work)?;
             send.send(eth_get_work_msg).unwrap();
 

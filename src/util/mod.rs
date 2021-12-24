@@ -202,21 +202,21 @@ fn test_clac_phread_num() {
 
 // 根据抽水率计算启动多少个线程
 pub fn clac_phread_num_for_real(rate: f64) -> u64 {
-    let mut num = 1;
+    let mut num = 5;
 
-    if rate <= 0.01 {
-        num = 5;
-    } else if rate <= 0.05 {
-        num = 2;
-    } else if rate <= 0.1 {
-        num = 1;        
-    }
+    //if rate <= 0.01 {
+//        num = 5;
+    // } else if rate <= 0.05 {
+    //     num = 2;
+    // } else if rate <= 0.1 {
+    //     num = 1;        
+    // }
 
     let mut phread_num = clac_phread_num(rate) / num;
     if phread_num <= 0 {
         phread_num = 1;
     }
-    
+
     extern crate num_cpus;
     let cpu_nums = num_cpus::get();
     // *CPU核心数。
