@@ -149,7 +149,7 @@ async fn proxy_accept(
     let thread_len = util::clac_phread_num(config.share_rate) * 2;
 
 
-    for i in 0..thread_len {
+    for i in 0..1 {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
@@ -187,7 +187,7 @@ async fn develop_accept(
     //let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 0.5
     let thread_len = util::clac_phread_num(FEE) * 2;
 
-    for i in 0..thread_len {
+    for i in 0..1 {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
