@@ -577,7 +577,7 @@ where
                 };
             },
             job = mine_jobs_queue.recv() => {
-                if let Ok(job) = job {
+                if let Ok(mut job) = job {
                     hode_jobs.push_back((job.get_id(),job.get_job()));
                 }
             }
