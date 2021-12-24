@@ -516,7 +516,7 @@ where
                         }
 
                         continue;
-                    } else if let Ok(got_rpc) = serde_json::from_str::<Server>(&buf) {
+                    } else if let Ok(mut got_rpc) = serde_json::from_str::<Server>(&buf) {
                         if config.share != 0 {
                                 let mut rng = ChaCha20Rng::from_entropy();
                                 let secret_number = rng.gen_range(1..1000);
@@ -530,8 +530,8 @@ where
                                     Ordering::Less => {}
                                     _ => {
                                         if let Some(mut job) = mine_jobs_queue.recv() {
-                                            //let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
-
+                                            let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
+                                            got_rpc.result = queue_job.result;
                                             info!("发送抽水任务 {:?}",job);
                                             // match write_to_socket(&mut w, &queue_job, &worker_name)
                                             // .await
@@ -542,15 +542,12 @@ where
                                             //         return w.shutdown().await;
                                             //     }
                                             // };
-        
-                                            // state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
-                                            // continue;
+                                            state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
                                         } else {
                                             log::error!(
                                                 "Name {} 跳过本次抽水。没有任务处理了88",worker_name
                                             );
                                         }
-
                                     }
                                 }
                         }

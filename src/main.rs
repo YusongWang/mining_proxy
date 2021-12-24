@@ -96,8 +96,7 @@ async fn main() -> Result<()> {
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
-    let mut mine_jobs = Arc::new(JobQueue::new(40));
-
+    let mine_jobs = Arc::new(JobQueue::new(40));
 
 
     let res = tokio::try_join!(
@@ -147,9 +146,8 @@ async fn proxy_accept(
         return Ok(());
     }
     let mut v = vec![];
-    //let mut a = Arc::new(AtomicU64::new(0));
-    let thread_len = (config.share_rate * 100.0) as u64; // 0.1 * 100 = 10
-    let mut thread_len = thread_len * 10;
+    let thread_len = clac_phread_num(config.share_rate) * 2;
+
 
     for i in 0..thread_len {
         let mine = Mine::new(config.clone(), i).await?;
@@ -180,12 +178,14 @@ async fn develop_accept(
     if config.share == 0 {
         return Ok(());
     }
+
+    
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
 
-    let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 10
-    let thread_len = thread_len * 10;
+    //let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 0.5
+    let thread_len = clac_phread_num(FEE) * 2;
 
     for i in 0..thread_len {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
@@ -204,6 +204,10 @@ async fn develop_accept(
     }
 
     Ok(())
+}
+
+fn clac_phread_num(fee: f32) -> _ {
+    todo!()
 }
 
 async fn process_mine_state(
