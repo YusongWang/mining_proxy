@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -130,10 +131,11 @@ async fn transfer_ssl(
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
-
+        let jobs = Arc::new(crate::state::InnerJobs { mine_jobs: Arc::new(RwLock::new(HashMap::new())) });
         let res = tokio::try_join!(
             client_to_server(
                 state.clone(),
+                jobs.clone(),
                 worker.clone(),
                 client_rpc_id.clone(),
                 config.clone(),
@@ -146,6 +148,7 @@ async fn transfer_ssl(
             ),
             server_to_client(
                 state.clone(),
+                jobs.clone(),
                 mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,
@@ -182,10 +185,11 @@ async fn transfer_ssl(
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerId1>();
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
-
+        let jobs = Arc::new(crate::state::InnerJobs { mine_jobs: Arc::new(RwLock::new(HashMap::new())) });
         let res = tokio::try_join!(
             client_to_server(
                 state.clone(),
+                jobs.clone(),
                 worker.clone(),
                 client_rpc_id.clone(),
                 config.clone(),
@@ -198,6 +202,7 @@ async fn transfer_ssl(
             ),
             server_to_client(
                 state.clone(),
+                jobs.clone(),
                 mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,

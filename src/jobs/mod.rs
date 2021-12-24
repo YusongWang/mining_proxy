@@ -1,4 +1,5 @@
 use async_channel::{bounded, Receiver, Sender, TrySendError};
+use futures::SinkExt;
 use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Job {
@@ -36,7 +37,7 @@ impl JobQueue {
         None
     }
 
-    pub fn send(&self, job: Job) -> Option<()> {
+    pub fn try_send(&self, job: Job) -> Option<()> {
         match self.tx.try_send(job) {
             _ => {}
             Err(e) => match e {
@@ -56,6 +57,10 @@ impl JobQueue {
         }
         Some(())
     }
+
+    // pub async fn send(&self, job: Job) -> Option<()> {
+    //     self.tx.send(job).await
+    // }
 
     pub async fn recv(&self) -> Result<Job, async_channel::RecvError> {
         self.rx.recv().await

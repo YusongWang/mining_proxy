@@ -516,7 +516,7 @@ impl Mine {
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
 
-                        mine_jobs_queue.send(Job::new(self.id as u32, job));
+                        mine_jobs_queue.try_send(Job::new(self.id as u32, job));
                         //{
                         // //将任务加入队列。
                         // let mut jobs =

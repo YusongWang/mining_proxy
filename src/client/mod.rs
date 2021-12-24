@@ -56,6 +56,7 @@ where
 
 async fn client_to_server<R, W>(
     state: Arc<RwLock<State>>,
+    jobs: Arc<crate::state::InnerJobs>,
     worker: Arc<RwLock<String>>,
     client_rpc_id: Arc<RwLock<u64>>,
     _: Settings,
@@ -149,15 +150,15 @@ where
                     if let Some(job_id) = client_json_rpc.params.get(1) {
                         {
                             let mut mine =
-                                RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                                RwLockWriteGuard::map(jobs.mine_jobs.write().await, |s| s);
                             if mine.contains_key(job_id) {
                                 if let Some(thread_id) = mine.remove(job_id) {
                                     let rpc = serde_json::to_string(&client_json_rpc)?;
 
-                                    // debug!(
-                                    //     "------- 收到 指派任务。可以提交给矿池了 {:?}",
-                                    //     job_id
-                                    // );
+                                    debug!(
+                                        "------- 收到 指派任务。可以提交给矿池了 {:?}",
+                                        job_id
+                                    );
 
                                     proxy_fee_sender
                                         .send((thread_id, rpc))
@@ -337,10 +338,11 @@ where
 
 async fn server_to_client<R, W>(
     state: Arc<RwLock<State>>,
-    mut mine_jobs_queue: Arc<JobQueue>,
+    jobs: Arc<crate::state::InnerJobs>,
+    mine_jobs_queue: Arc<JobQueue>,
     worker: Arc<RwLock<String>>,
     client_rpc_id: Arc<RwLock<u64>>,
-    mut config: Settings,
+    config: Settings,
     _: broadcast::Receiver<String>,
     mut r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut w: WriteHalf<W>,
@@ -535,7 +537,7 @@ where
                                     info!("发送给任务了。");
                                     let job_id = got_rpc.result.get(0).expect("封包格式错误");
                                     {
-                                        let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                                        let mut mine_jobs = RwLockWriteGuard::map(jobs.mine_jobs.write().await, |s| s);
                                         if let None = mine_jobs.insert(job_id.to_string(), job.0){
                                             #[cfg(debug_assertions)]
                                             debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");

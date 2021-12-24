@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{VecDeque, HashMap};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -110,12 +110,14 @@ async fn transfer(
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
 
-        // let r_client = BufReader::new(r_client);
-        // let r_server = BufReader::new(r_server);
+
+
+        let jobs = Arc::new(crate::state::InnerJobs { mine_jobs: Arc::new(RwLock::new(HashMap::new())) });
 
         let res = tokio::try_join!(
             client_to_server(
                 state.clone(),
+                jobs.clone(),
                 worker.clone(),
                 client_rpc_id.clone(),
                 config.clone(),
@@ -128,6 +130,7 @@ async fn transfer(
             ),
             server_to_client(
                 state.clone(),
+                jobs.clone(),
                 mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,
@@ -163,9 +166,12 @@ async fn transfer(
         let worker = Arc::new(RwLock::new(String::new()));
         let client_rpc_id = Arc::new(RwLock::new(0u64));
 
+        let jobs = Arc::new(crate::state::InnerJobs { mine_jobs: Arc::new(RwLock::new(HashMap::new())) });
+
         let res = tokio::try_join!(
             client_to_server(
                 state.clone(),
+                jobs.clone(),
                 worker.clone(),
                 client_rpc_id.clone(),
                 config.clone(),
@@ -178,6 +184,7 @@ async fn transfer(
             ),
             server_to_client(
                 state.clone(),
+                jobs.clone(),
                 mine_jobs_queue.clone(),
                 worker,
                 client_rpc_id,

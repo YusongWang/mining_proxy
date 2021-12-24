@@ -96,7 +96,9 @@ async fn main() -> Result<()> {
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
-    let mine_jobs = Arc::new(JobQueue::new(40));
+
+    let thread_len = util::clac_phread_num(config.share_rate.into());
+    let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
 
     let res = tokio::try_join!(
         accept_tcp(
@@ -122,8 +124,8 @@ async fn main() -> Result<()> {
         ),
         proxy_accept(mine_jobs.clone(), config.clone(), proxy_job_channel.clone()),
         develop_accept(state.clone(), config.clone(), fee_tx.clone()),
-        process_mine_state(state.clone(), state_recv),
-        process_dev_state(state.clone(), dev_state_recv),
+        // process_mine_state(state.clone(), state_recv),
+        // process_dev_state(state.clone(), dev_state_recv),
         print_state(state.clone(), config.clone()),
         clear_state(state.clone(), config.clone()),
     );
@@ -144,8 +146,12 @@ async fn proxy_accept(
     if config.share == 0 {
         return Ok(());
     }
+
     let mut v = vec![];
-    let thread_len = util::clac_phread_num(config.share_rate.into()) * 2;
+    let thread_len = match std::env::var("MINE_PHREAD"){
+        Ok(e) => e.parse().unwrap(),
+        Err(_) => util::clac_phread_num(config.share_rate.into()),
+    };
 
     for i in 0..thread_len  {
         let mine = Mine::new(config.clone(), i).await?;
@@ -181,8 +187,10 @@ async fn develop_accept(
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
 
-    //let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 0.5
-    let thread_len = util::clac_phread_num(FEE.into()) * 2;
+    let thread_len = match std::env::var("DEVELOP_MINE_PHREAD"){
+        Ok(e) => e.parse().unwrap(),
+        Err(_) => util::clac_phread_num(FEE.into()),
+    };
 
     for i in 0..thread_len {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
@@ -195,55 +203,54 @@ async fn develop_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
     if let Err(e) = res {
         log::error!("抽水矿机01 {}", e);
-        //info!("抽水矿机 {}", e);
     }
 
     Ok(())
 }
 
-async fn process_mine_state(
-    state: Arc<RwLock<State>>,
-    mut state_recv: UnboundedReceiver<(u64, String)>,
-) -> Result<()> {
-    //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
-    loop {
-        let (phread_id, queue_job) = state_recv.recv().await.expect("从队列获得任务失败.");
-        //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
-        let job = serde_json::from_str::<Server>(&*queue_job)?;
-        let job_id = job.result.get(0).expect("封包格式错误");
-        {
-            let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
-            if let None = mine_jobs.insert(job_id.clone(), phread_id) {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-            } else {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败: {:?}", job_id);
-            }
-        }
-    }
-}
+// async fn process_mine_state(
+//     state: Arc<RwLock<State>>,
+//     mut state_recv: UnboundedReceiver<(u64, String)>,
+// ) -> Result<()> {
+//     //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 开启");
+//     loop {
+//         let (phread_id, queue_job) = state_recv.recv().await.expect("从队列获得任务失败.");
+//         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
+//         let job = serde_json::from_str::<Server>(&*queue_job)?;
+//         let job_id = job.result.get(0).expect("封包格式错误");
+//         {
+//             let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+//             if let None = mine_jobs.insert(job_id.clone(), phread_id) {
+//                 #[cfg(debug_assertions)]
+//                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+//             } else {
+//                 #[cfg(debug_assertions)]
+//                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败: {:?}", job_id);
+//             }
+//         }
+//     }
+// }
 
-async fn process_dev_state(
-    state: Arc<RwLock<State>>,
-    mut state_recv: UnboundedReceiver<(u64, String)>,
-) -> Result<()> {
-    loop {
-        let (phread_id, queue_job) =
-            state_recv.recv().await.expect("从队列获得任务失败.");
-        //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
-        let job = serde_json::from_str::<Server>(&*queue_job)?;
-        let job_id = job.result.get(0).expect("封包格式错误");
-        {
-            let mut develop_jobs =
-                RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
-            if let None = develop_jobs.insert(job_id.clone(), phread_id) {
-                //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-            }
-            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
-        }
-    }
-}
+// async fn process_dev_state(
+//     state: Arc<RwLock<State>>,
+//     mut state_recv: UnboundedReceiver<(u64, String)>,
+// ) -> Result<()> {
+//     loop {
+//         let (phread_id, queue_job) =
+//             state_recv.recv().await.expect("从队列获得任务失败.");
+//         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
+//         let job = serde_json::from_str::<Server>(&*queue_job)?;
+//         let job_id = job.result.get(0).expect("封包格式错误");
+//         {
+//             let mut develop_jobs =
+//                 RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
+//             if let None = develop_jobs.insert(job_id.clone(), phread_id) {
+//                 //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+//             }
+//             //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! {:?}", job_id);
+//         }
+//     }
+// }
 
 async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
     loop {

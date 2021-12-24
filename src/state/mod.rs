@@ -1,4 +1,6 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{collections::{HashMap, HashSet, VecDeque}, sync::Arc};
+
+use tokio::sync::RwLock;
 
 #[derive(Debug)]
 pub struct Worker {
@@ -80,6 +82,11 @@ fn test_share_reject() {
     assert_eq!(w.share_index, 0);
     assert_eq!(w.accept_index, 0);
     assert_eq!(w.invalid_index, 1);
+}
+
+
+pub struct InnerJobs{
+    pub mine_jobs: Arc<RwLock<HashMap<String, u64>>>,
 }
 
 //TODO 分成四个变量是否可以提升速度。减少同一变量写锁的时间
