@@ -534,10 +534,13 @@ where
                                     got_rpc.result  = job_rpc.result;
                                     info!("发送给任务了。");
                                     {
-                                        let mut develop_jobs =
-                                        RwLockWriteGuard::map(state.write().await, |s| &mut s.develop_jobs);
-                                        if let None = develop_jobs.insert(job.1, job.0) {
-                                            //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                                        let mut mine_jobs = RwLockWriteGuard::map(state.write().await, |s| &mut s.mine_jobs);
+                                        if let None = mine_jobs.insert(job_id.clone(), phread_id) {
+                                            #[cfg(debug_assertions)]
+                                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                                        } else {
+                                            #[cfg(debug_assertions)]
+                                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败: {:?}", job_id);
                                         }
                                     }
                                 }
