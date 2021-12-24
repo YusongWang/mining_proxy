@@ -1,4 +1,4 @@
-use std::{sync::Arc, collections::VecDeque};
+use std::{collections::VecDeque, sync::Arc};
 
 use anyhow::Result;
 use bytes::BytesMut;
@@ -20,12 +20,11 @@ use tokio::{
 };
 
 mod client;
+mod jobs;
 mod mine;
 mod protocol;
 mod state;
 mod util;
-mod jobs;
-
 
 use util::{
     calc_hash_rate,
@@ -35,9 +34,10 @@ use util::{
 
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
+    jobs::JobQueue,
     mine::Mine,
     protocol::rpc::eth::Server,
-    state::State, jobs::JobQueue,
+    state::State,
 };
 
 const FEE: f32 = 0.005;
@@ -98,7 +98,6 @@ async fn main() -> Result<()> {
     let state = Arc::new(RwLock::new(State::new()));
     let mine_jobs = Arc::new(JobQueue::new(40));
 
-
     let res = tokio::try_join!(
         accept_tcp(
             state.clone(),
@@ -148,8 +147,7 @@ async fn proxy_accept(
     let mut v = vec![];
     let thread_len = util::clac_phread_num(config.share_rate.into()) * 2;
 
-
-    for i in 0..1 {
+    for i in 0..thread_len  {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
@@ -179,7 +177,6 @@ async fn develop_accept(
         return Ok(());
     }
 
-
     let mut v = vec![];
     //let mut a = Arc::new(AtomicU64::new(0));
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
@@ -187,11 +184,9 @@ async fn develop_accept(
     //let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 0.5
     let thread_len = util::clac_phread_num(FEE.into()) * 2;
 
-    for i in 0..1 {
+    for i in 0..thread_len {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
-        //let send1 = jobs_send.clone();
-        //let recv = send.subscribe();
         let s = state.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
@@ -205,7 +200,6 @@ async fn develop_accept(
 
     Ok(())
 }
-
 
 async fn process_mine_state(
     state: Arc<RwLock<State>>,
@@ -235,7 +229,8 @@ async fn process_dev_state(
     mut state_recv: UnboundedReceiver<(u64, String)>,
 ) -> Result<()> {
     loop {
-        let (phread_id, queue_job) = state_recv.recv().await.expect("从队列获得任务失败.");
+        let (phread_id, queue_job) =
+            state_recv.recv().await.expect("从队列获得任务失败.");
         //debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 从队列获得任务 {:?}",job);
         let job = serde_json::from_str::<Server>(&*queue_job)?;
         let job_id = job.result.get(0).expect("封包格式错误");
