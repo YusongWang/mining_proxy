@@ -365,7 +365,7 @@ where
     let mut is_login = false;
     let mut worker_name = String::new();
     let mut package_idx = 0;
-    let mut hode_jobs: VecDeque<(u64, String)> = VecDeque::new();
+    let mut hode_jobs: VecDeque<(u64, String,Server)> = VecDeque::new();
 
     sleep(std::time::Duration::new(0, 500)).await;
     let mut buffer_string = String::new();
@@ -533,19 +533,19 @@ where
                                     let job = hode_jobs.pop_back().unwrap();
                                     
                                     //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-                                    //got_rpc.result  = job_rpc.result;
+                                    got_rpc.result  = job.2.result;
                                     info!("发送给任务了。");
                                     //let job_id = got_rpc.result.get(0).expect("封包格式错误");
-                                    // {
-                                    //     let mut mine_jobs = RwLockWriteGuard::map(jobs.mine_jobs.write().await, |s| s);
-                                    //     if let None = mine_jobs.insert(job_id.to_string(), job.0){
-                                    //         #[cfg(debug_assertions)]
-                                    //         debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                                    //     } else {
-                                    //         #[cfg(debug_assertions)]
-                                    //         debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                    //     }
-                                    // }
+                                    {
+                                        let mut mine_jobs = RwLockWriteGuard::map(jobs.mine_jobs.write().await, |s| s);
+                                        if let None = mine_jobs.insert(job.1, job.0){
+                                            #[cfg(debug_assertions)]
+                                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                                        } else {
+                                            #[cfg(debug_assertions)]
+                                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -585,8 +585,11 @@ where
                 };
             },
             job = mine_jobs_queue.recv() => {
-                if let Ok(mut job) = job {
-                    hode_jobs.push_back((job.get_id() as u64,job.get_job()));
+                if let Ok(job) = job {
+                    
+                    let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
+                    let job_id = job_rpc.result.get(0).expect("封包格式错误");
+                    hode_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
                 }
             }
         }
