@@ -146,7 +146,7 @@ async fn proxy_accept(
         return Ok(());
     }
     let mut v = vec![];
-    let thread_len = util::clac_phread_num(config.share_rate) * 2;
+    let thread_len = util::clac_phread_num(config.share_rate.into()) * 2;
 
 
     for i in 0..1 {
@@ -185,7 +185,7 @@ async fn develop_accept(
     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
 
     //let thread_len = (FEE * 100.0) as u64; // 0.005 * 100 = 0.5
-    let thread_len = util::clac_phread_num(FEE) * 2;
+    let thread_len = util::clac_phread_num(FEE.into()) * 2;
 
     for i in 0..1 {
         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;

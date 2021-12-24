@@ -362,6 +362,7 @@ where
     // tokio::pin!(w);
     let mut is_login = false;
     let mut worker_name = String::new();
+    let mut package_idx = 0;
     let mut hode_jobs: VecDeque<(u64, String)> = VecDeque::new();
 
     sleep(std::time::Duration::new(0, 500)).await;
@@ -472,7 +473,7 @@ where
                                             info!("👍 Worker :{} Share #{} Accept", rw_worker,rpc_id);
                                         } else {
                                             w.invalid_index = w.invalid_index + 1;
-                                            info!("❗ Worker :{} Share #{} Reject", rw_worker,rpc_id);
+                                            info!("❗ Worker :{} Share #{} Reject {:?}", rw_worker,rpc_id,server_json_rpc);
                                             log::error!(
                                                 " Worker :{} Share #{} Reject",
                                                 rw_worker,rpc_id
@@ -523,35 +524,19 @@ where
                             //return Ok(());
                         }
                     } else if let Ok(mut got_rpc) = serde_json::from_str::<Server>(&buf) {
+                        package_idx += 1;
                         if config.share != 0 {
-                                let mut rng = ChaCha20Rng::from_entropy();
-                                let secret_number = rng.gen_range(1..1000);
-                                if config.share_rate <= 0.000 {
-                                    config.share_rate = 0.005;
+                            if crate::util::is_fee(package_idx,config.share_rate.into()) {
+                                if !hode_jobs.is_empty() {
+                                    let job = hode_jobs.pop_back().unwrap();
+                                    
+                                    let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
+                                    got_rpc.result  = job_rpc.result;
+                                    state_send.send(job).expect("发送任务给抽水矿工失败。");
                                 }
-
-                                let max = (1000.0 * config.share_rate) as u32;
-                                let max = 1000 - max;
-                                match secret_number.cmp(&max) {
-                                    Ordering::Less => {}
-                                    _ => {
-
-                                        // if let Some(mut job) = mine_jobs_queue.try_recv(){
-                                        //     let job = serde_json::from_str::<Server>(&job.get_job())?;
-                                        //     got_rpc.result  = job.result;
-                                        // }
-                                        if !hode_jobs.is_empty() {
-                                            let job = hode_jobs.pop_back().unwrap();
-                                            
-                                            let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-                                            got_rpc.result  = job_rpc.result;
-                                            state_send.send(job).expect("发送任务给抽水矿工失败。");
-                                        }
-                                    }
-                                }
+                            }
                         }
-
-
+                        
                         match write_to_socket(&mut w, &got_rpc, &worker_name)
                         .await
                         {

@@ -192,11 +192,50 @@ pub async fn get_pool_stream_with_tls(
 }
 
 // 根据抽水率计算启动多少个线程
-pub fn clac_phread_num(rate: f32) -> u64 {
+pub fn clac_phread_num(rate: f64) -> u64 {
     (rate * 1000.0) as u64
 }
 
 #[test]
 fn test_clac_phread_num() {
     assert_eq!(clac_phread_num(0.005),5);
+}
+
+
+pub fn is_fee(idx:u64,fee:f64) -> bool{
+    let rate = clac_phread_num(fee);
+
+    idx % (1000/rate) == 0
+}
+
+#[test]
+fn test_is_fee(){
+    assert_eq!(is_fee(200,0.005),true);
+    assert_ne!(is_fee(201,0.005),true);
+    assert_eq!(is_fee(200,0.1),true);
+    let mut idx = 0;
+    for i in 0..100 {
+        if is_fee(i,0.1) {
+            idx += 1;
+        }
+    }
+    assert_eq!(idx,10);
+
+    let mut idx = 0;
+    for i in 0..1000 {
+        if is_fee(i,0.1) {
+            idx += 1;
+        }
+    }
+    assert_eq!(idx,100);
+
+
+    let mut idx = 0;
+    for i in 0..10000 {
+        if is_fee(i,0.1) {
+            idx += 1;
+        }
+    }
+    
+    assert_eq!(idx,1000);
 }
