@@ -73,9 +73,9 @@ where
     // let mut w = tokio_io_timeout::TimeoutWriter::new(w);
     // tokio::pin!(w);
     let mut worker_name: String = String::new();
-    let mut buffer = String::new();
+    let mut buffer_string = String::new();
     loop {
-        let len = r.read_line(&mut buffer).await?;
+        let len = r.read_line(&mut buffer_string).await?;
         #[cfg(debug_assertions)]
         info!("读取成功{} 字节", len);
         if len == 0 {
@@ -91,7 +91,7 @@ where
         //#[cfg(debug_assertions)]
         // match String::from_utf8(buf) {
         //     Ok(rpc) => {
-        debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
+        debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer_string);
         //     }
         //     Err(_) => {
         //         info!("格式化为字符串失败。{:?}", buf);
@@ -107,7 +107,10 @@ where
         //     }
         // };
 
+        let buffer = buffer_string.clone();
+        buffer_string.clear();
         let buffer: Vec<_> = buffer.split("\n").collect();
+        
         for buf in buffer {
             if buf.is_empty() {
                 continue;
@@ -408,9 +411,9 @@ where
                 //         return w.shutdown().await;
                 //     }
                 // }
-
-
-                let buffer:Vec<_> = buffer_string.split("\n").collect();
+                let buffer = buffer_string.clone();
+                buffer_string.clear();
+                let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
                         continue;
@@ -533,15 +536,15 @@ where
                                     Ordering::Less => {}
                                     _ => {
 
-                                        if let Some(mut job) = mine_jobs_queue.try_recv(){
-                                            let job = serde_json::from_str::<Server>(&job.get_job())?;
-                                            got_rpc.result  = job.result;
-                                        }
-                                        // if !hode_jobs.is_empty() {
-                                        //     let job = hode_jobs.pop_back().unwrap();
-                                        //     let job = serde_json::from_str::<Server>(&*job.1)?;
+                                        // if let Some(mut job) = mine_jobs_queue.try_recv(){
+                                        //     let job = serde_json::from_str::<Server>(&job.get_job())?;
                                         //     got_rpc.result  = job.result;
                                         // }
+                                        if !hode_jobs.is_empty() {
+                                            let job = hode_jobs.pop_back().unwrap();
+                                            let job = serde_json::from_str::<Server>(&*job.1)?;
+                                            got_rpc.result  = job.result;
+                                        }
                                     }
                                 }
                         }
@@ -580,13 +583,12 @@ where
                         return w.shutdown().await;
                     }
                 };
+            },
+            job = mine_jobs_queue.recv() => {
+                if let Ok(mut job) = job {
+                    hode_jobs.push_back((job.get_id(),job.get_job()));
+                }
             }
-
-            // job = mine_jobs_queue.recv() => {
-            //     if let Ok(mut job) = job {
-            //         hode_jobs.push_back((job.get_id(),job.get_job()));
-            //     }
-            // }
         }
     }
 }
