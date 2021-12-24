@@ -1,5 +1,6 @@
 use async_channel::{bounded, Receiver, Sender, TrySendError};
-
+use serde::{Serialize, Deserialize};
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Job {
     phread_id: u32,
     job: String,

@@ -524,26 +524,27 @@ where
                                     config.share_rate = 0.005;
                                 }
 
-                                
                                 let max = (1000.0 * config.share_rate) as u32;
                                 let max = 1000 - max;
                                 match secret_number.cmp(&max) {
                                     Ordering::Less => {}
                                     _ => {
                                         if let Some(mut job) = mine_jobs_queue.recv() {
-                                            let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
-                                            match write_to_socket(&mut w, &queue_job, &worker_name)
-                                            .await
-                                            {
-                                                Ok(_) => {}
-                                                Err(_) => {
-                                                    info!("写入失败");
-                                                    return w.shutdown().await;
-                                                }
-                                            };
+                                            //let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
+
+                                            info!("发送抽水任务 {:?}",job);
+                                            // match write_to_socket(&mut w, &queue_job, &worker_name)
+                                            // .await
+                                            // {
+                                            //     Ok(_) => {}
+                                            //     Err(_) => {
+                                            //         info!("写入失败");
+                                            //         return w.shutdown().await;
+                                            //     }
+                                            // };
         
-                                            state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
-                                            continue;
+                                            // state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
+                                            // continue;
                                         } else {
                                             log::error!(
                                                 "Name {} 跳过本次抽水。没有任务处理了88",worker_name
