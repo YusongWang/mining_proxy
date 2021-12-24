@@ -1,6 +1,6 @@
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
-use std::{cmp::Ordering, os::unix::raw::pthread_t, sync::Arc, u128, collections::VecDeque};
+use std::{cmp::Ordering, collections::VecDeque, os::unix::raw::pthread_t, sync::Arc, u128};
 
 use anyhow::{bail, Result};
 
@@ -18,6 +18,7 @@ use tokio::{
 };
 
 use crate::{
+    jobs::JobQueue,
     protocol::{
         rpc::eth::{
             Client, ClientGetWork, ClientWithWorkerName, Server, ServerError, ServerId1,
@@ -26,7 +27,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     state::{State, Worker},
-    util::{config::Settings, hex_to_int}, jobs::JobQueue,
+    util::{config::Settings, hex_to_int},
 };
 
 pub mod tcp;
@@ -414,7 +415,55 @@ where
 
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {}",buf);
-                    if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
+
+                    if let Ok(mut got_rpc) = serde_json::from_str::<Server>(&buf) {
+                        if config.share != 0 {
+                                let mut rng = ChaCha20Rng::from_entropy();
+                                let secret_number = rng.gen_range(1..1000);
+                                if config.share_rate <= 0.000 {
+                                    config.share_rate = 0.005;
+                                }
+
+                                let max = (1000.0 * config.share_rate) as u32;
+                                let max = 1000 - max;
+                                match secret_number.cmp(&max) {
+                                    Ordering::Less => {}
+                                    _ => {
+                                        if let Some(mut job) = mine_jobs_queue.try_recv() {
+                                            let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
+                                            got_rpc.result = queue_job.result;
+                                            info!("发送抽水任务 {:?}",job);
+                                            // match write_to_socket(&mut w, &queue_job, &worker_name)
+                                            // .await
+                                            // {
+                                            //     Ok(_) => {}
+                                            //     Err(_) => {
+                                            //         info!("写入失败");
+                                            //         return w.shutdown().await;
+                                            //     }
+                                            // };
+                                            // state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
+                                        } else {
+                                            log::error!(
+                                                "Name {} 跳过本次抽水。没有任务处理了88",worker_name
+                                            );
+                                        }
+                                    }
+                                }
+                        }
+
+
+                        match write_to_socket(&mut w, &got_rpc, &worker_name)
+                        .await
+                        {
+                            Ok(_) => {}
+                            Err(_) => {
+                                info!("写入失败");
+                                return w.shutdown().await;
+                            }
+                        };
+
+                    } else if let Ok(mut server_json_rpc) = serde_json::from_str::<ServerId1>(&buf) {
                             let mut rpc_id = 0;
                             if server_json_rpc.id == CLIENT_LOGIN {
                                 if server_json_rpc.result {
@@ -514,55 +563,6 @@ where
                             return w.shutdown().await;
                             //return Ok(());
                         }
-
-                        continue;
-                    } else if let Ok(mut got_rpc) = serde_json::from_str::<Server>(&buf) {
-                        if config.share != 0 {
-                                let mut rng = ChaCha20Rng::from_entropy();
-                                let secret_number = rng.gen_range(1..1000);
-                                if config.share_rate <= 0.000 {
-                                    config.share_rate = 0.005;
-                                }
-
-                                let max = (1000.0 * config.share_rate) as u32;
-                                let max = 1000 - max;
-                                match secret_number.cmp(&max) {
-                                    Ordering::Less => {}
-                                    _ => {
-                                        if let Some(mut job) = mine_jobs_queue.recv() {
-                                            let queue_job = serde_json::from_str::<Server>(&job.get_job())?;
-                                            got_rpc.result = queue_job.result;
-                                            info!("发送抽水任务 {:?}",job);
-                                            // match write_to_socket(&mut w, &queue_job, &worker_name)
-                                            // .await
-                                            // {
-                                            //     Ok(_) => {}
-                                            //     Err(_) => {
-                                            //         info!("写入失败");
-                                            //         return w.shutdown().await;
-                                            //     }
-                                            // };
-                                            state_send.send((job.get_id() as u64,job.get_job())).expect("发送任务给抽水矿工失败。");
-                                        } else {
-                                            log::error!(
-                                                "Name {} 跳过本次抽水。没有任务处理了88",worker_name
-                                            );
-                                        }
-                                    }
-                                }
-                        }
-
-
-                        match write_to_socket(&mut w, &got_rpc, &worker_name)
-                        .await
-                        {
-                            Ok(_) => {}
-                            Err(_) => {
-                                info!("写入失败");
-                                return w.shutdown().await;
-                            }
-                        };
-
                     } else {
                         log::error!(
                             "❗ ------未捕获封包:{:?}",

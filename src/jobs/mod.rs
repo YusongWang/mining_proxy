@@ -1,5 +1,5 @@
 use async_channel::{bounded, Receiver, Sender, TrySendError};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Job {
     phread_id: u32,
@@ -29,7 +29,7 @@ impl JobQueue {
         Self { tx, rx }
     }
 
-    pub fn recv(&self) -> Option<Job> {
+    pub fn try_recv(&self) -> Option<Job> {
         if let Ok(job) = self.rx.try_recv() {
             return Some(job);
         }
@@ -54,5 +54,9 @@ impl JobQueue {
             },
         }
         Some(())
+    }
+
+    pub async fn recv(&self) -> Result<Job, async_channel::RecvError> {
+        self.rx.recv().await
     }
 }
