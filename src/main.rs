@@ -33,7 +33,7 @@ use util::{
 };
 
 use crate::{
-    client::tcp::accept_tcp, jobs::JobQueue, mine::Mine, protocol::rpc::eth::Server, state::State,
+    client::{tcp::accept_tcp, tls::accept_tcp_with_tls}, jobs::JobQueue, mine::Mine, protocol::rpc::eth::Server, state::State,
 };
 
 const FEE: f32 = 0.005;
@@ -108,17 +108,18 @@ async fn main() -> Result<()> {
             state_send.clone(),
             dev_state_send.clone(),
         ),
-        // accept_tcp_with_tls(
-        //     state.clone(),
-        //     mine_jobs.clone(),
-        //     config.clone(),
-        //     job_send.clone(),
-        //     proxy_job_channel.clone(),
-        //     fee_tx.clone(),
-        //     state_send.clone(),
-        //     dev_state_send.clone(),
-        //     cert
-        // ),
+        accept_tcp_with_tls(
+            state.clone(),
+            mine_jobs.clone(),
+            develop_jobs.clone(),
+            config.clone(),
+            job_send.clone(),
+            proxy_job_channel.clone(),
+            fee_tx.clone(),
+            state_send.clone(),
+            dev_state_send.clone(),
+            cert,
+        ),
         proxy_accept(mine_jobs.clone(), config.clone(), proxy_job_channel.clone()),
         // develop_accept(state.clone(), config.clone(), fee_tx.clone()),
         // process_mine_state(state.clone(), state_recv),

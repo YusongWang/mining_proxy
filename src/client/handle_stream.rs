@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 use std::{
@@ -76,9 +77,9 @@ where
     write_to_socket(w, &rpc, &worker).await
 }
 
-async fn eth_submitWork<W>(
+async fn eth_submitWork<W,W1>(
     pool_w: &mut WriteHalf<W>,
-    worker_w: &mut WriteHalf<W>,
+    worker_w: &mut WriteHalf<W1>,
     rpc: &Client,
     worker: &String,
     mine_send_jobs: &mut HashMap<String, u64>,
@@ -88,6 +89,7 @@ async fn eth_submitWork<W>(
 ) -> Result<()>
 where
     W: AsyncWrite,
+    W1: AsyncWrite,
 {
     if let Some(job_id) = rpc.params.get(1) {
         {
@@ -214,11 +216,11 @@ fn develop_job_process(
     }
 }
 
-pub async fn handle_stream<R, W>(
+pub async fn handle_stream<R, W, R1, W1>(
     mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
-    mut pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    mut pool_w: WriteHalf<W>,
+    mut pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
+    mut pool_w: WriteHalf<W1>,
     config: &Settings,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
@@ -228,6 +230,8 @@ pub async fn handle_stream<R, W>(
 where
     R: AsyncRead,
     W: AsyncWrite,
+    R1: AsyncRead,
+    W1: AsyncWrite,
 {
     let mut worker_name: String = String::new();
 
