@@ -49,14 +49,14 @@ impl Worker {
     }
 
     pub fn login(&mut self, worker: String, worker_name: String, worker_wallet: String) {
-        info!("worker {} 请求登录", worker);
+        info!("✅  Worker {} 请求登录", worker);
         self.worker = worker;
         self.worker_name = worker_name;
         self.worker_wallet = worker_wallet;
     }
 
     pub fn logind(&mut self) {
-        info!("worker {} 登录成功", self.worker);
+        info!("👍  Worker {} 登录成功", self.worker);
         self.online = true;
         self.clear_state();
     }
@@ -65,7 +65,7 @@ impl Worker {
     pub fn offline(&mut self) -> bool {
         self.online = false;
         //TODO 清理读写线程。然后直接返回.
-        info!("worker {} 离开了。", self.worker);
+        info!("😭 Worker {} 下线", self.worker);
         true
     }
 
@@ -88,22 +88,22 @@ impl Worker {
     // 总份额增加
     pub fn share_index_add(&mut self) {
         self.share_index += 1;
-        info!("✅ Worker {} Share {}", self.worker, self.share_index);
+        info!("✅ Worker {} Share # {}", self.worker, self.share_index);
     }
 
     // 接受份额
     pub fn share_accept(&mut self) {
         self.accept_index += 1;
         info!(
-            "✅ Worker {} Share Accept !{}",
-            self.worker, self.accept_index
+            "👍 Worker {} Share Accept # {}",
+            self.worker, self.share_index
         );
     }
 
     // 拒绝的份额
     pub fn share_reject(&mut self) {
         self.invalid_index += 1;
-        info!("❗ Worker {} Reject! {}", self.worker, self.invalid_index);
+        info!("😭 Worker {} Reject! {}", self.worker, self.accept_index);
     }
 }
 

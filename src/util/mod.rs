@@ -211,7 +211,7 @@ pub fn clac_phread_num_for_real(rate: f64) -> u64 {
     //     num = 1;
     // }
 
-    let mut phread_num = clac_phread_num(rate);
+    let mut phread_num = clac_phread_num(rate) / 2;
     if phread_num <= 0 {
         phread_num = 1;
     }
