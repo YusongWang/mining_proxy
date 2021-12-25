@@ -73,6 +73,12 @@ pub struct EthError {
     pub message: String,
 }
 
+impl std::fmt::Display for EthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "code: {}  msg : {}", self.code, self.message)
+    }
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerJobsWichHeigh {

@@ -385,6 +385,10 @@ where
                         result_rpc.id = rpc_id ;
                         write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
+                        if pool_job_idx  == u64::MAX {
+                            pool_job_idx = 0;
+                        }
+
                         pool_job_idx += 1;
                         if config.share != 0 {
                             fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc);
@@ -397,7 +401,7 @@ where
             job = mine_jobs_queue.recv() => {
                 if let Ok(job) = job {
                     let diff = job.get_diff();
-                    // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。 
+                    // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。
                     if diff != job_diff {
                         job_diff = diff;
                         debug!("接收新的工作难度 {}",job_diff);

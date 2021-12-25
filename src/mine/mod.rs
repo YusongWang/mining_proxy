@@ -4,7 +4,10 @@ pub mod develop;
 use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
-    protocol::{rpc::eth::{ClientWithWorkerName, ServerError, ServerRoot}, CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
+    protocol::{
+        rpc::eth::{ClientWithWorkerName, ServerError, ServerRoot},
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
+    },
     state::State,
     util::{calc_hash_rate, config::Settings},
 };
@@ -431,11 +434,11 @@ impl Mine {
                     } else if rpc.id == CLIENT_SUBHASHRATE {
                         #[cfg(debug_assertions)]
                         info!("🚜🚜 算力提交成功");
-                    } else if rpc.result && rpc.id == 0{
+                    } else if rpc.result && rpc.id == 0 {
                         info!("👍👍 Share Accept");
                     } else {
                         info!("❗❗ Share Reject");
-                        crate::util::handle_error(self.id,&buf);
+                        crate::util::handle_error(self.id, &buf);
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
                     let job_diff = match server_json_rpc.result.get(3) {
@@ -511,7 +514,7 @@ impl Mine {
                         if client_json_rpc.method == "eth_submitWork" {
                             //client_json_rpc.id = 40;
                             client_json_rpc.id = 0; //TODO 以新旷工形式维护 这个旷工
-                            client_json_rpc.worker = self.hostname.clone() + "_" + self.id.to_string().as_str();
+                            client_json_rpc.worker = self.hostname.clone();
                             info!("✅✅ 抽水一个份额");
                         } else if client_json_rpc.method == "eth_submitHashrate" {
                             #[cfg(debug_assertions)]
@@ -582,7 +585,6 @@ impl Mine {
         _: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
     ) -> Result<()> {
-
         let worker_name = self.hostname.clone() + "_" + self.id.to_string().as_str();
         let worker_name = worker_name.as_str();
 
@@ -616,7 +618,6 @@ impl Mine {
             //         my_hash_rate = my_hash_rate + w.hash;
             //     }
             // }
-
 
             //BUG 未计算速率。应该用速率除以当前总线程数。
 

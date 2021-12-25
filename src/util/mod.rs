@@ -202,7 +202,7 @@ fn test_clac_phread_num() {
 
 // 根据抽水率计算启动多少个线程
 pub fn clac_phread_num_for_real(rate: f64) -> u64 {
-    let mut num = 5;
+    //let mut num = 5;
 
     //if rate <= 0.01 {
     //        num = 5;
@@ -212,7 +212,7 @@ pub fn clac_phread_num_for_real(rate: f64) -> u64 {
     //     num = 1;
     // }
 
-    let mut phread_num = clac_phread_num(rate) / num;
+    let mut phread_num = clac_phread_num(rate);
     if phread_num <= 0 {
         phread_num = 1;
     }
@@ -262,9 +262,9 @@ fn test_is_fee() {
 
 pub fn handle_error(worker_id: u64, buf: &[u8]) {
     if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
-        log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, rpc);
+        log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
     } else if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
-        log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, rpc);
+        log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
     } else {
         log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, buf);
     }

@@ -61,13 +61,15 @@ impl Worker {
         self.clear_state();
     }
 
-    pub fn offone(&mut self) -> bool {
+    // 下线
+    pub fn offline(&mut self) -> bool {
         self.online = false;
         //TODO 清理读写线程。然后直接返回.
         info!("worker {} 离开了。", self.worker);
         true
     }
 
+    // 判断是否在线
     pub fn is_online(&self) -> bool {
         self.online
     }

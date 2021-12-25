@@ -147,7 +147,9 @@ async fn transfer(
     .await
     {
         Ok(_) => info!("正常退出"),
-        Err(e) => info!("异常退出{:?}", e),
+        Err(e) => {
+            info!("TCP下线 :{:?}", e);
+        }
     }
 
     Ok(())
