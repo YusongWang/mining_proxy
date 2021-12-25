@@ -533,19 +533,19 @@ where
                                     let job = hode_jobs.pop_back().unwrap();
                                     
                                     //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-                                    got_rpc.result  = job.2.result;
+                                    //got_rpc.result  = job.2.result;
                                     info!("发送给任务了。");
                                     //let job_id = got_rpc.result.get(0).expect("封包格式错误");
-                                    {
-                                        let mut mine_jobs = RwLockWriteGuard::map(jobs.mine_jobs.write().await, |s| s);
-                                        if let None = mine_jobs.insert(job.1, job.0){
-                                            #[cfg(debug_assertions)]
-                                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                                        } else {
-                                            #[cfg(debug_assertions)]
-                                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                        }
-                                    }
+                                    // {
+                                    //     let mut mine_jobs = RwLockWriteGuard::map(jobs.mine_jobs.write().await, |s| s);
+                                    //     if let None = mine_jobs.insert(job.1, job.0){
+                                    //         #[cfg(debug_assertions)]
+                                    //         debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                                    //     } else {
+                                    //         #[cfg(debug_assertions)]
+                                    //         debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                                    //     }
+                                    // }
                                 } else {
                                     info!("没有任务了。跳过本次抽水");
                                 }
@@ -561,7 +561,6 @@ where
                                 return w.shutdown().await;
                             }
                         };
-                        break;
                     } else {
                         log::error!(
                             "❗ ------未捕获封包:{:?}",
