@@ -432,6 +432,21 @@ where
                     let job_id = job_rpc.result.get(0).expect("封包格式错误");
                     unsend_mine_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
                 }
+            },
+            job = develop_jobs_queue.recv() => {
+                if let Ok(job) = job {
+                    let diff = job.get_diff();
+                    // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。
+                    if diff != job_diff {
+                        job_diff = diff;
+                        debug!("接收新的工作难度 {}",job_diff);
+                        unsend_develop_jobs.clear();
+                    }
+
+                    let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
+                    let job_id = job_rpc.result.get(0).expect("封包格式错误");
+                    unsend_develop_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
+                }
             }
         }
     }

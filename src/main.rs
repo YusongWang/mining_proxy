@@ -187,7 +187,6 @@ async fn develop_accept(
     }
 
     let mut v = vec![];
-
     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
 
     // let thread_len = match std::env::var("DEVELOP_MINE_PHREAD"){

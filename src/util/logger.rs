@@ -1,13 +1,13 @@
 pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> {
-    // parse log_laver
     let lavel = match log_level {
+        4 => log::LevelFilter::Off,
         3 => log::LevelFilter::Error,
-        2 => log::LevelFilter::Info,
-        1 => log::LevelFilter::Debug,
+        2 => log::LevelFilter::Warn,
+        1 => log::LevelFilter::Info,
+        0 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Info,
     };
 
-    //if log_level <= 1 {
     let log = fern::DateBased::new(path, format!("{}.log.%Y-%m-%d.%H", app_name))
         .utc_time()
         .local_time();
@@ -28,7 +28,12 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
         .chain(log)
         .into_log();
 
-    let logger = sentry_log::SentryLogger::with_dest(logger);
+    let logger = sentry_log::SentryLogger::with_dest(logger).filter(|md| match md.level() {
+        log::Level::Error => sentry_log::LogFilter::Event,
+        log::Level::Warn => sentry_log::LogFilter::Event,
+        _ => sentry_log::LogFilter::Ignore,
+    });
+
     log::set_boxed_logger(Box::new(logger)).unwrap();
     log::set_max_level(lavel);
 
