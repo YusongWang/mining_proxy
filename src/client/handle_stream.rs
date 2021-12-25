@@ -268,7 +268,7 @@ where
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
-
+    let mut job_diff = "".to_string();
     // 旷工状态管理
     let mut worker: Worker = Worker::default();
     let mut rpc_id = 0;
@@ -396,6 +396,13 @@ where
             },
             job = mine_jobs_queue.recv() => {
                 if let Ok(job) = job {
+                    let diff = job.get_diff();
+                    if diff != job_diff {
+                        job_diff = diff;
+                        debug!("接收新的工作难度 {}",job_diff);
+                        unsend_mine_jobs.clear();
+                    }
+
                     let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
                     let job_id = job_rpc.result.get(0).expect("封包格式错误");
                     unsend_mine_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));

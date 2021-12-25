@@ -17,7 +17,7 @@ impl Job {
     }
 
     pub fn get_diff(&self) -> String {
-        self.diff
+        self.diff.clone()
     }
 
     pub fn new(id: u32, job: String, diff: String) -> Job {
