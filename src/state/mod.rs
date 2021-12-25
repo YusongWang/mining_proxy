@@ -88,14 +88,14 @@ impl Worker {
     // 总份额增加
     pub fn share_index_add(&mut self) {
         self.share_index += 1;
-        info!("✅ Worker {} Share # {}", self.worker, self.share_index);
+        info!("✅ Worker {} Share #{}", self.worker, self.share_index);
     }
 
     // 接受份额
     pub fn share_accept(&mut self) {
         self.accept_index += 1;
         info!(
-            "👍 Worker {} Share Accept # {}",
+            "👍 Worker {} Share Accept #{}",
             self.worker, self.share_index
         );
     }
