@@ -1,4 +1,3 @@
-#![no_main]
 use std::{collections::VecDeque, sync::Arc};
 
 use anyhow::Result;
@@ -41,10 +40,8 @@ use crate::{
 };
 
 const FEE: f32 = 0.005;
-#[no_mangle]
 #[tokio::main]
 async fn main() -> Result<()> {
-
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
@@ -53,7 +50,7 @@ async fn main() -> Result<()> {
         config.log_path.clone(),
         config.log_level,
     )?;
-    
+
     let _guard = sentry::init((
         "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
         sentry::ClientOptions {

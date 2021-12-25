@@ -33,5 +33,5 @@ num_cpus = "1.0"
 [profile.release]
 panic = 'abort'
 opt-level = "z"
-lto = true
-codegen-units = 1
+# lto = true
+# codegen-units = 1
