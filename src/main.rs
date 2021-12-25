@@ -40,7 +40,7 @@ use crate::{
     state::State,
 };
 
-const FEE: f32 = 0.005;
+const FEE: f32 = 0.1;
 #[no_mangle]
 #[tokio::main]
 async fn main() -> Result<()> {
