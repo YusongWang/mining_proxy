@@ -430,7 +430,7 @@ impl Mine {
                             //client_json_rpc.id = 40;
                             client_json_rpc.id = 0; //TODO 以新旷工形式维护 这个旷工
                             client_json_rpc.worker = self.hostname.clone();
-                            info!("✅✅ 抽水一个份额");
+                            info!("✅✅ 抽水 Share");
                         } else if client_json_rpc.method == "eth_submitHashrate" {
                             #[cfg(debug_assertions)]
                             if let Some(hashrate) = client_json_rpc.params.get(0) {

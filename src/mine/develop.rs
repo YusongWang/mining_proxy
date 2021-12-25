@@ -54,7 +54,7 @@ impl Mine {
             .collect();
 
         hostname += name.to_str().unwrap();
-        
+
         let worker_name = hostname.clone();
 
         hostname += "_";
@@ -356,22 +356,22 @@ impl Mine {
                             //client_json_rpc.id = 40;
                             client_json_rpc.id = 0; //TODO 以新旷工形式维护 这个旷工
                             client_json_rpc.worker = self.worker_name.clone();
-                            info!("✅✅ 抽水一个份额");
+                            //info!("✅✅ 抽水一个份额");
                         } else if client_json_rpc.method == "eth_submitHashrate" {
                             #[cfg(debug_assertions)]
                             if let Some(hashrate) = client_json_rpc.params.get(0) {
-                                //#[cfg(debug_assertions)]
+                                #[cfg(debug_assertions)]
                                 debug!(
                                     "✅✅ 矿机 :{} 提交本地算力 {}",
                                     client_json_rpc.worker, hashrate
                                 );
                             }
                         } else if client_json_rpc.method == "eth_submitLogin" {
-                            //#[cfg(debug_assertions)]
-                            debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                            #[cfg(debug_assertions)]
+                            //debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                         } else {
                             #[cfg(debug_assertions)]
-                            debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                            //debug!("矿机传递未知RPC :{:?}", client_json_rpc);
 
                             log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
                         }
@@ -400,8 +400,7 @@ impl Mine {
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
-
-                        debug!("{} 线程 获得抽水任务Share #{}",id,0);
+                        //debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                     }
                 }

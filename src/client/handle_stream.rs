@@ -120,7 +120,7 @@ where
             if let Some(thread_id) = mine_send_jobs.remove(job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
 
-                debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
                 proxy_fee_sender
                     .send((thread_id, rpc_string))
@@ -141,7 +141,7 @@ where
             if let Some(thread_id) = develop_send_jobs.remove(job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
 
-                debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                //debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
                 develop_fee_sender
                     .send((thread_id, rpc_string))
@@ -407,7 +407,7 @@ where
                     // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。
                     if diff != job_diff {
                         job_diff = diff;
-                        debug!("接收新的工作难度 {}",job_diff);
+
                         unsend_mine_jobs.clear();
                     }
 
@@ -422,7 +422,7 @@ where
                     // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。
                     if diff != job_diff {
                         job_diff = diff;
-                        debug!("接收新的工作难度 {}",job_diff);
+
                         unsend_develop_jobs.clear();
                     }
 
