@@ -5,3 +5,6 @@ strip :
 upx : 
 	upx --best --lzma ./proxy
 all : build strip upx
+
+docker : all
+	docker build -t yusongwang:eth-proxy:v{$version} . && yusongwang:eth-proxy:v{$version}
