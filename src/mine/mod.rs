@@ -447,94 +447,39 @@ impl Mine {
                         );
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
-                    // if let Some(job_diff) = server_json_rpc.result.get(3) {
-                    //     if job_diff == "00" {
-                    //         if let Ok(json) = serde_json::from_slice::<ServerJobsWichHeigh>(&buf) {
-                    //             let job_diff = json.height.to_string();
-                    //             #[cfg(debug_assertions)]
-                    //             debug!("当前难度:{}", diff);
-                    //             if diff != job_diff {
-                    //                 //新的难度发现。
-                    //                 //debug!("新的难度发现。");
-                    //                 diff = job_diff.clone();
-                    //                 {
-                    //                     //debug!("清理队列。");
-                    //                     //清理队列。
-                    //                     let mut jobs = RwLockWriteGuard::map(
-                    //                         mine_jobs_queue.write().await,
-                    //                         |j| j,
-                    //                     );
-                    //                     jobs.clear();
-                    //                 }
-                    //             }
-                    //         } else {
-                    //             #[cfg(debug_assertions)]
-                    //             debug!(
-                    //                 "当前难度:{:?}",
-                    //                 String::from_utf8(buf.clone().to_vec()).unwrap()
-                    //             );
-                    //         }
-                    //     } else {
-                    //         #[cfg(debug_assertions)]
-                    //         debug!("当前难度:{}", diff);
-                    //         if diff != *job_diff {
-                    //             //新的难度发现。
-                    //             //debug!("新的难度发现。");
-                    //             diff = job_diff.clone();
-                    //             {
-                    //                 //debug!("清理队列。");
-                    //                 //清理队列。
-                    //                 {
-                    //                     //debug!("清理队列。");
-                    //                     //清理队列。
-                    //                     let mut jobs = RwLockWriteGuard::map(
-                    //                         mine_jobs_queue.write().await,
-                    //                         |j| j,
-                    //                     );
-                    //                     jobs.clear();
-                    //                 }
-                    //             }
-                    //         }
-                    //     }
-                    // }
-
+                    let job_diff = match server_json_rpc.result.get(3) {
+                        Some(diff) => {
+                            if diff == "00" {
+                                if let Ok(json) =
+                                    serde_json::from_slice::<ServerJobsWichHeigh>(&buf)
+                                {
+                                    let job_diff = json.height.to_string();
+                                    #[cfg(debug_assertions)]
+                                    debug!("当前难度:{}", diff);
+                                    job_diff
+                                } else {
+                                    log::error!("收到任务JobId 字段不存在{:?}", server_json_rpc);
+                                    panic!("收到任务JobId");
+                                }
+                            } else {
+                                diff.to_string()
+                            }
+                        }
+                        None => {
+                            log::error!("收到任务JobId 字段不存在{:?}", server_json_rpc);
+                            panic!("收到任务JobId");
+                        }
+                    };
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {:?}", server_json_rpc);
                     //新增一个share
                     if let Some(job_id) = server_json_rpc.result.get(0) {
-                        //0 工作任务HASH
-                        //1 DAG
-                        //2 diff
-
-                        // 判断是丢弃任务还是通知任务。
-
-                        // 测试阶段全部通知
-
-                        // 等矿机可以上线 由算力提交之后再处理这里。先启动一个Channel全部提交给矿机。
                         #[cfg(debug_assertions)]
                         debug!("发送到等待队列进行工作: {}", job_id);
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
-
-                        mine_jobs_queue.try_send(Job::new(self.id as u32, job));
-                        //{
-                        // //将任务加入队列。
-                        // let mut jobs =
-                        //     RwLockWriteGuard::map(mine_jobs_queue.write().await, |j| j);
-                        // jobs.push_back((self.id, job));
-
-                        //info!("难度: {} 当前任务量 {} ",diff, jobs.len());
-                        //}
-
-                        //#[cfg(debug_assertions)]
-                        //debug!("发送完成: {}", job_id);
-                        // let job = serde_json::to_string(&server_json_rpc)?;
-                        // jobs_send.send(job);
+                        mine_jobs_queue.try_send(Job::new(self.id as u32, job, job_diff));
                     }
-
-                    // if let Some(diff) = server_json_rpc.result.get(3) {
-                    //     //debug!("✅ Got Job Diff {}", diff);
-                    // }
                 } else {
                     #[cfg(debug_assertions)]
                     debug!(
@@ -652,9 +597,9 @@ impl Mine {
             id: CLIENT_LOGIN,
             method: "eth_submitLogin".into(),
             params: vec![self.wallet.clone(), "x".into()],
-            worker: self.hostname.clone()  + "_" + self.id.to_string().as_str(),
+            worker: self.hostname.clone() + "_" + self.id.to_string().as_str(),
         };
-        
+
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg).unwrap();
 

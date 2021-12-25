@@ -1,6 +1,4 @@
 pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> {
-
-
     // parse log_laver
     let lavel = match log_level {
         3 => log::LevelFilter::Error,
@@ -33,7 +31,6 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
     let logger = sentry_log::SentryLogger::with_dest(logger);
     log::set_boxed_logger(Box::new(logger)).unwrap();
     log::set_max_level(lavel);
-
 
     Ok(())
 }

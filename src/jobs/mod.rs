@@ -1,11 +1,13 @@
 use async_channel::{bounded, Receiver, Sender, TrySendError};
-use futures::SinkExt;
+
 use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Job {
     phread_id: u32,
     job: String,
+    diff: String,
 }
+
 impl Job {
     pub fn get_job(&self) -> String {
         self.job.clone()
@@ -14,8 +16,16 @@ impl Job {
         self.phread_id
     }
 
-    pub fn new(id: u32, job: String) -> Job {
-        Job { job, phread_id: id }
+    pub fn get_diff(&self) -> String {
+        self.diff
+    }
+
+    pub fn new(id: u32, job: String, diff: String) -> Job {
+        Job {
+            job,
+            phread_id: id,
+            diff,
+        }
     }
 }
 //c: Sender<i32>, r: Receiver<i32>

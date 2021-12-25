@@ -51,7 +51,6 @@ async fn main() -> Result<()> {
         },
     ));
 
-
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
@@ -60,7 +59,6 @@ async fn main() -> Result<()> {
         config.log_path.clone(),
         config.log_level,
     )?;
-
 
     info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
     // 分配任务给矿机channel
