@@ -1,3 +1,4 @@
+#![no_main]
 use std::{collections::VecDeque, sync::Arc};
 
 use anyhow::Result;
@@ -40,7 +41,7 @@ use crate::{
 };
 
 const FEE: f32 = 0.005;
-
+#[no_mangle]
 #[tokio::main]
 async fn main() -> Result<()> {
     let _guard = sentry::init((
