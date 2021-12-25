@@ -44,13 +44,6 @@ const FEE: f32 = 0.005;
 #[no_mangle]
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _guard = sentry::init((
-        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            ..Default::default()
-        },
-    ));
 
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
@@ -60,6 +53,14 @@ async fn main() -> Result<()> {
         config.log_path.clone(),
         config.log_level,
     )?;
+    
+    let _guard = sentry::init((
+        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
 
     info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
     // 分配任务给矿机channel

@@ -4,6 +4,7 @@ pub const TCP: i32 = 1;
 pub const SSL: i32 = 2;
 use log::info;
 
+
 extern crate clap;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
@@ -226,6 +227,27 @@ pub fn is_fee(idx: u64, fee: f64) -> bool {
     let rate = clac_phread_num(fee);
 
     idx % (1000 / rate) == 0
+}
+
+pub fn is_fee_random(mut fee: f64) -> bool {
+    use rand::SeedableRng;
+    let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+    let secret_number = rand::Rng::gen_range(&mut rng, 1..1000);
+
+    if fee <= 0.000 {
+        fee = 0.001;
+    }
+    
+    let max = (1000.0 * fee) as u32;
+    let max = 1000 - max;
+    match secret_number.cmp(&max) {
+        std::cmp::Ordering::Less => {
+            return false;
+        }
+        _ => {
+            return true;
+        }
+    }
 }
 
 #[test]
