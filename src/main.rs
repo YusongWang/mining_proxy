@@ -43,6 +43,15 @@ const FEE: f32 = 0.005;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let _guard = sentry::init((
+        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
+
+
     let matches = get_app_command_matches().await?;
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
@@ -52,7 +61,6 @@ async fn main() -> Result<()> {
         config.log_level,
     )?;
 
-    // TODO 校验矿池选项是否正确。 判断各个参数设置是否正确。
 
     info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
     // 分配任务给矿机channel
@@ -92,7 +100,7 @@ async fn main() -> Result<()> {
 
     // 开发者费用
     let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
-    panic!("test");
+
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
 
@@ -132,7 +140,7 @@ async fn main() -> Result<()> {
     );
 
     if let Err(err) = res {
-        info!("错误: {}", err);
+        log::warn!("矿机下线本地或远程断开: {}", err);
     }
 
     Ok(())
@@ -153,8 +161,9 @@ async fn proxy_accept(
     //     Ok(e) => e.parse().unwrap(),
     //     Err(_) => util::clac_phread_num(config.share_rate.into()),
     // };
-    let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..1 {
+    let thread_len = util::clac_phread_num_for_real(config.share_rate.into()) * 10;
+
+    for i in 0..thread_len {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
@@ -167,8 +176,7 @@ async fn proxy_accept(
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
 
     if let Err(e) = res {
-        log::error!("抽水矿机00 {}", e);
-        //info!("抽水矿机 {}", e);
+        log::warn!("抽水矿机断开{}", e);
     }
 
     Ok(())
