@@ -368,10 +368,10 @@ impl Mine {
                             }
                         } else if client_json_rpc.method == "eth_submitLogin" {
                             #[cfg(debug_assertions)]
-                            //debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
+                            debug!("✅✅ 矿机 :{} 请求登录", client_json_rpc.worker);
                         } else {
                             #[cfg(debug_assertions)]
-                            //debug!("矿机传递未知RPC :{:?}", client_json_rpc);
+                            debug!("矿机传递未知RPC :{:?}", client_json_rpc);
 
                             log::error!("矿机传递未知RPC :{:?}", client_json_rpc);
                         }
@@ -400,7 +400,6 @@ impl Mine {
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
-                        //debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                     }
                 }
