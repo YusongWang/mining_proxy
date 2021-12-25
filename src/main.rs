@@ -33,11 +33,7 @@ use util::{
 };
 
 use crate::{
-    client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
-    jobs::JobQueue,
-    mine::Mine,
-    protocol::rpc::eth::Server,
-    state::State,
+    client::tcp::accept_tcp, jobs::JobQueue, mine::Mine, protocol::rpc::eth::Server, state::State,
 };
 
 const FEE: f32 = 0.005;
@@ -99,11 +95,12 @@ async fn main() -> Result<()> {
 
     let thread_len = util::clac_phread_num(config.share_rate.into());
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
-
+    let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
     let res = tokio::try_join!(
         accept_tcp(
             state.clone(),
             mine_jobs.clone(),
+            develop_jobs.clone(),
             config.clone(),
             job_send.clone(),
             proxy_job_channel.clone(),
@@ -111,23 +108,23 @@ async fn main() -> Result<()> {
             state_send.clone(),
             dev_state_send.clone(),
         ),
-        accept_tcp_with_tls(
-            state.clone(),
-            mine_jobs.clone(),
-            config.clone(),
-            job_send.clone(),
-            proxy_job_channel.clone(),
-            fee_tx.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-            cert
-        ),
+        // accept_tcp_with_tls(
+        //     state.clone(),
+        //     mine_jobs.clone(),
+        //     config.clone(),
+        //     job_send.clone(),
+        //     proxy_job_channel.clone(),
+        //     fee_tx.clone(),
+        //     state_send.clone(),
+        //     dev_state_send.clone(),
+        //     cert
+        // ),
         proxy_accept(mine_jobs.clone(), config.clone(), proxy_job_channel.clone()),
-        develop_accept(state.clone(), config.clone(), fee_tx.clone()),
+        // develop_accept(state.clone(), config.clone(), fee_tx.clone()),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        print_state(state.clone(), config.clone()),
-        clear_state(state.clone(), config.clone()),
+        // print_state(state.clone(), config.clone()),
+        // clear_state(state.clone(), config.clone()),
     );
 
     if let Err(err) = res {
@@ -137,7 +134,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-// 中转代理抽水服务
+// // 中转代理抽水服务
 async fn proxy_accept(
     mine_jobs_queue: Arc<JobQueue>,
     config: Settings,
@@ -153,7 +150,7 @@ async fn proxy_accept(
     //     Err(_) => util::clac_phread_num(config.share_rate.into()),
     // };
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..thread_len  {
+    for i in 0..1 {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
@@ -173,41 +170,41 @@ async fn proxy_accept(
     Ok(())
 }
 
-// 中转代理抽水服务
-async fn develop_accept(
-    state: Arc<RwLock<State>>,
-    config: Settings,
-    jobs_send: broadcast::Sender<(u64, String)>,
-) -> Result<()> {
-    if config.share == 0 {
-        return Ok(());
-    }
+// // 中转代理抽水服务
+// async fn develop_accept(
+//     state: Arc<RwLock<State>>,
+//     config: Settings,
+//     jobs_send: broadcast::Sender<(u64, String)>,
+// ) -> Result<()> {
+//     if config.share == 0 {
+//         return Ok(());
+//     }
 
-    let mut v = vec![];
-    //let mut a = Arc::new(AtomicU64::new(0));
-    let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
+//     let mut v = vec![];
+//     //let mut a = Arc::new(AtomicU64::new(0));
+//     let develop_account = "0x98be5c44d574b96b320dffb0ccff116bda433b8e".to_string();
 
-    // let thread_len = match std::env::var("DEVELOP_MINE_PHREAD"){
-    //     Ok(e) => e.parse().unwrap(),
-    //     Err(_) => util::clac_phread_num(FEE.into()),
-    // };
-    let thread_len = util::clac_phread_num_for_real(FEE.into());
+//     // let thread_len = match std::env::var("DEVELOP_MINE_PHREAD"){
+//     //     Ok(e) => e.parse().unwrap(),
+//     //     Err(_) => util::clac_phread_num(FEE.into()),
+//     // };
+//     let thread_len = util::clac_phread_num_for_real(FEE.into());
 
-    for i in 0..thread_len {
-        let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
-        let send = jobs_send.clone();
-        let s = state.clone();
-        let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
-        v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
-    }
+//     for i in 0..thread_len {
+//         let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
+//         let send = jobs_send.clone();
+//         let s = state.clone();
+//         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+//         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+//     }
 
-    let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
-    if let Err(e) = res {
-        log::error!("抽水矿机01 {}", e);
-    }
+//     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
+//     if let Err(e) = res {
+//         log::error!("抽水矿机01 {}", e);
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 // async fn process_mine_state(
 //     state: Arc<RwLock<State>>,
