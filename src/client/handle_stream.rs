@@ -115,51 +115,48 @@ where
 {
     worker.share_index_add();
 
-    if let Some(job_id) = rpc.params.get(1) {
-        {
-            if mine_send_jobs.contains_key(job_id) {
-                if let Some(thread_id) = mine_send_jobs.remove(job_id) {
-                    let rpc_string = serde_json::to_string(&rpc)?;
+    if let Some(job_id) = rpc.params.get(1) {        
+        if mine_send_jobs.contains_key(job_id) {
+            if let Some(thread_id) = mine_send_jobs.remove(job_id) {
+                let rpc_string = serde_json::to_string(&rpc)?;
 
-                    debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
-                    proxy_fee_sender
-                        .send((thread_id, rpc_string))
-                        .expect("可以提交给矿池任务失败。通道异常了");
+                proxy_fee_sender
+                    .send((thread_id, rpc_string))
+                    .expect("可以提交给矿池任务失败。通道异常了");
 
-                    let s = ServerId1 {
-                        id: rpc.id,
-                        //jsonrpc: "2.0".into(),
-                        result: true,
-                    };
-                    write_to_socket(worker_w, &s, &worker_name).await; // TODO
-                    return Ok(());
-                }
+                let s = ServerId1 {
+                    id: rpc.id,
+                    //jsonrpc: "2.0".into(),
+                    result: true,
+                };
+                write_to_socket(worker_w, &s, &worker_name).await; // TODO
+                return Ok(());
             }
-            //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
         }
+           
+    
+        if develop_send_jobs.contains_key(job_id) {
+            if let Some(thread_id) = develop_send_jobs.remove(job_id) {
+                let rpc_string = serde_json::to_string(&rpc)?;
 
-        {
-            if develop_send_jobs.contains_key(job_id) {
-                if let Some(thread_id) = develop_send_jobs.remove(job_id) {
-                    let rpc_string = serde_json::to_string(&rpc)?;
+                debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
-                    //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-
-                    proxy_fee_sender
-                        .send((thread_id, rpc_string))
-                        .expect("可以提交给矿池任务失败。通道异常了");
-                    let s = ServerId1 {
-                        id: rpc.id,
-                        //jsonrpc: "2.0".into(),
-                        result: true,
-                    };
-                    write_to_socket(worker_w, &s, &worker_name).await; // TODO
-                    return Ok(());
-                }
+                develop_fee_sender
+                    .send((thread_id, rpc_string))
+                    .expect("可以提交给矿池任务失败。通道异常了");
+                let s = ServerId1 {
+                    id: rpc.id,
+                    //jsonrpc: "2.0".into(),
+                    result: true,
+                };
+                write_to_socket(worker_w, &s, &worker_name).await; // TODO
+                return Ok(());
             }
-            //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
         }
+            //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+        
     }
     rpc.id = worker.share_index;
     write_to_socket(pool_w, &rpc, &worker_name).await;
@@ -193,6 +190,7 @@ fn fee_job_process(
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
     send_jobs: &mut HashMap<String, u64>,
     job_rpc: &mut Server,
+    count: &mut i32,
 ) -> Option<()> {
     if crate::util::is_fee(pool_job_idx, config.share_rate.into()) {
         if !unsend_jobs.is_empty() {
@@ -222,6 +220,7 @@ fn develop_job_process(
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
     send_jobs: &mut HashMap<String, u64>,
     job_rpc: &mut Server,
+    count: &mut i32,
 ) -> Option<()> {
     if crate::util::is_fee(pool_job_idx, crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
@@ -395,24 +394,8 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            if (fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc).is_none()) {
-                                mine_count += 1;
-                                if mine_count >= 100 {
-                                    log::error!("连续 {} 个抽水任务获取失败",mine_count);
-                                }
-                            } else {
-                                mine_count = 0;
-                            }
-
-                            if (develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc).is_none()) {
-                                develop_count += 1;
-                                if develop_count >= 10 {
-                                    log::error!("连续 {} 个抽水任务获取失败",develop_count);
-                                }
-                            } else {
-                                develop_count = 0;
-                            }
-
+                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count);
+                            develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count);
                         }
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     }
