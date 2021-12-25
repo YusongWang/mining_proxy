@@ -161,7 +161,7 @@ where
             //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
         }
     }
-
+    rpc.id = worker.share_index;
     write_to_socket(pool_w, &rpc, &worker_name).await;
     return Ok(());
 }
