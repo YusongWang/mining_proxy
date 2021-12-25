@@ -106,10 +106,10 @@ impl Mine {
     ) -> Result<()> {
         //let mut v = vec![];
         //info!("✅✅ new_accept");
-        let mut rng = ChaCha20Rng::from_entropy();
-        let secret_number = rng.gen_range(1..1000);
-        let secret = rng.gen_range(0..100);
-        sleep(std::time::Duration::new(secret, secret_number)).await;
+        // let mut rng = ChaCha20Rng::from_entropy();
+        // let secret_number = rng.gen_range(1..1000);
+        // let secret = rng.gen_range(0..100);
+        // sleep(std::time::Duration::new(secret, secret_number)).await;
         self.new_worker(mine_jobs_queue.clone(), jobs_send.clone(), send, recv)
             .await
         // for i in 0..50 {

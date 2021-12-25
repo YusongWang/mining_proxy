@@ -33,7 +33,7 @@ use util::{
 };
 
 use crate::{
-    client::{tcp::accept_tcp, tls::accept_tcp_with_tls}, jobs::JobQueue, mine::Mine, protocol::rpc::eth::Server, state::State,
+    client::{tcp::accept_tcp, tls::accept_tcp_with_tls}, jobs::JobQueue, mine::Mine, state::State,
 };
 
 const FEE: f32 = 0.005;
@@ -151,7 +151,7 @@ async fn proxy_accept(
     //     Err(_) => util::clac_phread_num(config.share_rate.into()),
     // };
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..1 {
+    for i in 0..thread_len {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
