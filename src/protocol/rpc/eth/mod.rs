@@ -52,15 +52,23 @@ pub struct Server {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ServerError {
+pub struct ServerRoot {
     pub id: u64,
-    pub jsonrpc: String,
+    pub result: bool,
     pub error: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BinanceError {
+pub struct ServerError {
+    pub id: u64,
+    pub result: bool,
+    pub error: EthError,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EthError {
     pub code: u64,
     pub message: String,
 }

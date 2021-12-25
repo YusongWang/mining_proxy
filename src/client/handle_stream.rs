@@ -397,6 +397,7 @@ where
             job = mine_jobs_queue.recv() => {
                 if let Ok(job) = job {
                     let diff = job.get_diff();
+                    // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。 
                     if diff != job_diff {
                         job_diff = diff;
                         debug!("接收新的工作难度 {}",job_diff);

@@ -4,7 +4,7 @@ pub mod develop;
 use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
-    protocol::{rpc::eth::ClientWithWorkerName, CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
+    protocol::{rpc::eth::{ClientWithWorkerName, ServerError, ServerRoot}, CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
     state::State,
     util::{calc_hash_rate, config::Settings},
 };
@@ -431,20 +431,11 @@ impl Mine {
                     } else if rpc.id == CLIENT_SUBHASHRATE {
                         #[cfg(debug_assertions)]
                         info!("🚜🚜 算力提交成功");
-                    } else if rpc.result {
+                    } else if rpc.result && rpc.id == 0{
                         info!("👍👍 Share Accept");
                     } else {
                         info!("❗❗ Share Reject");
-                        log::error!(
-                            "抽水矿机 {} Share Reject:{}",
-                            self.id,
-                            String::from_utf8(buf.clone().to_vec()).unwrap()
-                        );
-                        #[cfg(debug_assertions)]
-                        debug!(
-                            "❗❗ Share Reject{}",
-                            String::from_utf8(buf.clone().to_vec()).unwrap()
-                        );
+                        crate::util::handle_error(self.id,&buf);
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
                     let job_diff = match server_json_rpc.result.get(3) {
@@ -519,11 +510,9 @@ impl Mine {
                     {
                         if client_json_rpc.method == "eth_submitWork" {
                             //client_json_rpc.id = 40;
-                            client_json_rpc.id = 499;
-                            client_json_rpc.worker = self.hostname.clone();
-
-                            info!("✅✅ 抽水 Share #{:?}",client_json_rpc.id);
-
+                            client_json_rpc.id = 0; //TODO 以新旷工形式维护 这个旷工
+                            client_json_rpc.worker = self.hostname.clone() + "_" + self.id.to_string().as_str();
+                            info!("✅✅ 抽水一个份额");
                         } else if client_json_rpc.method == "eth_submitHashrate" {
                             #[cfg(debug_assertions)]
                             if let Some(hashrate) = client_json_rpc.params.get(0) {
@@ -593,11 +582,15 @@ impl Mine {
         _: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
     ) -> Result<()> {
+
+        let worker_name = self.hostname.clone() + "_" + self.id.to_string().as_str();
+        let worker_name = worker_name.as_str();
+
         let login = ClientWithWorkerName {
             id: CLIENT_LOGIN,
             method: "eth_submitLogin".into(),
             params: vec![self.wallet.clone(), "x".into()],
-            worker: self.hostname.clone() + "_" + self.id.to_string().as_str(),
+            worker: worker_name.to_string(),
         };
 
         let login_msg = serde_json::to_string(&login)?;
@@ -624,16 +617,19 @@ impl Mine {
             //     }
             // }
 
+
+            //BUG 未计算速率。应该用速率除以当前总线程数。
+
             //计算速率
             let submit_hashrate = ClientWithWorkerName {
                 id: CLIENT_SUBHASHRATE,
                 method: "eth_submitHashrate".into(),
                 params: [
                     format!("0x{:x}", calc_hash_rate(40000000, self.config.share_rate),),
-                    hex::encode(self.hostname.clone()),
+                    hex::encode(worker_name.to_string()),
                 ]
                 .to_vec(),
-                worker: self.hostname.clone(),
+                worker: worker_name.to_string(),
             };
 
             let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;

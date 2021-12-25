@@ -259,3 +259,13 @@ fn test_is_fee() {
 
     assert_eq!(idx, 1000);
 }
+
+pub fn handle_error(worker_id: u64, buf: &[u8]) {
+    if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
+        log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, rpc);
+    } else if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
+        log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, rpc);
+    } else {
+        log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, buf);
+    }
+}
