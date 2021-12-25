@@ -46,7 +46,7 @@ impl Mine {
         if name.is_empty() {
             hostname = "proxy_wallet_mine".into();
         }
-        let worker_name = hostname.clone();
+        
         let s: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(7)
@@ -54,6 +54,9 @@ impl Mine {
             .collect();
 
         hostname += name.to_str().unwrap();
+        
+        let worker_name = hostname.clone();
+
         hostname += "_";
         hostname += s.as_str();
         hostname += "_";
