@@ -20,7 +20,7 @@ use native_tls::TlsConnector;
 use tokio::net::TcpStream;
 
 pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
-    let matches = App::new(format!("✅ {}, 版本: {} commit: {} {}", crate_name!(), crate_version!(),version::commit_date(), version::short_sha()))
+    let matches = App::new(format!("{}, 版本: {} commit: {} {}", crate_name!(), crate_version!(),version::commit_date(), version::short_sha()))
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .about(crate_description!())
