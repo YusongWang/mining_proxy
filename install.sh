@@ -12,9 +12,7 @@ fi
 
 set -u
 
-
-UPDATE_ROOT="${UPDATE_ROOT:-https://github.com/dothinkdone/minerProxy/releases/download/{$tag}}/linux.tar.gz}"
-
+set url = "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.4/linux.tar.gz"
 
 usage() {
     cat 1>&2 <<EOF
@@ -23,8 +21,18 @@ install eth-proxy
 EOF
 }
 
+get_version() {
+    echo -n "Enter your name:"
+    read name
+    echo "hello $name,welcome to my program"     //显示信息
+    exit 0
+}
+
 
 main() {
+    usage()
+    get_version()
+    
     need_cmd uname
     need_cmd mktemp
     need_cmd chmod
@@ -33,7 +41,36 @@ main() {
     need_cmd rmdir
     need_cmd wget
     need_cmd tar
-    
+    mkdir -p ./opt/proxy/{bin,logs,config}
+    wget -c url
+    tar -xvf ./opt/linux.tar.gz
+    mv ./proxy ./opt/proxy/bin/
+    mv ./default.yaml ./opt/proxy/config/
+    mv ./identity.p12 ./opt/proxy/config/
+}
+
+
+gen_service() {
+    touch proxy.service
+    echo <<EOF
+[Unit]
+Description=Eth-Proxy
+After=network.target
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/proxy/bin/proxy -c /opt/proxy/config/default.yaml
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+LimitNOFILE=65536
+WorkingDirectory=/opt/proxy/
+Restart=always
+ReStartSec=600
+[Install]
+WantedBy=multi-user.target
+EOF >> proxy.service;
 }
 
 need_cmd() {
