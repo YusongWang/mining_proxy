@@ -144,7 +144,7 @@ where
                 if let Some(thread_id) = develop_send_jobs.remove(job_id) {
                     let rpc_string = serde_json::to_string(&rpc)?;
 
-                    debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
+                    //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
                     proxy_fee_sender
                         .send((thread_id, rpc_string))
@@ -199,7 +199,6 @@ fn fee_job_process(
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
             job_rpc.result = mine_send_job.2.result;
-            info!("发送给任务了。");
             if let None = send_jobs.insert(mine_send_job.1, mine_send_job.0) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -209,7 +208,7 @@ fn fee_job_process(
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
             }
         } else {
-            info!("没有任务了。跳过本次抽水");
+            log::warn!("没有任务了...可能并发过高...00000");
         }
         None
     } else {
@@ -229,7 +228,7 @@ fn develop_job_process(
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
             job_rpc.result = mine_send_job.2.result;
-            info!("发送给任务了。");
+
             if let None = send_jobs.insert(mine_send_job.1, mine_send_job.0) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -239,7 +238,7 @@ fn develop_job_process(
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
             }
         } else {
-            info!("没有任务了。跳过本次抽水");
+            log::warn!("没有任务了...可能并发过高...10001");
         }
         None
     } else {
@@ -283,6 +282,10 @@ where
     let mut worker_lines = worker_r.lines();
     let mut pool_libes = pool_r.lines();
 
+    // 抽水任务计数
+    let mut develop_count = 0;
+    let mut mine_count = 0;
+
     loop {
         select! {
             res = worker_lines.next_line() => {
@@ -299,7 +302,8 @@ where
                     Err(e) => bail!("矿机下线了: {}",e),
                 };
 
-                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
+
+                //debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
@@ -319,13 +323,13 @@ where
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             _ => {
-                                info!("Not found method {:?}",client_json_rpc);
+                                log::warn!("Not found method {:?}",client_json_rpc);
                                 Ok(())
                             },
                         };
 
                         if res.is_err() {
-                            info!("{:?}",res);
+                            log::warn!("{:?}",res);
                             return res;
                         }
                     } else if let Some(mut client_json_rpc) = parse_client(&buf) {
@@ -335,13 +339,13 @@ where
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             _ => {
-                                info!("Not found method {:?}",client_json_rpc);
+                                log::warn!("Not found method {:?}",client_json_rpc);
                                 Ok(())
                             },
                         };
 
                         if res.is_err() {
-                            info!("{:?}",res);
+                            log::warn!("{:?}",res);
                             return res;
                         }
                     }
@@ -361,7 +365,7 @@ where
                     Err(e) => bail!("矿机下线了: {}",e),
                 };
 
-                debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
+                //debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
@@ -372,15 +376,15 @@ where
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                            info!("旷工提交算力");
+                            //info!("旷工提交算力");
                         } else if result_rpc.id == CLIENT_GETWORK {
-                            info!("旷工请求任务");
+                            //info!("旷工请求任务");
                         } else if result_rpc.id == worker.share_index {
-                            info!("份额被接受.");
+                            //info!("份额被接受.");
                             worker.share_accept();
                         } else {
                             worker.share_reject();
-                            info!("有问题了。");
+                            //info!("有问题了。");
                         }
                         result_rpc.id = rpc_id ;
                         write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
@@ -391,8 +395,24 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc);
-                            develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc);
+                            if (fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc).is_none()) {
+                                mine_count += 1;
+                                if mine_count >= 100 {
+                                    log::error!("连续 {} 个抽水任务获取失败",mine_count);
+                                }
+                            } else {
+                                mine_count = 0;
+                            }
+
+                            if (develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc).is_none()) {
+                                develop_count += 1;
+                                if develop_count >= 10 {
+                                    log::error!("连续 {} 个抽水任务获取失败",develop_count);
+                                }
+                            } else {
+                                develop_count = 0;
+                            }
+
                         }
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     }

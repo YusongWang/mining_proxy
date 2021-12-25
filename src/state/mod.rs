@@ -76,10 +76,10 @@ impl Worker {
 
     // 每十分钟清空份额调用方法
     pub fn clear_state(&mut self) {
-        info!(
-            "worker {} 清空所有数据。清空时有如下数据 {} {} {}",
-            self.worker, self.share_index, self.accept_index, self.invalid_index
-        );
+        // info!(
+        //     "✅ worker {} 清空所有数据。清空时有如下数据 {} {} {}",
+        //     self.worker, self.share_index, self.accept_index, self.invalid_index
+        // );
         self.share_index = 0;
         self.accept_index = 0;
         self.invalid_index = 0;
@@ -88,17 +88,18 @@ impl Worker {
     // 总份额增加
     pub fn share_index_add(&mut self) {
         self.share_index += 1;
-        info!("worker {} 份额 增加 {}", self.worker, self.share_index);
+        info!("✅ worker {} 份额 增加 {}", self.worker, self.share_index);
     }
     // 接受份额
     pub fn share_accept(&mut self) {
         self.accept_index += 1;
-        info!("worker {} 接受份额 {}", self.worker, self.accept_index);
+        info!("✅ worker {} 接受份额 {}", self.worker, self.accept_index);
     }
+
     // 拒绝的份额
     pub fn share_reject(&mut self) {
         self.invalid_index += 1;
-        info!("worker {} 拒绝份额 {}", self.worker, self.invalid_index);
+        info!("❗ worker {} 拒绝份额 {}", self.worker, self.invalid_index);
     }
 }
 

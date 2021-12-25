@@ -170,8 +170,6 @@ impl Mine {
                 Some((stream, addr)) => (stream, addr),
                 None => {
                     info!("所有TCP矿池均不可链接。请修改后重试");
-                    //std::process::exit(100);
-
                     sleep(std::time::Duration::new(2, 0)).await;
                     continue;
                 }
@@ -270,89 +268,6 @@ impl Mine {
         }
         Ok(())
     }
-    // async fn accept_tcp(
-    //     &self,
-    //     state: Arc<RwLock<State>>,
-    //     jobs_send: broadcast::Sender<String>,
-    //     send: UnboundedSender<String>,
-    //     mut recv: UnboundedReceiver<String>,
-    // ) -> Result<()> {
-    //     loop {
-    //         let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
-    //             Some((stream, addr)) => (stream, addr),
-    //             None => {
-    //                 info!("所有SSL矿池均不可链接。请修改后重试");
-    //                 std::process::exit(100);
-    //             }
-    //         };
-
-    //         let outbound = TcpStream::from_std(stream)?;
-    //         let (r_server, w_server) = split(outbound);
-
-    //         // { id: 40, method: "eth_submitWork", params: ["0x5fcef524222c218e", "0x5dc7070a672a9b432ec76075c1e06cccca9359d81dc42a02c7d80f90b7e7c20c", "0xde91884821ac90d583725a85d94c68468c0473f49a0907f45853578b9c617e0e"], worker: "P0001" }
-    //         // { id: 6, method: "eth_submitHashrate", params: ["0x1dab657b", "a5f9ff21c5d98fbe3d08bf733e2ac47c0650d198bd812743684476d4d98cdf32"], worker: "P0001" }
-
-    //         let res = tokio::try_join!(
-    //             self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
-    //             self.client_to_server(
-    //                 state.clone(),
-    //                 jobs_send.clone(),
-    //                 send.clone(),
-    //                 w_server,
-    //                 &mut recv
-    //             ),
-    //             self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
-    //         );
-
-    //         if let Err(err) = res {
-    //             info!("抽水线程 错误: {}", err);
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
-
-    // async fn accept_tcp_with_tls(
-    //     &self,
-    //     state: Arc<RwLock<State>>,
-    //     jobs_send: broadcast::Sender<String>,
-    //     send: UnboundedSender<String>,
-    //     mut recv: UnboundedReceiver<String>,
-    // ) -> Result<()> {
-    //     loop {
-    //         let (server_stream, _) = match crate::util::get_pool_stream_with_tls(
-    //             &self.config.share_ssl_address,
-    //             "Mine".into(),
-    //         )
-    //         .await
-    //         {
-    //             Some((stream, addr)) => (stream, addr),
-    //             None => {
-    //                 info!("所有SSL矿池均不可链接。请修改后重试");
-    //                 std::process::exit(100);
-    //             }
-    //         };
-
-    //         let (r_server, w_server) = split(server_stream);
-
-    //         let res = tokio::try_join!(
-    //             self.login_and_getwork(state.clone(), jobs_send.clone(), send.clone()),
-    //             self.client_to_server(
-    //                 state.clone(),
-    //                 jobs_send.clone(),
-    //                 send.clone(),
-    //                 w_server,
-    //                 &mut recv
-    //             ),
-    //             self.server_to_client(state.clone(), jobs_send.clone(), send.clone(), r_server)
-    //         );
-
-    //         if let Err(err) = res {
-    //             info!("抽水线程 错误: {}", err);
-    //         }
-    //     }
-    //     Ok(())
-    // }
 
     async fn server_to_client<R>(
         &self,
@@ -559,7 +474,7 @@ impl Mine {
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
-                        //#[cfg(debug_assertions)]
+                        #[cfg(debug_assertions)]
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                         //if let Ok(rpc) = serde_json::from_str::<ServerId1>(&job) {

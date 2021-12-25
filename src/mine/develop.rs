@@ -113,20 +113,11 @@ impl Mine {
         send: UnboundedSender<String>,
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
-        if self.config.share_tcp_address.is_empty() {
-            info!("Share TCP 地址不能为空");
-            return Ok(());
-        }
-        if self.config.share_tcp_address[0] == "" {
-            info!("Share TCP 地址不能为空");
-            return Ok(());
-        }
-
         loop {
             let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
                 Some((stream, addr)) => (stream, addr),
                 None => {
-                    info!("所有TCP矿池均不可链接。请修改后重试");
+                    //info!("所有TCP矿池均不可链接。请修改后重试");
                     //std::process::exit(100);
 
                     sleep(std::time::Duration::new(2, 0)).await;
@@ -158,7 +149,7 @@ impl Mine {
             );
 
             if let Err(e) = res {
-                info!("{}", e);
+                //info!("{}", e);
                 //return anyhow::private::Err(e);
             }
 
@@ -185,7 +176,7 @@ impl Mine {
                 match crate::util::get_pool_stream_with_tls(&pools, "Mine".into()).await {
                     Some((stream, addr)) => (stream, addr),
                     None => {
-                        info!("所有SSL矿池均不可链接。请修改后重试");
+                        //info!("所有SSL矿池均不可链接。请修改后重试");
                         sleep(std::time::Duration::new(2, 0)).await;
                         continue;
                     }
@@ -279,9 +270,12 @@ impl Mine {
                         #[cfg(debug_assertions)]
                         info!("🚜🚜 算力提交成功");
                     } else if rpc.result && rpc.id == 0 {
+                        #[cfg(debug_assertions)]
                         info!("👍👍 Share Accept");
                     } else {
+                        #[cfg(debug_assertions)]
                         info!("❗❗ Share Reject");
+
                         crate::util::handle_error(self.id, &buf);
                     }
                 } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
@@ -359,7 +353,7 @@ impl Mine {
                             //client_json_rpc.id = 40;
                             client_json_rpc.id = 0; //TODO 以新旷工形式维护 这个旷工
                             client_json_rpc.worker = self.worker_name.clone();
-                            info!("✅✅ 抽水一个份额");
+                            //info!("✅✅ 抽水一个份额");
                         } else if client_json_rpc.method == "eth_submitHashrate" {
                             #[cfg(debug_assertions)]
                             if let Some(hashrate) = client_json_rpc.params.get(0) {
@@ -403,7 +397,7 @@ impl Mine {
 
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
-                        //#[cfg(debug_assertions)]
+                        #[cfg(debug_assertions)]
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         send.send(job).unwrap();
                     }

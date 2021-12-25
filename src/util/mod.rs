@@ -175,7 +175,6 @@ pub async fn get_pool_stream_with_tls(
         let cx = tokio_native_tls::TlsConnector::from(cx);
 
         let domain: Vec<&str> = address.split(":").collect();
-        info!("{} {:?}", name, domain);
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
             Err(err) => {
