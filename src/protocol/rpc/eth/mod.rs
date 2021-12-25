@@ -43,7 +43,6 @@ pub struct ServerSideJob {
     pub result: Vec<String>,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Server {

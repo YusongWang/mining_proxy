@@ -29,8 +29,8 @@ use crate::{
     jobs::JobQueue,
     protocol::{
         rpc::eth::{
-            Client, ClientGetWork, ClientWithWorkerName, Server, ServerError, ServerId1,
-            ServerSideJob,
+            Client, ClientGetWork, ClientSubmitHashrate, ClientWithWorkerName, Server, ServerError,
+            ServerId1, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
@@ -49,12 +49,18 @@ where
     if write_len == 0 {
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
-
     Ok(())
 }
 
 fn parse_client(buf: &str) -> Option<Client> {
     match serde_json::from_str::<Client>(buf) {
+        Ok(c) => Some(c),
+        Err(_) => None,
+    }
+}
+
+fn parse_client_workername(buf: &str) -> Option<ClientWithWorkerName> {
+    match serde_json::from_str::<ClientWithWorkerName>(buf) {
         Ok(c) => Some(c),
         Err(_) => None,
     }
@@ -70,18 +76,34 @@ where
     }
 }
 
-async fn eth_submitLogin<W>(w: &mut WriteHalf<W>, rpc: &Client, worker: &String) -> Result<()>
+async fn eth_submitLogin<W>(
+    worker: &mut Worker,
+    w: &mut WriteHalf<W>,
+    mut rpc: &mut ClientWithWorkerName,
+    mut worker_name: &mut String,
+) -> Result<()>
 where
     W: AsyncWrite,
 {
-    write_to_socket(w, &rpc, &worker).await
+    if let Some(wallet) = rpc.params.get(0) {
+        rpc.id = CLIENT_LOGIN;
+        let mut temp_worker = wallet.clone();
+        temp_worker.push_str(".");
+        temp_worker = temp_worker + rpc.worker.as_str();
+        worker.login(temp_worker.clone(), rpc.worker.clone(), wallet.clone());
+        *worker_name = temp_worker;
+        write_to_socket(w, &rpc, &worker_name).await
+    } else {
+        bail!("请求登录出错。可能收到暴力攻击");
+    }
 }
 
 async fn eth_submitWork<W, W1>(
+    worker: &mut Worker,
     pool_w: &mut WriteHalf<W>,
     worker_w: &mut WriteHalf<W1>,
-    rpc: &Client,
-    worker: &String,
+    mut rpc: &mut ClientWithWorkerName,
+    worker_name: &String,
     mine_send_jobs: &mut HashMap<String, u64>,
     develop_send_jobs: &mut HashMap<String, u64>,
     proxy_fee_sender: &broadcast::Sender<(u64, String)>,
@@ -91,6 +113,8 @@ where
     W: AsyncWrite,
     W1: AsyncWrite,
 {
+    worker.share_index_add();
+
     if let Some(job_id) = rpc.params.get(1) {
         {
             if mine_send_jobs.contains_key(job_id) {
@@ -108,7 +132,7 @@ where
                         //jsonrpc: "2.0".into(),
                         result: true,
                     };
-                    write_to_socket(worker_w, &s, &worker).await; // TODO
+                    write_to_socket(worker_w, &s, &worker_name).await; // TODO
                     return Ok(());
                 }
             }
@@ -130,7 +154,7 @@ where
                         //jsonrpc: "2.0".into(),
                         result: true,
                     };
-                    write_to_socket(worker_w, &s, &worker).await; // TODO
+                    write_to_socket(worker_w, &s, &worker_name).await; // TODO
                     return Ok(());
                 }
             }
@@ -138,21 +162,28 @@ where
         }
     }
 
-    write_to_socket(pool_w, &rpc, &worker).await;
+    write_to_socket(pool_w, &rpc, &worker_name).await;
     return Ok(());
 }
 
-async fn eth_submitHashrate<W>(w: &mut WriteHalf<W>, rpc: &Client, worker: &String) -> Result<()>
+async fn eth_submitHashrate<W>(
+    worker: &mut Worker,
+    w: &mut WriteHalf<W>,
+    mut rpc: &mut ClientWithWorkerName,
+    worker_name: &String,
+) -> Result<()>
 where
     W: AsyncWrite,
 {
-    write_to_socket(w, &rpc, &worker).await
+    rpc.id = CLIENT_SUBHASHRATE;
+    write_to_socket(w, &rpc, &worker_name).await
 }
 
-async fn eth_get_work<W>(w: &mut WriteHalf<W>, rpc: &Client, worker: &String) -> Result<()>
+async fn eth_get_work<W>(w: &mut WriteHalf<W>, mut rpc: &mut Client, worker: &String) -> Result<()>
 where
     W: AsyncWrite,
 {
+    rpc.id = CLIENT_GETWORK;
     write_to_socket(w, &rpc, &worker).await
 }
 
@@ -239,7 +270,8 @@ where
     let mut pool_job_idx: u64 = 0;
 
     // 旷工状态管理
-    let mut worker: Worker;
+    let mut worker: Worker = Worker::default();
+    let mut rpc_id = 0;
 
     let mut unsend_mine_jobs: VecDeque<(u64, String, Server)> = VecDeque::new();
     let mut unsend_develop_jobs: VecDeque<(u64, String, Server)> = VecDeque::new();
@@ -250,6 +282,7 @@ where
     // 包装为封包格式。
     let mut worker_lines = worker_r.lines();
     let mut pool_libes = pool_r.lines();
+
     loop {
         select! {
             res = worker_lines.next_line() => {
@@ -273,19 +306,33 @@ where
                         continue;
                     }
 
-                    if let Some(client_json_rpc) = parse_client(&buf){
+                    if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
+                        rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
-                                eth_submitLogin(&mut pool_w,&client_json_rpc,&mut worker_name).await
+                                eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                eth_submitWork(&mut pool_w,&mut worker_w,&client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&proxy_fee_sender,&dev_fee_send).await
+                                eth_submitWork(&mut worker,&mut pool_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&proxy_fee_sender,&dev_fee_send).await
                             },
                             "eth_submitHashrate" => {
-                                eth_submitHashrate(&mut pool_w,&client_json_rpc,&mut worker_name).await
+                                eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
+                            _ => {
+                                info!("Not found method {:?}",client_json_rpc);
+                                Ok(())
+                            },
+                        };
+
+                        if res.is_err() {
+                            info!("{:?}",res);
+                            return res;
+                        }
+                    } else if let Some(mut client_json_rpc) = parse_client(&buf) {
+                        rpc_id = client_json_rpc.id;
+                        let res = match client_json_rpc.method.as_str() {
                             "eth_getWork" => {
-                                eth_get_work(&mut pool_w,&client_json_rpc,&mut worker_name).await
+                                eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             _ => {
                                 info!("Not found method {:?}",client_json_rpc);
@@ -320,9 +367,24 @@ where
                     if buf.is_empty() {
                         continue;
                     }
-                    if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+
+                    if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+                        if result_rpc.id == CLIENT_LOGIN {
+                            worker.logind();
+                        } else if result_rpc.id == CLIENT_SUBHASHRATE {
+                            info!("旷工提交算力");
+                        } else if result_rpc.id == CLIENT_GETWORK {
+                            info!("旷工请求任务");
+                        } else if result_rpc.id == worker.share_index {
+                            info!("份额被接受.");
+                            worker.share_accept();
+                        } else {
+                            worker.share_reject();
+                            info!("有问题了。");
+                        }
+                        result_rpc.id = rpc_id ;
                         write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
-                    } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf){
+                    } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         pool_job_idx += 1;
                         if config.share != 0 {
                             fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc);

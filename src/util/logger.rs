@@ -7,7 +7,6 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
         },
     ));
 
-    
     // parse log_laver
     let lavel = match log_level {
         3 => log::LevelFilter::Error,
@@ -31,8 +30,8 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
                 message
             ))
         })
-        .level(lavel)
-        //.level_for("engine", log::LevelFilter::Debug)
+        .level(log::LevelFilter::Info)
+        //.level_for("mine", log::LevelFilter::Info)
         .chain(std::io::stdout())
         .chain(log)
         .into_log();

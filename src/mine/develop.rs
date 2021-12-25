@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::{
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
-    protocol::{CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, rpc::eth::ClientWithWorkerName},
+    protocol::{rpc::eth::ClientWithWorkerName, CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE},
     state::State,
     util::{calc_hash_rate, config::Settings},
 };
@@ -13,8 +13,6 @@ use crate::{
 use anyhow::{bail, Error, Result};
 
 use bytes::{BufMut, BytesMut};
-
-
 
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
@@ -54,7 +52,6 @@ impl Mine {
         hostname += s.as_str();
         hostname += "_";
         hostname += id.to_string().as_str();
-
 
         Ok(Self {
             id,
@@ -363,7 +360,7 @@ impl Mine {
                 if buf.is_empty() {
                     continue;
                 }
-                
+
                 #[cfg(debug_assertions)]
                 debug!(
                     "❗线程 {} ------矿池到矿机捕获封包:{:?} ",

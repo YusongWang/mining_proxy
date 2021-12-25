@@ -33,7 +33,10 @@ use util::{
 };
 
 use crate::{
-    client::{tcp::accept_tcp, tls::accept_tcp_with_tls}, jobs::JobQueue, mine::Mine, state::State,
+    client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
+    jobs::JobQueue,
+    mine::Mine,
+    state::State,
 };
 
 const FEE: f32 = 0.005;
@@ -151,7 +154,7 @@ async fn proxy_accept(
     //     Err(_) => util::clac_phread_num(config.share_rate.into()),
     // };
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..thread_len {
+    for i in 0..1 {
         let mine = Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         //let send1 = jobs_send.clone();
@@ -264,10 +267,11 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
             "有效份额",
             "无效份额"
         ]);
+
         let mut total_hash: u64 = 0;
-        let mut total_share: u128 = 0;
-        let mut total_accept: u128 = 0;
-        let mut total_invalid: u128 = 0;
+        let mut total_share: u64 = 0;
+        let mut total_accept: u64 = 0;
+        let mut total_invalid: u64 = 0;
 
         let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
 
