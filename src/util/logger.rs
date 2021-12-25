@@ -30,8 +30,10 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
                 message
             ))
         })
-        .level(log::LevelFilter::Info)
-        //.level_for("mine", log::LevelFilter::Info)
+        .level(lavel)
+        .level_for("sentry", log::LevelFilter::Off)
+        .level_for("sentry-log", log::LevelFilter::Off)
+        //.level_for("sentry-log", log::LevelFilter::Off)
         .chain(std::io::stdout())
         .chain(log)
         .into_log();

@@ -52,7 +52,7 @@ impl Mine {
         Ok(Self {
             id,
             config,
-            hostname: hostname + "_" + id.to_string().as_str(),
+            hostname: hostname,
             wallet: w.share_wallet.clone(),
         })
     }
@@ -652,8 +652,9 @@ impl Mine {
             id: CLIENT_LOGIN,
             method: "eth_submitLogin".into(),
             params: vec![self.wallet.clone(), "x".into()],
-            worker: self.hostname.clone(),
+            worker: self.hostname.clone()  + "_" + self.id.to_string().as_str(),
         };
+        
         let login_msg = serde_json::to_string(&login)?;
         send.send(login_msg).unwrap();
 

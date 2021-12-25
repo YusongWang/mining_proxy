@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
 
     // 开发者费用
     let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
-
+    panic!("test");
     // 当前中转总报告算力。Arc<> Or atom 变量
     let state = Arc::new(RwLock::new(State::new()));
 
