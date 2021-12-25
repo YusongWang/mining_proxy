@@ -1,4 +1,8 @@
 use std::{collections::VecDeque, sync::Arc};
+mod version {
+    include!(concat!(env!("OUT_DIR"), "/version.rs"));
+}
+
 
 use anyhow::Result;
 use bytes::BytesMut;
@@ -59,7 +63,7 @@ async fn main() -> Result<()> {
         },
     ));
 
-    info!("✅ {}, 版本:{}", crate_name!(), crate_version!());
+    info!("✅ {}, 版本: {} commit: {} {}", crate_name!(), crate_version!(),version::commit_date(), version::short_sha());
     // 分配任务给矿机channel
     let (state_send, state_recv) = mpsc::unbounded_channel::<(u64, String)>();
 
