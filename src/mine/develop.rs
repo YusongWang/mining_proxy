@@ -1,25 +1,24 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{sync::Arc};
 
 use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
         rpc::eth::{
-            ClientWithWorkerName, ServerError, ServerId, ServerRoot, ServerRpc, ServerSideJob,
+            ClientWithWorkerName, ServerId, ServerRpc, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
-    state::State,
     util::{calc_hash_rate, config::Settings},
 };
 
-use anyhow::{bail, Error, Result};
+use anyhow::{bail, Result};
 
 use bytes::{BufMut, BytesMut};
 
 use log::{debug, info};
-use rand::{distributions::Alphanumeric, Rng, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+use rand::{distributions::Alphanumeric, Rng};
+
 
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
@@ -27,7 +26,6 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{UnboundedReceiver, UnboundedSender},
-        RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -58,7 +56,7 @@ impl Mine {
         hostname += name.to_str().unwrap();
         let worker_name = hostname.clone();
 
-        if (id != 0) {
+        if id != 0 {
             hostname += "_";
             hostname += s.as_str();
             hostname += "_";
@@ -154,7 +152,7 @@ impl Mine {
                 )
             );
 
-            if let Err(e) = res {
+            if let Err(_e) = res {
                 //info!("{}", e);
                 //return anyhow::private::Err(e);
             }

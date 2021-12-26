@@ -17,15 +17,15 @@ use crate::state::State;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
-    state: Arc<RwLock<State>>,
+    _state: Arc<RwLock<State>>,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
-    job_send: broadcast::Sender<String>,
+    _job_send: broadcast::Sender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
     develop_fee_sender: broadcast::Sender<(u64, String)>,
-    state_send: UnboundedSender<(u64, String)>,
-    dev_state_send: UnboundedSender<(u64, String)>,
+    _state_send: UnboundedSender<(u64, String)>,
+    _dev_state_send: UnboundedSender<(u64, String)>,
     cert: Identity,
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.ssl_port);

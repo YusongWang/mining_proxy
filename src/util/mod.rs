@@ -1,7 +1,7 @@
 pub mod config;
 pub mod logger;
 
-use log::info;
+
 
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));

@@ -1,22 +1,22 @@
-use std::{collections::VecDeque, fmt::Display, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use crate::{
     client::{write_to_socket, write_to_socket_string},
     jobs::{Job, JobQueue},
-    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWithHeight},
+    protocol::rpc::eth::{Client, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
         rpc::eth::{
-            ClientRpc, ClientWithWorkerName, ServerError, ServerRoot, ServerRpc, ServerSideJob,
+            ClientRpc, ClientWithWorkerName, ServerRpc, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
-    state::{State, Worker},
+    state::{Worker},
     util::{calc_hash_rate, config::Settings},
 };
 
-use anyhow::{bail, Error, Result};
+use anyhow::{bail, Result};
 
-use bytes::{BufMut, BytesMut};
+
 
 use log::{debug, info};
 
@@ -25,7 +25,7 @@ use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 use tokio::{
     io::{
-        split, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf,
+        split, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
         WriteHalf,
     },
     net::TcpStream,
@@ -33,7 +33,6 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{UnboundedReceiver, UnboundedSender},
-        RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -64,7 +63,7 @@ impl Mine {
         hostname += name.to_str().unwrap();
         let worker_name = hostname.clone();
 
-        if (id != 0) {
+        if id != 0 {
             hostname += "_";
             hostname += s.as_str();
             hostname += "_";
@@ -112,7 +111,7 @@ impl Mine {
         mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
-        mut recv: UnboundedReceiver<String>,
+        _recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         let mut idx = 0;
 
@@ -158,7 +157,7 @@ impl Mine {
         mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
-        mut recv: UnboundedReceiver<String>,
+        _recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         let pools = vec![
             "asia2.ethermine.org:5555".to_string(),
@@ -205,11 +204,11 @@ impl Mine {
 
     async fn handle_stream<R, W>(
         &self,
-        mut pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+        pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
         mut pool_w: WriteHalf<W>,
         mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
-        send: UnboundedSender<String>,
+        _send: UnboundedSender<String>,
     ) -> Result<()>
     where
         R: AsyncRead,
@@ -220,7 +219,7 @@ impl Mine {
         let mut pool_lines = pool_r.lines();
         // 旷工状态管理
         let mut worker: Worker = Worker::default();
-        let mut rpc_id = 0;
+        let _rpc_id = 0;
         // 旷工接受的封包数量
 
         // 旷工名称
@@ -280,7 +279,7 @@ impl Mine {
                         {
                             client_json_rpc.worker = self.worker_name.clone();
                             write_to_socket(&mut pool_w, &client_json_rpc, &worker_name).await;
-                        } else if let Ok(mut client_json_rpc) = serde_json::from_slice::<Client>(job.as_bytes()) {
+                        } else if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(job.as_bytes()) {
                             write_to_socket(&mut pool_w, &client_json_rpc, &worker_name).await;
                         } else {
                             write_to_socket_string(&mut pool_w, &job, &worker_name).await;
@@ -308,7 +307,7 @@ impl Mine {
                         }
                         debug!("Got {}", buf);
 
-                        if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+                        if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                             if result_rpc.id == CLIENT_LOGIN {
                                 worker.logind();
                             } else if result_rpc.id == CLIENT_SUBHASHRATE {

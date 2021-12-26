@@ -71,7 +71,7 @@ pub fn get_pool_stream(
 
 pub async fn get_pool_stream_with_tls(
     pool_tcp_address: &Vec<String>,
-    name: String,
+    _name: String,
 ) -> Option<(
     tokio_native_tls::TlsStream<tokio::net::TcpStream>,
     SocketAddr,
@@ -128,7 +128,7 @@ pub async fn get_pool_stream_with_tls(
         let domain: Vec<&str> = address.split(":").collect();
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
-            Err(err) => {
+            Err(_err) => {
                 //info!("{} {} SSL 链接失败！！！！ {:?}", name, address, err);
                 continue;
             }

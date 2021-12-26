@@ -1,34 +1,34 @@
-use std::collections::{HashMap, VecDeque};
+
 use std::sync::Arc;
 
 use anyhow::Result;
 use log::info;
 
-use tokio::io::{split, AsyncRead, AsyncWrite, BufReader, WriteHalf};
+use tokio::io::{split, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
-use futures::FutureExt;
+
 use tokio::sync::broadcast;
 
 use tokio::sync::{mpsc::UnboundedSender, RwLock};
 
 use crate::jobs::JobQueue;
-use crate::protocol::rpc::eth::ServerId1;
+
 use crate::state::State;
 use crate::util::config::Settings;
 
 use super::handle_stream;
 
 pub async fn accept_tcp(
-    state: Arc<RwLock<State>>,
+    _state: Arc<RwLock<State>>,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
-    job_send: broadcast::Sender<String>,
+    _job_send: broadcast::Sender<String>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
     develop_fee_sender: broadcast::Sender<(u64, String)>,
-    state_send: UnboundedSender<(u64, String)>,
-    dev_state_send: UnboundedSender<(u64, String)>,
+    _state_send: UnboundedSender<(u64, String)>,
+    _dev_state_send: UnboundedSender<(u64, String)>,
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;

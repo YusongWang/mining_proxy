@@ -1,33 +1,31 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{sync::Arc};
 
 use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
         rpc::eth::{
-            ClientWithWorkerName, ServerError, ServerId, ServerRoot, ServerRpc, ServerSideJob,
+            ClientWithWorkerName, ServerId, ServerRpc, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
-    state::State,
     util::{calc_hash_rate, config::Settings},
 };
 
-use anyhow::{bail, Error, Result};
+use anyhow::{bail, Result};
 
 use bytes::{BufMut, BytesMut};
 
 use log::{debug, info};
 
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+
+
 use tokio::{
     io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     net::TcpStream,
     sync::{
         broadcast,
         mpsc::{UnboundedReceiver, UnboundedSender},
-        RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -137,10 +135,10 @@ impl Mine {
     }
     pub async fn accept(
         self,
-        mine_jobs_queue: Arc<JobQueue>,
-        jobs_send: broadcast::Sender<String>,
-        send: UnboundedSender<String>,
-        recv: UnboundedReceiver<String>,
+        _mine_jobs_queue: Arc<JobQueue>,
+        _jobs_send: broadcast::Sender<String>,
+        _send: UnboundedSender<String>,
+        _recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         //let mut v = vec![];
         // self.worker(state.clone(), jobs_send.clone(), send.clone(), recv)
@@ -289,7 +287,7 @@ impl Mine {
         R: AsyncRead,
     {
         let mut is_login = false;
-        let mut diff = "".to_string();
+        let _diff = "".to_string();
 
         loop {
             let mut buf = vec![0; 4096];

@@ -52,7 +52,7 @@ impl JobQueue {
         match self.tx.try_send(job) {
             _ => {}
             Err(e) => match e {
-                TrySendError::Full(job) => {
+                TrySendError::Full(_job) => {
                     // if let Ok(_) = self.rx.try_recv() {
                     //     return self.send(job);
                     // } else {
@@ -60,7 +60,7 @@ impl JobQueue {
                     // }
                     return Some(());
                 }
-                TrySendError::Closed(i) => {
+                TrySendError::Closed(_i) => {
                     //println!("线程异常退出了");
                     return None;
                 }

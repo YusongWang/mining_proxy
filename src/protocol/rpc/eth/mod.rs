@@ -123,7 +123,7 @@ impl ServerRpc for ServerSideJob {
 
         true
     }
-    fn set_diff(&mut self, diff: String) -> bool {
+    fn set_diff(&mut self, _diff: String) -> bool {
         true
     }
 
@@ -172,7 +172,7 @@ impl ServerRpc for Server {
         true
     }
 
-    fn set_diff(&mut self, diff: String) -> bool {
+    fn set_diff(&mut self, _diff: String) -> bool {
         true
     }
 
@@ -257,7 +257,7 @@ impl ServerRpc for ServerJobsWithHeight {
 
         true
     }
-    fn set_diff(&mut self, diff: String) -> bool {
+    fn set_diff(&mut self, _diff: String) -> bool {
         true
     }
 

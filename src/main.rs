@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{sync::Arc};
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -7,7 +7,7 @@ use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
 use futures::future;
-use log::{debug, info};
+use log::{info};
 
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
@@ -16,7 +16,7 @@ use tokio::{
     io::AsyncReadExt,
     sync::{
         broadcast,
-        mpsc::{self, UnboundedReceiver},
+        mpsc::{self},
         RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
@@ -72,10 +72,10 @@ async fn main() -> Result<()> {
         version::short_sha()
     );
     // 分配任务给矿机channel
-    let (state_send, state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+    let (state_send, _state_recv) = mpsc::unbounded_channel::<(u64, String)>();
 
     // 分配dev任务给矿机channel
-    let (dev_state_send, dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+    let (dev_state_send, _dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
 
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
