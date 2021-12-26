@@ -31,7 +31,7 @@ use crate::{
     protocol::{
         rpc::eth::{
             Client, ClientGetWork, ClientRpc, ClientSubmitHashrate, ClientWithWorkerName, Server,
-            ServerError, ServerId1, ServerJobsWithHeight, ServerSideJob,
+            ServerError, ServerId1, ServerJobsWithHeight, ServerSideJob, ServerRpc,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
     },

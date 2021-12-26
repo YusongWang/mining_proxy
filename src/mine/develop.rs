@@ -4,7 +4,7 @@ use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
-        rpc::eth::{ClientWithWorkerName, ServerError, ServerRoot},
+        rpc::eth::{ClientWithWorkerName, ServerError, ServerRoot, ServerRpc, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     state::State,
@@ -281,30 +281,9 @@ impl Mine {
 
                         crate::util::handle_error(self.id, &buf);
                     }
-                } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
-                    let job_diff = match server_json_rpc.result.get(3) {
-                        Some(diff) => {
-                            if diff == "00" {
-                                if let Ok(json) =
-                                    serde_json::from_slice::<ServerJobsWithHeight>(&buf)
-                                {
-                                    let job_diff = json.height.to_string();
-                                    #[cfg(debug_assertions)]
-                                    debug!("当前难度:{}", diff);
-                                    job_diff
-                                } else {
-                                    log::error!("收到任务JobId 字段不存在{:?}", server_json_rpc);
-                                    panic!("收到任务JobId");
-                                }
-                            } else {
-                                diff.to_string()
-                            }
-                        }
-                        None => {
-                            log::error!("收到任务JobId 字段不存在{:?}", server_json_rpc);
-                            panic!("收到任务JobId");
-                        }
-                    };
+                } else if let Ok(server_json_rpc) =
+                    serde_json::from_slice::<ServerJobsWithHeight>(&buf)
+                {
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {:?}", server_json_rpc);
                     //新增一个share
@@ -313,7 +292,41 @@ impl Mine {
                         debug!("发送到等待队列进行工作: {}", job_id);
                         // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
                         let job = serde_json::to_string(&server_json_rpc)?;
-                        mine_jobs_queue.try_send(Job::new(self.id as u32, job, job_diff));
+                        mine_jobs_queue.try_send(Job::new(
+                            self.id as u32,
+                            job,
+                            server_json_rpc.get_diff(),
+                        ));
+                    }
+                } else if let Ok(server_json_rpc) = serde_json::from_slice::<ServerSideJob>(&buf) {
+                    #[cfg(debug_assertions)]
+                    debug!("Got jobs {:?}", server_json_rpc);
+                    //新增一个share
+                    if let Some(job_id) = server_json_rpc.result.get(0) {
+                        #[cfg(debug_assertions)]
+                        debug!("发送到等待队列进行工作: {}", job_id);
+                        // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
+                        let job = serde_json::to_string(&server_json_rpc)?;
+                        mine_jobs_queue.try_send(Job::new(
+                            self.id as u32,
+                            job,
+                            server_json_rpc.get_diff(),
+                        ));
+                    }
+                } else if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf) {
+                    #[cfg(debug_assertions)]
+                    debug!("Got jobs {:?}", server_json_rpc);
+                    //新增一个share
+                    if let Some(job_id) = server_json_rpc.result.get(0) {
+                        #[cfg(debug_assertions)]
+                        debug!("发送到等待队列进行工作: {}", job_id);
+                        // 判断以submitwork时jobs_id 是不是等于我们保存的任务。如果等于就发送回来给抽水矿机。让抽水矿机提交。
+                        let job = serde_json::to_string(&server_json_rpc)?;
+                        mine_jobs_queue.try_send(Job::new(
+                            self.id as u32,
+                            job,
+                            server_json_rpc.get_diff(),
+                        ));
                     }
                 } else {
                     #[cfg(debug_assertions)]

@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use crate::util::hex_to_int;
+
 pub trait ServerRpc {
     fn set_result(&mut self, res: Vec<std::string::String>) -> bool;
     fn set_diff(&mut self, diff: String) -> bool;
+    fn get_diff(&self) -> u64;
 }
 
 pub trait ClientRpc {
@@ -122,6 +125,31 @@ impl ServerRpc for ServerSideJob {
     fn set_diff(&mut self, diff: String) -> bool {
         true
     }
+
+    fn get_diff(&self) -> u64 {
+        let job_diff = match self.result.get(3) {
+            Some(diff) => {
+                if diff.contains("0x") {
+                    if let Some(h) = hex_to_int(&diff[2..diff.len()]) {
+                        h as u64
+                    } else if let Some(h) = hex_to_int(&diff[..]) {
+                        h as u64
+                    } else {
+                        0
+                    }
+                } else {
+                    if let Some(h) = hex_to_int(&diff[..]) {
+                        h as u64
+                    } else {
+                        0
+                    }
+                }
+            }
+            None => 0,
+        };
+
+        job_diff
+    }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -135,8 +163,39 @@ impl ServerRpc for Server {
         self.result = res;
         true
     }
+
     fn set_diff(&mut self, diff: String) -> bool {
         true
+    }
+
+    fn get_diff(&self) -> u64 {
+        let job_diff = match self.result.get(3) {
+            Some(diff) => {
+                if diff.contains("0x") {
+                    if let Some(h) = hex_to_int(&diff[2..diff.len()]) {
+                        h as u64
+                    } else if let Some(h) = hex_to_int(&diff[..]) {
+                        h as u64
+                    } else {
+                        log::error!("收到任务JobId 字段不存在{:?}", self);
+                        0
+                    }
+                } else {
+                    if let Some(h) = hex_to_int(&diff[..]) {
+                        h as u64
+                    } else {
+                        log::error!("收到任务JobId 字段不存在{:?}", self);
+                        0
+                    }
+                }
+            }
+            None => {
+                log::error!("收到任务JobId 字段不存在{:?}", self);
+                0
+            }
+        };
+
+        job_diff
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -185,6 +244,10 @@ impl ServerRpc for ServerJobsWithHeight {
     }
     fn set_diff(&mut self, diff: String) -> bool {
         true
+    }
+
+    fn get_diff(&self) -> u64 {
+        self.height
     }
 }
 //币印 {"id":0,"jsonrpc":"2.0","result":["0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"], "height":13834471}
