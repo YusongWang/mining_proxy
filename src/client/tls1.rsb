@@ -21,7 +21,7 @@ use crate::state::State;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
-    state: Arc<RwLock<State>>,
+    state: Arc<RwLock<Workers>,
     mine_jobs_queue: Arc<JobQueue>,
     config: Settings,
     job_send: broadcast::Sender<String>,
@@ -77,7 +77,7 @@ pub async fn accept_tcp_with_tls(
 }
 
 async fn transfer_ssl(
-    state: Arc<RwLock<State>>,
+    state: Arc<RwLock<Workers>,
     mine_jobs_queue: Arc<JobQueue>,
     jobs_recv: broadcast::Receiver<String>,
     tls_acceptor: tokio_native_tls::TlsAcceptor,

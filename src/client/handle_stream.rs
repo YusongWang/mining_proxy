@@ -18,7 +18,7 @@ use tokio::{
     net::TcpStream,
     select,
     sync::{
-        broadcast,
+        broadcast, RwLock,
     },
 };
 
@@ -31,7 +31,7 @@ use crate::{
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
-    state::{Worker},
+    state::{Worker, Workers},
     util::{config::Settings},
 };
 
@@ -228,7 +228,8 @@ where
 }
 
 pub async fn handle_stream<R, W, R1, W1>(
-    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    workers: Arc<tokio::sync::RwLock<Workers>>,
+    mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
     mut pool_w: WriteHalf<W1>,
@@ -531,9 +532,12 @@ where
 }
 
 pub async fn handle<R, W, S>(
-    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    stream: S,
+
+    workers: Arc<RwLock<Workers>>,
+    mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    mut worker_w: WriteHalf<W>,
+    mut stream: S,
+
     config: &Settings,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
@@ -548,6 +552,7 @@ where
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
     handle_stream(
+        workers,
         worker_r,
         worker_w,
         pool_r,
@@ -562,8 +567,9 @@ where
 }
 
 pub async fn handle_tcp_pool<R, W>(
-    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
+    workers: Arc<RwLock<Workers>>,
+    mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    mut worker_w: WriteHalf<W>,
     pools: &Vec<String>,
     config: &Settings,
     mine_jobs_queue: Arc<JobQueue>,
@@ -585,6 +591,7 @@ where
 
     let stream = TcpStream::from_std(outbound)?;
     handle(
+        workers,
         worker_r,
         worker_w,
         stream,
@@ -598,8 +605,9 @@ where
 }
 
 pub async fn handle_tls_pool<R, W>(
-    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
+    workers: Arc<RwLock<Workers>>,
+    mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    mut worker_w: WriteHalf<W>,
     pools: &Vec<String>,
     config: &Settings,
     mine_jobs_queue: Arc<JobQueue>,
@@ -621,6 +629,7 @@ where
     };
 
     handle(
+        workers,
         worker_r,
         worker_w,
         outbound,

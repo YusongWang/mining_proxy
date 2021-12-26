@@ -14,13 +14,14 @@ use tokio::sync::{mpsc::UnboundedSender, RwLock};
 
 use crate::jobs::JobQueue;
 
-use crate::state::State;
+
+use crate::state::Workers;
 use crate::util::config::Settings;
 
 use super::handle_stream;
 
 pub async fn accept_tcp(
-    _state: Arc<RwLock<State>>,
+    workers: Arc<RwLock<Workers>>,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
@@ -39,6 +40,7 @@ pub async fn accept_tcp(
         info!("😄 Accepting Tcp connection from {}", addr);
 
         let config = config.clone();
+        let workers = workers.clone();
 
         let mine_jobs_queue = mine_jobs_queue.clone();
         let develop_jobs_queue = develop_jobs_queue.clone();
@@ -47,6 +49,7 @@ pub async fn accept_tcp(
 
         tokio::spawn(async move {
             transfer(
+                workers,
                 stream,
                 &config,
                 mine_jobs_queue,
@@ -60,6 +63,7 @@ pub async fn accept_tcp(
 }
 
 async fn transfer(
+    workers: Arc<RwLock<Workers>>,
     tcp_stream: TcpStream,
     config: &Settings,
     mine_jobs_queue: Arc<JobQueue>,
@@ -79,6 +83,7 @@ async fn transfer(
 
     if stream_type == crate::client::TCP {
         handle_stream::handle_tcp_pool(
+            workers,
             worker_r,
             worker_w,
             &pools,
@@ -91,6 +96,7 @@ async fn transfer(
         .await
     } else if stream_type == crate::client::SSL {
         handle_stream::handle_tls_pool(
+            workers,
             worker_r,
             worker_w,
             &pools,

@@ -6,18 +6,15 @@ use crate::{
     protocol::rpc::eth::{Client, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
         rpc::eth::{
-            ClientRpc, ClientWithWorkerName, ServerRootErrorValue,
-            ServerRpc, ServerSideJob,
+            ClientRpc, ClientWithWorkerName, ServerRootErrorValue, ServerRpc, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
-    state::{Worker},
+    state::Worker,
     util::{calc_hash_rate, config::Settings},
 };
 
 use anyhow::{bail, Result};
-
-
 
 use log::{debug, info};
 
@@ -25,10 +22,7 @@ use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 use tokio::{
-    io::{
-        split, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt,
-        WriteHalf,
-    },
+    io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
     select,
     sync::{
@@ -117,7 +111,8 @@ impl Mine {
         mine_jobs_queue: Arc<JobQueue>,
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
-        _recv: UnboundedReceiver<String>,
+
+        recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         if self.config.share_tcp_address.is_empty() {
             panic!("Share TCP 地址不能为空");

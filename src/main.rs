@@ -37,8 +37,8 @@ use util::{
 
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
-    jobs::JobQueue,
-    state::State,
+    jobs::JobQueue, state::Workers,
+
 };
 
 const FEE: f32 = 0.01;
@@ -108,7 +108,8 @@ async fn main() -> Result<()> {
     let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
 
     // 当前中转总报告算力。Arc<> Or atom 变量
-    let state = Arc::new(RwLock::new(State::new()));
+
+    let workers:Arc<RwLock<Workers>> = Arc::new(RwLock::new(Workers::default()));
 
     let thread_len = util::clac_phread_num(config.share_rate.into());
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
@@ -116,7 +117,7 @@ async fn main() -> Result<()> {
 
     let res = tokio::try_join!(
         accept_tcp(
-            state.clone(),
+            workers.clone(),
             mine_jobs.clone(),
             develop_jobs.clone(),
             config.clone(),
@@ -127,7 +128,7 @@ async fn main() -> Result<()> {
             dev_state_send.clone(),
         ),
         accept_tcp_with_tls(
-            state.clone(),
+            workers.clone(),
             mine_jobs.clone(),
             develop_jobs.clone(),
             config.clone(),
@@ -138,11 +139,11 @@ async fn main() -> Result<()> {
             dev_state_send.clone(),
             cert,
         ),
-        proxy_accept(mine_jobs.clone(), config.clone(), proxy_job_channel.clone()),
-        develop_accept(develop_jobs.clone(), config.clone(), fee_tx.clone()),
+        proxy_accept(workers.clone(),mine_jobs.clone(), &config, proxy_job_channel.clone()),
+        develop_accept(workers.clone(),develop_jobs.clone(), &config, fee_tx.clone()),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        // print_state(state.clone(), config.clone()),
+        //print_state(workers.clone(), &config),
         // clear_state(state.clone(), config.clone()),
     );
 
@@ -155,8 +156,9 @@ async fn main() -> Result<()> {
 
 // // 中转代理抽水服务
 async fn proxy_accept(
+    workers: Arc<RwLock<Workers>>,
     mine_jobs_queue: Arc<JobQueue>,
-    config: Settings,
+    config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
     if config.share == 0 {
@@ -185,8 +187,9 @@ async fn proxy_accept(
     Ok(())
 }
 async fn develop_accept(
+    workers:Arc<RwLock<Workers>>,
     mine_jobs_queue: Arc<JobQueue>,
-    config: Settings,
+    config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
     if config.share == 0 {
@@ -277,7 +280,7 @@ async fn develop_accept(
 // }
 
 // async fn process_mine_state(
-//     state: Arc<RwLock<State>>,
+//     state: Arc<RwLock<Workers>,
 //     mut state_recv: UnboundedReceiver<(u64, String)>,
 // ) -> Result<()> {
 //     loop {
@@ -299,7 +302,7 @@ async fn develop_accept(
 // }
 
 // async fn process_dev_state(
-//     state: Arc<RwLock<State>>,
+//     state: Arc<RwLock<Workers>,
 //     mut state_recv: UnboundedReceiver<(u64, String)>,
 // ) -> Result<()> {
 //     loop {
@@ -319,7 +322,7 @@ async fn develop_accept(
 //     }
 // }
 
-async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> {
+async fn print_state(state: Arc<RwLock<Workers>>, config: &Settings) -> Result<()> {
     loop {
         sleep(std::time::Duration::new(60, 0)).await;
         // 创建表格
@@ -338,9 +341,9 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
         let mut total_accept: u64 = 0;
         let mut total_invalid: u64 = 0;
 
-        let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
+        let workers = RwLockReadGuard::map(state.read().await, |s| s);
 
-        for (_, w) in &*workers {
+        for w in &*workers.workers {
             // 添加行
             table.add_row(row![
                 w.worker_name,
@@ -370,27 +373,27 @@ async fn print_state(state: Arc<RwLock<State>>, config: Settings) -> Result<()> 
     }
 }
 
-async fn clear_state(state: Arc<RwLock<State>>, _: Settings) -> Result<()> {
-    loop {
-        sleep(std::time::Duration::new(60 * 10, 0)).await;
-        {
-            let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
-            for _ in &*workers {
-                // if w.worker == *rw_worker {
-                //     w.share_index = w.share_index + 1;
-                // }
-                //TODO Send workd to channel . channel send HttpApi to WebViewServer
-            }
-        }
+// async fn clear_state(state: Arc<RwLock<Workers>, _: Settings) -> Result<()> {
+//     loop {
+//         sleep(std::time::Duration::new(60 * 10, 0)).await;
+//         {
+//             let workers = RwLockReadGuard::map(state.read().await, |s| &s);
+//             for _ in &*workers {
+//                 // if w.worker == *rw_worker {
+//                 //     w.share_index = w.share_index + 1;
+//                 // }
+//                 //TODO Send workd to channel . channel send HttpApi to WebViewServer
+//             }
+//         }
 
-        // 重新计算每十分钟效率情况
-        {
-            let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-            for (_, w) in &mut *workers {
-                w.share_index = 0;
-                w.accept_index = 0;
-                w.invalid_index = 0;
-            }
-        }
-    }
-}
+//         // 重新计算每十分钟效率情况
+//         {
+//             let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
+//             for (_, w) in &mut *workers {
+//                 w.share_index = 0;
+//                 w.accept_index = 0;
+//                 w.invalid_index = 0;
+//             }
+//         }
+//     }
+// }

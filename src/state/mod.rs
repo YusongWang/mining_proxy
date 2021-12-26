@@ -107,6 +107,21 @@ impl Worker {
     }
 }
 
+pub struct Workers {
+    pub workers: Vec<Worker>,
+}
+impl Workers {
+    fn new() -> Self {
+        Workers { workers: vec![] }
+    }
+}
+
+impl Default for Workers {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[test]
 fn test_new_work() {
     let w = Worker::default();
@@ -144,37 +159,4 @@ fn test_share_reject() {
 
 pub struct InnerJobs {
     pub mine_jobs: Arc<RwLock<HashMap<String, u64>>>,
-}
-
-//TODO 分成四个变量是否可以提升速度。减少同一变量写锁的时间
-// 或者就保留目前的全局状态值。方便处理。
-#[derive(Debug)]
-pub struct State {
-    pub report_hashrate: HashMap<String, String>,
-    pub workers: HashMap<String, Worker>,
-    pub proxy_jobs: HashSet<String>,
-    pub proxy_share: u64,
-    pub mine_jobs: HashMap<String, u64>,
-    pub mine_jobs_queue: VecDeque<(u64, String)>,
-    pub mine_share: u64,
-    pub develop_jobs: HashMap<String, u64>,
-    pub develop_jobs_queue: VecDeque<(u64, String)>,
-    pub develop_share: u64,
-}
-
-impl State {
-    pub fn new() -> Self {
-        Self {
-            report_hashrate: HashMap::new(),
-            proxy_jobs: HashSet::new(),
-            mine_jobs: HashMap::new(),
-            develop_jobs: HashMap::new(),
-            proxy_share: 0,
-            mine_share: 0,
-            develop_share: 0,
-            mine_jobs_queue: VecDeque::new(),
-            develop_jobs_queue: VecDeque::new(),
-            workers: HashMap::new(),
-        }
-    }
 }

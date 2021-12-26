@@ -56,7 +56,7 @@ where
 }
 
 async fn client_to_server<R, W>(
-    state: Arc<RwLock<State>>,
+    state: Arc<RwLock<Workers>,
     jobs: Arc<crate::state::InnerJobs>,
     worker: Arc<RwLock<String>>,
     client_rpc_id: Arc<RwLock<u64>>,
@@ -338,7 +338,7 @@ where
 }
 
 async fn server_to_client<R, W>(
-    state: Arc<RwLock<State>>,
+    state: Arc<RwLock<Workers>,
     jobs: Arc<crate::state::InnerJobs>,
     mine_jobs_queue: Arc<JobQueue>,
     worker: Arc<RwLock<String>>,
@@ -598,7 +598,7 @@ where
     }
 }
 
-async fn remove_worker(state: Arc<RwLock<State>>, worker: String) -> Result<()> {
+async fn remove_worker(state: Arc<RwLock<Workers>, worker: String) -> Result<()> {
     #[cfg(debug_assertions)]
     debug!("旷工下线 {}", worker);
     {
