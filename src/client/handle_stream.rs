@@ -33,7 +33,7 @@ use crate::{
             Client, ClientGetWork, ClientRpc, ClientSubmitHashrate, ClientWithWorkerName, Server,
             ServerError, ServerId1, ServerJobsWithHeight, ServerSideJob,
         },
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
     },
     state::{State, Worker},
     util::{config::Settings, hex_to_int},
@@ -451,7 +451,7 @@ where
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
 
-                        if job_rpc.id == CLIENT_GETWORK {
+                        if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                             job_rpc.id = rpc_id ;
                         }
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
@@ -466,9 +466,10 @@ where
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
 
-                        if job_rpc.id == CLIENT_GETWORK {
+                        if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index {
                             job_rpc.id = rpc_id ;
                         }
+                        
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
@@ -481,9 +482,10 @@ where
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
 
-                        if job_rpc.id == CLIENT_GETWORK {
+                        if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index {
                             job_rpc.id = rpc_id ;
                         }
+
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else {
                         log::warn!("未找到的交易");
