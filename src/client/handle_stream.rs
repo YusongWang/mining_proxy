@@ -151,22 +151,22 @@ where
     write_to_socket(w, &rpc, &worker).await
 }
 
-fn fee_job_process<T>(
-    _pool_job_idx: u64,
+async fn fee_job_process<T>(
+    pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
     send_jobs: &mut HashMap<String, u64>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
+    jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(config.share_rate.into()) {
+    if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
-            //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
             job_rpc.set_result(mine_send_job.2.result);
             if let None = send_jobs.insert(mine_send_job.1, mine_send_job.0) {
                 #[cfg(debug_assertions)]
@@ -177,7 +177,34 @@ where
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
             }
         } else {
-            log::warn!("没有任务了...可能并发过高...00000");
+            match tokio::time::timeout(std::time::Duration::new(0, 300), jobs_queue.recv()).await {
+                Ok(res) => match res {
+                    Ok(job) => {
+                        let rpc = match serde_json::from_str::<Server>(&*job.get_job()) {
+                            Ok(rpc) => rpc,
+                            Err(_) => return None,
+                        };
+                        let job_id = rpc.result.get(0).expect("封包格式错误");
+                        job_rpc.set_result(rpc.result.clone());
+                        if let None = send_jobs.insert(job_id.to_string(), job.get_id() as u64) {
+                            #[cfg(debug_assertions)]
+                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                            return Some(());
+                        } else {
+                            #[cfg(debug_assertions)]
+                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                        }
+                    }
+                    Err(_) => {
+                        log::warn!("没有任务了...可能并发过高...00000");
+                        return None;
+                    }
+                },
+                Err(_) => {
+                    log::warn!("没有任务了...可能并发过高...00000");
+                    return None;
+                }
+            }
         }
         None
     } else {
@@ -185,19 +212,20 @@ where
     }
 }
 
-fn develop_job_process<T>(
-    _pool_job_idx: u64,
-    _: &Settings,
+async fn develop_job_process<T>(
+    pool_job_idx: u64,
+    config: &Settings,
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
     send_jobs: &mut HashMap<String, u64>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
+    jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(crate::FEE.into()) {
+    if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
@@ -212,7 +240,34 @@ where
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
             }
         } else {
-            log::warn!("没有任务了...可能并发过高...10001");
+            match tokio::time::timeout(std::time::Duration::new(0, 300), jobs_queue.recv()).await {
+                Ok(res) => match res {
+                    Ok(job) => {
+                        let rpc = match serde_json::from_str::<Server>(&*job.get_job()) {
+                            Ok(rpc) => rpc,
+                            Err(_) => return None,
+                        };
+                        let job_id = rpc.result.get(0).expect("封包格式错误");
+                        job_rpc.set_result(rpc.result.clone());
+                        if let None = send_jobs.insert(job_id.to_string(), job.get_id() as u64) {
+                            #[cfg(debug_assertions)]
+                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                            return Some(());
+                        } else {
+                            #[cfg(debug_assertions)]
+                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                        }
+                    }
+                    Err(_) => {
+                        log::warn!("没有任务了...可能并发过高...00000");
+                        return None;
+                    }
+                },
+                Err(_) => {
+                    log::warn!("没有任务了...可能并发过高...00000");
+                    return None;
+                }
+            }
         }
         None
     } else {
@@ -407,12 +462,11 @@ where
                             unsend_develop_jobs.clear();
                         }
 
-
                         pool_job_idx += 1;
                         if config.share != 0 {
                             //TODO 适配矿池的时候有可能有高度为hight字段。需要自己修改适配
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string()).is_none(){
-                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_none(){
+                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                             }
                         }
 
@@ -439,8 +493,8 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string()).is_none(){
-                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_none(){
+                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                             }
                         }
 
@@ -466,8 +520,8 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string()).is_none(){
-                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_none(){
+                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                             }
                         }
 

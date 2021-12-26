@@ -10,6 +10,8 @@ extern crate clap;
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
+use self::config::Settings;
+
 pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(format!(
         "{}, 版本: {} commit: {} {}",
@@ -166,6 +168,36 @@ pub fn is_fee_random(mut fee: f64) -> bool {
     }
 }
 
+pub fn fee(idx: u64, config: &Settings, fee: f64) -> bool {
+    if config.share_alg == 1 {
+        return is_fee(idx, fee);
+    } else {
+        return is_fee_random(fee);
+    }
+}
+
+#[test]
+fn test_fee() {
+    let mut config = Settings::default();
+    config.share_alg = 1;
+    let mut i = 0;
+    for idx in 0..1000 {
+        if fee(idx, &config, 0.005) {
+            i += 1;
+        }
+    }
+
+    assert_eq!(i, 5);
+
+    let mut i = 0;
+    for idx in 0..1000 {
+        if fee(idx, &config, 0.005) {
+            i += 1;
+        }
+    }
+
+    //assert_eq!(i,5);
+}
 #[test]
 fn test_is_fee_random() {
     let mut i = 0;
@@ -174,5 +206,5 @@ fn test_is_fee_random() {
             i += 1;
         }
     }
-    //assert_eq!(i,5);
+    assert_eq!(i, 5);
 }

@@ -16,6 +16,7 @@ pub struct Settings {
     pub share_name: String,
     pub share_rate: f32,
     pub share: u32,
+    pub share_alg: u32,
     pub p12_path: String,
     pub p12_pass: String,
 }
@@ -38,6 +39,7 @@ impl Default for Settings {
             share: 0,
             share_name: "".into(),
             name: "proxy".into(),
+            share_alg: 0,
         }
     }
 }
