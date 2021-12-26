@@ -27,6 +27,7 @@ use tokio::{
 };
 
 use crate::{
+    client::{parse_client, parse_client_workername, write_to_socket_string},
     jobs::JobQueue,
     protocol::{
         rpc::eth::{
@@ -39,45 +40,7 @@ use crate::{
     util::{config::Settings, hex_to_int},
 };
 
-async fn write_to_socket<W, T>(w: &mut WriteHalf<W>, rpc: &T, worker: &String) -> Result<()>
-where
-    W: AsyncWrite,
-    T: Serialize,
-{
-    let mut rpc = serde_json::to_vec(&rpc)?;
-    rpc.push(b'\n');
-    let write_len = w.write(&rpc).await?;
-    if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
-    }
-    Ok(())
-}
-async fn write_to_socket_string<W>(w: &mut WriteHalf<W>, rpc: &str, worker: &String) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    let mut rpc = rpc.as_bytes().to_vec();
-    rpc.push(b'\n');
-    let write_len = w.write(&rpc).await?;
-    if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
-    }
-    Ok(())
-}
-
-fn parse_client(buf: &str) -> Option<Client> {
-    match serde_json::from_str::<Client>(buf) {
-        Ok(c) => Some(c),
-        Err(_) => None,
-    }
-}
-
-fn parse_client_workername(buf: &str) -> Option<ClientWithWorkerName> {
-    match serde_json::from_str::<ClientWithWorkerName>(buf) {
-        Ok(c) => Some(c),
-        Err(_) => None,
-    }
-}
+use super::write_to_socket;
 
 async fn shutdown<W>(w: &mut WriteHalf<W>) -> Result<()>
 where

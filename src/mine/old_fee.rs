@@ -4,7 +4,9 @@ use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
-        rpc::eth::{ClientWithWorkerName, ServerError, ServerRoot, ServerRpc, ServerSideJob},
+        rpc::eth::{
+            ClientWithWorkerName, ServerError, ServerId, ServerRoot, ServerRpc, ServerSideJob,
+        },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     state::State,
@@ -362,6 +364,33 @@ impl Mine {
                         info!("❗❗ Share Reject");
                         crate::protocol::rpc::eth::handle_error(self.id, &buf);
                     }
+                } else if let Ok(rpc) = serde_json::from_slice::<ServerId>(&buf) {
+                    #[cfg(debug_assertions)]
+                    debug!("收到抽水矿机返回 {:?}", rpc);
+                    if rpc.id == CLIENT_LOGIN {
+                        if rpc.result == true {
+                            //info!("✅✅ 登录成功");
+                            is_login = true;
+                        } else {
+                            log::error!(
+                                "矿池登录失败，请尝试重启程序 {}",
+                                String::from_utf8(buf.clone().to_vec()).unwrap()
+                            );
+                            bail!(
+                                "❗❎ 矿池登录失败，请尝试重启程序 {}",
+                                String::from_utf8(buf.clone().to_vec()).unwrap()
+                            );
+                        }
+                        // 登录。
+                    } else if rpc.id == CLIENT_SUBHASHRATE {
+                        #[cfg(debug_assertions)]
+                        info!("🚜🚜 算力提交成功");
+                    } else if rpc.result && rpc.id == 0 {
+                        info!("👍👍 Share Accept");
+                    } else {
+                        info!("❗❗ Share Reject");
+                        crate::protocol::rpc::eth::handle_error(self.id, &buf);
+                    }
                 } else if let Ok(server_json_rpc) =
                     serde_json::from_slice::<ServerJobsWithHeight>(&buf)
                 {
@@ -544,17 +573,6 @@ impl Mine {
         // send.send(eth_get_work_msg).unwrap();
 
         loop {
-            // let mut my_hash_rate: u64 = 0;
-
-            // {
-            //     let workers = RwLockReadGuard::map(state.read().await, |s| &s.workers);
-            //     for (_, w) in &*workers {
-            //         my_hash_rate = my_hash_rate + w.hash;
-            //     }
-            // }
-
-            //BUG 未计算速率。应该用速率除以当前总线程数。
-
             //计算速率
             let submit_hashrate = ClientWithWorkerName {
                 id: CLIENT_SUBHASHRATE,

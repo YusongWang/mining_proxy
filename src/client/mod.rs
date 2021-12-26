@@ -2,12 +2,21 @@ pub mod handle_stream;
 pub mod tcp;
 pub mod tls;
 
+use anyhow::bail;
 use native_tls::TlsConnector;
+use serde::Serialize;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     time::Duration,
 };
-use tokio::net::TcpStream;
+
+use anyhow::Result;
+use tokio::{
+    io::{AsyncWrite, AsyncWriteExt, WriteHalf},
+    net::TcpStream,
+};
+
+use crate::protocol::rpc::eth::{Client, ClientWithWorkerName};
 
 pub const TCP: i32 = 1;
 pub const SSL: i32 = 2;
@@ -130,4 +139,49 @@ pub async fn get_pool_stream_with_tls(
     }
 
     None
+}
+
+pub async fn write_to_socket<W, T>(w: &mut WriteHalf<W>, rpc: &T, worker: &String) -> Result<()>
+where
+    W: AsyncWrite,
+    T: Serialize,
+{
+    let mut rpc = serde_json::to_vec(&rpc)?;
+    rpc.push(b'\n');
+    let write_len = w.write(&rpc).await?;
+    if write_len == 0 {
+        bail!("✅ Worker: {} 服务器断开连接.", worker);
+    }
+    Ok(())
+}
+
+pub async fn write_to_socket_string<W>(
+    w: &mut WriteHalf<W>,
+    rpc: &str,
+    worker: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    let mut rpc = rpc.as_bytes().to_vec();
+    rpc.push(b'\n');
+    let write_len = w.write(&rpc).await?;
+    if write_len == 0 {
+        bail!("✅ Worker: {} 服务器断开连接.", worker);
+    }
+    Ok(())
+}
+
+pub fn parse_client(buf: &str) -> Option<Client> {
+    match serde_json::from_str::<Client>(buf) {
+        Ok(c) => Some(c),
+        Err(_) => None,
+    }
+}
+
+pub fn parse_client_workername(buf: &str) -> Option<ClientWithWorkerName> {
+    match serde_json::from_str::<ClientWithWorkerName>(buf) {
+        Ok(c) => Some(c),
+        Err(_) => None,
+    }
 }

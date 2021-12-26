@@ -167,7 +167,9 @@ async fn proxy_accept(
     //TODO 从ENV读取变量动态设置线程数.
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
     for i in 0..thread_len {
-        let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
+        //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
+        let mine = mine::fee::Mine::new(config.clone(), i).await?;
+
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
@@ -182,8 +184,6 @@ async fn proxy_accept(
 
     Ok(())
 }
-
-// 开发者抽水服务
 async fn develop_accept(
     mine_jobs_queue: Arc<JobQueue>,
     config: Settings,
@@ -199,7 +199,7 @@ async fn develop_accept(
     let thread_len = util::clac_phread_num_for_real(FEE.into());
 
     for i in 0..thread_len {
-        let mine = mine::develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
+        let mine = mine::dev_fee::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
@@ -213,6 +213,68 @@ async fn develop_accept(
 
     Ok(())
 }
+
+// // 中转代理抽水服务
+// async fn old_proxy_accept(
+//     mine_jobs_queue: Arc<JobQueue>,
+//     config: Settings,
+//     jobs_send: broadcast::Sender<(u64, String)>,
+// ) -> Result<()> {
+//     if config.share == 0 {
+//         return Ok(());
+//     }
+
+//     let mut v = vec![];
+//     //TODO 从ENV读取变量动态设置线程数.
+//     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
+//     for i in 0..thread_len {
+//         //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
+//         let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
+
+//         let send = jobs_send.clone();
+//         let s = mine_jobs_queue.clone();
+//         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+//         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+//     }
+
+//     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
+
+//     if let Err(e) = res {
+//         log::warn!("抽水矿机断开{}", e);
+//     }
+
+//     Ok(())
+// }
+// 开发者抽水服务
+// async fn old_develop_accept(
+//     mine_jobs_queue: Arc<JobQueue>,
+//     config: Settings,
+//     jobs_send: broadcast::Sender<(u64, String)>,
+// ) -> Result<()> {
+//     if config.share == 0 {
+//         return Ok(());
+//     }
+
+//     let mut v = vec![];
+//     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
+
+//     let thread_len = util::clac_phread_num_for_real(FEE.into());
+
+//     for i in 0..thread_len {
+//         let mine = mine::develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
+//         let send = jobs_send.clone();
+//         let s = mine_jobs_queue.clone();
+//         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+//         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+//     }
+
+//     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
+//     if let Err(e) = res {
+//         log::error!("抽水矿机01 {}", e);
+//     }
+
+//     Ok(())
+// }
 
 // async fn process_mine_state(
 //     state: Arc<RwLock<State>>,

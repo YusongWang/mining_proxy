@@ -1,11 +1,12 @@
-use serde::{Deserialize, Serialize};
-
 use crate::util::hex_to_int;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 pub trait ServerRpc {
     fn set_result(&mut self, res: Vec<std::string::String>) -> bool;
     fn set_diff(&mut self, diff: String) -> bool;
     fn get_diff(&self) -> u64;
+    fn get_job_id(&self) -> Option<String>;
 }
 
 pub trait ClientRpc {
@@ -150,6 +151,13 @@ impl ServerRpc for ServerSideJob {
 
         job_diff
     }
+
+    fn get_job_id(&self) -> Option<String> {
+        match self.result.get(0) {
+            Some(s) => Some(s.to_string()),
+            None => todo!(),
+        }
+    }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -196,6 +204,13 @@ impl ServerRpc for Server {
         };
 
         job_diff
+    }
+
+    fn get_job_id(&self) -> Option<String> {
+        match self.result.get(0) {
+            Some(s) => Some(s.to_string()),
+            None => todo!(),
+        }
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -249,6 +264,13 @@ impl ServerRpc for ServerJobsWithHeight {
     fn get_diff(&self) -> u64 {
         self.height
     }
+
+    fn get_job_id(&self) -> Option<String> {
+        match self.result.get(0) {
+            Some(s) => Some(s.to_string()),
+            None => todo!(),
+        }
+    }
 }
 //币印 {"id":0,"jsonrpc":"2.0","result":["0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"], "height":13834471}
 
@@ -258,12 +280,41 @@ pub struct ServerId1 {
     pub id: u64,
     pub result: bool,
 }
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerId {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: bool,
+}
+//{"id":4,"jsonrpc":"2.0","result":true}
+
+//{"id":197,"result":false,"error":[21,"Job not found (=stale)",null]}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerRootError {
+    pub id: i64,
+    pub result: bool,
+    pub error: (i64, String, Value),
+}
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerRootErrorValue {
+    pub id: i64,
+    pub result: Value,
+    pub error: String,
+}
 
 pub fn handle_error(worker_id: u64, buf: &[u8]) {
     if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
         log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
     } else if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
         log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
+    } else if let Ok(rpc) =
+        serde_json::from_slice::<crate::protocol::rpc::eth::ServerRootError>(&buf)
+    {
+        log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error.1);
     } else {
         log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, buf);
     }
@@ -274,6 +325,10 @@ pub fn handle_error_for_worker(worker_name: &String, buf: &[u8]) {
         log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
     } else if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
         log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
+    } else if let Ok(rpc) =
+        serde_json::from_slice::<crate::protocol::rpc::eth::ServerRootError>(&buf)
+    {
+        log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error.1);
     } else {
         log::warn!("矿机 {} Share Reject: {:?}", worker_name, buf);
     }
