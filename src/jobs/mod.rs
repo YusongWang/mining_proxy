@@ -12,6 +12,7 @@ impl Job {
     pub fn get_job(&self) -> String {
         self.job.clone()
     }
+
     pub fn get_id(&self) -> u32 {
         self.phread_id
     }
@@ -30,7 +31,11 @@ impl Job {
 }
 
 
+<<<<<<< Updated upstream
 
+=======
+//c: Sender<i32>, r: Receiver<i32>
+>>>>>>> Stashed changes
 pub struct JobQueue {
     tx: Sender<Job>,
     rx: Receiver<Job>,
