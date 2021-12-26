@@ -41,7 +41,7 @@ use crate::{
     state::State,
 };
 
-const FEE: f32 = 0.005;
+const FEE: f32 = 0.01;
 
 // 代理费用。
 const AGENT_FEE: f32 = 0.005;
