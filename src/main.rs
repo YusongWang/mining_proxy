@@ -8,7 +8,7 @@ use bytes::BytesMut;
 use clap::{crate_name, crate_version};
 use futures::future;
 use log::{debug, info};
-use mine::develop;
+
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
 use tokio::{
@@ -38,7 +38,6 @@ use util::{
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
     jobs::JobQueue,
-    mine::Mine,
     state::State,
 };
 
@@ -169,7 +168,7 @@ async fn proxy_accept(
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
 
     for i in 0..thread_len {
-        let mine = Mine::new(config.clone(), i).await?;
+        let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
@@ -198,15 +197,10 @@ async fn develop_accept(
     let mut v = vec![];
     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
 
-    // let thread_len = match std::env::var("DEVELOP_MINE_PHREAD"){
-    //     Ok(e) => e.parse().unwrap(),
-    //     Err(_) => util::clac_phread_num(FEE.into()),
-    // };
-    //TODO 从ENV读取变量动态设置线程数.
     let thread_len = util::clac_phread_num_for_real(FEE.into());
 
     for i in 0..thread_len {
-        let mine = develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
+        let mine = mine::develop::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();

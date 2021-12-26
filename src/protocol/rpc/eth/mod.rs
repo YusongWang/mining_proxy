@@ -5,6 +5,16 @@ pub trait ServerRpc {
     fn set_diff(&mut self, diff: String) -> bool;
 }
 
+pub trait ClientRpc {
+    fn set_id(&mut self, id: u64) -> bool;
+    fn get_id(&mut self) -> u64;
+
+    fn get_job_id(&mut self) -> Option<String>;
+    fn get_wallet(&mut self) -> Option<String>;
+
+    fn get_worker_name(&mut self) -> String;
+}
+
 //{\"id\":1,\"method\":\"eth_submitLogin\",\"params\":[\"0x98be5c44d574b96b320dffb0ccff116bda433b8e\",\"x\"],\"worker\":\"P0002\"}
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,7 +22,34 @@ pub struct Client {
     pub id: u64,
     pub method: String,
     pub params: Vec<String>,
-    //pub worker: String,
+}
+
+impl ClientRpc for Client {
+    fn set_id(&mut self, id: u64) -> bool {
+        self.id = id;
+        true
+    }
+    fn get_id(&mut self) -> u64 {
+        self.id
+    }
+
+    fn get_job_id(&mut self) -> Option<String> {
+        match self.params.get(1) {
+            Some(s) => Some(s.to_string()),
+            None => todo!(),
+        }
+    }
+
+    fn get_wallet(&mut self) -> Option<String> {
+        match self.params.get(0) {
+            Some(s) => Some(s.to_string()),
+            None => todo!(),
+        }
+    }
+
+    fn get_worker_name(&mut self) -> String {
+        "Default".to_string()
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -22,6 +59,34 @@ pub struct ClientWithWorkerName {
     pub method: String,
     pub params: Vec<String>,
     pub worker: String,
+}
+
+impl ClientRpc for ClientWithWorkerName {
+    fn set_id(&mut self, id: u64) -> bool {
+        self.id = id;
+        true
+    }
+    fn get_id(&mut self) -> u64 {
+        self.id
+    }
+
+    fn get_job_id(&mut self) -> Option<String> {
+        match self.params.get(1) {
+            Some(s) => Some(s.to_string()),
+            None => todo!(),
+        }
+    }
+
+    fn get_wallet(&mut self) -> Option<String> {
+        match self.params.get(0) {
+            Some(s) => Some(s.to_string()),
+            None => todo!(),
+        }
+    }
+
+    fn get_worker_name(&mut self) -> String {
+        self.worker.clone()
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

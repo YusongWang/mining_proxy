@@ -30,8 +30,8 @@ use crate::{
     jobs::JobQueue,
     protocol::{
         rpc::eth::{
-            Client, ClientGetWork, ClientSubmitHashrate, ClientWithWorkerName, Server, ServerError,
-            ServerId1, ServerJobsWithHeight, ServerSideJob,
+            Client, ClientGetWork, ClientRpc, ClientSubmitHashrate, ClientWithWorkerName, Server,
+            ServerError, ServerId1, ServerJobsWithHeight, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
@@ -89,21 +89,23 @@ where
     }
 }
 
-async fn eth_submitLogin<W>(
+async fn eth_submitLogin<W, T>(
     worker: &mut Worker,
     w: &mut WriteHalf<W>,
-    mut rpc: &mut ClientWithWorkerName,
+    mut rpc: &mut T,
     mut worker_name: &mut String,
 ) -> Result<()>
 where
     W: AsyncWrite,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
-    if let Some(wallet) = rpc.params.get(0) {
-        rpc.id = CLIENT_LOGIN;
+    if let Some(wallet) = rpc.get_wallet() {
+        //rpc.id = CLIENT_LOGIN;
+        rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
         temp_worker.push_str(".");
-        temp_worker = temp_worker + rpc.worker.as_str();
-        worker.login(temp_worker.clone(), rpc.worker.clone(), wallet.clone());
+        temp_worker = temp_worker + rpc.get_worker_name().as_str();
+        worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
         *worker_name = temp_worker;
         write_to_socket(w, &rpc, &worker_name).await
     } else {
@@ -111,11 +113,11 @@ where
     }
 }
 
-async fn eth_submitWork<W, W1>(
+async fn eth_submitWork<W, W1, T>(
     worker: &mut Worker,
     pool_w: &mut WriteHalf<W>,
     worker_w: &mut WriteHalf<W1>,
-    mut rpc: &mut ClientWithWorkerName,
+    mut rpc: &mut T,
     worker_name: &String,
     mine_send_jobs: &mut HashMap<String, u64>,
     develop_send_jobs: &mut HashMap<String, u64>,
@@ -125,22 +127,21 @@ async fn eth_submitWork<W, W1>(
 where
     W: AsyncWrite,
     W1: AsyncWrite,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
     worker.share_index_add();
 
-    if let Some(job_id) = rpc.params.get(1) {
-        if mine_send_jobs.contains_key(job_id) {
-            if let Some(thread_id) = mine_send_jobs.remove(job_id) {
+    if let Some(job_id) = rpc.get_job_id() {
+        if mine_send_jobs.contains_key(&job_id) {
+            if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
-
-                //debug!("------- 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
                 proxy_fee_sender
                     .send((thread_id, rpc_string))
                     .expect("可以提交给矿池任务失败。通道异常了");
 
                 let s = ServerId1 {
-                    id: rpc.id,
+                    id: rpc.get_id(),
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
@@ -149,8 +150,8 @@ where
             }
         }
 
-        if develop_send_jobs.contains_key(job_id) {
-            if let Some(thread_id) = develop_send_jobs.remove(job_id) {
+        if develop_send_jobs.contains_key(&job_id) {
+            if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
 
                 //debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
@@ -159,7 +160,7 @@ where
                     .send((thread_id, rpc_string))
                     .expect("可以提交给矿池任务失败。通道异常了");
                 let s = ServerId1 {
-                    id: rpc.id,
+                    id: rpc.get_id(),
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
@@ -169,29 +170,33 @@ where
         }
         //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
     }
-    rpc.id = worker.share_index;
+    //rpc.id = worker.share_index;
+    rpc.set_id(worker.share_index);
     write_to_socket(pool_w, &rpc, &worker_name).await;
     return Ok(());
 }
 
-async fn eth_submitHashrate<W>(
+async fn eth_submitHashrate<W, T>(
     worker: &mut Worker,
     w: &mut WriteHalf<W>,
-    mut rpc: &mut ClientWithWorkerName,
+    rpc: &mut T,
     worker_name: &String,
 ) -> Result<()>
 where
     W: AsyncWrite,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
-    rpc.id = CLIENT_SUBHASHRATE;
+    //rpc.id = CLIENT_SUBHASHRATE;
+    rpc.set_id(CLIENT_SUBHASHRATE);
     write_to_socket(w, &rpc, &worker_name).await
 }
 
-async fn eth_get_work<W>(w: &mut WriteHalf<W>, mut rpc: &mut Client, worker: &String) -> Result<()>
+async fn eth_get_work<W, T>(w: &mut WriteHalf<W>, rpc: &mut T, worker: &String) -> Result<()>
 where
     W: AsyncWrite,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
-    rpc.id = CLIENT_GETWORK;
+    rpc.set_id(CLIENT_GETWORK);
     write_to_socket(w, &rpc, &worker).await
 }
 
@@ -347,9 +352,12 @@ where
                             "eth_submitHashrate" => {
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
+                            "eth_getWork" => {
+                                eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
                             _ => {
                                 log::warn!("Not found method {:?}",client_json_rpc);
-                                Ok(())
+                                write_to_socket_string(&mut pool_w,&buf,&mut worker_name).await
                             },
                         };
 
@@ -363,9 +371,18 @@ where
                             "eth_getWork" => {
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
+                            "eth_submitLogin" => {
+                                eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
+                            "eth_submitWork" => {
+                                eth_submitWork(&mut worker,&mut pool_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&proxy_fee_sender,&dev_fee_send).await
+                            },
+                            "eth_submitHashrate" => {
+                                eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
                             _ => {
                                 log::warn!("Not found method {:?}",client_json_rpc);
-                                Ok(())
+                                write_to_socket_string(&mut pool_w,&buf,&mut worker_name).await
                             },
                         };
 
