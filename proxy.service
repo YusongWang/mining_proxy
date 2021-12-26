@@ -1,0 +1,17 @@
+[Unit]
+Description=Eth-Proxy
+After=network.target
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/proxy/bin/proxy -c /opt/proxy/config/default.yaml
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+LimitNOFILE=65536
+WorkingDirectory=/opt/proxy/
+Restart=always
+ReStartSec=600
+[Install]
+WantedBy=multi-user.target
