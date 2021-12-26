@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Job {
     phread_id: u32,
     job: String,
-    diff: String,
+    diff: u64,
 }
 
 impl Job {
@@ -16,11 +16,11 @@ impl Job {
         self.phread_id
     }
 
-    pub fn get_diff(&self) -> String {
-        self.diff.clone()
+    pub fn get_diff(&self) -> u64 {
+        self.diff
     }
 
-    pub fn new(id: u32, job: String, diff: String) -> Job {
+    pub fn new(id: u32, job: String, diff: u64) -> Job {
         Job {
             job,
             phread_id: id,
@@ -28,7 +28,9 @@ impl Job {
         }
     }
 }
-//c: Sender<i32>, r: Receiver<i32>
+
+
+
 pub struct JobQueue {
     tx: Sender<Job>,
     rx: Receiver<Job>,

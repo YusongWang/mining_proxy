@@ -290,7 +290,7 @@ where
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
-    let mut job_diff = "".to_string();
+    let mut job_diff = 0;
     // 旷工状态管理
     let mut worker: Worker = Worker::default();
     let mut rpc_id = 0;
@@ -446,7 +446,15 @@ where
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
                         }
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
+    
+                            unsend_mine_jobs.clear();
+                            unsend_develop_jobs.clear();
+                        }
 
+                        
                         pool_job_idx += 1;
                         if config.share != 0 {
                             //TODO 适配矿池的时候有可能有高度为hight字段。需要自己修改适配
@@ -466,6 +474,15 @@ where
                             pool_job_idx = 0;
                         }
 
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
+    
+                            unsend_mine_jobs.clear();
+                            unsend_develop_jobs.clear();
+                        }
+
+
                         pool_job_idx += 1;
                         if config.share != 0 {
                             fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
@@ -482,6 +499,14 @@ where
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
+                        }
+
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
+    
+                            unsend_mine_jobs.clear();
+                            unsend_develop_jobs.clear();
                         }
 
                         pool_job_idx += 1;
@@ -507,31 +532,37 @@ where
             job = mine_jobs_queue.recv() => {
                 if let Ok(job) = job {
                     let diff = job.get_diff();
-                    // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。
-                    if diff != job_diff {
+
+                    if diff > job_diff {
                         job_diff = diff;
 
                         unsend_mine_jobs.clear();
+                        unsend_develop_jobs.clear();
                     }
 
-                    let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
-                    let job_id = job_rpc.result.get(0).expect("封包格式错误");
-                    unsend_mine_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
+                    if diff == job_diff {
+                        let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
+                        let job_id = job_rpc.result.get(0).expect("封包格式错误");
+                        unsend_mine_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
+                    }
+
                 }
             },
             job = develop_jobs_queue.recv() => {
                 if let Ok(job) = job {
                     let diff = job.get_diff();
-                    // BUG 这里要根据任务难度。取最新的任务。 老任务直接丢弃掉。队列里面还有老任务每消费。
-                    if diff != job_diff {
-                        job_diff = diff;
 
+                    if diff > job_diff {
+                        job_diff = diff;
+                        unsend_mine_jobs.clear();
                         unsend_develop_jobs.clear();
                     }
 
-                    let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
-                    let job_id = job_rpc.result.get(0).expect("封包格式错误");
-                    unsend_develop_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
+                    if diff == job_diff {
+                        let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
+                        let job_id = job_rpc.result.get(0).expect("封包格式错误");
+                        unsend_develop_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
+                    }
                 }
             }
         }
