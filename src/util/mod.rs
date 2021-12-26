@@ -115,27 +115,6 @@ pub fn is_fee(idx: u64, fee: f64) -> bool {
     idx % (1000 / rate) == 0
 }
 
-pub fn is_fee_random(mut fee: f64) -> bool {
-    use rand::SeedableRng;
-    let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let secret_number = rand::Rng::gen_range(&mut rng, 1..1000);
-
-    if fee <= 0.000 {
-        fee = 0.001;
-    }
-
-    let max = (1000.0 * fee) as u32;
-    let max = 1000 - max;
-    match secret_number.cmp(&max) {
-        std::cmp::Ordering::Less => {
-            return false;
-        }
-        _ => {
-            return true;
-        }
-    }
-}
-
 #[test]
 fn test_is_fee() {
     assert_eq!(is_fee(200, 0.005), true);
@@ -165,4 +144,36 @@ fn test_is_fee() {
     }
 
     assert_eq!(idx, 1000);
+}
+
+pub fn is_fee_random(mut fee: f64) -> bool {
+    use rand::SeedableRng;
+    let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+    let secret_number = rand::Rng::gen_range(&mut rng, 1..1000);
+
+    if fee <= 0.000 {
+        fee = 0.001;
+    }
+
+    let max = (1000.0 * fee) as u32;
+    let max = 1000 - max;
+    match secret_number.cmp(&max) {
+        std::cmp::Ordering::Less => {
+            return false;
+        }
+        _ => {
+            return true;
+        }
+    }
+}
+
+#[test]
+fn test_is_fee_random() {
+    let mut i = 0;
+    for _ in 0..1000 {
+        if is_fee_random(0.005) {
+            i += 1;
+        }
+    }
+    //assert_eq!(i,5);
 }
