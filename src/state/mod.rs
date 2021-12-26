@@ -1,10 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    sync::Arc,
-};
-
 use log::info;
-use tokio::sync::RwLock;
 
 #[derive(Debug)]
 pub struct Worker {
@@ -107,8 +101,6 @@ impl Worker {
     }
 }
 
-
-
 #[derive(Debug)]
 pub struct Worker1 {
     pub worker: String,
@@ -122,7 +114,7 @@ pub struct Worker1 {
     pub invalid_index: u64,
 }
 
-impl Worker1{
+impl Worker1 {
     pub fn new(worker: String, worker_name: String, worker_wallet: String, online: bool) -> Self {
         Self {
             worker,

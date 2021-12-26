@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -7,7 +7,7 @@ use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
 use futures::future;
-use log::{info};
+use log::info;
 
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
@@ -17,7 +17,7 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{self},
-        RwLock, RwLockReadGuard, RwLockWriteGuard,
+        RwLock, RwLockReadGuard,
     },
     time::sleep,
 };
@@ -37,8 +37,8 @@ use util::{
 
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
-    jobs::JobQueue, state::Workers,
-
+    jobs::JobQueue,
+    state::Workers,
 };
 
 const FEE: f32 = 0.01;
@@ -109,7 +109,7 @@ async fn main() -> Result<()> {
 
     // 当前中转总报告算力。Arc<> Or atom 变量
 
-    let workers:Arc<RwLock<Workers>> = Arc::new(RwLock::new(Workers::default()));
+    let workers: Arc<RwLock<Workers>> = Arc::new(RwLock::new(Workers::default()));
 
     let thread_len = util::clac_phread_num(config.share_rate.into());
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
@@ -139,8 +139,18 @@ async fn main() -> Result<()> {
             dev_state_send.clone(),
             cert,
         ),
-        proxy_accept(workers.clone(),mine_jobs.clone(), &config, proxy_job_channel.clone()),
-        develop_accept(workers.clone(),develop_jobs.clone(), &config, fee_tx.clone()),
+        proxy_accept(
+            workers.clone(),
+            mine_jobs.clone(),
+            &config,
+            proxy_job_channel.clone()
+        ),
+        develop_accept(
+            workers.clone(),
+            develop_jobs.clone(),
+            &config,
+            fee_tx.clone()
+        ),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
         //print_state(workers.clone(), &config),
@@ -156,7 +166,7 @@ async fn main() -> Result<()> {
 
 // // 中转代理抽水服务
 async fn proxy_accept(
-    workers: Arc<RwLock<Workers>>,
+    _workers: Arc<RwLock<Workers>>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
@@ -187,7 +197,7 @@ async fn proxy_accept(
     Ok(())
 }
 async fn develop_accept(
-    workers:Arc<RwLock<Workers>>,
+    _workers: Arc<RwLock<Workers>>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,

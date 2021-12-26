@@ -5,18 +5,14 @@ use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
-        rpc::eth::{
-            ClientRpc, ClientWithWorkerName, ServerRpc, ServerSideJob,
-        },
+        rpc::eth::{ClientRpc, ClientWithWorkerName, ServerRpc, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
-    state::{Worker, Worker1},
+    state::Worker1,
     util::{calc_hash_rate, config::Settings},
 };
 
 use anyhow::{bail, Result};
-
-
 
 use log::{debug, info};
 
@@ -24,10 +20,7 @@ use rand::{distributions::Alphanumeric, Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::Serialize;
 use tokio::{
-    io::{
-        split, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
-        WriteHalf,
-    },
+    io::{split, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
     select,
     sync::{

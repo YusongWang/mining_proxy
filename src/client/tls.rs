@@ -40,7 +40,6 @@ pub async fn accept_tcp_with_tls(
         info!("😄 accept connection from {}", addr);
         let workers = state.clone();
 
-
         let config = config.clone();
         let acceptor = tls_acceptor.clone();
         let mine_jobs_queue = mine_jobs_queue.clone();

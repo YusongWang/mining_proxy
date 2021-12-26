@@ -112,7 +112,7 @@ impl Mine {
         jobs_send: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
 
-        recv: UnboundedReceiver<String>,
+        _recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         if self.config.share_tcp_address.is_empty() {
             panic!("Share TCP 地址不能为空");
@@ -245,7 +245,7 @@ impl Mine {
                 self.wallet.clone(),
             );
         }
-        
+
         let eth_get_work = ClientWithWorkerName {
             id: CLIENT_GETWORK,
             method: "eth_getWork".into(),

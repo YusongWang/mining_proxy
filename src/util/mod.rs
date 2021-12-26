@@ -1,8 +1,6 @@
 pub mod config;
 pub mod logger;
 
-
-
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -77,7 +75,6 @@ pub fn calc_hash_rate(my_hash_rate: u64, share_rate: f32) -> u64 {
 pub fn clac_phread_num(rate: f64) -> u64 {
     (rate * 1000.0) as u64
 }
-
 
 #[test]
 fn test_clac_phread_num() {
