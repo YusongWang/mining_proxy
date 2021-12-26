@@ -343,7 +343,7 @@ async fn print_state(state: Arc<RwLock<Workers>>, config: &Settings) -> Result<(
 
         let workers = RwLockReadGuard::map(state.read().await, |s| s);
 
-        for w in &*workers.workers {
+        for w in &*workers.work {
             // 添加行
             table.add_row(row![
                 w.worker_name,

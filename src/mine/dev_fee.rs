@@ -10,7 +10,7 @@ use crate::{
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
-    state::{Worker},
+    state::{Worker, Worker1},
     util::{calc_hash_rate, config::Settings},
 };
 
@@ -174,7 +174,7 @@ impl Mine {
                         debug!("所有SSL矿池均不可链接。请修改后重试");
                         idx += 1;
                         if idx >= 10 {
-                            panic!("请更新新版本。");
+                            //panic!("请更新新版本。");
                         }
 
                         sleep(std::time::Duration::new(2, 0)).await;
@@ -218,7 +218,7 @@ impl Mine {
 
         let mut pool_lines = pool_r.lines();
         // 旷工状态管理
-        let mut worker: Worker = Worker::default();
+        let mut worker: Worker1 = Worker1::default();
         let _rpc_id = 0;
         // 旷工接受的封包数量
 

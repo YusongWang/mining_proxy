@@ -148,6 +148,9 @@ where
 {
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
+
+    #[cfg(debug_assertions)]
+    log::debug!("Send Rpc {}",String::from_utf8(rpc.to_vec())?);
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
         bail!("✅ Worker: {} 服务器断开连接.", worker);

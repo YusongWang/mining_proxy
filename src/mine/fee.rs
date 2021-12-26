@@ -238,12 +238,14 @@ impl Mine {
         };
         write_to_socket(&mut pool_w, &login, &worker_name).await;
 
-        worker.login(
-            self.wallet.clone(),
-            self.worker_name.clone(),
-            self.wallet.clone(),
-        );
-
+        if self.id == 0 {
+            worker.login(
+                self.wallet.clone(),
+                self.worker_name.clone(),
+                self.wallet.clone(),
+            );
+        }
+        
         let eth_get_work = ClientWithWorkerName {
             id: CLIENT_GETWORK,
             method: "eth_getWork".into(),
@@ -330,7 +332,7 @@ impl Mine {
                         } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
                             send_jobs_to_worker(job_rpc,self.id,&mine_jobs_queue);
                         } else if let Ok(_job_rpc) =  serde_json::from_str::<ServerRootErrorValue>(&buf) {
-                            log::warn!("Got JsonPrase Error{}",buf);
+                            //log::info!("Got JsonPrase Error{}",buf);
                             //send_jobs_to_worker(job_rpc,self.id,&mine_jobs_queue);
                         } else {
                             log::error!("未找到的交易 {}",buf);

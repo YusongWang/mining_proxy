@@ -252,6 +252,7 @@ where
     let mut job_diff = 0;
     // 旷工状态管理
     let mut worker: Worker = Worker::default();
+    //workers.workers.push(&worker);
     let mut rpc_id = 0;
 
     let mut unsend_mine_jobs: VecDeque<(u64, String, Server)> = VecDeque::new();
@@ -532,12 +533,10 @@ where
 }
 
 pub async fn handle<R, W, S>(
-
     workers: Arc<RwLock<Workers>>,
     mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     mut stream: S,
-
     config: &Settings,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
