@@ -30,7 +30,7 @@ use crate::{
     protocol::{
         rpc::eth::{
             Client, ClientGetWork, ClientSubmitHashrate, ClientWithWorkerName, Server, ServerError,
-            ServerId1, ServerSideJob,
+            ServerId1, ServerJobsWithHeight, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
@@ -51,6 +51,19 @@ where
     }
     Ok(())
 }
+async fn write_to_socket_string<W>(w: &mut WriteHalf<W>, rpc: &str, worker: &String) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    let mut rpc = rpc.as_bytes().to_vec();
+    rpc.push(b'\n');
+    let write_len = w.write(&rpc).await?;
+    if write_len == 0 {
+        bail!("✅ Worker: {} 服务器断开连接.", worker);
+    }
+    Ok(())
+}
+
 
 fn parse_client(buf: &str) -> Option<Client> {
     match serde_json::from_str::<Client>(buf) {
@@ -115,7 +128,7 @@ where
 {
     worker.share_index_add();
 
-    if let Some(job_id) = rpc.params.get(1) {        
+    if let Some(job_id) = rpc.params.get(1) {
         if mine_send_jobs.contains_key(job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
@@ -135,8 +148,7 @@ where
                 return Ok(());
             }
         }
-           
-    
+
         if develop_send_jobs.contains_key(job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
@@ -155,8 +167,7 @@ where
                 return Ok(());
             }
         }
-            //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
-        
+        //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
     }
     rpc.id = worker.share_index;
     write_to_socket(pool_w, &rpc, &worker_name).await;
@@ -184,19 +195,23 @@ where
     write_to_socket(w, &rpc, &worker).await
 }
 
-fn fee_job_process(
+fn fee_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
     send_jobs: &mut HashMap<String, u64>,
-    job_rpc: &mut Server,
+    job_rpc: &mut T,
     count: &mut i32,
-) -> Option<()> {
+    diff: String,
+) -> Option<()>
+where
+    T: crate::protocol::rpc::eth::ServerRpc + Serialize,
+{
     if crate::util::is_fee(pool_job_idx, config.share_rate.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-            job_rpc.result = mine_send_job.2.result;
+            job_rpc.set_result(mine_send_job.2.result);
             if let None = send_jobs.insert(mine_send_job.1, mine_send_job.0) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -214,20 +229,24 @@ fn fee_job_process(
     }
 }
 
-fn develop_job_process(
+fn develop_job_process<T>(
     pool_job_idx: u64,
     _: &Settings,
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
     send_jobs: &mut HashMap<String, u64>,
-    job_rpc: &mut Server,
+    job_rpc: &mut T,
     count: &mut i32,
-) -> Option<()> {
+    diff: String,
+) -> Option<()>
+where
+    T: crate::protocol::rpc::eth::ServerRpc + Serialize,
+{
     if crate::util::is_fee(pool_job_idx, crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-            job_rpc.result = mine_send_job.2.result;
-
+            //job_rpc.result = mine_send_job.2.result;
+            job_rpc.set_result(mine_send_job.2.result);
             if let None = send_jobs.insert(mine_send_job.1, mine_send_job.0) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -279,7 +298,7 @@ where
 
     // 包装为封包格式。
     let mut worker_lines = worker_r.lines();
-    let mut pool_libes = pool_r.lines();
+    let mut pool_lines = pool_r.lines();
 
     // 抽水任务计数
     let mut develop_count = 0;
@@ -350,7 +369,7 @@ where
                     }
                 }
             },
-            res = pool_libes.next_line() => {
+            res = pool_lines.next_line() => {
                 let buffer = match res{
                     Ok(res) => {
                         match res {
@@ -383,10 +402,35 @@ where
                             worker.share_accept();
                         } else {
                             worker.share_reject();
-                            //info!("有问题了。");
+                            crate::util::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
+
+
                         result_rpc.id = rpc_id ;
                         write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
+                    } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
+                        if pool_job_idx  == u64::MAX {
+                            pool_job_idx = 0;
+                        }
+
+                        pool_job_idx += 1;
+                        if config.share != 0 {
+                            //TODO 适配矿池的时候有可能有高度为hight字段。需要自己修改适配
+                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
+                            develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
+                        }
+                        write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                    } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
+                        if pool_job_idx  == u64::MAX {
+                            pool_job_idx = 0;
+                        }
+
+                        pool_job_idx += 1;
+                        if config.share != 0 {
+                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
+                            develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
+                        }
+                        write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
@@ -394,10 +438,14 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count);
-                            develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count);
+                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
+                            develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                    } else {
+                        log::warn!("未找到的交易");
+
+                        write_to_socket_string(&mut worker_w, &buf, &worker_name).await;
                     }
                 }
             },

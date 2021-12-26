@@ -3,7 +3,7 @@ pub mod develop;
 
 use crate::{
     jobs::{Job, JobQueue},
-    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWichHeigh},
+    protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
         rpc::eth::{ClientWithWorkerName, ServerError, ServerRoot},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
@@ -360,7 +360,7 @@ impl Mine {
                         Some(diff) => {
                             if diff == "00" {
                                 if let Ok(json) =
-                                    serde_json::from_slice::<ServerJobsWichHeigh>(&buf)
+                                    serde_json::from_slice::<ServerJobsWithHeight>(&buf)
                                 {
                                     let job_diff = json.height.to_string();
                                     #[cfg(debug_assertions)]
