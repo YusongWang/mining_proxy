@@ -207,6 +207,7 @@ pub fn clac_phread_num(rate: f64) -> u64 {
 #[test]
 fn test_clac_phread_num() {
     assert_eq!(clac_phread_num(0.005), 5);
+    assert_eq!(clac_phread_num(0.08), 80);
 }
 
 // 根据抽水率计算启动多少个线程
@@ -221,16 +222,16 @@ pub fn clac_phread_num_for_real(rate: f64) -> u64 {
     //     num = 1;
     // }
 
-    let mut phread_num = clac_phread_num(rate) / 2;
+    let mut phread_num = clac_phread_num(rate) / 5;
     if phread_num <= 0 {
         phread_num = 1;
     }
 
-    extern crate num_cpus;
-    let cpu_nums = num_cpus::get();
-    if cpu_nums > 1 {
-        phread_num *= 2;
-    }
+    // extern crate num_cpus;
+    // let cpu_nums = num_cpus::get();
+    // if cpu_nums > 1 {
+    //     phread_num = 2;
+    // }
     // *CPU核心数。
     phread_num
 }
