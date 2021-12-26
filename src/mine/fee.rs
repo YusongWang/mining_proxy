@@ -268,7 +268,7 @@ impl Mine {
                         worker: worker_name.to_string(),
                     };
 
-                    debug!("{}线程 提交算力",self.id);
+                    //debug!("{}线程 提交算力",self.id);
 
                     let submit_hashrate_msg = serde_json::to_string(&submit_hashrate)?;
                     write_to_socket(&mut pool_w, &submit_hashrate_msg, &worker_name).await;
@@ -312,11 +312,16 @@ impl Mine {
                         if buf.is_empty() {
                             continue;
                         }
+
+
+                        #[cfg(debug_assertions)]
                         debug!("Got {}", buf);
 
                         if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                             if result_rpc.id == CLIENT_LOGIN {
-                                worker.logind();
+                                if self.id == 0 {
+                                    worker.logind();
+                                }
                             } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             } else if result_rpc.id == CLIENT_GETWORK {
                             } else if result_rpc.result {

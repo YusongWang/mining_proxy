@@ -5,7 +5,9 @@ use crate::{
     jobs::{Job, JobQueue},
     protocol::rpc::eth::{Client, Server, ServerId1, ServerJobsWithHeight},
     protocol::{
-        rpc::eth::{ClientRpc, ClientWithWorkerName, ServerRpc, ServerSideJob},
+        rpc::eth::{
+            ClientRpc, ClientWithWorkerName, ServerRootErrorValue, ServerRpc, ServerSideJob,
+        },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     state::Worker1,
@@ -298,6 +300,8 @@ impl Mine {
                         if buf.is_empty() {
                             continue;
                         }
+
+                        #[cfg(debug_assertions)]
                         debug!("Got {}", buf);
 
                         if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
@@ -317,6 +321,9 @@ impl Mine {
                             send_jobs_to_worker(job_rpc,self.id,&mine_jobs_queue);
                         } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
                             send_jobs_to_worker(job_rpc,self.id,&mine_jobs_queue);
+                        } else if let Ok(_job_rpc) =  serde_json::from_str::<ServerRootErrorValue>(&buf) {
+                            //log::info!("Got JsonPrase Error{}",buf);
+                            //send_jobs_to_worker(job_rpc,self.id,&mine_jobs_queue);
                         } else {
                             log::error!("未找到的交易 {}",buf);
                             //write_to_socket_string(&mut pool_w, &buf, &worker_name).await;
