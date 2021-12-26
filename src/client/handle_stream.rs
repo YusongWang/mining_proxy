@@ -437,7 +437,7 @@ where
                             worker.share_accept();
                         } else {
                             worker.share_reject();
-                            crate::util::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
 
                         result_rpc.id = rpc_id ;
@@ -617,7 +617,7 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let (outbound, _) = match crate::util::get_pool_stream(&pools) {
+    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有TCP矿池均不可链接。请修改后重试");
@@ -653,7 +653,8 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let (outbound, _) = match crate::util::get_pool_stream_with_tls(&pools, "proxy".into()).await {
+    let (outbound, _) = match crate::client::get_pool_stream_with_tls(&pools, "proxy".into()).await
+    {
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有SSL矿池均不可链接。请修改后重试");

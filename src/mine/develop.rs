@@ -118,7 +118,7 @@ impl Mine {
         mut recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         loop {
-            let (stream, _) = match crate::util::get_pool_stream(&self.config.share_tcp_address) {
+            let (stream, _) = match crate::client::get_pool_stream(&self.config.share_tcp_address) {
                 Some((stream, addr)) => (stream, addr),
                 None => {
                     //info!("所有TCP矿池均不可链接。请修改后重试");
@@ -177,7 +177,7 @@ impl Mine {
 
         loop {
             let (server_stream, _) =
-                match crate::util::get_pool_stream_with_tls(&pools, "Mine".into()).await {
+                match crate::client::get_pool_stream_with_tls(&pools, "Mine".into()).await {
                     Some((stream, addr)) => (stream, addr),
                     None => {
                         //info!("所有SSL矿池均不可链接。请修改后重试");
@@ -280,7 +280,7 @@ impl Mine {
                         #[cfg(debug_assertions)]
                         info!("❗❗ Share Reject");
 
-                        crate::util::handle_error(self.id, &buf);
+                        crate::protocol::rpc::eth::handle_error(self.id, &buf);
                     }
                 } else if let Ok(server_json_rpc) =
                     serde_json::from_slice::<ServerJobsWithHeight>(&buf)

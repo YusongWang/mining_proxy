@@ -258,3 +258,23 @@ pub struct ServerId1 {
     pub id: u64,
     pub result: bool,
 }
+
+pub fn handle_error(worker_id: u64, buf: &[u8]) {
+    if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
+        log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
+    } else if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
+        log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
+    } else {
+        log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, buf);
+    }
+}
+
+pub fn handle_error_for_worker(worker_name: &String, buf: &[u8]) {
+    if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
+        log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
+    } else if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
+        log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
+    } else {
+        log::warn!("矿机 {} Share Reject: {:?}", worker_name, buf);
+    }
+}

@@ -76,7 +76,7 @@ async fn transfer_ssl(
 
     info!("😄 tls_acceptor Success!");
 
-    let (stream_type, pools) = match crate::util::get_pool_ip_and_type(&config) {
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
         Some(pool) => pool,
         None => {
             info!("未匹配到矿池 或 均不可链接。请修改后重试");
@@ -84,7 +84,7 @@ async fn transfer_ssl(
         }
     };
 
-    if stream_type == crate::util::TCP {
+    if stream_type == crate::client::TCP {
         handle_stream::handle_tcp_pool(
             worker_r,
             worker_w,
@@ -96,7 +96,7 @@ async fn transfer_ssl(
             develop_fee_sender,
         )
         .await
-    } else if stream_type == crate::util::SSL {
+    } else if stream_type == crate::client::SSL {
         handle_stream::handle_tls_pool(
             worker_r,
             worker_w,
