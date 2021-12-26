@@ -54,13 +54,14 @@ impl Mine {
             .collect();
 
         hostname += name.to_str().unwrap();
-
         let worker_name = hostname.clone();
 
-        hostname += "_";
-        hostname += s.as_str();
-        hostname += "_";
-        hostname += id.to_string().as_str();
+        if (id != 0) {
+            hostname += "_";
+            hostname += s.as_str();
+            hostname += "_";
+            hostname += id.to_string().as_str();
+        }
 
         Ok(Self {
             id,

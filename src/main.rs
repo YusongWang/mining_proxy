@@ -166,7 +166,6 @@ async fn proxy_accept(
     let mut v = vec![];
     //TODO 从ENV读取变量动态设置线程数.
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-
     for i in 0..thread_len {
         let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
         let send = jobs_send.clone();

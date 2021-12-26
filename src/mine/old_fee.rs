@@ -36,6 +36,7 @@ pub struct Mine {
     config: Settings,
     hostname: String,
     wallet: String,
+    worker_name: String,
 }
 
 impl Mine {
@@ -50,12 +51,19 @@ impl Mine {
             }
         }
 
+        let worker_name = hostname.clone();
+        if id != 0 {
+            hostname += "_";
+            hostname += id.to_string().as_str();
+        }
+
         let w = config.clone();
         Ok(Self {
             id,
             config,
             hostname: hostname,
             wallet: w.share_wallet.clone(),
+            worker_name,
         })
     }
 
@@ -354,7 +362,9 @@ impl Mine {
                         info!("❗❗ Share Reject");
                         crate::util::handle_error(self.id, &buf);
                     }
-                } else if let Ok(server_json_rpc) = serde_json::from_slice::<ServerJobsWithHeight>(&buf) {
+                } else if let Ok(server_json_rpc) =
+                    serde_json::from_slice::<ServerJobsWithHeight>(&buf)
+                {
                     #[cfg(debug_assertions)]
                     debug!("Got jobs {:?}", server_json_rpc);
                     //新增一个share
@@ -439,7 +449,7 @@ impl Mine {
                         if client_json_rpc.method == "eth_submitWork" {
                             //client_json_rpc.id = 40;
                             client_json_rpc.id = 0; //TODO 以新旷工形式维护 这个旷工
-                            client_json_rpc.worker = self.hostname.clone();
+                            client_json_rpc.worker = self.worker_name.clone();
                             info!("✅✅ 抽水 Share");
                         } else if client_json_rpc.method == "eth_submitHashrate" {
                             #[cfg(debug_assertions)]
@@ -510,8 +520,7 @@ impl Mine {
         _: broadcast::Sender<(u64, String)>,
         send: UnboundedSender<String>,
     ) -> Result<()> {
-        let worker_name = self.hostname.clone() + "_" + self.id.to_string().as_str();
-        let worker_name = worker_name.as_str();
+        let worker_name = self.hostname.clone();
 
         let login = ClientWithWorkerName {
             id: CLIENT_LOGIN,

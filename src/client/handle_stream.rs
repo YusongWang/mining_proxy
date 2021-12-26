@@ -31,7 +31,7 @@ use crate::{
     protocol::{
         rpc::eth::{
             Client, ClientGetWork, ClientRpc, ClientSubmitHashrate, ClientWithWorkerName, Server,
-            ServerError, ServerId1, ServerJobsWithHeight, ServerSideJob, ServerRpc,
+            ServerError, ServerId1, ServerJobsWithHeight, ServerRpc, ServerSideJob,
         },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
     },
@@ -449,12 +449,12 @@ where
                         let diff = job_rpc.get_diff();
                         if diff > job_diff {
                             job_diff = diff;
-    
+
                             unsend_mine_jobs.clear();
                             unsend_develop_jobs.clear();
                         }
 
-                        
+
                         pool_job_idx += 1;
                         if config.share != 0 {
                             //TODO 适配矿池的时候有可能有高度为hight字段。需要自己修改适配
@@ -477,7 +477,7 @@ where
                         let diff = job_rpc.get_diff();
                         if diff > job_diff {
                             job_diff = diff;
-    
+
                             unsend_mine_jobs.clear();
                             unsend_develop_jobs.clear();
                         }
@@ -504,7 +504,7 @@ where
                         let diff = job_rpc.get_diff();
                         if diff > job_diff {
                             job_diff = diff;
-    
+
                             unsend_mine_jobs.clear();
                             unsend_develop_jobs.clear();
                         }

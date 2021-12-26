@@ -30,8 +30,6 @@ impl Job {
     }
 }
 
-
-
 pub struct JobQueue {
     tx: Sender<Job>,
     rx: Receiver<Job>,
