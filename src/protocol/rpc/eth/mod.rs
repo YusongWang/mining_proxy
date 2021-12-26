@@ -66,7 +66,7 @@ impl ClientRpc for ClientWithWorkerName {
         self.id = id;
         true
     }
-    
+
     fn get_id(&mut self) -> u64 {
         self.id
     }

@@ -469,7 +469,7 @@ where
                         if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index {
                             job_rpc.id = rpc_id ;
                         }
-                        
+
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
