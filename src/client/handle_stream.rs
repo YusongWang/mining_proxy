@@ -429,8 +429,11 @@ where
                             //info!("旷工提交算力");
                         } else if result_rpc.id == CLIENT_GETWORK {
                             //info!("旷工请求任务");
-                        } else if result_rpc.id == worker.share_index {
+                        } else if result_rpc.id == worker.share_index && result_rpc.result {
                             //info!("份额被接受.");
+                            worker.share_accept();
+                        } else if result_rpc.result {
+                            log::warn!("份额被接受，但是索引乱了.要上报给开发者");
                             worker.share_accept();
                         } else {
                             worker.share_reject();
@@ -451,9 +454,12 @@ where
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
 
-                        if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                            job_rpc.id = rpc_id ;
+                        if job_rpc.id != 0{
+                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                job_rpc.id = rpc_id ;
+                            }
                         }
+
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
                         if pool_job_idx  == u64::MAX {
@@ -466,8 +472,10 @@ where
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
 
-                        if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index {
-                            job_rpc.id = rpc_id ;
+                        if job_rpc.id != 0{
+                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                job_rpc.id = rpc_id ;
+                            }
                         }
 
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
@@ -482,8 +490,10 @@ where
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
 
-                        if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index {
-                            job_rpc.id = rpc_id ;
+                        if job_rpc.id != 0{
+                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                job_rpc.id = rpc_id ;
+                            }
                         }
 
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
