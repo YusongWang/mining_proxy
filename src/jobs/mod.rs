@@ -31,11 +31,7 @@ impl Job {
 }
 
 
-<<<<<<< Updated upstream
 
-=======
-//c: Sender<i32>, r: Receiver<i32>
->>>>>>> Stashed changes
 pub struct JobQueue {
     tx: Sender<Job>,
     rx: Receiver<Job>,
