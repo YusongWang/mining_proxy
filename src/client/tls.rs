@@ -84,35 +84,32 @@ async fn transfer_ssl(
         }
     };
 
-    let (outbound, _) = match crate::util::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            info!("所有TCP矿池均不可链接。请修改后重试");
-            return Ok(());
-        }
-    };
-
-    let stream = TcpStream::from_std(outbound)?;
-
-    let (pool_r, pool_w) = split(stream);
-    let pool_r = BufReader::new(pool_r);
-
-    match handle_stream::handle_stream(
-        worker_r,
-        worker_w,
-        pool_r,
-        pool_w,
-        &config,
-        mine_jobs_queue,
-        develop_jobs_queue,
-        proxy_fee_sender,
-        develop_fee_sender,
-    )
-    .await
-    {
-        Ok(_) => info!("正常退出"),
-        Err(e) => info!("SSL下线 :{:?}", e),
+    if stream_type == crate::util::TCP {
+        handle_stream::handle_tcp_pool(
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            mine_jobs_queue,
+            develop_jobs_queue,
+            proxy_fee_sender,
+            develop_fee_sender,
+        )
+        .await
+    } else if stream_type == crate::util::SSL {
+        handle_stream::handle_tls_pool(
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            mine_jobs_queue,
+            develop_jobs_queue,
+            proxy_fee_sender,
+            develop_fee_sender,
+        )
+        .await
+    } else {
+        log::error!("致命错误：未找到支持的矿池BUG 请上报");
+        return Ok(());
     }
-
-    Ok(())
 }

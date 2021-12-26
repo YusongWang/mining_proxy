@@ -20,19 +20,25 @@ use native_tls::TlsConnector;
 use tokio::net::TcpStream;
 
 pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
-    let matches = App::new(format!("{}, 版本: {} commit: {} {}", crate_name!(), crate_version!(),version::commit_date(), version::short_sha()))
-        .version(crate_version!())
-        .author(crate_authors!("\n"))
-        .about(crate_description!())
-        .arg(
-            Arg::with_name("config")
-                .short("c")
-                .long("config")
-                .value_name("FILE")
-                .help("Sets a custom config file")
-                .takes_value(true),
-        )
-        .get_matches();
+    let matches = App::new(format!(
+        "{}, 版本: {} commit: {} {}",
+        crate_name!(),
+        crate_version!(),
+        version::commit_date(),
+        version::short_sha()
+    ))
+    .version(crate_version!())
+    .author(crate_authors!("\n"))
+    .about(crate_description!())
+    .arg(
+        Arg::with_name("config")
+            .short("c")
+            .long("config")
+            .value_name("FILE")
+            .help("Sets a custom config file")
+            .takes_value(true),
+    )
+    .get_matches();
     Ok(matches)
 }
 
@@ -222,8 +228,11 @@ pub fn clac_phread_num_for_real(rate: f64) -> u64 {
 
     extern crate num_cpus;
     let cpu_nums = num_cpus::get();
+    if cpu_nums > 1 {
+        phread_num *= 2;
+    }
     // *CPU核心数。
-    phread_num * cpu_nums as u64
+    phread_num
 }
 
 pub fn is_fee(idx: u64, fee: f64) -> bool {
@@ -240,7 +249,7 @@ pub fn is_fee_random(mut fee: f64) -> bool {
     if fee <= 0.000 {
         fee = 0.001;
     }
-    
+
     let max = (1000.0 * fee) as u32;
     let max = 1000 - max;
     match secret_number.cmp(&max) {
@@ -294,8 +303,7 @@ pub fn handle_error(worker_id: u64, buf: &[u8]) {
     }
 }
 
-
-pub fn handle_error_for_worker(worker_name:&String, buf: &[u8]) {
+pub fn handle_error_for_worker(worker_name: &String, buf: &[u8]) {
     if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
         log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
     } else if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {

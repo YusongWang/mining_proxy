@@ -16,6 +16,7 @@ use tokio::{
     io::{
         AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf,
     },
+    net::TcpStream,
     select,
     sync::{
         broadcast,
@@ -63,7 +64,6 @@ where
     }
     Ok(())
 }
-
 
 fn parse_client(buf: &str) -> Option<Client> {
     match serde_json::from_str::<Client>(buf) {
@@ -304,22 +304,29 @@ where
     let mut develop_count = 0;
     let mut mine_count = 0;
 
+    // 首次读取超时时间
+    let mut client_timeout_sec = 1;
+
     loop {
         select! {
-            res = worker_lines.next_line() => {
+            res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_line()) => {
                 let buffer = match res{
                     Ok(res) => {
                         match res {
-                            Some(buf) => buf,
-                            None => {
+                            Ok(buf) => match buf{
+                                    Some(buf) => buf,
+                                    None =>       {
+                                    pool_w.shutdown().await;
+                                    bail!("矿机下线了 : {}",worker_name)},
+                                },
+                            _ => {
                                 pool_w.shutdown().await;
                                 bail!("矿机下线了 : {}",worker_name)
                             },
                         }
                     },
-                    Err(e) => bail!("矿机下线了: {}",e),
+                    Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
                 };
-
 
                 //debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -392,6 +399,14 @@ where
 
                     if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         if result_rpc.id == CLIENT_LOGIN {
+                            if client_timeout_sec == 1 {
+                                //读取成功一次。以后不关闭了。这里直接设置一分钟把。看看矿机是否掉线.
+                                // let timeout: u64 = match std::env::var("CLIENT_TIMEOUT_SEC") {
+                                //     Ok(s) => s.parse(),
+                                //     Err(_) => 60,
+                                // }
+                                client_timeout_sec = 60;
+                            }
                             worker.logind();
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             //info!("旷工提交算力");
@@ -404,7 +419,6 @@ where
                             worker.share_reject();
                             crate::util::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
-
 
                         result_rpc.id = rpc_id ;
                         write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
@@ -419,6 +433,10 @@ where
                             fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
+
+                        if job_rpc.id == CLIENT_GETWORK {
+                            job_rpc.id = rpc_id ;
+                        }
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
                         if pool_job_idx  == u64::MAX {
@@ -430,6 +448,10 @@ where
                             fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
                         }
+
+                        if job_rpc.id == CLIENT_GETWORK {
+                            job_rpc.id = rpc_id ;
+                        }
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
@@ -440,6 +462,10 @@ where
                         if config.share != 0 {
                             fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string());
                             develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string());
+                        }
+
+                        if job_rpc.id == CLIENT_GETWORK {
+                            job_rpc.id = rpc_id ;
                         }
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else {
@@ -481,4 +507,106 @@ where
             }
         }
     }
+}
+
+pub async fn handle<R, W, S>(
+    mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    mut worker_w: WriteHalf<W>,
+    mut stream: S,
+    config: &Settings,
+    mine_jobs_queue: Arc<JobQueue>,
+    develop_jobs_queue: Arc<JobQueue>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+    S: AsyncRead + AsyncWrite,
+{
+    let (pool_r, pool_w) = tokio::io::split(stream);
+    let pool_r = tokio::io::BufReader::new(pool_r);
+    handle_stream(
+        worker_r,
+        worker_w,
+        pool_r,
+        pool_w,
+        &config,
+        mine_jobs_queue,
+        develop_jobs_queue,
+        proxy_fee_sender,
+        develop_fee_sender,
+    )
+    .await
+}
+
+pub async fn handle_tcp_pool<R, W>(
+    mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    mut worker_w: WriteHalf<W>,
+    pools: &Vec<String>,
+    config: &Settings,
+    mine_jobs_queue: Arc<JobQueue>,
+    develop_jobs_queue: Arc<JobQueue>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let (outbound, _) = match crate::util::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            info!("所有TCP矿池均不可链接。请修改后重试");
+            return Ok(());
+        }
+    };
+
+    let stream = TcpStream::from_std(outbound)?;
+    handle(
+        worker_r,
+        worker_w,
+        stream,
+        &config,
+        mine_jobs_queue,
+        develop_jobs_queue,
+        proxy_fee_sender,
+        develop_fee_sender,
+    )
+    .await
+}
+
+pub async fn handle_tls_pool<R, W>(
+    mut worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    mut worker_w: WriteHalf<W>,
+    pools: &Vec<String>,
+    config: &Settings,
+    mine_jobs_queue: Arc<JobQueue>,
+    develop_jobs_queue: Arc<JobQueue>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let (outbound, _) = match crate::util::get_pool_stream_with_tls(&pools, "proxy".into()).await {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            info!("所有SSL矿池均不可链接。请修改后重试");
+            return Ok(());
+        }
+    };
+
+    handle(
+        worker_r,
+        worker_w,
+        outbound,
+        &config,
+        mine_jobs_queue,
+        develop_jobs_queue,
+        proxy_fee_sender,
+        develop_fee_sender,
+    )
+    .await
 }

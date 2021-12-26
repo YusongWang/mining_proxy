@@ -111,7 +111,6 @@ pub struct ServerJobsWithHeight {
     pub height: u64,
 }
 
-
 impl ServerRpc for ServerJobsWithHeight {
     fn set_result(&mut self, res: Vec<std::string::String>) -> bool {
         self.result = res;

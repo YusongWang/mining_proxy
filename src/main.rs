@@ -3,7 +3,6 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
-
 use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
@@ -44,6 +43,9 @@ use crate::{
 };
 
 const FEE: f32 = 0.005;
+
+// 代理费用。
+const AGENT_FEE: f32 = 0.005;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = get_app_command_matches().await?;
@@ -63,7 +65,13 @@ async fn main() -> Result<()> {
         },
     ));
 
-    info!("✅ {}, 版本: {} commit: {} {}", crate_name!(), crate_version!(),version::commit_date(), version::short_sha());
+    info!(
+        "✅ {}, 版本: {} commit: {} {}",
+        crate_name!(),
+        crate_version!(),
+        version::commit_date(),
+        version::short_sha()
+    );
     // 分配任务给矿机channel
     let (state_send, state_recv) = mpsc::unbounded_channel::<(u64, String)>();
 
@@ -88,7 +96,6 @@ async fn main() -> Result<()> {
     let read_key_len = p12.read_buf(&mut buffer).await?;
     info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
-
     info!("✅ config init success!");
 
     // 分配任务给 抽水矿机

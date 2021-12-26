@@ -46,7 +46,7 @@ impl Mine {
         if name.is_empty() {
             hostname = "proxy_wallet_mine".into();
         }
-        
+
         let s: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(7)
