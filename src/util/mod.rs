@@ -168,6 +168,34 @@ pub fn is_fee_random(mut fee: f64) -> bool {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+
+    extern crate test;
+    use super::*;
+    use test::Bencher;
+
+    #[bench]
+    fn bench_random_fee(b: &mut Bencher) {
+        b.iter(|| {
+            for _ in 0..10000 {
+                is_fee_random(0.005);
+            }
+        })
+    }
+
+    #[bench]
+    fn bench_index_fee(b: &mut Bencher) {
+        b.iter(|| {
+            //let mut i = 0;
+            for _ in 0..10000 {
+                is_fee(200, 0.005);
+            }
+        })
+    }
+}
+
 pub fn fee(idx: u64, config: &Settings, fee: f64) -> bool {
     if config.share_alg == 1 {
         return is_fee(idx, fee);

@@ -1,3 +1,4 @@
+#![feature(test)]
 use std::sync::Arc;
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));

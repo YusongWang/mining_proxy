@@ -121,7 +121,7 @@ where
         }
         //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
     }
-    //rpc.id = worker.share_index;
+
     rpc.set_id(worker.share_index);
     write_to_socket(pool_w, &rpc, &worker_name).await;
     return Ok(());
@@ -225,7 +225,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
+    if crate::util::is_fee(pool_job_idx, crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
@@ -414,6 +414,10 @@ where
                     },
                     Err(e) => bail!("矿机下线了: {}",e),
                 };
+
+                if !worker.is_online() {
+                    continue;
+                }
 
                 //debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
