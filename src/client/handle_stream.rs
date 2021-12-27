@@ -357,7 +357,7 @@ where
                     },
                     Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
                 };
-
+                #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
@@ -441,14 +441,14 @@ where
                     Err(e) => bail!("矿机下线了: {}",e),
                 };
 
-
+                #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
                         continue;
                     }
-
+                    #[cfg(debug_assertions)]
                     log::info!(
                         "1    ---- Worker : {}  Send Rpc {}",
                         worker_name,

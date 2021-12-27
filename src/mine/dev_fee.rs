@@ -288,11 +288,13 @@ impl Mine {
                                 Some(buf) => buf,
                                 None => {
                                     pool_w.shutdown().await;
+                                    log::error!("抽水线程异常退出");
+                                    #[cfg(debug_assertions)]
                                     bail!("矿机下线了 : {}",worker_name);
                                 }
                             }
                         },
-                        Err(e) => bail!("矿机下线了: {}",e),
+                        Err(e) => {log::error!("{}",e);bail!("{}",e)},
                     };
 
                     let buffer: Vec<_> = buffer.split("\n").collect();
