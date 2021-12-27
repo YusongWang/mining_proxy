@@ -69,6 +69,9 @@ pub fn hex_to_int(string: &str) -> Option<i64> {
         })
 }
 
+pub fn bytes_to_mb(hash: u64) -> u64 {
+    hash / 1000 / 1000
+}
 pub fn calc_hash_rate(my_hash_rate: u64, share_rate: f32) -> u64 {
     ((my_hash_rate) as f32 * share_rate) as u64
 }

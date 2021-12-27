@@ -32,7 +32,7 @@ mod util;
 use util::{
     calc_hash_rate,
     config::{self, Settings},
-    get_app_command_matches, logger,
+    get_app_command_matches, logger, bytes_to_mb,
 };
 
 use crate::{
@@ -344,7 +344,7 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
         "有效份额",
         "无效份额"
     ]);
-
+    //495630347 / 1000 / 1000
     let mut total_hash: u64 = 0;
     let mut total_share: u64 = 0;
     let mut total_accept: u64 = 0;
@@ -354,8 +354,8 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
         // 添加行
         table.add_row(row![
             w.worker_name,
-            w.hash.to_string() + " Mb",
-            calc_hash_rate(w.hash, config.share_rate).to_string() + " Mb",
+            bytes_to_mb(w.hash).to_string() + " Mb",
+            calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
             w.share_index,
             w.accept_index,
             w.invalid_index
@@ -369,8 +369,8 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     // 添加行
     table.add_row(row![
         "汇总",
-        total_hash.to_string() + " Mb",
-        calc_hash_rate(total_hash, config.share_rate).to_string() + " Mb",
+        bytes_to_mb(total_hash).to_string() + " Mb",
+        calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
         total_share,
         total_accept,
         total_invalid
