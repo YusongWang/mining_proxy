@@ -598,6 +598,7 @@ where
                 }
 
                 // 发送本地旷工状态到远端。
+                info!("发送本地旷工状态到远端。");
                 workers.try_send(worker.clone());
             },
             job = mine_jobs_queue.recv() => {
