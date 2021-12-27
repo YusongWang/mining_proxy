@@ -433,9 +433,6 @@ where
                     Err(e) => bail!("矿机下线了: {}",e),
                 };
 
-                if !worker.is_online() {
-                    continue;
-                }
 
                 //debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -444,7 +441,6 @@ where
                         continue;
                     }
 
-                    #[cfg(debug_assertions)]
                     log::info!(
                         "1    ---- Worker : {}  Send Rpc {}",
                         worker_name,
