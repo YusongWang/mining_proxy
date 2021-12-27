@@ -58,7 +58,22 @@ impl ClientRpc for Client {
     }
 
     fn get_submit_hashrate(&self) -> u64 {
-        todo!()
+        if let Some(hashrate) = self.params.get(0){
+            let rate = hashrate.clone().as_str();
+            let hashrate = match hex_to_int(&rate[2..rate.len()]) {
+                Some(g) => g,
+                None => {
+                    match hex_to_int(&rate[..]) {
+                        Some(h) => h,
+                        None => 0,
+                    }
+                },
+            };
+
+            hashrate as u64
+        } else {
+            0
+        }
     }
 }
 
