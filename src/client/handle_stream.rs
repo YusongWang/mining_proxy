@@ -426,6 +426,12 @@ where
                         continue;
                     }
 
+                    #[cfg(debug_assertions)]
+                    log::info!(
+                        "1    ---- Worker : {}  Send Rpc {}",
+                        worker_name,
+                        buf
+                    );
                     if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         if result_rpc.id == CLIENT_LOGIN {
                             if client_timeout_sec == 1 {
