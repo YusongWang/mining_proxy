@@ -240,7 +240,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee(pool_job_idx, crate::FEE.into()) {
+    if crate::util::is_fee_random( crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
@@ -502,14 +502,8 @@ where
                         pool_job_idx += 1;
                         if config.share != 0 {
                             if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
-                                if job_rpc.id != 0{
-                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                        job_rpc.id = rpc_id ;
-                                    }
-                                }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                             }
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                         }
 
                         if job_rpc.id != 0{
@@ -536,15 +530,21 @@ where
                         pool_job_idx += 1;
                         if config.share != 0 {
                             if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
-                                if job_rpc.id != 0{
-                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                        job_rpc.id = rpc_id ;
-                                    }
-                                }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                             }
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                         }
+
+                        // if config.share != 0 {
+                        //     if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
+                        //         if job_rpc.id != 0{
+                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                        //                 job_rpc.id = rpc_id ;
+                        //             }
+                        //         }
+                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                        //     }
+                        //     fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
+                        // }
 
                         if job_rpc.id != 0{
                             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
@@ -569,15 +569,21 @@ where
                         pool_job_idx += 1;
                         if config.share != 0 {
                             if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
-                                if job_rpc.id != 0{
-                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                        job_rpc.id = rpc_id ;
-                                    }
-                                }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                             }
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                         }
+
+                        // if config.share != 0 {
+                        //     if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
+                        //         if job_rpc.id != 0{
+                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                        //                 job_rpc.id = rpc_id ;
+                        //             }
+                        //         }
+                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                        //     }
+                        //     fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
+                        // }
 
                         if job_rpc.id != 0{
                             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
