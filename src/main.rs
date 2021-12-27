@@ -1,4 +1,5 @@
-use std::sync::Arc;
+#![feature(test)]
+use std::{collections::HashMap, sync::Arc};
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -16,7 +17,7 @@ use tokio::{
     io::AsyncReadExt,
     sync::{
         broadcast,
-        mpsc::{self},
+        mpsc::{self, Receiver},
         RwLock, RwLockReadGuard,
     },
     time::sleep,
@@ -38,7 +39,7 @@ use util::{
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
     jobs::JobQueue,
-    state::Workers,
+    state::{Worker, Workers},
 };
 
 const FEE: f32 = 0.025;
@@ -107,8 +108,8 @@ async fn main() -> Result<()> {
     // 开发者费用
     let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
 
+    let (worker_tx, mut worker_rx) = mpsc::channel::<Worker>(100);
     // 当前中转总报告算力。Arc<> Or atom 变量
-
     let workers: Arc<RwLock<Workers>> = Arc::new(RwLock::new(Workers::default()));
 
     let thread_len = util::clac_phread_num(config.share_rate.into());
@@ -126,6 +127,7 @@ async fn main() -> Result<()> {
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
+            //worker_rx.clone(),
         ),
         accept_tcp_with_tls(
             workers.clone(),
@@ -137,6 +139,7 @@ async fn main() -> Result<()> {
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
+            //worker_rx.clone(),
             cert,
         ),
         proxy_accept(
@@ -153,7 +156,7 @@ async fn main() -> Result<()> {
         ),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        //print_state(workers.clone(), &config),
+        process_workers(&config, worker_rx),
         // clear_state(state.clone(), config.clone()),
     );
 
@@ -178,7 +181,7 @@ async fn proxy_accept(
     let mut v = vec![];
     //TODO 从ENV读取变量动态设置线程数.
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..thread_len {
+    for i in 0..1 {
         //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
         let mine = mine::fee::Mine::new(config.clone(), i).await?;
 
@@ -211,7 +214,7 @@ async fn develop_accept(
 
     let thread_len = util::clac_phread_num_for_real(FEE.into());
 
-    for i in 0..thread_len {
+    for i in 0..1 {
         let mine = mine::dev_fee::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
@@ -332,57 +335,71 @@ async fn develop_accept(
 //     }
 // }
 
-async fn print_state(state: Arc<RwLock<Workers>>, config: &Settings) -> Result<()> {
-    loop {
-        sleep(std::time::Duration::new(60, 0)).await;
-        // 创建表格
-        let mut table = Table::new();
-        table.add_row(row![
-            "矿工",
-            "报告算力",
-            "抽水算力",
-            "总工作量(份额)",
-            "有效份额",
-            "无效份额"
-        ]);
+async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Result<()> {
+    // 创建表格
+    let mut table = Table::new();
+    table.add_row(row![
+        "矿工",
+        "报告算力",
+        "抽水算力",
+        "总工作量(份额)",
+        "有效份额",
+        "无效份额"
+    ]);
 
-        let mut total_hash: u64 = 0;
-        let mut total_share: u64 = 0;
-        let mut total_accept: u64 = 0;
-        let mut total_invalid: u64 = 0;
+    let mut total_hash: u64 = 0;
+    let mut total_share: u64 = 0;
+    let mut total_accept: u64 = 0;
+    let mut total_invalid: u64 = 0;
 
-        let workers = RwLockReadGuard::map(state.read().await, |s| s);
-
-        for w in &*workers.work {
-            // 添加行
-            table.add_row(row![
-                w.worker_name,
-                w.hash.to_string() + " Mb",
-                calc_hash_rate(w.hash, config.share_rate).to_string() + " Mb",
-                w.share_index,
-                w.accept_index,
-                w.invalid_index
-            ]);
-            total_hash = total_hash + w.hash;
-            total_share = total_share + w.share_index;
-            total_accept = total_accept + w.accept_index;
-            total_invalid = total_invalid + w.invalid_index;
-        }
-
+    for (name, w) in workers {
         // 添加行
         table.add_row(row![
-            "汇总",
-            total_hash.to_string() + " Mb",
-            calc_hash_rate(total_hash, config.share_rate).to_string() + " Mb",
-            total_share,
-            total_accept,
-            total_invalid
+            w.worker_name,
+            w.hash.to_string() + " Mb",
+            calc_hash_rate(w.hash, config.share_rate).to_string() + " Mb",
+            w.share_index,
+            w.accept_index,
+            w.invalid_index
         ]);
-
-        table.printstd();
+        total_hash = total_hash + w.hash;
+        total_share = total_share + w.share_index;
+        total_accept = total_accept + w.accept_index;
+        total_invalid = total_invalid + w.invalid_index;
     }
+
+    // 添加行
+    table.add_row(row![
+        "汇总",
+        total_hash.to_string() + " Mb",
+        calc_hash_rate(total_hash, config.share_rate).to_string() + " Mb",
+        total_share,
+        total_accept,
+        total_invalid
+    ]);
+
+    table.printstd();
+
+    Ok(())
 }
 
+async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> Result<()> {
+    let mut workers: HashMap<String, Worker> = HashMap::new();
+    loop {
+        tokio::select! {
+            Some(w) = worker_rx.recv() => {
+                if workers.contains_key(&w.worker) {
+                    if let Some(mine) = workers.get_mut(&w.worker) {
+                        *mine = w;
+                    }
+                }
+            },
+            a = sleep(std::time::Duration::new(60, 0))  => {
+                print_state(&workers,config).await;
+            },
+        };
+    }
+}
 // async fn clear_state(state: Arc<RwLock<Workers>, _: Settings) -> Result<()> {
 //     loop {
 //         sleep(std::time::Duration::new(60 * 10, 0)).await;

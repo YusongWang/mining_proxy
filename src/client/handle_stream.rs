@@ -22,7 +22,7 @@ use crate::{
     jobs::JobQueue,
     protocol::{
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRpc, ServerSideJob},
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::{Worker, Workers},
     util::config::Settings,
@@ -96,12 +96,11 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await; // TODO
-                return Ok(());
+                write_to_socket(worker_w, &s, &worker_name).await
+            } else {
+                bail!("任务失败.找到jobid .但是remove失败了");
             }
-        }
-
-        if develop_send_jobs.contains_key(&job_id) {
+        } else if develop_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
 
@@ -115,16 +114,19 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await; // TODO
-                return Ok(());
+                write_to_socket(worker_w, &s, &worker_name).await
+            } else {
+                bail!("任务失败.找到jobid .但是remove失败了");
             }
+        } else {
+            rpc.set_id(worker.share_index);
+            info!("发送给矿池");
+            write_to_socket(pool_w, &rpc, &worker_name).await
         }
-        //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+    } else {
+        rpc.set_id(worker.share_index);
+        write_to_socket(pool_w, &rpc, &worker_name).await
     }
-    //rpc.id = worker.share_index;
-    rpc.set_id(worker.share_index);
-    write_to_socket(pool_w, &rpc, &worker_name).await;
-    return Ok(());
 }
 
 async fn eth_submitHashrate<W, T>(
@@ -148,6 +150,15 @@ where
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
     rpc.set_id(CLIENT_GETWORK);
+    write_to_socket(w, &rpc, &worker).await
+}
+
+async fn subscribe<W, T>(w: &mut WriteHalf<W>, rpc: &mut T, worker: &String) -> Result<()>
+where
+    W: AsyncWrite,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize,
+{
+    rpc.set_id(SUBSCRIBE);
     write_to_socket(w, &rpc, &worker).await
 }
 
@@ -225,7 +236,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
+    if crate::util::is_fee(pool_job_idx, crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
@@ -341,7 +352,7 @@ where
                     Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
                 };
 
-                //debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
+                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
@@ -363,6 +374,9 @@ where
                             "eth_getWork" => {
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
+                            "mining.subscribe" => {
+                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
                             _ => {
                                 log::warn!("Not found method {:?}",client_json_rpc);
                                 write_to_socket_string(&mut pool_w,&buf,&mut worker_name).await
@@ -383,10 +397,16 @@ where
                                 eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                eth_submitWork(&mut worker,&mut pool_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&proxy_fee_sender,&dev_fee_send).await
+                                match eth_submitWork(&mut worker,&mut pool_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&proxy_fee_sender,&dev_fee_send).await {
+                                    Ok(_) => Ok(()),
+                                    Err(e) => {log::error!("err: {:?}",e);bail!(e)},
+                                }
                             },
                             "eth_submitHashrate" => {
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
+                            "mining.subscribe" => {
+                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             _ => {
                                 log::warn!("Not found method {:?}",client_json_rpc);
@@ -415,13 +435,19 @@ where
                     Err(e) => bail!("矿机下线了: {}",e),
                 };
 
-                //debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
+
+                debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
                         continue;
                     }
 
+                    log::info!(
+                        "1    ---- Worker : {}  Send Rpc {}",
+                        worker_name,
+                        buf
+                    );
                     if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         if result_rpc.id == CLIENT_LOGIN {
                             if client_timeout_sec == 1 {
@@ -436,6 +462,8 @@ where
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             //info!("旷工提交算力");
                         } else if result_rpc.id == CLIENT_GETWORK {
+                            //info!("旷工请求任务");
+                        } else if result_rpc.id == SUBSCRIBE {
                             //info!("旷工请求任务");
                         } else if result_rpc.id == worker.share_index && result_rpc.result {
                             //info!("份额被接受.");
@@ -533,7 +561,7 @@ where
 
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else {
-                        log::warn!("未找到的交易");
+                        log::warn!("未找到的交易 {}",buf);
 
                         write_to_socket_string(&mut worker_w, &buf, &worker_name).await;
                     }

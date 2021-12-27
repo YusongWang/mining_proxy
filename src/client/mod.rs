@@ -150,7 +150,11 @@ where
     rpc.push(b'\n');
 
     #[cfg(debug_assertions)]
-    log::debug!("Send Rpc {}", String::from_utf8(rpc.to_vec())?);
+    log::info!(
+        "0 ------Worker : {}  Send Rpc {}",
+        worker,
+        String::from_utf8(rpc.to_vec())?
+    );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
         bail!("✅ Worker: {} 服务器断开连接.", worker);
@@ -168,6 +172,13 @@ where
 {
     let mut rpc = rpc.as_bytes().to_vec();
     rpc.push(b'\n');
+
+    #[cfg(debug_assertions)]
+    log::info!(
+        "0 ------Worker : {}  Send Rpc {}",
+        worker,
+        String::from_utf8(rpc.to_vec())?
+    );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
         bail!("✅ Worker: {} 服务器断开连接.", worker);
