@@ -120,7 +120,6 @@ where
             }
         } else {
             rpc.set_id(worker.share_index);
-            info!("发送给矿池");
             write_to_socket(pool_w, &rpc, &worker_name).await
         }
     } else {
@@ -611,7 +610,6 @@ where
                         unsend_mine_jobs.clear();
                         unsend_develop_jobs.clear();
                     }
-                    info!("当前难度: {}", diff);
                     if diff == job_diff {
                         let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
                         let job_id = job_rpc.result.get(0).expect("封包格式错误");
@@ -629,7 +627,6 @@ where
                         unsend_mine_jobs.clear();
                         unsend_develop_jobs.clear();
                     }
-                    info!("当前难度: {}", diff);
                     if diff == job_diff {
                         let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
                         let job_id = job_rpc.result.get(0).expect("封包格式错误");
