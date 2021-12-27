@@ -96,14 +96,10 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                match write_to_socket(worker_w, &s, &worker_name).await {
-                    Ok(_) => return Ok(()),
-                    Err(e) => bail!(e),
-                };
+                write_to_socket(worker_w, &s, &worker_name).await;
+                return Ok(());
             }
-        }
-
-        if develop_send_jobs.contains_key(&job_id) {
+        } else if develop_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
 
@@ -117,26 +113,18 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                match write_to_socket(worker_w, &s, &worker_name).await {
-                    Ok(_) => return Ok(()),
-                    Err(e) => bail!(e),
-                }
+                write_to_socket(worker_w, &s, &worker_name).await;
+                return Ok(());
             }
         } else {
             rpc.set_id(worker.share_index);
-            match write_to_socket(worker_w, &rpc, &worker_name).await {
-                Ok(_) => return Ok(()),
-                Err(e) => bail!(e),
-            }
+            write_to_socket(worker_w, &rpc, &worker_name).await;
             return Ok(());
         }
-        //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+
     } else {
         rpc.set_id(worker.share_index);
-        match write_to_socket(worker_w, &rpc, &worker_name).await {
-            Ok(_) => return Ok(()),
-            Err(e) => bail!(e),
-        }
+        write_to_socket(worker_w, &rpc, &worker_name).await;
         return Ok(());
     }
 

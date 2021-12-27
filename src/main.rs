@@ -1,5 +1,5 @@
 #![feature(test)]
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap};
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -17,7 +17,7 @@ use tokio::{
     io::AsyncReadExt,
     sync::{
         broadcast,
-        mpsc::{self},
+        mpsc::{self, Receiver},
         RwLock, RwLockReadGuard,
     },
     time::sleep,
@@ -39,7 +39,7 @@ use util::{
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
     jobs::JobQueue,
-    state::Workers,
+    state::{Worker, Workers},
 };
 
 const FEE: f32 = 0.025;
@@ -108,8 +108,8 @@ async fn main() -> Result<()> {
     // 开发者费用
     let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
 
+    let (worker_tx, mut worker_rx) = mpsc::channel::<Worker>(100);
     // 当前中转总报告算力。Arc<> Or atom 变量
-
     let workers: Arc<RwLock<Workers>> = Arc::new(RwLock::new(Workers::default()));
 
     let thread_len = util::clac_phread_num(config.share_rate.into());
@@ -127,6 +127,7 @@ async fn main() -> Result<()> {
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
+            //worker_rx.clone(),
         ),
         accept_tcp_with_tls(
             workers.clone(),
@@ -138,6 +139,7 @@ async fn main() -> Result<()> {
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
+            //worker_rx.clone(),
             cert,
         ),
         proxy_accept(
@@ -154,7 +156,7 @@ async fn main() -> Result<()> {
         ),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        //print_state(workers.clone(), &config),
+        process_workers(worker_rx),
         // clear_state(state.clone(), config.clone()),
     );
 
@@ -384,6 +386,16 @@ async fn print_state(state: Arc<RwLock<Workers>>, config: &Settings) -> Result<(
     }
 }
 
+async fn process_workers(mut worker_rx: Receiver<Worker>) -> Result<()> {
+    let mut workers:HashMap<String, Worker>= HashMap::new();
+    loop {
+        tokio::select!{
+            w = worker_rx.recv() => {
+
+            }
+        };
+    }
+}
 // async fn clear_state(state: Arc<RwLock<Workers>, _: Settings) -> Result<()> {
 //     loop {
 //         sleep(std::time::Duration::new(60 * 10, 0)).await;
