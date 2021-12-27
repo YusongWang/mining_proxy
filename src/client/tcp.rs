@@ -8,11 +8,11 @@ use tokio::net::{TcpListener, TcpStream};
 
 use tokio::sync::broadcast;
 
-use tokio::sync::{mpsc::UnboundedSender, RwLock};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::jobs::JobQueue;
 
-use crate::state::{Worker, Workers};
+use crate::state::Worker;
 use crate::util::config::Settings;
 
 use super::handle_stream;

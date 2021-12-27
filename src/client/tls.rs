@@ -8,12 +8,12 @@ use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
 use native_tls::Identity;
 
+use tokio::sync::broadcast;
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::{broadcast, RwLock};
 
 use crate::client::handle_stream;
 use crate::jobs::JobQueue;
-use crate::state::{Worker, Workers};
+use crate::state::Worker;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(

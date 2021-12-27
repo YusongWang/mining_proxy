@@ -18,7 +18,6 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{self, Receiver},
-        RwLock, RwLockReadGuard,
     },
     time::sleep,
 };
@@ -39,7 +38,7 @@ use util::{
 use crate::{
     client::{tcp::accept_tcp, tls::accept_tcp_with_tls},
     jobs::JobQueue,
-    state::{Worker, Workers},
+    state::Worker,
 };
 
 const FEE: f32 = 0.025;
@@ -110,7 +109,7 @@ async fn main() -> Result<()> {
     let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
 
     // 当前中转总报告算力。Arc<> Or atom 变量
-    let (worker_tx, mut worker_rx) = mpsc::channel::<Worker>(100);
+    let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
 
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
@@ -127,7 +126,6 @@ async fn main() -> Result<()> {
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
-            //worker_rx.clone(),
         ),
         accept_tcp_with_tls(
             worker_tx.clone(),
@@ -139,7 +137,6 @@ async fn main() -> Result<()> {
             fee_tx.clone(),
             state_send.clone(),
             dev_state_send.clone(),
-            //worker_rx.clone(),
             cert,
         ),
         proxy_accept(
@@ -353,7 +350,7 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     let mut total_accept: u64 = 0;
     let mut total_invalid: u64 = 0;
 
-    for (name, w) in workers {
+    for (_name, w) in workers {
         // 添加行
         table.add_row(row![
             w.worker_name,
@@ -380,16 +377,17 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     ]);
 
     table.printstd();
-    let file = match std::fs::File::open("workers.csv") {
-        Ok(f) => f,
-        Err(_) => match std::fs::File::create("workers.csv") {
-            Ok(f) => f,
-            Err(_) => anyhow::bail!("文件打开及创建都失败了。"),
-        },
-    };
 
-    //file.write_all(b"hello, world!").await?;
-    table.to_csv(file);
+    // let file = match std::fs::File::open("workers.csv") {
+    //     Ok(f) => f,
+    //     Err(_) => match std::fs::File::create("workers.csv") {
+    //         Ok(f) => f,
+    //         Err(_) => anyhow::bail!("文件打开及创建都失败了。"),
+    //     },
+    // };
+
+    // //file.write_all(b"hello, world!").await?;
+    // table.to_csv(file);
 
     Ok(())
 }
@@ -399,7 +397,6 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
     loop {
         tokio::select! {
             Some(w) = worker_rx.recv() => {
-
                 info!("收到worker提交: {:?}",w);
                 if workers.contains_key(&w.worker) {
                     if let Some(mine) = workers.get_mut(&w.worker) {
@@ -409,10 +406,13 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
                     workers.insert(w.worker.clone(),w);
                 }
             },
-            _ = sleep(std::time::Duration::new(60, 0))  => {
-                print_state(&workers,config).await;
+            _ = sleep(std::time::Duration::new(120, 0)) => {
+                match print_state(&workers,config).await{
+                    Ok(_) => {log::info!("成功")},
+                    Err(_) => {log::info!("打印失败了")},
+                }
             },
-        };
+        }
     }
 }
 // async fn clear_state(state: Arc<RwLock<Workers>, _: Settings) -> Result<()> {

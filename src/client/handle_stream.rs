@@ -14,7 +14,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
     select,
-    sync::{broadcast, RwLock},
+    sync::broadcast,
 };
 
 use crate::{
@@ -24,7 +24,7 @@ use crate::{
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRpc, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
-    state::{Worker, Workers},
+    state::Worker,
     util::config::Settings,
 };
 
@@ -228,7 +228,7 @@ where
 
 async fn develop_job_process<T>(
     pool_job_idx: u64,
-    config: &Settings,
+    _config: &Settings,
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
@@ -497,10 +497,15 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            //TODO 适配矿池的时候有可能有高度为hight字段。需要自己修改适配
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_none(){
-                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
+                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                         }
 
                         if job_rpc.id != 0{
@@ -526,9 +531,15 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_none(){
-                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
+                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                         }
 
                         if job_rpc.id != 0{
@@ -553,9 +564,15 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_none(){
-                                fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
+                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
                         }
 
                         if job_rpc.id != 0{
@@ -606,10 +623,11 @@ where
 
                     if diff > job_diff {
                         job_diff = diff;
-
                         unsend_mine_jobs.clear();
                         unsend_develop_jobs.clear();
                     }
+
+
                     if diff == job_diff {
                         let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
                         let job_id = job_rpc.result.get(0).expect("封包格式错误");
