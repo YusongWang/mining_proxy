@@ -395,14 +395,13 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
 async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> Result<()> {
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
-
-    let sleep = sleep(tokio::time::Duration::from_millis(1000*60));
+    let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
     loop {
         tokio::select! {
             Some(w) = worker_rx.recv() => {
-                info!("收到worker提交: {:?}",w);
+                //info!("收到worker提交: {:?}",w);
                 if workers.contains_key(&w.worker) {
                     if let Some(mine) = workers.get_mut(&w.worker) {
                         *mine = w;

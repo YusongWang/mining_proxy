@@ -14,7 +14,8 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
     select,
-    sync::broadcast, time,
+    sync::broadcast,
+    time,
 };
 
 use crate::{
@@ -336,9 +337,8 @@ where
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
 
-    let sleep = time::sleep(tokio::time::Duration::from_millis(1000*60));
+    let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
-
 
     loop {
         select! {
@@ -618,7 +618,7 @@ where
                 }
 
                 // 发送本地旷工状态到远端。
-                info!("发送本地旷工状态到远端。");
+                //info!("发送本地旷工状态到远端。{:?}",worker);
                 workers_queue.try_send(worker.clone());
 
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));

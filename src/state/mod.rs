@@ -102,12 +102,11 @@ impl Worker {
         info!("😭 Worker {} Reject! {}", self.worker, self.accept_index);
     }
 
-    pub fn submit_hashrate<T>(&mut self, _rpc: &T) -> bool
+    pub fn submit_hashrate<T>(&mut self, rpc: &T) -> bool
     where
         T: crate::protocol::rpc::eth::ClientRpc,
     {
-        
-
+        self.hash = rpc.get_submit_hashrate();
         true
     }
 }
