@@ -289,8 +289,7 @@ impl Mine {
                                 None => {
                                     pool_w.shutdown().await;
                                     log::error!("抽水线程异常退出");
-                                    #[cfg(debug_assertions)]
-                                    bail!("矿机下线了 : {}",worker_name);
+                                    bail!("矿机下线了");
                                 }
                             }
                         },
