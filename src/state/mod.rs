@@ -1,6 +1,8 @@
 use log::info;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Worker {
     pub worker: String,
     pub online: bool,
@@ -98,6 +100,13 @@ impl Worker {
     pub fn share_reject(&mut self) {
         self.invalid_index += 1;
         info!("😭 Worker {} Reject! {}", self.worker, self.accept_index);
+    }
+
+    pub fn submit_hashrate<T>(&mut self, rpc: &T) -> bool
+    where
+        T: crate::protocol::rpc::eth::ClientRpc,
+    {
+        true
     }
 }
 

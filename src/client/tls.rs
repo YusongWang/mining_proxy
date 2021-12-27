@@ -13,11 +13,11 @@ use tokio::sync::{broadcast, RwLock};
 
 use crate::client::handle_stream;
 use crate::jobs::JobQueue;
-use crate::state::Workers;
+use crate::state::{Worker, Workers};
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
-    state: Arc<RwLock<Workers>>,
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
@@ -38,7 +38,7 @@ pub async fn accept_tcp_with_tls(
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
         info!("😄 accept connection from {}", addr);
-        let workers = state.clone();
+        let workers = worker_queue.clone();
 
         let config = config.clone();
         let acceptor = tls_acceptor.clone();
@@ -64,7 +64,7 @@ pub async fn accept_tcp_with_tls(
 }
 
 async fn transfer_ssl(
-    state: Arc<RwLock<Workers>>,
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
     tcp_stream: TcpStream,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     config: &Settings,
@@ -89,7 +89,7 @@ async fn transfer_ssl(
 
     if stream_type == crate::client::TCP {
         handle_stream::handle_tcp_pool(
-            state,
+            worker_queue,
             worker_r,
             worker_w,
             &pools,
@@ -102,7 +102,7 @@ async fn transfer_ssl(
         .await
     } else if stream_type == crate::client::SSL {
         handle_stream::handle_tls_pool(
-            state,
+            worker_queue,
             worker_r,
             worker_w,
             &pools,

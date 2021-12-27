@@ -102,15 +102,15 @@ async fn main() -> Result<()> {
     let (job_send, _) = broadcast::channel::<String>(100);
 
     // 中转抽水费用
+
     //let mine = Mine::new(config.clone(), 0).await?;
     let (proxy_job_channel, _) = broadcast::channel::<(u64, String)>(100);
 
     // 开发者费用
     let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
 
-    let (worker_tx, mut worker_rx) = mpsc::channel::<Worker>(100);
     // 当前中转总报告算力。Arc<> Or atom 变量
-    let workers: Arc<RwLock<Workers>> = Arc::new(RwLock::new(Workers::default()));
+    let (worker_tx, mut worker_rx) = mpsc::channel::<Worker>(100);
 
     let thread_len = util::clac_phread_num(config.share_rate.into());
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
@@ -118,7 +118,7 @@ async fn main() -> Result<()> {
 
     let res = tokio::try_join!(
         accept_tcp(
-            workers.clone(),
+            worker_tx.clone(),
             mine_jobs.clone(),
             develop_jobs.clone(),
             config.clone(),
@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
             //worker_rx.clone(),
         ),
         accept_tcp_with_tls(
-            workers.clone(),
+            worker_tx.clone(),
             mine_jobs.clone(),
             develop_jobs.clone(),
             config.clone(),
@@ -143,13 +143,13 @@ async fn main() -> Result<()> {
             cert,
         ),
         proxy_accept(
-            workers.clone(),
+            worker_tx.clone(),
             mine_jobs.clone(),
             &config,
             proxy_job_channel.clone()
         ),
         develop_accept(
-            workers.clone(),
+            worker_tx.clone(),
             develop_jobs.clone(),
             &config,
             fee_tx.clone()
@@ -169,7 +169,7 @@ async fn main() -> Result<()> {
 
 // // 中转代理抽水服务
 async fn proxy_accept(
-    _workers: Arc<RwLock<Workers>>,
+    _worker_queue: tokio::sync::mpsc::Sender<Worker>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
@@ -199,8 +199,9 @@ async fn proxy_accept(
 
     Ok(())
 }
+
 async fn develop_accept(
-    _workers: Arc<RwLock<Workers>>,
+    _worker_queue: tokio::sync::mpsc::Sender<Worker>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
@@ -379,6 +380,16 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     ]);
 
     table.printstd();
+    let file = match std::fs::File::open("workers.csv") {
+        Ok(f) => f,
+        Err(_) => match std::fs::File::create("workers.csv") {
+            Ok(f) => f,
+            Err(_) => anyhow::bail!("文件打开及创建都失败了。"),
+        },
+    };
+
+    //file.write_all(b"hello, world!").await?;
+    table.to_csv(file);
 
     Ok(())
 }
@@ -388,13 +399,17 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
     loop {
         tokio::select! {
             Some(w) = worker_rx.recv() => {
+
+                info!("收到worker提交: {:?}",w);
                 if workers.contains_key(&w.worker) {
                     if let Some(mine) = workers.get_mut(&w.worker) {
                         *mine = w;
                     }
+                } else {
+                    workers.insert(w.worker.clone(),w);
                 }
             },
-            a = sleep(std::time::Duration::new(60, 0))  => {
+            _ = sleep(std::time::Duration::new(60, 0))  => {
                 print_state(&workers,config).await;
             },
         };

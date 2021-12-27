@@ -70,8 +70,8 @@ async fn eth_submitWork<W, W1, T>(
     worker_w: &mut WriteHalf<W1>,
     rpc: &mut T,
     worker_name: &String,
-    mine_send_jobs: &mut HashMap<String, u64>,
-    develop_send_jobs: &mut HashMap<String, u64>,
+    mine_send_jobs: &mut HashMap<String, (u64, u64)>,
+    develop_send_jobs: &mut HashMap<String, (u64, u64)>,
     proxy_fee_sender: &broadcast::Sender<(u64, String)>,
     develop_fee_sender: &broadcast::Sender<(u64, String)>,
 ) -> Result<()>
@@ -88,7 +88,7 @@ where
                 let rpc_string = serde_json::to_string(&rpc)?;
 
                 proxy_fee_sender
-                    .send((thread_id, rpc_string))
+                    .send((thread_id.0, rpc_string))
                     .expect("可以提交给矿池任务失败。通道异常了");
 
                 let s = ServerId1 {
@@ -107,7 +107,7 @@ where
                 //debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
                 develop_fee_sender
-                    .send((thread_id, rpc_string))
+                    .send((thread_id.0, rpc_string))
                     .expect("可以提交给矿池任务失败。通道异常了");
                 let s = ServerId1 {
                     id: rpc.get_id(),
@@ -130,7 +130,7 @@ where
 }
 
 async fn eth_submitHashrate<W, T>(
-    _worker: &mut Worker,
+    worker: &mut Worker,
     w: &mut WriteHalf<W>,
     rpc: &mut T,
     worker_name: &String,
@@ -140,6 +140,7 @@ where
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
     //rpc.id = CLIENT_SUBHASHRATE;
+    worker.submit_hashrate(rpc);
     rpc.set_id(CLIENT_SUBHASHRATE);
     write_to_socket(w, &rpc, &worker_name).await
 }
@@ -166,7 +167,7 @@ async fn fee_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
-    send_jobs: &mut HashMap<String, u64>,
+    send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -179,7 +180,7 @@ where
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             job_rpc.set_result(mine_send_job.2.result);
-            if let None = send_jobs.insert(mine_send_job.1, mine_send_job.0) {
+            if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());
@@ -197,7 +198,10 @@ where
                         };
                         let job_id = rpc.result.get(0).expect("封包格式错误");
                         job_rpc.set_result(rpc.result.clone());
-                        if let None = send_jobs.insert(job_id.to_string(), job.get_id() as u64) {
+                        if let None = send_jobs.insert(
+                            job_id.to_string(),
+                            (job.get_id() as u64, job_rpc.get_diff()),
+                        ) {
                             #[cfg(debug_assertions)]
                             debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                             return Some(());
@@ -227,7 +231,7 @@ async fn develop_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(u64, String, Server)>,
-    send_jobs: &mut HashMap<String, u64>,
+    send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -242,7 +246,7 @@ where
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
             //job_rpc.result = mine_send_job.2.result;
             job_rpc.set_result(mine_send_job.2.result);
-            if let None = send_jobs.insert(mine_send_job.1, mine_send_job.0) {
+            if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());
@@ -260,7 +264,9 @@ where
                         };
                         let job_id = rpc.result.get(0).expect("封包格式错误");
                         job_rpc.set_result(rpc.result.clone());
-                        if let None = send_jobs.insert(job_id.to_string(), job.get_id() as u64) {
+                        if let None = send_jobs
+                            .insert(job_id.to_string(), (job.get_id() as u64, rpc.get_diff()))
+                        {
                             #[cfg(debug_assertions)]
                             debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                             return Some(());
@@ -287,7 +293,7 @@ where
 }
 
 pub async fn handle_stream<R, W, R1, W1>(
-    _workers: Arc<tokio::sync::RwLock<Workers>>,
+    workers: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
@@ -317,8 +323,8 @@ where
     let mut unsend_mine_jobs: VecDeque<(u64, String, Server)> = VecDeque::new();
     let mut unsend_develop_jobs: VecDeque<(u64, String, Server)> = VecDeque::new();
 
-    let mut send_mine_jobs: HashMap<String, u64> = HashMap::new();
-    let mut send_develop_jobs: HashMap<String, u64> = HashMap::new();
+    let mut send_mine_jobs: HashMap<String, (u64, u64)> = HashMap::new();
+    let mut send_develop_jobs: HashMap<String, (u64, u64)> = HashMap::new();
 
     // 包装为封包格式。
     let mut worker_lines = worker_r.lines();
@@ -567,6 +573,33 @@ where
                     }
                 }
             },
+            _ = tokio::time::sleep(std::time::Duration::new(50, 0))  => {
+                let less_diff = job_diff - 50;
+                // 每4清理一次内存。清理一次
+
+                /// - 1 先增加send_mine_jobs包含难度参数.
+                if send_mine_jobs.len() >= 1000 {
+                    for job in &mut send_mine_jobs {
+                        let (_,(_,diff)) = job;
+                        if *diff <= less_diff {
+                            drop(job);
+                        }
+                    }
+                }
+
+                if send_develop_jobs.len() >= 1000 {
+
+                    for job in &mut send_develop_jobs {
+                        let (_,(_,diff)) = job;
+                        if *diff <= less_diff {
+                            drop(job);
+                        }
+                    }
+                }
+
+                // 发送本地旷工状态到远端。
+                workers.try_send(worker.clone());
+            },
             job = mine_jobs_queue.recv() => {
                 if let Ok(job) = job {
                     let diff = job.get_diff();
@@ -577,7 +610,7 @@ where
                         unsend_mine_jobs.clear();
                         unsend_develop_jobs.clear();
                     }
-
+                    info!("当前难度: {}", diff);
                     if diff == job_diff {
                         let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
                         let job_id = job_rpc.result.get(0).expect("封包格式错误");
@@ -595,7 +628,7 @@ where
                         unsend_mine_jobs.clear();
                         unsend_develop_jobs.clear();
                     }
-
+                    info!("当前难度: {}", diff);
                     if diff == job_diff {
                         let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
                         let job_id = job_rpc.result.get(0).expect("封包格式错误");
@@ -608,7 +641,7 @@ where
 }
 
 pub async fn handle<R, W, S>(
-    workers: Arc<RwLock<Workers>>,
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
     stream: S,
@@ -626,7 +659,7 @@ where
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
     handle_stream(
-        workers,
+        worker_queue,
         worker_r,
         worker_w,
         pool_r,
@@ -641,7 +674,7 @@ where
 }
 
 pub async fn handle_tcp_pool<R, W>(
-    workers: Arc<RwLock<Workers>>,
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,
@@ -665,7 +698,7 @@ where
 
     let stream = TcpStream::from_std(outbound)?;
     handle(
-        workers,
+        worker_queue,
         worker_r,
         worker_w,
         stream,
@@ -679,7 +712,7 @@ where
 }
 
 pub async fn handle_tls_pool<R, W>(
-    workers: Arc<RwLock<Workers>>,
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,
@@ -703,7 +736,7 @@ where
     };
 
     handle(
-        workers,
+        worker_queue,
         worker_r,
         worker_w,
         outbound,
