@@ -96,8 +96,10 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await; // TODO
-                return Ok(());
+                match write_to_socket(worker_w, &s, &worker_name).await {
+                    Ok(_) => return Ok(()),
+                    Err(e) => bail!(e),
+                };
             }
         }
 
@@ -115,15 +117,29 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await; // TODO
-                return Ok(());
+                match write_to_socket(worker_w, &s, &worker_name).await {
+                    Ok(_) => return Ok(()),
+                    Err(e) => bail!(e),
+                }
             }
+        } else {
+            rpc.set_id(worker.share_index);
+            match write_to_socket(worker_w, &rpc, &worker_name).await {
+                Ok(_) => return Ok(()),
+                Err(e) => bail!(e),
+            }
+            return Ok(());
         }
         //debug!("✅ Worker :{} Share #{}", client_json_rpc.worker, *mapped);
+    } else {
+        rpc.set_id(worker.share_index);
+        match write_to_socket(worker_w, &rpc, &worker_name).await {
+            Ok(_) => return Ok(()),
+            Err(e) => bail!(e),
+        }
+        return Ok(());
     }
 
-    rpc.set_id(worker.share_index);
-    write_to_socket(pool_w, &rpc, &worker_name).await;
     return Ok(());
 }
 
@@ -559,7 +575,7 @@ where
 
                         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else {
-                        log::warn!("未找到的交易");
+                        log::warn!("未找到的交易 {}",buf);
 
                         write_to_socket_string(&mut worker_w, &buf, &worker_name).await;
                     }
