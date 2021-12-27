@@ -14,7 +14,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
     select,
-    sync::broadcast,
+    sync::broadcast, time,
 };
 
 use crate::{
@@ -292,7 +292,7 @@ where
 }
 
 pub async fn handle_stream<R, W, R1, W1>(
-    workers: tokio::sync::mpsc::Sender<Worker>,
+    workers_queue: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
@@ -335,6 +335,10 @@ where
 
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
+
+    let sleep = time::sleep(tokio::time::Duration::from_millis(1000*60));
+    tokio::pin!(sleep);
+
 
     loop {
         select! {
@@ -589,7 +593,7 @@ where
                     }
                 }
             },
-            _ = tokio::time::sleep(std::time::Duration::new(50, 0))  => {
+            () = &mut sleep  => {
                 let less_diff = job_diff - 50;
                 // 每4清理一次内存。清理一次
 
@@ -615,7 +619,9 @@ where
 
                 // 发送本地旷工状态到远端。
                 info!("发送本地旷工状态到远端。");
-                workers.try_send(worker.clone());
+                workers_queue.try_send(worker.clone());
+
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
             },
             job = mine_jobs_queue.recv() => {
                 if let Ok(job) = job {

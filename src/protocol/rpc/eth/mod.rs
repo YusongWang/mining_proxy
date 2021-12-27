@@ -17,6 +17,8 @@ pub trait ClientRpc {
     fn get_wallet(&mut self) -> Option<String>;
 
     fn get_worker_name(&mut self) -> String;
+
+    fn get_submit_hashrate(&self) -> u64;
 }
 
 //{\"id\":1,\"method\":\"eth_submitLogin\",\"params\":[\"0x98be5c44d574b96b320dffb0ccff116bda433b8e\",\"x\"],\"worker\":\"P0002\"}
@@ -53,6 +55,10 @@ impl ClientRpc for Client {
 
     fn get_worker_name(&mut self) -> String {
         "Default".to_string()
+    }
+
+    fn get_submit_hashrate(&self) -> u64 {
+        todo!()
     }
 }
 
@@ -91,6 +97,10 @@ impl ClientRpc for ClientWithWorkerName {
 
     fn get_worker_name(&mut self) -> String {
         self.worker.clone()
+    }
+
+    fn get_submit_hashrate(&self) -> u64 {
+        todo!()
     }
 }
 

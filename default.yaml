@@ -13,7 +13,7 @@ share_tcp_address:
   - "47.242.58.242:8080"
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
 share_name: "eth_test_miner"
-share_rate: 0.1
+share_rate: 0.01
 share: 1
 share_alg: 0
 p12_path: "./identity.p12"

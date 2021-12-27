@@ -106,6 +106,8 @@ impl Worker {
     where
         T: crate::protocol::rpc::eth::ClientRpc,
     {
+        
+
         true
     }
 }

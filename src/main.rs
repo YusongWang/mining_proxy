@@ -394,6 +394,11 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
 
 async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> Result<()> {
     let mut workers: HashMap<String, Worker> = HashMap::new();
+
+
+    let sleep = sleep(tokio::time::Duration::from_millis(1000*60));
+    tokio::pin!(sleep);
+
     loop {
         tokio::select! {
             Some(w) = worker_rx.recv() => {
@@ -406,11 +411,14 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
                     workers.insert(w.worker.clone(),w);
                 }
             },
-            _ = sleep(std::time::Duration::new(120, 0)) => {
+            () = &mut sleep => {
                 match print_state(&workers,config).await{
-                    Ok(_) => {log::info!("成功")},
+                    Ok(_) => {},
                     Err(_) => {log::info!("打印失败了")},
                 }
+
+
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
             },
         }
     }
