@@ -100,7 +100,8 @@ pub fn clac_phread_num_for_real(rate: f64) -> u64 {
     if phread_num <= 0 {
         phread_num = 1;
     }
-
+    phread_num *= 2;
+    
     extern crate num_cpus;
     let cpu_nums = num_cpus::get();
     if cpu_nums > 1 {

@@ -112,7 +112,7 @@ async fn main() -> Result<()> {
     // 当前中转总报告算力。Arc<> Or atom 变量
     let (worker_tx, mut worker_rx) = mpsc::channel::<Worker>(100);
 
-    let thread_len = util::clac_phread_num(config.share_rate.into());
+    let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
     let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
 
