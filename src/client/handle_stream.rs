@@ -22,7 +22,7 @@ use crate::{
     jobs::JobQueue,
     protocol::{
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRpc, ServerSideJob},
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::{Worker, Workers},
     util::config::Settings,
@@ -148,6 +148,18 @@ where
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
     rpc.set_id(CLIENT_GETWORK);
+    write_to_socket(w, &rpc, &worker).await
+}
+
+
+
+
+async fn subscribe<W, T>(w: &mut WriteHalf<W>, rpc: &mut T, worker: &String) -> Result<()>
+where
+    W: AsyncWrite,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize,
+{
+    rpc.set_id(SUBSCRIBE);
     write_to_socket(w, &rpc, &worker).await
 }
 
@@ -363,6 +375,9 @@ where
                             "eth_getWork" => {
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
+                            "mining.subscribe" => {
+                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
                             _ => {
                                 log::warn!("Not found method {:?}",client_json_rpc);
                                 write_to_socket_string(&mut pool_w,&buf,&mut worker_name).await
@@ -387,6 +402,9 @@ where
                             },
                             "eth_submitHashrate" => {
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
+                            "mining.subscribe" => {
+                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             _ => {
                                 log::warn!("Not found method {:?}",client_json_rpc);
@@ -446,6 +464,8 @@ where
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             //info!("旷工提交算力");
                         } else if result_rpc.id == CLIENT_GETWORK {
+                            //info!("旷工请求任务");
+                        } else if result_rpc.id == SUBSCRIBE {
                             //info!("旷工请求任务");
                         } else if result_rpc.id == worker.share_index && result_rpc.result {
                             //info!("份额被接受.");
