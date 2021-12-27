@@ -96,8 +96,9 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await;
-                return Ok(());
+                write_to_socket(worker_w, &s, &worker_name).await
+            } else {
+                bail!("任务失败.找到jobid .但是remove失败了");
             }
         } else if develop_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
@@ -113,22 +114,20 @@ where
                     //jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await;
-                return Ok(());
+                write_to_socket(worker_w, &s, &worker_name).await
+            } else {
+                bail!("任务失败.找到jobid .但是remove失败了");
             }
         } else {
             rpc.set_id(worker.share_index);
-            write_to_socket(worker_w, &rpc, &worker_name).await;
-            return Ok(());
+            write_to_socket(worker_w, &rpc, &worker_name).await
         }
 
     } else {
         rpc.set_id(worker.share_index);
-        write_to_socket(worker_w, &rpc, &worker_name).await;
-        return Ok(());
+        write_to_socket(worker_w, &rpc, &worker_name).await
     }
 
-    return Ok(());
 }
 
 async fn eth_submitHashrate<W, T>(

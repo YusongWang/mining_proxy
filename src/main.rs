@@ -1,5 +1,5 @@
 #![feature(test)]
-use std::{sync::Arc, collections::HashMap};
+use std::{collections::HashMap, sync::Arc};
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -156,7 +156,7 @@ async fn main() -> Result<()> {
         ),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        process_workers(worker_rx),
+        process_workers(&config, worker_rx),
         // clear_state(state.clone(), config.clone()),
     );
 
@@ -335,64 +335,68 @@ async fn develop_accept(
 //     }
 // }
 
-async fn print_state(state: Arc<RwLock<Workers>>, config: &Settings) -> Result<()> {
-    loop {
-        sleep(std::time::Duration::new(60, 0)).await;
-        // 创建表格
-        let mut table = Table::new();
-        table.add_row(row![
-            "矿工",
-            "报告算力",
-            "抽水算力",
-            "总工作量(份额)",
-            "有效份额",
-            "无效份额"
-        ]);
+async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Result<()> {
+    // 创建表格
+    let mut table = Table::new();
+    table.add_row(row![
+        "矿工",
+        "报告算力",
+        "抽水算力",
+        "总工作量(份额)",
+        "有效份额",
+        "无效份额"
+    ]);
 
-        let mut total_hash: u64 = 0;
-        let mut total_share: u64 = 0;
-        let mut total_accept: u64 = 0;
-        let mut total_invalid: u64 = 0;
+    let mut total_hash: u64 = 0;
+    let mut total_share: u64 = 0;
+    let mut total_accept: u64 = 0;
+    let mut total_invalid: u64 = 0;
 
-        let workers = RwLockReadGuard::map(state.read().await, |s| s);
-
-        for w in &*workers.work {
-            // 添加行
-            table.add_row(row![
-                w.worker_name,
-                w.hash.to_string() + " Mb",
-                calc_hash_rate(w.hash, config.share_rate).to_string() + " Mb",
-                w.share_index,
-                w.accept_index,
-                w.invalid_index
-            ]);
-            total_hash = total_hash + w.hash;
-            total_share = total_share + w.share_index;
-            total_accept = total_accept + w.accept_index;
-            total_invalid = total_invalid + w.invalid_index;
-        }
-
+    for (name, w) in workers {
         // 添加行
         table.add_row(row![
-            "汇总",
-            total_hash.to_string() + " Mb",
-            calc_hash_rate(total_hash, config.share_rate).to_string() + " Mb",
-            total_share,
-            total_accept,
-            total_invalid
+            w.worker_name,
+            w.hash.to_string() + " Mb",
+            calc_hash_rate(w.hash, config.share_rate).to_string() + " Mb",
+            w.share_index,
+            w.accept_index,
+            w.invalid_index
         ]);
-
-        table.printstd();
+        total_hash = total_hash + w.hash;
+        total_share = total_share + w.share_index;
+        total_accept = total_accept + w.accept_index;
+        total_invalid = total_invalid + w.invalid_index;
     }
+
+    // 添加行
+    table.add_row(row![
+        "汇总",
+        total_hash.to_string() + " Mb",
+        calc_hash_rate(total_hash, config.share_rate).to_string() + " Mb",
+        total_share,
+        total_accept,
+        total_invalid
+    ]);
+
+    table.printstd();
+
+    Ok(())
 }
 
-async fn process_workers(mut worker_rx: Receiver<Worker>) -> Result<()> {
-    let mut workers:HashMap<String, Worker>= HashMap::new();
+async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> Result<()> {
+    let mut workers: HashMap<String, Worker> = HashMap::new();
     loop {
-        tokio::select!{
-            w = worker_rx.recv() => {
-
-            }
+        tokio::select! {
+            Some(w) = worker_rx.recv() => {
+                if workers.contains_key(&w.worker) {
+                    if let Some(mine) = workers.get_mut(&w.worker) {
+                        *mine = w;
+                    }
+                }
+            },
+            a = sleep(std::time::Duration::new(60, 0))  => {
+                print_state(&workers,config).await;
+            },
         };
     }
 }
