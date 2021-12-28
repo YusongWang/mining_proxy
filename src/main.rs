@@ -197,7 +197,7 @@ async fn proxy_accept(
     let mut v = vec![];
     //TODO 从ENV读取变量动态设置线程数.
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..1 {
+    for i in 0..thread_len {
         //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
         let mine = mine::fee::Mine::new(config.clone(), i, worker.clone()).await?;
 
@@ -231,7 +231,7 @@ async fn develop_accept(
 
     let thread_len = util::clac_phread_num_for_real(FEE.into());
 
-    for i in 0..1 {
+    for i in 0..thread_len {
         let mine = mine::dev_fee::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
