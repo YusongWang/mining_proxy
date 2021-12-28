@@ -240,3 +240,45 @@ fn test_is_fee_random() {
     }
     assert_eq!(i, 5);
 }
+
+pub fn time_to_string(time:u64) -> String {
+    use chrono::{NaiveTime, Timelike};
+    let t = NaiveTime::from_num_seconds_from_midnight(0,time);
+    let mut res = String::new();
+    if t.hour() > 0 {
+        let s = t.hour().to_string() + "小时";
+        res += &s;
+    }
+
+    if t.minute() > 0 {
+        let s = t.minute().to_string() + "分钟";
+        res += &s;
+    }
+
+    if t.second() > 0 {
+        let s = t.second().to_string() + "秒";
+        res += &s;
+    }
+
+    res += " 前";
+
+    return res;
+}
+
+
+#[test]
+fn test_time_to_string() {
+    use chrono::{NaiveTime, Timelike};
+
+    let t = NaiveTime::from_num_seconds_from_midnight(1200,0);
+    eprintln!("{}",t.hour());
+    eprintln!("{}",t.minute());
+    eprintln!("{}",t.second());
+
+    assert_eq!(t.hour(), 23);
+    assert_eq!(t.minute(), 56);
+    assert_eq!(t.second(), 4);
+    assert_eq!(t.nanosecond(), 12_345_678);
+
+    //assert_eq!(i, 5);
+}

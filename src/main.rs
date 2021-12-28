@@ -34,7 +34,7 @@ mod util;
 use util::{
     bytes_to_mb, calc_hash_rate,
     config::{self, Settings},
-    get_app_command_matches, logger,
+    get_app_command_matches, logger, time_to_string,
 };
 
 use crate::{
@@ -400,8 +400,8 @@ async fn print_state(
             w.share_index,
             w.accept_index,
             w.invalid_index,
-            w.login_time.elapsed().as_secs() / 60 / 60,
-            w.last_subwork_time.elapsed().as_secs() / 60 / 60,
+            time_to_string(w.login_time.elapsed().as_secs()),
+            time_to_string(w.last_subwork_time.elapsed().as_secs()),
         ]);
     }
 
@@ -427,6 +427,7 @@ async fn print_state(
             w.login_time.elapsed().as_secs() / 60 / 60,
             w.last_subwork_time.elapsed().as_secs() / 60,
         ]);
+        
         total_hash = total_hash + w.hash;
         total_share = total_share + w.share_index;
         total_accept = total_accept + w.accept_index;
