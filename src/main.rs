@@ -423,8 +423,8 @@ async fn print_state(
             w.share_index,
             w.accept_index,
             w.invalid_index,
-            w.login_time.elapsed().as_secs() / 60 / 60,
-            w.last_subwork_time.elapsed().as_secs() / 60,
+            time_to_string(w.login_time.elapsed().as_secs()),
+            time_to_string(w.last_subwork_time.elapsed().as_secs()),
         ]);
 
         total_hash = total_hash + w.hash;
