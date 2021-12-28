@@ -388,7 +388,8 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     };
 
     // //file.write_all(b"hello, world!").await?;
-    table.to_csv(file);
+    table.to_csv(&file);
+    drop(file);
 
     Ok(())
 }
