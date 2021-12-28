@@ -513,16 +513,15 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                            }
-                            //同时分两个任务
-                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                continue;
+                            } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                         job_rpc.id = rpc_id ;
@@ -570,9 +569,8 @@ where
                                     }
                                 }
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                            }
-                            //同时分两个任务
-                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                continue;
+                            } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                         job_rpc.id = rpc_id ;
@@ -619,9 +617,8 @@ where
                                     }
                                 }
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                            }
-                            //同时分两个任务
-                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                continue;
+                            } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                         job_rpc.id = rpc_id ;
