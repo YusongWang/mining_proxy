@@ -15,10 +15,11 @@ use prettytable::{cell, row, Table};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
+    select,
     sync::{
         broadcast,
         mpsc::{self, Receiver},
-        RwLock, RwLockWriteGuard,
+        RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -101,7 +102,9 @@ async fn main() -> Result<()> {
     // 分配任务给 抽水矿机
     let (job_send, _) = broadcast::channel::<String>(100);
 
-    // 中转抽水费用
+    // 抽水费用矿工
+    let proxy_worker = Arc::new(RwLock::new(Worker::default()));
+    let develop_worker = Arc::new(RwLock::new(Worker::default()));
 
     //let mine = Mine::new(config.clone(), 0).await?;
     let (proxy_job_channel, _) = broadcast::channel::<(u64, String)>(100);
@@ -143,19 +146,26 @@ async fn main() -> Result<()> {
         ),
         proxy_accept(
             worker_tx.clone(),
+            proxy_worker.clone(),
             mine_jobs.clone(),
             &config,
             proxy_job_channel.clone()
         ),
         develop_accept(
             worker_tx.clone(),
+            develop_worker.clone(),
             develop_jobs.clone(),
             &config,
             fee_tx.clone()
         ),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        process_workers(&config, worker_rx),
+        process_workers(
+            &config,
+            worker_rx,
+            proxy_worker.clone(),
+            develop_worker.clone()
+        ),
         // clear_state(state.clone(), config.clone()),
     );
 
@@ -166,9 +176,31 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+async fn send_worker_state(
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
+    let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
+    tokio::pin!(sleep);
+    loop {
+        select! {
+            () = &mut sleep => {
+                {
+                    let w = RwLockReadGuard::map(worker.read().await, |s| s);
+                    worker_queue.send(w.clone()).await;
+                }
+                if false {
+                    anyhow::bail!("false");
+                }
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
+            },
+        }
+    }
+}
 // // 中转代理抽水服务
 async fn proxy_accept(
-    _worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker: Arc<tokio::sync::RwLock<Worker>>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
@@ -176,26 +208,9 @@ async fn proxy_accept(
     if config.share == 0 {
         return Ok(());
     }
-    let mut hostname = config.share_name.clone();
-    if hostname.is_empty() {
-        let name = hostname::get()?;
-        if name.is_empty() {
-            hostname = "proxy_wallet_mine".into();
-        } else {
-            hostname = hostname + name.to_str().unwrap();
-        }
-    }
-
-    let worker_name = hostname.clone();
-
-    let worker = Arc::new(RwLock::new(Worker::default()));
-    {
-        let mut w = RwLockWriteGuard::map(worker.write().await, |s| s);
-        w.login(hostname, worker_name, config.share_wallet.clone());
-    }
 
     let mut v = vec![];
-    //TODO 从ENV读取变量动态设置线程数.
+
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
     for i in 0..thread_len {
         //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
@@ -208,7 +223,6 @@ async fn proxy_accept(
     }
 
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
-
     if let Err(e) = res {
         log::warn!("抽水矿机断开{}", e);
     }
@@ -218,6 +232,7 @@ async fn proxy_accept(
 
 async fn develop_accept(
     _worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker: Arc<tokio::sync::RwLock<Worker>>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
@@ -352,7 +367,12 @@ async fn develop_accept(
 //     }
 // }
 
-async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Result<()> {
+async fn print_state(
+    workers: &HashMap<String, Worker>,
+    config: &Settings,
+    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
+    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
     // 创建表格
     let mut table = Table::new();
     table.add_row(row![
@@ -368,6 +388,28 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     let mut total_share: u64 = 0;
     let mut total_accept: u64 = 0;
     let mut total_invalid: u64 = 0;
+
+    {
+        let w = RwLockReadGuard::map(proxy_worker.read().await, |s| s);
+        table.add_row(row![
+            w.worker_name,
+            bytes_to_mb(w.hash).to_string() + " Mb",
+            calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+            w.share_index,
+            w.accept_index,
+            w.invalid_index
+        ]);
+    }
+
+    let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
+    table.add_row(row![
+        w.worker_name,
+        bytes_to_mb(w.hash).to_string() + " Mb",
+        calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+        w.share_index,
+        w.accept_index,
+        w.invalid_index
+    ]);
 
     for (_name, w) in workers {
         // 添加行
@@ -402,12 +444,12 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
         .read(true)
         .write(true)
         .create(true)
-        .open(log_path.clone()+"workers.csv")
+        .open(log_path.clone() + "workers.csv")
     {
         Ok(f) => f,
         Err(e) => {
             info!("{}", e);
-            match std::fs::File::create(log_path+"workers.csv") {
+            match std::fs::File::create(log_path + "workers.csv") {
                 Ok(f) => f,
                 Err(e) => {
                     info!("{}", e);
@@ -424,7 +466,12 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     Ok(())
 }
 
-async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> Result<()> {
+async fn process_workers(
+    config: &Settings,
+    mut worker_rx: Receiver<Worker>,
+    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
+    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
     let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
@@ -443,7 +490,7 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
                 }
             },
             () = &mut sleep => {
-                match print_state(&workers,config).await{
+                match print_state(&workers,config,proxy_worker.clone(),develop_worker.clone()).await{
                     Ok(_) => {},
                     Err(_) => {log::info!("打印失败了")},
                 }
@@ -454,27 +501,3 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
         }
     }
 }
-// async fn clear_state(state: Arc<RwLock<Workers>, _: Settings) -> Result<()> {
-//     loop {
-//         sleep(std::time::Duration::new(60 * 10, 0)).await;
-//         {
-//             let workers = RwLockReadGuard::map(state.read().await, |s| &s);
-//             for _ in &*workers {
-//                 // if w.worker == *rw_worker {
-//                 //     w.share_index = w.share_index + 1;
-//                 // }
-//                 //TODO Send workd to channel . channel send HttpApi to WebViewServer
-//             }
-//         }
-
-//         // 重新计算每十分钟效率情况
-//         {
-//             let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-//             for (_, w) in &mut *workers {
-//                 w.share_index = 0;
-//                 w.accept_index = 0;
-//                 w.invalid_index = 0;
-//             }
-//         }
-//     }
-// }

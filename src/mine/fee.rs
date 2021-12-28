@@ -28,6 +28,7 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{UnboundedReceiver, UnboundedSender},
+        RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -43,7 +44,11 @@ pub struct Mine {
 }
 
 impl Mine {
-    pub async fn new(config: Settings, id: u64,w:Arc<tokio::sync::RwLock<Worker>>) -> Result<Self> {
+    pub async fn new(
+        config: Settings,
+        id: u64,
+        w: Arc<tokio::sync::RwLock<Worker>>,
+    ) -> Result<Self> {
         let mut hostname = config.share_name.clone();
         if hostname.is_empty() {
             let name = hostname::get()?;
@@ -67,7 +72,7 @@ impl Mine {
             hostname: hostname,
             wallet: c.share_wallet.clone(),
             worker_name,
-            worker:w,
+            worker: w,
         })
     }
 
@@ -225,7 +230,7 @@ impl Mine {
 
         let mut pool_lines = pool_r.lines();
         // 旷工状态管理
-        let mut worker: Worker = Worker::default();
+        //let mut worker: Worker = Worker::default();
         let _rpc_id = 0;
         // 旷工接受的封包数量
 
@@ -241,12 +246,12 @@ impl Mine {
         write_to_socket(&mut pool_w, &login, &worker_name).await;
 
         {
-            //let w = RwLockWriteGuard::map(self.worker.write().await, |s| &mut s).await;
-            // worker.login(
-            //     self.wallet.clone(),
-            //     self.worker_name.clone(),
-            //     self.wallet.clone(),
-            // );
+            let mut w = RwLockWriteGuard::map(self.worker.write().await, |s| s);
+            w.login(
+                self.wallet.clone(),
+                self.worker_name.clone(),
+                self.wallet.clone(),
+            );
         }
 
         let eth_get_work = ClientWithWorkerName {
@@ -259,16 +264,26 @@ impl Mine {
         loop {
             select! {
                 _ = tokio::time::sleep(Duration::new(10,0)) => {
+                    let hash;
+                    let mut worker_string = worker_name.clone();
+                    if self.id == 0 {
+                        let w = RwLockReadGuard::map(self.worker.read().await, |s| s);
+                        worker_string = w.worker_name.clone();
+                        hash = w.hash;
+                    } else {
+                        hash = 100000000;
+                    }
+
                     //计算速率
                     let submit_hashrate = ClientWithWorkerName {
                         id: CLIENT_SUBHASHRATE,
                         method: "eth_submitHashrate".into(),
                         params: [
-                            format!("0x{:x}", calc_hash_rate(40000000, self.config.share_rate),),
-                            hex::encode(worker_name.to_string()),
+                            format!("0x{:x}", calc_hash_rate(crate::util::bytes_to_mb(hash), self.config.share_rate),),
+                            hex::encode(worker_string.to_string()),
                         ]
                         .to_vec(),
-                        worker: worker_name.to_string(),
+                        worker: worker_string.to_string(),
                     };
 
                     //debug!("{}线程 提交算力",self.id);
@@ -282,7 +297,11 @@ impl Mine {
                 },
                 Ok((id,job)) = jobs_recv.recv() => {
                     if id == self.id {
-                        worker.share_index_add();
+                        {
+                            let mut w = RwLockWriteGuard::map(self.worker.write().await, |s| s);
+                            w.share_index_add();
+                        }
+                        //worker.share_index_add();
                         #[cfg(debug_assertions)]
                         debug!("{} 线程 获得抽水任务Share #{}",id,0);
                         if let Ok(mut client_json_rpc) = serde_json::from_slice::<ClientWithWorkerName>(job.as_bytes())
@@ -323,14 +342,25 @@ impl Mine {
                         if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                             if result_rpc.id == CLIENT_LOGIN {
                                 if self.id == 0 {
-                                    worker.logind();
+                                    let mut w = RwLockWriteGuard::map(self.worker.write().await, |s| s);
+                                    w.logind();
                                 }
                             } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             } else if result_rpc.id == CLIENT_GETWORK {
                             } else if result_rpc.result {
-                                worker.share_accept();
+                                {
+                                    let mut w = RwLockWriteGuard::map(self.worker.write().await, |s| s);
+                                    w.share_accept();
+                                }
+                                //worker.share_accept();
+                            } else if result_rpc.id == 999{
+                                //worker.share_reject();
+                                // 服务器格式化json失败了。
                             } else {
-                                worker.share_reject();
+                                {
+                                    let mut w = RwLockWriteGuard::map(self.worker.write().await, |s| s);
+                                    w.share_reject();
+                                }
                                 crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                             }
                         } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
