@@ -378,8 +378,13 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     ]);
 
     table.printstd();
-
-    let file = match std::fs::File::open("~/workers.csv") {
+    //let file =
+    let file = match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open("~/workers.csv")
+    {
         Ok(f) => f,
         Err(_) => match std::fs::File::create("~/workers.csv") {
             Ok(f) => f,
@@ -388,7 +393,7 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     };
 
     // //file.write_all(b"hello, world!").await?;
-    table.to_csv(&file);
+    table.to_csv(&file)?;
     drop(file);
 
     Ok(())
