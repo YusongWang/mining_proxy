@@ -396,17 +396,18 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
     ]);
 
     table.printstd();
+    let log_path = config.log_path.clone();
     //let file =
     let file = match std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
-        .open("~/workers.csv")
+        .open(log_path.clone()+"workers.csv")
     {
         Ok(f) => f,
         Err(e) => {
             info!("{}", e);
-            match std::fs::File::create("~/workers.csv") {
+            match std::fs::File::create(log_path+"workers.csv") {
                 Ok(f) => f,
                 Err(e) => {
                     info!("{}", e);
