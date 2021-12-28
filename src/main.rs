@@ -432,6 +432,8 @@ async fn print_state(
         total_accept = total_accept + w.accept_index;
         total_invalid = total_invalid + w.invalid_index;
     }
+    
+    //TODO 将total hash 写入worker
 
     // 添加行
     table.add_row(row![
