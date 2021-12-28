@@ -401,15 +401,15 @@ async fn print_state(
         ]);
     }
 
-    let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
-    table.add_row(row![
-        w.worker_name,
-        bytes_to_mb(w.hash).to_string() + " Mb",
-        calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-        w.share_index,
-        w.accept_index,
-        w.invalid_index
-    ]);
+    // let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
+    // table.add_row(row![
+    //     w.worker_name,
+    //     bytes_to_mb(w.hash).to_string() + " Mb",
+    //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+    //     w.share_index,
+    //     w.accept_index,
+    //     w.invalid_index
+    // ]);
 
     for (_name, w) in workers {
         // 添加行
