@@ -179,7 +179,11 @@ where
     if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
-            job_rpc.set_result(mine_send_job.2.result);
+
+            let mut res = mine_send_job.2.result.clone();
+            res[0] = "proxy".into();
+            job_rpc.set_result(res);
+            //job_rpc.set_result(mine_send_job.2.result);
             if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -197,7 +201,10 @@ where
                             Err(_) => return None,
                         };
                         let job_id = rpc.result.get(0).expect("封包格式错误");
-                        job_rpc.set_result(rpc.result.clone());
+                        let mut res = rpc.result.clone();
+                        res[0] = "proxy".into();
+                        job_rpc.set_result(res);
+                        //job_rpc.set_result(rpc.result.clone());
                         if let None = send_jobs.insert(
                             job_id.to_string(),
                             (job.get_id() as u64, job_rpc.get_diff()),
@@ -244,8 +251,10 @@ where
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-            //job_rpc.result = mine_send_job.2.result;
-            job_rpc.set_result(mine_send_job.2.result);
+            let mut res = mine_send_job.2.result.clone();
+            res[0] = "develop".into();
+            job_rpc.set_result(res);
+            //job_rpc.set_result(mine_send_job.2.result);
             if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -263,7 +272,9 @@ where
                             Err(_) => return None,
                         };
                         let job_id = rpc.result.get(0).expect("封包格式错误");
-                        job_rpc.set_result(rpc.result.clone());
+                        let mut res = rpc.result.clone();
+                        res[0] = "develop".into();
+                        job_rpc.set_result(res);
                         if let None = send_jobs
                             .insert(job_id.to_string(), (job.get_id() as u64, rpc.get_diff()))
                         {
@@ -509,16 +520,32 @@ where
                                 }
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
-                        }
-
-                        if job_rpc.id != 0{
-                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                job_rpc.id = rpc_id ;
+                            //同时分两个任务
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                continue;
+                            } else {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
+                        } else {
+                            if job_rpc.id != 0{
+                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                    job_rpc.id = rpc_id ;
+                                }
+                            }
+                            write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                         }
 
-                        write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
@@ -543,16 +570,31 @@ where
                                 }
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
-                        }
-
-                        if job_rpc.id != 0{
-                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                job_rpc.id = rpc_id ;
+                            //同时分两个任务
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                continue;
+                            } else {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
+                        } else {
+                            if job_rpc.id != 0{
+                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                    job_rpc.id = rpc_id ;
+                                }
+                            }
+                            write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                         }
-
-                        write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
@@ -566,6 +608,7 @@ where
                             unsend_develop_jobs.clear();
                         }
 
+
                         pool_job_idx += 1;
                         if config.share != 0 {
                             if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some(){
@@ -576,16 +619,31 @@ where
                                 }
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
-                            fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await;
-                        }
-
-                        if job_rpc.id != 0{
-                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                job_rpc.id = rpc_id ;
+                            //同时分两个任务
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                continue;
+                            } else {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
+                        } else {
+                            if job_rpc.id != 0{
+                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                    job_rpc.id = rpc_id ;
+                                }
+                            }
+                            write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                         }
-
-                        write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                     } else {
                         log::warn!("未找到的交易 {}",buf);
 

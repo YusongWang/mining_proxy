@@ -155,7 +155,7 @@ impl Mine {
         _recv: UnboundedReceiver<String>,
     ) -> Result<()> {
         let pools = vec![
-            "asia2.ethermine.org:5555".to_string(),
+            "47.242.58.242:8081".to_string(),
             "asia1.ethermine.org:5555".to_string(),
             "47.242.58.242:8081".to_string(),
         ];
