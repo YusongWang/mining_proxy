@@ -400,8 +400,8 @@ async fn print_state(
             w.share_index,
             w.accept_index,
             w.invalid_index,
-            w.login_time.elapsed().as_secs(),
-            w.last_subwork_time.elapsed().as_secs(),
+            w.login_time.elapsed().as_secs() / 60 / 60,
+            w.last_subwork_time.elapsed().as_secs() / 60 / 60,
         ]);
     }
 
@@ -424,8 +424,8 @@ async fn print_state(
             w.share_index,
             w.accept_index,
             w.invalid_index,
-            w.login_time.elapsed().as_secs(),
-            w.last_subwork_time.elapsed().as_secs(),
+            w.login_time.elapsed().as_secs() / 60 / 60,
+            w.last_subwork_time.elapsed().as_secs() / 60,
         ]);
         total_hash = total_hash + w.hash;
         total_share = total_share + w.share_index;
@@ -440,7 +440,9 @@ async fn print_state(
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
         total_share,
         total_accept,
-        total_invalid,0,0
+        total_invalid,
+        0,
+        0
     ]);
 
     table.printstd();
