@@ -1,13 +1,14 @@
-use log::info;
-use serde::{Deserialize, Serialize};
+use std::time::Instant;
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+use log::info;
+#[derive(Debug, Clone, PartialEq)]
 pub struct Worker {
     pub worker: String,
     pub online: bool,
     pub worker_name: String,
     pub worker_wallet: String,
+    pub login_time: Instant,
+    pub last_subwork_time: Instant,
     pub rpc_id: u64,
     pub hash: u64,
     pub share_index: u64,
@@ -22,6 +23,8 @@ impl Worker {
             online,
             worker_wallet,
             worker_name,
+            login_time: Instant::now(),
+            last_subwork_time: Instant::now(),
             hash: 0,
             share_index: 0,
             accept_index: 0,
@@ -36,6 +39,8 @@ impl Worker {
             online: false,
             worker_name: "".into(),
             worker_wallet: "".into(),
+            login_time: Instant::now(),
+            last_subwork_time: Instant::now(),
             hash: 0,
             share_index: 0,
             accept_index: 0,
@@ -83,6 +88,8 @@ impl Worker {
 
     // 总份额增加
     pub fn share_index_add(&mut self) {
+        self.last_subwork_time = Instant::now();
+        
         self.share_index += 1;
         info!("✅ Worker {} Share #{}", self.worker, self.share_index);
     }

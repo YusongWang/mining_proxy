@@ -381,7 +381,9 @@ async fn print_state(
         "抽水算力",
         "总工作量(份额)",
         "有效份额",
-        "无效份额"
+        "无效份额",
+        "在线时长(小时)",
+        "最后提交(分钟)",
     ]);
     //495630347 / 1000 / 1000
     let mut total_hash: u64 = 0;
@@ -397,7 +399,9 @@ async fn print_state(
             calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
             w.share_index,
             w.accept_index,
-            w.invalid_index
+            w.invalid_index,
+            w.login_time.elapsed().as_secs(),
+            w.last_subwork_time.elapsed().as_secs(),
         ]);
     }
 
@@ -419,7 +423,9 @@ async fn print_state(
             calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
             w.share_index,
             w.accept_index,
-            w.invalid_index
+            w.invalid_index,
+            w.login_time.elapsed().as_secs(),
+            w.last_subwork_time.elapsed().as_secs(),
         ]);
         total_hash = total_hash + w.hash;
         total_share = total_share + w.share_index;
@@ -434,7 +440,7 @@ async fn print_state(
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
         total_share,
         total_accept,
-        total_invalid
+        total_invalid,0,0
     ]);
 
     table.printstd();
