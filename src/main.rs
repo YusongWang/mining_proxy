@@ -390,7 +390,6 @@ async fn print_state(
     let mut total_share: u64 = 0;
     let mut total_accept: u64 = 0;
     let mut total_invalid: u64 = 0;
-
     {
         let w = RwLockReadGuard::map(proxy_worker.read().await, |s| s);
         table.add_row(row![
@@ -427,7 +426,7 @@ async fn print_state(
             w.login_time.elapsed().as_secs() / 60 / 60,
             w.last_subwork_time.elapsed().as_secs() / 60,
         ]);
-        
+
         total_hash = total_hash + w.hash;
         total_share = total_share + w.share_index;
         total_accept = total_accept + w.accept_index;
