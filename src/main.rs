@@ -30,9 +30,9 @@ mod state;
 mod util;
 
 use util::{
-    calc_hash_rate,
+    bytes_to_mb, calc_hash_rate,
     config::{self, Settings},
-    get_app_command_matches, logger, bytes_to_mb,
+    get_app_command_matches, logger,
 };
 
 use crate::{
@@ -112,6 +112,7 @@ async fn main() -> Result<()> {
     let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
 
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
+    let thread_len = thread_len * 3; //扩容三倍存储更多任务
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
     let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
 

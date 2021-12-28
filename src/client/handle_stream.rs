@@ -180,10 +180,10 @@ where
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
 
-            let mut res = mine_send_job.2.result.clone();
-            res[2] = "proxy".into();
-            job_rpc.set_result(res);
-            //job_rpc.set_result(mine_send_job.2.result);
+            // let mut res = mine_send_job.2.result.clone();
+            // res[2] = "proxy".into();
+            // job_rpc.set_result(res);
+            job_rpc.set_result(mine_send_job.2.result);
             if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -201,10 +201,10 @@ where
                             Err(_) => return None,
                         };
                         let job_id = rpc.result.get(0).expect("封包格式错误");
-                        let mut res = rpc.result.clone();
-                        res[2] = "proxy".into();
-                        job_rpc.set_result(res);
-                        //job_rpc.set_result(rpc.result.clone());
+                        // let mut res = rpc.result.clone();
+                        // res[2] = "proxy".into();
+                        // job_rpc.set_result(res);
+                        job_rpc.set_result(rpc.result.clone());
                         if let None = send_jobs.insert(
                             job_id.to_string(),
                             (job.get_id() as u64, job_rpc.get_diff()),
@@ -251,10 +251,10 @@ where
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-            let mut res = mine_send_job.2.result.clone();
-            res[2] = "develop".into();
-            job_rpc.set_result(res);
-            //job_rpc.set_result(mine_send_job.2.result);
+            // let mut res = mine_send_job.2.result.clone();
+            // res[2] = "develop".into();
+            // job_rpc.set_result(res);
+            job_rpc.set_result(mine_send_job.2.result);
             if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -272,9 +272,10 @@ where
                             Err(_) => return None,
                         };
                         let job_id = rpc.result.get(0).expect("封包格式错误");
-                        let mut res = rpc.result.clone();
-                        res[2] = "develop".into();
-                        job_rpc.set_result(res);
+                        // let mut res = rpc.result.clone();
+                        // res[2] = "develop".into();
+                        //job_rpc.set_result(res);
+                        job_rpc.set_result(rpc.result.clone());
                         if let None = send_jobs
                             .insert(job_id.to_string(), (job.get_id() as u64, rpc.get_diff()))
                         {
