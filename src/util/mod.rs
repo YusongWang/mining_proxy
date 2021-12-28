@@ -245,6 +245,7 @@ pub fn time_to_string(time:u64) -> String {
     use chrono::{NaiveTime, Timelike};
     let t = NaiveTime::from_num_seconds_from_midnight(time as u32,0);
     let mut res = String::new();
+
     if t.hour() > 0 {
         let s = t.hour().to_string() + "小时";
         res += &s;
