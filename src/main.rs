@@ -379,16 +379,16 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
 
     table.printstd();
 
-    // let file = match std::fs::File::open("workers.csv") {
-    //     Ok(f) => f,
-    //     Err(_) => match std::fs::File::create("workers.csv") {
-    //         Ok(f) => f,
-    //         Err(_) => anyhow::bail!("文件打开及创建都失败了。"),
-    //     },
-    // };
+    let file = match std::fs::File::open("~/workers.csv") {
+        Ok(f) => f,
+        Err(_) => match std::fs::File::create("~/workers.csv") {
+            Ok(f) => f,
+            Err(_) => anyhow::bail!("文件打开及创建都失败了。"),
+        },
+    };
 
     // //file.write_all(b"hello, world!").await?;
-    // table.to_csv(file);
+    table.to_csv(file);
 
     Ok(())
 }
