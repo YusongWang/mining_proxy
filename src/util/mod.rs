@@ -260,7 +260,7 @@ pub fn time_to_string(time:u64) -> String {
         res += &s;
     }
 
-    res += " 前";
+    res += "前";
 
     return res;
 }
