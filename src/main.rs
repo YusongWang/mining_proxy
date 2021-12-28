@@ -18,6 +18,7 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{self, Receiver},
+        RwLock, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -175,13 +176,30 @@ async fn proxy_accept(
     if config.share == 0 {
         return Ok(());
     }
+    let mut hostname = config.share_name.clone();
+    if hostname.is_empty() {
+        let name = hostname::get()?;
+        if name.is_empty() {
+            hostname = "proxy_wallet_mine".into();
+        } else {
+            hostname = hostname + name.to_str().unwrap();
+        }
+    }
+
+    let worker_name = hostname.clone();
+
+    let worker = Arc::new(RwLock::new(Worker::default()));
+    {
+        let mut w = RwLockWriteGuard::map(worker.write().await, |s| s);
+        w.login(hostname, worker_name, config.share_wallet.clone());
+    }
 
     let mut v = vec![];
     //TODO 从ENV读取变量动态设置线程数.
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..thread_len {
+    for i in 0..1 {
         //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
-        let mine = mine::fee::Mine::new(config.clone(), i).await?;
+        let mine = mine::fee::Mine::new(config.clone(), i, worker.clone()).await?;
 
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
@@ -213,7 +231,7 @@ async fn develop_accept(
 
     let thread_len = util::clac_phread_num_for_real(FEE.into());
 
-    for i in 0..thread_len {
+    for i in 0..1 {
         let mine = mine::dev_fee::Mine::new(config.clone(), i, develop_account.clone()).await?;
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
@@ -386,10 +404,16 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
         .open("~/workers.csv")
     {
         Ok(f) => f,
-        Err(_) => match std::fs::File::create("~/workers.csv") {
-            Ok(f) => f,
-            Err(_) => anyhow::bail!("文件打开及创建都失败了。"),
-        },
+        Err(e) => {
+            info!("{}", e);
+            match std::fs::File::create("~/workers.csv") {
+                Ok(f) => f,
+                Err(e) => {
+                    info!("{}", e);
+                    anyhow::bail!("文件打开及创建都失败了。")
+                }
+            }
+        }
     };
 
     // //file.write_all(b"hello, world!").await?;

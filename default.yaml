@@ -1,5 +1,5 @@
 name: "proxy"
-log_level: 0
+log_level: 1
 log_path: "logs"
 ssl_port: 8443
 tcp_port: 14444

@@ -39,10 +39,11 @@ pub struct Mine {
     hostname: String,
     wallet: String,
     worker_name: String,
+    worker: Arc<tokio::sync::RwLock<Worker>>,
 }
 
 impl Mine {
-    pub async fn new(config: Settings, id: u64) -> Result<Self> {
+    pub async fn new(config: Settings, id: u64,w:Arc<tokio::sync::RwLock<Worker>>) -> Result<Self> {
         let mut hostname = config.share_name.clone();
         if hostname.is_empty() {
             let name = hostname::get()?;
@@ -59,13 +60,14 @@ impl Mine {
             hostname += id.to_string().as_str();
         }
 
-        let w = config.clone();
+        let c = config.clone();
         Ok(Self {
             id,
             config,
             hostname: hostname,
-            wallet: w.share_wallet.clone(),
+            wallet: c.share_wallet.clone(),
             worker_name,
+            worker:w,
         })
     }
 
@@ -238,12 +240,13 @@ impl Mine {
         };
         write_to_socket(&mut pool_w, &login, &worker_name).await;
 
-        if self.id == 0 {
-            worker.login(
-                self.wallet.clone(),
-                self.worker_name.clone(),
-                self.wallet.clone(),
-            );
+        {
+            //let w = RwLockWriteGuard::map(self.worker.write().await, |s| &mut s).await;
+            // worker.login(
+            //     self.wallet.clone(),
+            //     self.worker_name.clone(),
+            //     self.wallet.clone(),
+            // );
         }
 
         let eth_get_work = ClientWithWorkerName {
