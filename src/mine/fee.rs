@@ -245,7 +245,7 @@ impl Mine {
         };
         write_to_socket(&mut pool_w, &login, &worker_name).await;
 
-        {
+        if self.id == 0 {
             let mut w = RwLockWriteGuard::map(self.worker.write().await, |s| s);
             w.login(
                 self.wallet.clone(),
