@@ -3,7 +3,7 @@
 {"id":1,"method":"eth_submitLogin","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD","x"],"worker":"YusongWangdeMacBook-Pro.local.eth1.0"}
 
 {"id":5,"method":"eth_getWork","params":[]}
-{"id":483,"method":"eth_submitWork", "params": ["0x204ba90a90af46b7", "0xebd13a5adc5afd7e44b2b97c20adab005625b5fa7d6f503148020c1688b2273c", "0x8d25e003c5e48daf37c91514e660855775f7506d3c7f8f4a80b304f5ca664fcd"]}
+{"id":483,"method":"eth_submitWork", "params": ["0x204ba90a90af46b7", "0x0d4db5b8d51d6c9e72f4b47c06c834e448e5e327f0f914914f79d169e2abb210", "0x8d25e003c5e48daf37c91514e660855775f7506d3c7f8f4a80b304f5ca664fcd"]}
 
             // } else if let Ok(mut client_json_rpc) = serde_json::from_str::<ClientGetWork>(&buf) {
             //     // {

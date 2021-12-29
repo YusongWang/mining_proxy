@@ -1,0 +1,14 @@
+stream {
+        upstream tcp_http {
+                server 43.134.195.116:61111;
+        }
+
+        server {
+                listen 8080;
+                proxy_pass tcp_http;
+        }
+        
+        log_format  main  '$remote_addr  [$time_local] $status $upstream_addr';
+
+        access_log /root/tcp.log main;
+}

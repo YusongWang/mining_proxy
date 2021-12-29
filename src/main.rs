@@ -15,9 +15,11 @@ use prettytable::{cell, row, Table};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
+    select,
     sync::{
         broadcast,
         mpsc::{self, Receiver},
+        RwLock, RwLockReadGuard, RwLockWriteGuard,
     },
     time::sleep,
 };
@@ -30,9 +32,9 @@ mod state;
 mod util;
 
 use util::{
-    calc_hash_rate,
+    bytes_to_mb, calc_hash_rate,
     config::{self, Settings},
-    get_app_command_matches, logger, bytes_to_mb,
+    get_app_command_matches, logger, time_to_string,
 };
 
 use crate::{
@@ -100,7 +102,9 @@ async fn main() -> Result<()> {
     // 分配任务给 抽水矿机
     let (job_send, _) = broadcast::channel::<String>(100);
 
-    // 中转抽水费用
+    // 抽水费用矿工
+    let proxy_worker = Arc::new(RwLock::new(Worker::default()));
+    let develop_worker = Arc::new(RwLock::new(Worker::default()));
 
     //let mine = Mine::new(config.clone(), 0).await?;
     let (proxy_job_channel, _) = broadcast::channel::<(u64, String)>(100);
@@ -112,6 +116,7 @@ async fn main() -> Result<()> {
     let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
 
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
+    let thread_len = thread_len * 3; //扩容三倍存储更多任务
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
     let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
 
@@ -141,19 +146,26 @@ async fn main() -> Result<()> {
         ),
         proxy_accept(
             worker_tx.clone(),
+            proxy_worker.clone(),
             mine_jobs.clone(),
             &config,
             proxy_job_channel.clone()
         ),
         develop_accept(
             worker_tx.clone(),
+            develop_worker.clone(),
             develop_jobs.clone(),
             &config,
             fee_tx.clone()
         ),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        process_workers(&config, worker_rx),
+        process_workers(
+            &config,
+            worker_rx,
+            proxy_worker.clone(),
+            develop_worker.clone()
+        ),
         // clear_state(state.clone(), config.clone()),
     );
 
@@ -164,9 +176,31 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+async fn send_worker_state(
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
+    let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
+    tokio::pin!(sleep);
+    loop {
+        select! {
+            () = &mut sleep => {
+                {
+                    let w = RwLockReadGuard::map(worker.read().await, |s| s);
+                    worker_queue.send(w.clone()).await;
+                }
+                if false {
+                    anyhow::bail!("false");
+                }
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
+            },
+        }
+    }
+}
 // // 中转代理抽水服务
 async fn proxy_accept(
-    _worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker: Arc<tokio::sync::RwLock<Worker>>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
@@ -176,11 +210,11 @@ async fn proxy_accept(
     }
 
     let mut v = vec![];
-    //TODO 从ENV读取变量动态设置线程数.
+
     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
     for i in 0..thread_len {
         //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
-        let mine = mine::fee::Mine::new(config.clone(), i).await?;
+        let mine = mine::fee::Mine::new(config.clone(), i, worker.clone()).await?;
 
         let send = jobs_send.clone();
         let s = mine_jobs_queue.clone();
@@ -189,7 +223,6 @@ async fn proxy_accept(
     }
 
     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
-
     if let Err(e) = res {
         log::warn!("抽水矿机断开{}", e);
     }
@@ -199,6 +232,7 @@ async fn proxy_accept(
 
 async fn develop_accept(
     _worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker: Arc<tokio::sync::RwLock<Worker>>,
     mine_jobs_queue: Arc<JobQueue>,
     config: &Settings,
     jobs_send: broadcast::Sender<(u64, String)>,
@@ -333,7 +367,12 @@ async fn develop_accept(
 //     }
 // }
 
-async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Result<()> {
+async fn print_state(
+    workers: &HashMap<String, Worker>,
+    config: &Settings,
+    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
+    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
     // 创建表格
     let mut table = Table::new();
     table.add_row(row![
@@ -342,13 +381,38 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
         "抽水算力",
         "总工作量(份额)",
         "有效份额",
-        "无效份额"
+        "无效份额",
+        "在线时长(小时)",
+        "最后提交(分钟)",
     ]);
     //495630347 / 1000 / 1000
     let mut total_hash: u64 = 0;
     let mut total_share: u64 = 0;
     let mut total_accept: u64 = 0;
     let mut total_invalid: u64 = 0;
+    {
+        let w = RwLockReadGuard::map(proxy_worker.read().await, |s| s);
+        table.add_row(row![
+            w.worker_name,
+            bytes_to_mb(w.hash).to_string() + " Mb",
+            calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+            w.share_index,
+            w.accept_index,
+            w.invalid_index,
+            time_to_string(w.login_time.elapsed().as_secs()),
+            time_to_string(w.last_subwork_time.elapsed().as_secs()),
+        ]);
+    }
+
+    // let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
+    // table.add_row(row![
+    //     w.worker_name,
+    //     bytes_to_mb(w.hash).to_string() + " Mb",
+    //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+    //     w.share_index,
+    //     w.accept_index,
+    //     w.invalid_index
+    // ]);
 
     for (_name, w) in workers {
         // 添加行
@@ -358,13 +422,18 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
             calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
             w.share_index,
             w.accept_index,
-            w.invalid_index
+            w.invalid_index,
+            time_to_string(w.login_time.elapsed().as_secs()),
+            time_to_string(w.last_subwork_time.elapsed().as_secs()),
         ]);
+
         total_hash = total_hash + w.hash;
         total_share = total_share + w.share_index;
         total_accept = total_accept + w.accept_index;
         total_invalid = total_invalid + w.invalid_index;
     }
+
+    //TODO 将total hash 写入worker
 
     // 添加行
     table.add_row(row![
@@ -373,26 +442,46 @@ async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Re
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
         total_share,
         total_accept,
-        total_invalid
+        total_invalid,
+        0,
+        0
     ]);
 
     table.printstd();
-
-    // let file = match std::fs::File::open("workers.csv") {
-    //     Ok(f) => f,
-    //     Err(_) => match std::fs::File::create("workers.csv") {
-    //         Ok(f) => f,
-    //         Err(_) => anyhow::bail!("文件打开及创建都失败了。"),
-    //     },
-    // };
+    let log_path = config.log_path.clone();
+    //let file =
+    let file = match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(log_path.clone() + "workers.csv")
+    {
+        Ok(f) => f,
+        Err(e) => {
+            info!("{}", e);
+            match std::fs::File::create(log_path + "workers.csv") {
+                Ok(f) => f,
+                Err(e) => {
+                    info!("{}", e);
+                    anyhow::bail!("文件打开及创建都失败了。")
+                }
+            }
+        }
+    };
 
     // //file.write_all(b"hello, world!").await?;
-    // table.to_csv(file);
+    table.to_csv(&file)?;
+    drop(file);
 
     Ok(())
 }
 
-async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> Result<()> {
+async fn process_workers(
+    config: &Settings,
+    mut worker_rx: Receiver<Worker>,
+    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
+    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
     let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
@@ -411,7 +500,7 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
                 }
             },
             () = &mut sleep => {
-                match print_state(&workers,config).await{
+                match print_state(&workers,config,proxy_worker.clone(),develop_worker.clone()).await{
                     Ok(_) => {},
                     Err(_) => {log::info!("打印失败了")},
                 }
@@ -422,27 +511,3 @@ async fn process_workers(config: &Settings, mut worker_rx: Receiver<Worker>) -> 
         }
     }
 }
-// async fn clear_state(state: Arc<RwLock<Workers>, _: Settings) -> Result<()> {
-//     loop {
-//         sleep(std::time::Duration::new(60 * 10, 0)).await;
-//         {
-//             let workers = RwLockReadGuard::map(state.read().await, |s| &s);
-//             for _ in &*workers {
-//                 // if w.worker == *rw_worker {
-//                 //     w.share_index = w.share_index + 1;
-//                 // }
-//                 //TODO Send workd to channel . channel send HttpApi to WebViewServer
-//             }
-//         }
-
-//         // 重新计算每十分钟效率情况
-//         {
-//             let mut workers = RwLockWriteGuard::map(state.write().await, |s| &mut s.workers);
-//             for (_, w) in &mut *workers {
-//                 w.share_index = 0;
-//                 w.accept_index = 0;
-//                 w.invalid_index = 0;
-//             }
-//         }
-//     }
-// }
