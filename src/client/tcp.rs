@@ -15,8 +15,7 @@ use crate::jobs::JobQueue;
 use crate::state::Worker;
 use crate::util::config::Settings;
 
-use super::handle_stream;
-
+use super::*;
 pub async fn accept_tcp(
     worker_queue: tokio::sync::mpsc::Sender<Worker>,
     mine_jobs_queue: Arc<JobQueue>,
@@ -79,7 +78,7 @@ async fn transfer(
     };
 
     if stream_type == crate::client::TCP {
-        handle_stream::handle_tcp_pool(
+        handle_tcp_pool(
             worker_queue,
             worker_r,
             worker_w,
@@ -92,7 +91,7 @@ async fn transfer(
         )
         .await
     } else if stream_type == crate::client::SSL {
-        handle_stream::handle_tls_pool(
+        handle_tls_pool(
             worker_queue,
             worker_r,
             worker_w,

@@ -7,6 +7,8 @@ pub struct EthServerRootObject {
     pub jsonrpc: String,
     pub result: Vec<String>,
 }
+
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EthError {

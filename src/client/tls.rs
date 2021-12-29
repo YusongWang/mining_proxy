@@ -11,7 +11,7 @@ use native_tls::Identity;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::client::handle_stream;
+use super::*;
 use crate::jobs::JobQueue;
 use crate::state::Worker;
 use crate::util::config::Settings;
@@ -88,7 +88,7 @@ async fn transfer_ssl(
     };
 
     if stream_type == crate::client::TCP {
-        handle_stream::handle_tcp_pool(
+        handle_tcp_pool(
             worker_queue,
             worker_r,
             worker_w,
@@ -101,7 +101,7 @@ async fn transfer_ssl(
         )
         .await
     } else if stream_type == crate::client::SSL {
-        handle_stream::handle_tls_pool(
+        handle_tls_pool(
             worker_queue,
             worker_r,
             worker_w,
