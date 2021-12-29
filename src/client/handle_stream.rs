@@ -140,7 +140,15 @@ where
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
-                                eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                let res = match eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
+                                    Ok(a) => Ok(a),
+                                    Err(e) => {
+                                        info!("错误 {} ",e);
+                                        bail!(e);
+                                    },
+                                };
+
+                                res
                             },
                             "eth_submitWork" => {
                                 eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&proxy_fee_sender,&dev_fee_send).await
