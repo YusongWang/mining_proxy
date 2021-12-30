@@ -149,10 +149,12 @@ where
                                     Some(buf) => buf,
                                     None =>       {
                                     pool_w.shutdown().await;
+                                    info!("矿机下线了 : {}",worker_name);
                                     bail!("矿机下线了 : {}",worker_name)},
                                 },
                             _ => {
                                 pool_w.shutdown().await;
+                                info!("矿机下线了 : {}",worker_name);
                                 bail!("矿机下线了 : {}",worker_name)
                             },
                         }
@@ -244,11 +246,12 @@ where
                             Some(buf) => buf,
                             None => {
                                 worker_w.shutdown().await;
+                                info!("矿机下线了 : {}",worker_name);
                                 bail!("矿机下线了 : {}",worker_name)
                             }
                         }
                     },
-                    Err(e) => bail!("矿机下线了: {}",e),
+                    Err(e) => {info!("矿机下线了 : {}",worker_name);bail!("矿机下线了: {}",e)},
                 };
 
                 #[cfg(debug_assertions)]
