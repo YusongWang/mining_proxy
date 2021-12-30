@@ -262,8 +262,7 @@ async fn eth_submitWork<W, W1, W2, T>(
     worker_name: &String,
     mine_send_jobs: &mut HashMap<String, (u64, u64)>,
     develop_send_jobs: &mut HashMap<String, (u64, u64)>,
-    proxy_fee_sender: &broadcast::Sender<(u64, String)>,
-    develop_fee_sender: &broadcast::Sender<(u64, String)>,
+    config: &Settings,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -277,7 +276,7 @@ where
         if mine_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
-                rpc.set_worker_name(worker_name);
+                rpc.set_worker_name(&config.share_name);
 
                 // proxy_fee_sender
                 //     .send((thread_id.0, rpc_string))
@@ -298,15 +297,17 @@ where
 
                 //debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
 
-                develop_fee_sender
-                    .send((thread_id.0, rpc_string))
-                    .expect("可以提交给矿池任务失败。通道异常了");
-                let s = ServerId1 {
-                    id: rpc.get_id(),
-                    //jsonrpc: "2.0".into(),
-                    result: true,
-                };
-                write_to_socket(worker_w, &s, &worker_name).await
+                // develop_fee_sender
+                //     .send((thread_id.0, rpc_string))
+                //     .expect("可以提交给矿池任务失败。通道异常了");
+                // let s = ServerId1 {
+                //     id: rpc.get_id(),
+                //     //jsonrpc: "2.0".into(),
+                //     result: true,
+                // };
+                //write_to_socket(worker_w, &s, &worker_name).await
+
+                Ok(())
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
@@ -367,7 +368,7 @@ async fn fee_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
+    if crate::util::fee(pool_job_idx, &config, config.share_rate.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
 
