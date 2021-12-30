@@ -357,7 +357,7 @@ where
 async fn fee_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
-    unsend_jobs: &mut VecDeque<(u64, String, Server)>,
+    unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
@@ -374,8 +374,8 @@ where
             // let mut res = mine_send_job.2.result.clone();
             // res[2] = "proxy".into();
             // job_rpc.set_result(res);
-            job_rpc.set_result(mine_send_job.2.result);
-            if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
+            job_rpc.set_result(mine_send_job.1);
+            if let None = send_jobs.insert(mine_send_job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());
@@ -428,7 +428,7 @@ where
 async fn develop_job_process<T>(
     pool_job_idx: u64,
     _config: &Settings,
-    unsend_jobs: &mut VecDeque<(u64, String, Server)>,
+    unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
@@ -445,8 +445,8 @@ where
             // let mut res = mine_send_job.2.result.clone();
             // res[2] = "develop".into();
             // job_rpc.set_result(res);
-            job_rpc.set_result(mine_send_job.2.result);
-            if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
+            job_rpc.set_result(mine_send_job.1);
+            if let None = send_jobs.insert(mine_send_job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());

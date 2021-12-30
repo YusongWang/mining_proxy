@@ -92,8 +92,10 @@ where
     //workers.workers.push(&worker);
     let mut rpc_id = 0;
 
-    // let mut unsend_mine_jobs: VecDeque<(u64, String, Server)> = VecDeque::new();
-    // let mut unsend_develop_jobs: VecDeque<(u64, String, Server)> = VecDeque::new();
+    let mut unsend_mine_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
+    let mut unsend_develop_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
+    let mut develop_count = 0;
+    let mut mine_count = 0;
 
     let mut send_mine_jobs: HashMap<String, (u64, u64)> = HashMap::new();
     let mut send_develop_jobs: HashMap<String, (u64, u64)> = HashMap::new();
@@ -264,180 +266,148 @@ where
                         result_rpc.id = rpc_id ;
                         write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
-                        // if pool_job_idx  == u64::MAX {
-                        //     pool_job_idx = 0;
-                        // }
-                        // let diff = job_rpc.get_diff();
-                        // if diff > job_diff {
-                        //     job_diff = diff;
+                        if pool_job_idx  == u64::MAX {
+                            pool_job_idx = 0;
+                        }
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
 
-                        //     unsend_mine_jobs.clear();
-                        //     unsend_develop_jobs.clear();
-                        // }
+                            unsend_mine_jobs.clear();
+                            unsend_develop_jobs.clear();
+                        }
 
                         pool_job_idx += 1;
-                        // if config.share != 0 {
+                        if config.share != 0 {
 
-                        //     if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //     }
-                        //     if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //         continue;
-                        //     } else {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //     }
-                        // } else {
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                            }
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                continue;
+                            } else {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                            }
+                        } else {
                             if job_rpc.id != 0{
                                 if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                     job_rpc.id = rpc_id ;
                                 }
                             }
                             write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //}
-                        if crate::util::is_fee_random(crate::FEE.into()) {
-                            state = 3;
-                        } else if crate::util::fee(pool_job_idx, &config, config.share_rate as f64) {
-                            state = 2;
-                        } else {
-                            state = 1;
                         }
-
                         info!("当前任务发送人 {}",state);
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
-                        // if pool_job_idx  == u64::MAX {
-                        //     pool_job_idx = 0;
-                        // }
+                        if pool_job_idx  == u64::MAX {
+                            pool_job_idx = 0;
+                        }
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
 
-                        // let diff = job_rpc.get_diff();
-                        // if diff > job_diff {
-                        //     job_diff = diff;
-
-                        //     unsend_mine_jobs.clear();
-                        //     unsend_develop_jobs.clear();
-                        // }
-
+                            unsend_mine_jobs.clear();
+                            unsend_develop_jobs.clear();
+                        }
 
                         pool_job_idx += 1;
-                        // if config.share != 0 {
+                        if config.share != 0 {
 
-                        //     if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //     }
-                        //     if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //         continue;
-                        //     } else {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //     }
-                        // } else {
-
-
-                        if state == 1{
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                            }
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                continue;
+                            } else {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                            }
+                        } else {
                             if job_rpc.id != 0{
                                 if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                     job_rpc.id = rpc_id ;
                                 }
                             }
                             write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        } else {
-                            info!("中转人抽水回合");
                         }
-                        if crate::util::is_fee_random(crate::FEE.into()) {
-                            state = 3;
-                        } else if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
-                            state = 2;
-                        } else {
-                            state = 1;
-                        }
-
                         info!("当前任务发送人 {}",state);
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
-                        // if pool_job_idx  == u64::MAX {
-                        //     pool_job_idx = 0;
-                        // }
+                        if pool_job_idx  == u64::MAX {
+                            pool_job_idx = 0;
+                        }
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
 
-                        // let diff = job_rpc.get_diff();
-                        // if diff > job_diff {
-                        //     job_diff = diff;
-
-                        //     unsend_mine_jobs.clear();
-                        //     unsend_develop_jobs.clear();
-                        // }
-
+                            unsend_mine_jobs.clear();
+                            unsend_develop_jobs.clear();
+                        }
 
                         pool_job_idx += 1;
-                        // if config.share != 0 {
+                        if config.share != 0 {
 
-                        //     if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //     }
-                        //     if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //         continue;
-                        //     } else {
-                        //         if job_rpc.id != 0{
-                        //             if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                        //                 job_rpc.id = rpc_id ;
-                        //             }
-                        //         }
-                        //         write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        //     }
-                        // } else {
-                        if job_rpc.id != 0{
-                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                job_rpc.id = rpc_id ;
+                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }
-                        }
-                        write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
-                        if crate::util::is_fee_random(crate::FEE.into()) {
-                            state = 3;
-                        } else if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
-                            state = 2;
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                continue;
+                            } else {
+                                if job_rpc.id != 0{
+                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                        job_rpc.id = rpc_id ;
+                                    }
+                                }
+                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                            }
                         } else {
-                            state = 1;
+                            if job_rpc.id != 0{
+                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                    job_rpc.id = rpc_id ;
+                                }
+                            }
+                            write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                         }
-
                         info!("当前任务发送人 {}",state);
                     } else {
                         log::warn!("未找到的交易 {}",buf);
@@ -482,13 +452,52 @@ where
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
-                        send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        debug!("写入任务");
+                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        let diff = job_rpc.get_diff();
+
+                        if diff > job_diff {
+                            job_diff = diff;
+                            // unsend_mine_jobs.clear();
+                            // unsend_develop_jobs.clear();
+                        }
+
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_mine_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
 
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
-                        send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        debug!("写入任务");
+                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        let diff = job_rpc.get_diff();
 
+                        if diff > job_diff {
+                            job_diff = diff;
+                            // unsend_mine_jobs.clear();
+                            // unsend_develop_jobs.clear();
+                        }
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_mine_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
-                        send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        debug!("写入任务");
+                        let diff = job_rpc.get_diff();
+
+                        if diff > job_diff {
+                            job_diff = diff;
+                            // unsend_mine_jobs.clear();
+                            // unsend_develop_jobs.clear();
+                        }
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_mine_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
                     } else if let Ok(_job_rpc) =  serde_json::from_str::<ServerRootErrorValue>(&buf) {
                     } else {
                         log::error!("未找到的交易 {}",buf);
@@ -496,7 +505,7 @@ where
                     }
 
                     //将所有权还给主矿池
-                    state = 1;
+                    //state = 1;
                 }
             }
             () = &mut sleep  => {
