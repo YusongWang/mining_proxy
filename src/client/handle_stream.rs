@@ -388,7 +388,6 @@ where
                             }
                             write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                         }
-                        info!("当前任务发送人 {}",state);
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
@@ -478,7 +477,6 @@ where
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
-                        debug!("写入任务");
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
@@ -495,7 +493,6 @@ where
                         }
 
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
-                        debug!("写入任务");
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
@@ -511,7 +508,6 @@ where
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
-                        debug!("写入任务");
                         let diff = job_rpc.get_diff();
 
                         if diff > job_diff {
@@ -567,7 +563,6 @@ where
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
-                        debug!("写入任务");
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
@@ -584,7 +579,6 @@ where
                         }
 
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
-                        debug!("写入任务");
                         let diff = job_rpc.get_diff();
                         if diff > job_diff {
                             job_diff = diff;
@@ -596,7 +590,6 @@ where
                             }
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
-                        debug!("写入任务");
                         let diff = job_rpc.get_diff();
 
                         if diff > job_diff {
