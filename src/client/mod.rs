@@ -257,6 +257,7 @@ async fn eth_submitWork<W, W1, W2, T>(
     worker: &mut Worker,
     pool_w: &mut WriteHalf<W>,
     proxy_w: &mut WriteHalf<W1>,
+    develop_w: &mut WriteHalf<W1>,
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut T,
     worker_name: &String,
@@ -275,7 +276,7 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
-                let rpc_string = serde_json::to_string(&rpc)?;
+                
                 rpc.set_worker_name(&config.share_name);
 
                 // proxy_fee_sender
@@ -293,21 +294,14 @@ where
             }
         } else if develop_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
-                let rpc_string = serde_json::to_string(&rpc)?;
-
-                //debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-
-                // develop_fee_sender
-                //     .send((thread_id.0, rpc_string))
-                //     .expect("可以提交给矿池任务失败。通道异常了");
-                // let s = ServerId1 {
-                //     id: rpc.get_id(),
-                //     //jsonrpc: "2.0".into(),
-                //     result: true,
-                // };
-                //write_to_socket(worker_w, &s, &worker_name).await
-
-                Ok(())
+                rpc.set_worker_name("devfee");
+                write_to_socket(develop_w, rpc, worker_name).await;
+                let s = ServerId1 {
+                    id: rpc.get_id(),
+                    //jsonrpc: "2.0".into(),
+                    result: true,
+                };
+                write_to_socket(worker_w, &s, &worker_name).await
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
@@ -383,44 +377,11 @@ where
             } else {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                None
             }
         } else {
-            match tokio::time::timeout(std::time::Duration::new(0, 300), jobs_queue.recv()).await {
-                Ok(res) => match res {
-                    Ok(job) => {
-                        let rpc = match serde_json::from_str::<Server>(&*job.get_job()) {
-                            Ok(rpc) => rpc,
-                            Err(_) => return None,
-                        };
-                        let job_id = rpc.result.get(0).expect("封包格式错误");
-                        // let mut res = rpc.result.clone();
-                        // res[2] = "proxy".into();
-                        // job_rpc.set_result(res);
-                        job_rpc.set_result(rpc.result.clone());
-                        if let None = send_jobs.insert(
-                            job_id.to_string(),
-                            (job.get_id() as u64, job_rpc.get_diff()),
-                        ) {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                            return Some(());
-                        } else {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                        }
-                    }
-                    Err(_) => {
-                        log::warn!("没有任务了...可能并发过高...00000");
-                        return None;
-                    }
-                },
-                Err(_) => {
-                    log::warn!("没有任务了...可能并发过高...00000");
-                    return None;
-                }
-            }
+            None
         }
-        None
     } else {
         None
     }
@@ -454,43 +415,11 @@ where
             } else {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                None
             }
         } else {
-            match tokio::time::timeout(std::time::Duration::new(0, 300), jobs_queue.recv()).await {
-                Ok(res) => match res {
-                    Ok(job) => {
-                        let rpc = match serde_json::from_str::<Server>(&*job.get_job()) {
-                            Ok(rpc) => rpc,
-                            Err(_) => return None,
-                        };
-                        let job_id = rpc.result.get(0).expect("封包格式错误");
-                        // let mut res = rpc.result.clone();
-                        // res[2] = "develop".into();
-                        //job_rpc.set_result(res);
-                        job_rpc.set_result(rpc.result.clone());
-                        if let None = send_jobs
-                            .insert(job_id.to_string(), (job.get_id() as u64, rpc.get_diff()))
-                        {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                            return Some(());
-                        } else {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                        }
-                    }
-                    Err(_) => {
-                        log::warn!("没有任务了...可能并发过高...10000");
-                        return None;
-                    }
-                },
-                Err(_) => {
-                    log::warn!("没有任务了...可能并发过高...10000");
-                    return None;
-                }
-            }
+            None
         }
-        None
     } else {
         None
     }

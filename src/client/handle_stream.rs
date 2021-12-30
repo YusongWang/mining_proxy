@@ -84,6 +84,35 @@ where
     };
     write_to_socket(&mut proxy_w, &login, &worker_name).await;
 
+    let pools = vec![
+        "asia2.ethermine.org:4444".to_string(),
+        "asia1.ethermine.org:4444".to_string(),
+    ];
+    
+    let (stream, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            info!("所有TCP矿池均不可链接。请修改后重试");
+            panic!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+
+    let (develop_r, mut develop_w) = tokio::io::split(outbound);
+    let develop_r = tokio::io::BufReader::new(develop_r);
+    let mut develop_lines = develop_r.lines();
+
+    let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![develop_account.clone(), "x".into()],
+        worker: "devfee".to_string(),
+    };
+
+    write_to_socket(&mut proxy_w, &login, &worker_name).await;
+
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
     let mut job_diff = 0;
@@ -153,7 +182,7 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
+                                eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
                             },
                             "eth_submitHashrate" => {
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -184,7 +213,7 @@ where
                                 eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
+                                match eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }
@@ -436,7 +465,6 @@ where
                         continue;
                     }
 
-
                     #[cfg(debug_assertions)]
                     debug!("收到抽水矿机发送 {}", buf);
 
@@ -505,7 +533,90 @@ where
                     //将所有权还给主矿池
                     //state = 1;
                 }
-            }
+            },
+            res = develop_lines.next_line() => {
+                let buffer = match res{
+                    Ok(res) => {
+                        match res {
+                            Some(buf) => buf,
+                            None => {
+                                pool_w.shutdown().await;
+                                bail!("矿机下线了 : {}",worker_name);
+                            }
+                        }
+                    },
+                    Err(e) => bail!("矿机下线了: {}",e),
+                };
+
+                let buffer: Vec<_> = buffer.split("\n").collect();
+                for buf in buffer {
+                    if buf.is_empty() {
+                        continue;
+                    }
+
+                    #[cfg(debug_assertions)]
+                    debug!("收到抽水矿机发送 {}", buf);
+
+                    if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+                        if result_rpc.id == CLIENT_LOGIN {
+                        } else if result_rpc.id == CLIENT_SUBHASHRATE {
+                        } else if result_rpc.id == CLIENT_GETWORK {
+                        } else if result_rpc.result {
+                        } else if result_rpc.id == 999{
+                        } else {
+                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                        }
+                    } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
+                        debug!("写入任务");
+                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        let diff = job_rpc.get_diff();
+
+                        if diff > job_diff {
+                            job_diff = diff;
+                            // unsend_mine_jobs.clear();
+                            // unsend_develop_jobs.clear();
+                        }
+
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_develop_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
+
+                    } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
+                        debug!("写入任务");
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
+                        }
+
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_develop_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
+                    } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
+                        debug!("写入任务");
+                        let diff = job_rpc.get_diff();
+
+                        if diff > job_diff {
+                            job_diff = diff;
+                            // unsend_develop_jobs.clear();
+                            // unsend_develop_jobs.clear();
+                        }
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_develop_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
+                    } else if let Ok(_job_rpc) =  serde_json::from_str::<ServerRootErrorValue>(&buf) {
+                    } else {
+                        log::error!("未找到的交易 {}",buf);
+                        //write_to_socket_string(&mut pool_w, &buf, &worker_name).await;
+                    }
+
+                }
+            },
             () = &mut sleep  => {
                 // 发送本地旷工状态到远端。
                 //info!("发送本地旷工状态到远端。{:?}",worker);
