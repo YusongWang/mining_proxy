@@ -277,7 +277,7 @@ where
         if mine_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
                 let rpc_string = serde_json::to_string(&rpc)?;
-                //rpc.set_workname(config.share_);
+                rpc.set_worker_name(worker_name);
 
                 // proxy_fee_sender
                 //     .send((thread_id.0, rpc_string))
