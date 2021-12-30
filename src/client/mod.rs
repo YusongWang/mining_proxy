@@ -24,7 +24,7 @@ use tokio::{
 use crate::{
     jobs::JobQueue,
     protocol::{
-        rpc::eth::{Client, ClientWithWorkerName, Server, ServerId1, ServerRpc, ServerId},
+        rpc::eth::{Client, ClientWithWorkerName, Server, ServerId, ServerId1, ServerRpc},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
@@ -176,7 +176,7 @@ where
     );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        info!("✅ Worker: {} 写入失败.",worker);
+        info!("✅ Worker: {} 写入失败.", worker);
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
     Ok(())
@@ -277,7 +277,6 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
-                
                 rpc.set_worker_name(&config.share_name);
 
                 // proxy_fee_sender

@@ -88,7 +88,7 @@ where
         "asia2.ethermine.org:4444".to_string(),
         "asia1.ethermine.org:4444".to_string(),
     ];
-    
+
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -316,14 +316,20 @@ where
                                 //     }
                                 // }
                                 continue;
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                             }else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 // if job_rpc.id != 0{
                                 //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                 //         job_rpc.id = rpc_id ;
                                 //     }
                                 // }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                                 continue;
                             } else {
                                 if job_rpc.id != 0{
@@ -331,7 +337,10 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                             }
                         } else {
                             if job_rpc.id != 0{
@@ -339,7 +348,10 @@ where
                                     job_rpc.id = rpc_id ;
                                 }
                             }
-                            write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                         }
                         info!("当前任务发送人 {}",state);
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
@@ -363,7 +375,10 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                                 continue;
                             } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
@@ -371,7 +386,10 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                                 continue;
                             } else {
                                 if job_rpc.id != 0{
@@ -379,7 +397,10 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                             }
                         } else {
                             if job_rpc.id != 0{
@@ -387,7 +408,10 @@ where
                                     job_rpc.id = rpc_id ;
                                 }
                             }
-                            write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                         }
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
@@ -410,15 +434,21 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                continue;
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                             } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                                 continue;
                             } else {
                                 if job_rpc.id != 0{
@@ -426,7 +456,10 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                             }
                         } else {
                             if job_rpc.id != 0{
@@ -434,7 +467,10 @@ where
                                     job_rpc.id = rpc_id ;
                                 }
                             }
-                            write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {},
+                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                         }
                         info!("当前任务发送人 {}",state);
                     } else {
