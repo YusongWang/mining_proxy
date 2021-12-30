@@ -315,7 +315,7 @@ where
                                 //         job_rpc.id = rpc_id ;
                                 //     }
                                 // }
-
+                                continue;
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             }else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 // if job_rpc.id != 0{
@@ -364,6 +364,7 @@ where
                                     }
                                 }
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
+                                continue;
                             } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
@@ -409,6 +410,7 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
+                                continue;
                                 write_to_socket(&mut worker_w, &job_rpc, &worker_name).await;
                             } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{

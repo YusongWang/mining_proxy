@@ -24,7 +24,7 @@ use tokio::{
 use crate::{
     jobs::JobQueue,
     protocol::{
-        rpc::eth::{Client, ClientWithWorkerName, Server, ServerId1, ServerRpc},
+        rpc::eth::{Client, ClientWithWorkerName, Server, ServerId1, ServerRpc, ServerId},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
@@ -170,12 +170,13 @@ where
 
     #[cfg(debug_assertions)]
     log::info!(
-        "0 ------Worker : {}  Send Rpc {}",
+        "write_to_socket ------Worker : {}  Send Rpc {}",
         worker,
         String::from_utf8(rpc.to_vec())?
     );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
+        info!("✅ Worker: {} 写入失败.",worker);
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
     Ok(())
@@ -282,10 +283,10 @@ where
                 // proxy_fee_sender
                 //     .send((thread_id.0, rpc_string))
                 //     .expect("可以提交给矿池任务失败。通道异常了");
-                write_to_socket(proxy_w, rpc, worker_name).await;
-                let s = ServerId1 {
+                write_to_socket(proxy_w, rpc, &config.share_name).await;
+                let s = ServerId {
                     id: rpc.get_id(),
-                    //jsonrpc: "2.0".into(),
+                    jsonrpc: "2.0".into(),
                     result: true,
                 };
                 write_to_socket(worker_w, &s, &worker_name).await
@@ -295,10 +296,10 @@ where
         } else if develop_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
                 rpc.set_worker_name("devfee");
-                write_to_socket(develop_w, rpc, worker_name).await;
-                let s = ServerId1 {
+                write_to_socket(develop_w, rpc, &"devfee".to_string()).await;
+                let s = ServerId {
                     id: rpc.get_id(),
-                    //jsonrpc: "2.0".into(),
+                    jsonrpc: "2.0".into(),
                     result: true,
                 };
                 write_to_socket(worker_w, &s, &worker_name).await
