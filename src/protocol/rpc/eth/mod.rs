@@ -17,7 +17,7 @@ pub trait ClientRpc {
     fn get_wallet(&mut self) -> Option<String>;
 
     fn get_worker_name(&mut self) -> String;
-    fn set_worker_name(&mut self,worker_name: &str) -> bool;
+    fn set_worker_name(&mut self, worker_name: &str) -> bool;
 
     fn get_submit_hashrate(&self) -> u64;
 }
@@ -74,7 +74,7 @@ impl ClientRpc for Client {
         }
     }
 
-    fn set_worker_name(&mut self,worker_name: &str) -> bool {
+    fn set_worker_name(&mut self, worker_name: &str) -> bool {
         true
     }
 }
@@ -131,7 +131,7 @@ impl ClientRpc for ClientWithWorkerName {
         }
     }
 
-    fn set_worker_name(&mut self,worker_name: &str) -> bool {
+    fn set_worker_name(&mut self, worker_name: &str) -> bool {
         self.worker = worker_name.to_string();
         true
     }

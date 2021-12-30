@@ -43,10 +43,6 @@ use crate::{
     state::Worker,
 };
 
-const FEE: f32 = 0.025;
-
-// 代理费用。
-const AGENT_FEE: f32 = 0.005;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = get_app_command_matches().await?;
@@ -244,7 +240,7 @@ async fn develop_accept(
     let mut v = vec![];
     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
 
-    let thread_len = util::clac_phread_num_for_real(FEE.into());
+    let thread_len = util::clac_phread_num_for_real(0.01);
 
     for i in 0..thread_len {
         let mine = mine::dev_fee::Mine::new(config.clone(), i, develop_account.clone()).await?;

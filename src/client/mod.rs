@@ -28,7 +28,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::config::Settings,
+    util::{config::Settings, get_develop_fee},
 };
 
 pub const TCP: i32 = 1;
@@ -428,7 +428,7 @@ where
 
 async fn develop_job_process<T>(
     pool_job_idx: u64,
-    _config: &Settings,
+    config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
@@ -439,7 +439,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(crate::FEE.into()) {
+    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into())) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;

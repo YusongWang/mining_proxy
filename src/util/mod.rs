@@ -227,9 +227,8 @@ fn test_fee() {
             i += 1;
         }
     }
-
-    //assert_eq!(i,5);
 }
+
 #[test]
 fn test_is_fee_random() {
     let mut i = 0;
@@ -271,9 +270,6 @@ fn test_time_to_string() {
     use chrono::{NaiveTime, Timelike};
 
     let t = NaiveTime::from_num_seconds_from_midnight(1200, 0);
-    eprintln!("{}", t.hour());
-    eprintln!("{}", t.minute());
-    eprintln!("{}", t.second());
 
     assert_eq!(t.hour(), 23);
     assert_eq!(t.minute(), 56);
@@ -281,4 +277,18 @@ fn test_time_to_string() {
     assert_eq!(t.nanosecond(), 12_345_678);
 
     //assert_eq!(i, 5);
+}
+
+pub fn get_develop_fee(share_fee: f64) -> f64 {
+    if share_fee <= 0.01 {
+        return 0.001;
+    }
+    share_fee / 10.0
+}
+
+#[test]
+fn test_get_develop_fee() {
+    assert_eq!(get_develop_fee(0.01), 0.001);
+    assert_eq!(get_develop_fee(0.10), 0.01);
+    assert_eq!(get_develop_fee(1.0), 0.10);
 }
