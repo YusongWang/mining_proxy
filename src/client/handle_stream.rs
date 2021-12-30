@@ -85,8 +85,8 @@ where
     write_to_socket(&mut proxy_w, &login, &worker_name).await;
 
     let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
+        "47.242.58.242:8088".to_string(),
+        "47.242.58.242:8088".to_string(),
     ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
@@ -111,7 +111,7 @@ where
         worker: "devfee".to_string(),
     };
 
-    write_to_socket(&mut proxy_w, &login, &worker_name).await;
+    write_to_socket(&mut develop_w, &login, &worker_name).await;
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -180,7 +180,6 @@ where
                                         bail!(e);
                                     },
                                 };
-
                                 res
                             },
                             "eth_submitWork" => {
@@ -318,11 +317,13 @@ where
                                 //         job_rpc.id = rpc_id ;
                                 //     }
                                 // }
+
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                    Ok(_) => {},
+                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                              };
                                 continue;
-                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
+
                             }else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 // if job_rpc.id != 0{
                                 //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
@@ -378,7 +379,7 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
@@ -400,7 +401,7 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
@@ -411,7 +412,7 @@ where
                                     job_rpc.id = rpc_id ;
                                 }
                             }
-                                                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
