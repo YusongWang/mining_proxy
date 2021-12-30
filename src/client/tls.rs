@@ -1,34 +1,33 @@
-use std::net::ToSocketAddrs;
+use std::sync::Arc;
 
 use anyhow::Result;
-use log::{info};
+use log::info;
 
-use bytes::BytesMut;
-use tokio::fs::File;
-
-use tokio::io::{split, AsyncReadExt};
+use tokio::io::{split, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
-use native_tls::{Identity, TlsConnector};
+use native_tls::Identity;
 
-use futures::FutureExt;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc::UnboundedSender;
 
-use crate::client::{client_to_server, server_to_client};
-
-use crate::protocol::rpc::eth::{Server, ServerId1};
+use super::*;
+use crate::jobs::JobQueue;
+use crate::state::Worker;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    mine_jobs_queue: Arc<JobQueue>,
+    develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
-    send: Sender<String>,
-    fee_send: Sender<String>,
+    _job_send: broadcast::Sender<String>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
+    _state_send: UnboundedSender<(u64, String)>,
+    _dev_state_send: UnboundedSender<(u64, String)>,
     cert: Identity,
 ) -> Result<()> {
-    if config.pool_ssl_address.is_empty() {
-        return Ok(());
-    }
-
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tls On: {}", &address);
@@ -39,157 +38,83 @@ pub async fn accept_tcp_with_tls(
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
         info!("😄 accept connection from {}", addr);
+        let workers = worker_queue.clone();
 
-        let c = config.clone();
+        let config = config.clone();
         let acceptor = tls_acceptor.clone();
-        let s = send.clone();
-        let fee = fee_send.clone();
-        tokio::spawn(async move {
-            let transfer = transfer_ssl(acceptor, stream, c, s, fee).map(|r| {
-                if let Err(e) = r {
-                    info!("❎ 线程退出 : error={}", e);
-                }
-            });
+        let mine_jobs_queue = mine_jobs_queue.clone();
+        let develop_jobs_queue = develop_jobs_queue.clone();
+        let proxy_fee_sender = proxy_fee_sender.clone();
+        let develop_fee_sender = develop_fee_sender.clone();
 
-            tokio::spawn(transfer);
+        tokio::spawn(async move {
+            transfer_ssl(
+                workers,
+                stream,
+                acceptor,
+                &config,
+                mine_jobs_queue,
+                develop_jobs_queue,
+                proxy_fee_sender,
+                develop_fee_sender,
+            )
+            .await
         });
     }
 }
 
 async fn transfer_ssl(
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    tcp_stream: TcpStream,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
-    inbound: TcpStream,
-    config: Settings,
-    send: Sender<String>,
-    fee: Sender<String>,
+    config: &Settings,
+    mine_jobs_queue: Arc<JobQueue>,
+    develop_jobs_queue: Arc<JobQueue>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
-    let client_stream = tls_acceptor.accept(inbound).await?;
+    let client_stream = tls_acceptor.accept(tcp_stream).await?;
+    let (worker_r, worker_w) = split(client_stream);
+    let worker_r = BufReader::new(worker_r);
 
     info!("😄 tls_acceptor Success!");
-    //let mut w_client = tls_acceptor.accept(inbound).await.expect("accept error");
 
-    let addr = config
-        .pool_ssl_address
-        .to_socket_addrs()?
-        .next()
-        .ok_or("failed to resolve")
-        .expect("parse address Error");
-    info!("😄 connect to {:?}", &addr);
-    let socket = TcpStream::connect(&addr).await?;
-    let cx = TlsConnector::builder().build()?;
-    let cx = tokio_native_tls::TlsConnector::from(cx);
-    info!("😄 connectd {:?}", &addr);
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
+        Some(pool) => pool,
+        None => {
+            info!("未匹配到矿池 或 均不可链接。请修改后重试");
+            return Ok(());
+        }
+    };
 
-    let domain: Vec<&str> = config.pool_ssl_address.split(":").collect();
-    let server_stream = cx.connect(domain[0], socket).await?;
-
-    info!("😄 connectd {:?} with TLS", &addr);
-
-    let (mut r_client, mut w_client) = split(client_stream);
-    let (mut r_server, mut w_server) = split(server_stream);
-
-    use tokio::sync::mpsc;
-    let (tx, mut rx) = mpsc::channel::<ServerId1>(100);
-
-    tokio::try_join!(
-        client_to_server(
-            config.clone(),
-            r_client,
-            w_server,
-            send.clone(),
-            fee.clone(),
-            tx.clone()
-        ),
-        server_to_client(r_server, w_client, send.clone(), rx)
-    )?;
-
-    // let client_to_server = async {
-    //     loop {
-    //         // parse protocol
-    //         //let mut dst = String::new();
-    //         let mut buf = vec![0; 1024];
-    //         let len = r_client.read(&mut buf).await?;
-    //         if len == 0 {
-    //             info!("客户端断开连接.");
-    //             return w_server.shutdown().await;
-    //         }
-
-    //         if len > 5 {
-    //             debug!("收到包大小 : {}", len);
-
-    //             if let Ok(client_json_rpc) = serde_json::from_slice::<Client>(&buf[0..len]) {
-    //                 if client_json_rpc.method == "eth_submitWork" {
-    //                     info!(
-    //                         "矿机 :{} Share #{:?}",
-    //                         client_json_rpc.worker, client_json_rpc.id
-    //                     );
-    //                     //debug!("传递给Server :{:?}", client_json_rpc);
-    //                 } else if client_json_rpc.method == "eth_submitHashrate" {
-    //                     if let Some(hashrate) = client_json_rpc.params.get(0) {
-    //                         debug!("矿机 :{} 提交本地算力 {}", client_json_rpc.worker, hashrate);
-    //                     }
-    //                 } else if client_json_rpc.method == "eth_submitLogin" {
-    //                     debug!("矿机 :{} 请求登录", client_json_rpc.worker);
-    //                 } else {
-    //                     debug!("矿机传递未知RPC :{:?}", client_json_rpc);
-    //                 }
-
-    //                 w_server.write_all(&buf[0..len]).await?;
-    //             } else if let Ok(client_json_rpc) =
-    //                 serde_json::from_slice::<ClientGetWork>(&buf[0..len])
-    //             {
-    //                 debug!("GetWork:{:?}", client_json_rpc);
-    //                 w_server.write_all(&buf[0..len]).await?;
-    //             }
-    //         }
-    //         //io::copy(&mut dst, &mut w_server).await?;
-    //     }
-    // };
-
-    // let server_to_client = async {
-    //     let mut is_login = false;
-
-    //     loop {
-    //         let mut buf = vec![0; 1024];
-    //         let len = r_server.read(&mut buf).await?;
-    //         if len == 0 {
-    //             info!("服务端断开连接.");
-    //             return w_client.shutdown().await;
-    //         }
-
-    //         debug!("收到包大小 : {}", len);
-
-    //         if !is_login {
-    //             if let Ok(server_json_rpc) = serde_json::from_slice::<ServerId1>(&buf[0..len]) {
-    //                 debug!("登录成功 :{:?}", server_json_rpc);
-    //                 is_login = true;
-    //             } else {
-    //                 debug!(
-    //                     "Pool Login Fail{:?}",
-    //                     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-    //                 );
-    //             }
-    //         } else {
-    //             if let Ok(server_json_rpc) = serde_json::from_slice::<Server>(&buf[0..len]) {
-    //                 debug!("Got Job :{:?}", server_json_rpc);
-
-    //                 //w_client.write_all(&buf[0..len]).await?;
-    //             } else {
-    //                 debug!(
-    //                     "Got Unhandle Msg:{:?}",
-    //                     String::from_utf8(buf.clone()[0..len].to_vec()).unwrap()
-    //                 );
-    //             }
-    //         }
-    //         let len = w_client.write(&buf[0..len]).await?;
-    //         if len == 0 {
-    //             info!("服务端写入失败 断开连接.");
-    //             return w_client.shutdown().await;
-    //         }
-    //     }
-    // };
-
-    // tokio::try_join!(client_to_server, server_to_client)?;
-
-    Ok(())
+    if stream_type == crate::client::TCP {
+        handle_tcp_pool(
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            mine_jobs_queue,
+            develop_jobs_queue,
+            proxy_fee_sender,
+            develop_fee_sender,
+        )
+        .await
+    } else if stream_type == crate::client::SSL {
+        handle_tls_pool(
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            mine_jobs_queue,
+            develop_jobs_queue,
+            proxy_fee_sender,
+            develop_fee_sender,
+        )
+        .await
+    } else {
+        log::error!("致命错误：未找到支持的矿池BUG 请上报");
+        return Ok(());
+    }
 }

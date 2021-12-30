@@ -1,72 +1,110 @@
-use anyhow::Result;
-use log::{debug, info};
+use std::sync::Arc;
 
-use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
+use anyhow::Result;
+use log::info;
+
+use tokio::io::{split, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
-use futures::FutureExt;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::broadcast;
 
-use crate::client::{client_to_server, server_to_client};
-use crate::protocol::rpc::eth::{Client, ClientGetWork, Server, ServerId1};
+use tokio::sync::mpsc::UnboundedSender;
+
+use crate::jobs::JobQueue;
+
+use crate::state::Worker;
 use crate::util::config::Settings;
 
+use super::*;
 pub async fn accept_tcp(
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    mine_jobs_queue: Arc<JobQueue>,
+    develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
-    send: Sender<String>,
-    d_send: Sender<String>,
+    _job_send: broadcast::Sender<String>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
+    _state_send: UnboundedSender<(u64, String)>,
+    _dev_state_send: UnboundedSender<(u64, String)>,
 ) -> Result<()> {
-    if config.pool_tcp_address.is_empty() {
-        return Ok(());
-    }
-
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Tcp On: {}", &address);
 
     loop {
-        // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        info!("😄 accept connection from {}", addr);
-        let c = config.clone();
-        let s = send.clone();
-        let d = d_send.clone();
+        info!("😄 Accepting Tcp connection from {}", addr);
+
+        let config = config.clone();
+        let workers = worker_queue.clone();
+
+        let mine_jobs_queue = mine_jobs_queue.clone();
+        let develop_jobs_queue = develop_jobs_queue.clone();
+        let proxy_fee_sender = proxy_fee_sender.clone();
+        let develop_fee_sender = develop_fee_sender.clone();
 
         tokio::spawn(async move {
-            let transfer = transfer(stream, c, s, d).map(|r| {
-                if let Err(e) = r {
-                    info!("❎ 线程退出 : error={}", e);
-                }
-            });
-            tokio::spawn(transfer);
+            transfer(
+                workers,
+                stream,
+                &config,
+                mine_jobs_queue,
+                develop_jobs_queue,
+                proxy_fee_sender,
+                develop_fee_sender,
+            )
+            .await
         });
     }
 }
 
-pub async fn transfer(
-    mut inbound: TcpStream,
-    config: Settings,
-    send: Sender<String>,
-    fee: Sender<String>,
+async fn transfer(
+    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    tcp_stream: TcpStream,
+    config: &Settings,
+    mine_jobs_queue: Arc<JobQueue>,
+    develop_jobs_queue: Arc<JobQueue>,
+    proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    develop_fee_sender: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
-    let mut outbound = TcpStream::connect(&config.pool_tcp_address.to_string()).await?;
+    let (worker_r, worker_w) = split(tcp_stream);
+    let worker_r = BufReader::new(worker_r);
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
+        Some(pool) => pool,
+        None => {
+            info!("未匹配到矿池 或 均不可链接。请修改后重试");
+            return Ok(());
+        }
+    };
 
-    let (mut r_client, mut w_client) = split(inbound);
-    let (mut r_server, mut w_server) = split(outbound);
-    use tokio::sync::mpsc;
-    let (tx, mut rx) = mpsc::channel::<ServerId1>(100);
-
-    tokio::try_join!(
-        client_to_server(
-            config.clone(),
-            r_client,
-            w_server,
-            send.clone(),
-            fee.clone(),
-            tx.clone()
-        ),
-        server_to_client(r_server, w_client, send.clone(), rx)
-    )?;
-
-    Ok(())
+    if stream_type == crate::client::TCP {
+        handle_tcp_pool(
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            mine_jobs_queue,
+            develop_jobs_queue,
+            proxy_fee_sender,
+            develop_fee_sender,
+        )
+        .await
+    } else if stream_type == crate::client::SSL {
+        handle_tls_pool(
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            mine_jobs_queue,
+            develop_jobs_queue,
+            proxy_fee_sender,
+            develop_fee_sender,
+        )
+        .await
+    } else {
+        log::error!("致命错误：未找到支持的矿池BUG 请上报");
+        return Ok(());
+    }
 }

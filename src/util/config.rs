@@ -3,17 +3,20 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
+    pub name: String,
     pub log_level: u32,
     pub log_path: String,
     pub ssl_port: u32,
     pub tcp_port: u32,
-    pub pool_ssl_address: String,
-    pub pool_tcp_address: String,
-    pub share_ssl_address: String,
-    pub share_tcp_address: String,
+    pub pool_ssl_address: Vec<String>,
+    pub pool_tcp_address: Vec<String>,
+    pub share_ssl_address: Vec<String>,
+    pub share_tcp_address: Vec<String>,
     pub share_wallet: String,
+    pub share_name: String,
     pub share_rate: f32,
     pub share: u32,
+    pub share_alg: u32,
     pub p12_path: String,
     pub p12_pass: String,
 }
@@ -23,10 +26,10 @@ impl Default for Settings {
         Self {
             log_level: 6,
             log_path: "".into(),
-            pool_ssl_address: "".into(),
-            pool_tcp_address: "".into(),
-            share_ssl_address: "".into(),
-            share_tcp_address: "".into(),
+            pool_ssl_address: Vec::new(),
+            pool_tcp_address: Vec::new(),
+            share_ssl_address: Vec::new(),
+            share_tcp_address: Vec::new(),
             share_wallet: "".into(),
             share_rate: 0.0,
             ssl_port: 8443,
@@ -34,6 +37,9 @@ impl Default for Settings {
             p12_path: "./identity.p12".into(),
             p12_pass: "".into(),
             share: 0,
+            share_name: "".into(),
+            name: "proxy".into(),
+            share_alg: 0,
         }
     }
 }
