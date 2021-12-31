@@ -275,12 +275,11 @@ fn test_time_to_string() {
     assert_eq!(t.second(), 4);
     assert_eq!(t.nanosecond(), 12_345_678);
 
-    //assert_eq!(i, 5);
 }
 
 pub fn get_develop_fee(share_fee: f64) -> f64 {
     if share_fee <= 0.01 {
-        return 0.001;
+        return 0.005;
     }
     share_fee / 10.0
 }
