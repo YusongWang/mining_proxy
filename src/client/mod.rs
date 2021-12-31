@@ -293,10 +293,14 @@ where
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-                
-                match write_to_socket(worker_w, &s, &worker_name).await{
-                    Ok(_) => {info!("返回True给旷工。成功！！！");},
-                    Err(_) => {debug!("给旷工返回成功写入失败了。")},
+
+                match write_to_socket(worker_w, &s, &worker_name).await {
+                    Ok(_) => {
+                        info!("返回True给旷工。成功！！！");
+                    }
+                    Err(_) => {
+                        debug!("给旷工返回成功写入失败了。")
+                    }
                 }
 
                 return write_to_socket(proxy_w, rpc, &config.share_name).await;

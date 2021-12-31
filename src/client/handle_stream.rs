@@ -24,6 +24,8 @@ use crate::{
 };
 
 use super::write_to_socket;
+use rand::{distributions::Alphanumeric, Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 
 pub async fn handle_stream<R, W, R1, W1>(
     workers_queue: tokio::sync::mpsc::Sender<Worker>,
@@ -44,8 +46,7 @@ where
     W1: AsyncWrite,
 {
     let mut worker_name: String = String::new();
-    let mut is_takeover = false;
-    let mut state = 1;
+
     // if config.share != 0 {
     //     if config.share == 1 {
 
@@ -75,25 +76,32 @@ where
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let mut proxy_lines = proxy_r.lines();
+
+    let s: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(7)
+        .map(char::from)
+        .collect();
+
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![config.share_wallet.clone(), "x".into()],
-        worker: "".to_string(),
+        worker: s.to_string(),
     };
 
     write_to_socket(&mut proxy_w, &login, &worker_name).await;
 
-    // let pools = vec![
-    //     "47.242.58.242:8088".to_string(),
-    //     "47.242.58.242:8088".to_string(),
-    // ];
     let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
+        "47.242.58.242:8088".to_string(),
+        "47.242.58.242:8088".to_string(),
     ];
+    // let pools = vec![
+    //     "asia2.ethermine.org:4444".to_string(),
+    //     "asia1.ethermine.org:4444".to_string(),
+    //     "asia2.ethermine.org:14444".to_string(),
+    //     "asia1.ethermine.org:14444".to_string(),
+    // ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -110,11 +118,12 @@ where
     let mut develop_lines = develop_r.lines();
 
     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
+    let develop_name = s + "_develop";
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![develop_account.clone(), "x".into()],
-        worker: "".to_string(),
+        worker: develop_name.to_string(),
     };
 
     write_to_socket(&mut develop_w, &login, &worker_name).await;
