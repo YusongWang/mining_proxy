@@ -519,10 +519,11 @@ where
                         continue;
                     }
 
-                    #[cfg(debug_assertions)]
-                    debug!("收到抽水矿机发送 {}", buf);
+
 
                     if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+                        #[cfg(debug_assertions)]
+                        debug!("收到抽水矿机返回 {:?}", result_rpc);
                         if result_rpc.id == CLIENT_LOGIN {
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                         } else if result_rpc.id == CLIENT_GETWORK {
@@ -532,6 +533,8 @@ where
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到抽水矿机任务 {:?}", job_rpc);
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
@@ -605,10 +608,11 @@ where
                         continue;
                     }
 
-                    #[cfg(debug_assertions)]
-                    debug!("收到抽水矿机发送 {}", buf);
+
 
                     if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+                        #[cfg(debug_assertions)]
+                        debug!("收到开发者矿机返回 {:?}", result_rpc);
                         if result_rpc.id == CLIENT_LOGIN {
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                         } else if result_rpc.id == CLIENT_GETWORK {
@@ -618,6 +622,8 @@ where
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到开发者矿机任务 {:?}", job_rpc);
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
