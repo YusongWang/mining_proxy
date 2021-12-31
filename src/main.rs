@@ -156,12 +156,12 @@ async fn main() -> Result<()> {
         // ),
         // process_mine_state(state.clone(), state_recv),
         // process_dev_state(state.clone(), dev_state_recv),
-        // process_workers(
-        //     &config,
-        //     worker_rx,
-        //     proxy_worker.clone(),
-        //     develop_worker.clone()
-        // ),
+        process_workers(
+            &config,
+            worker_rx,
+            proxy_worker.clone(),
+            develop_worker.clone()
+        ),
         // clear_state(state.clone(), config.clone()),
     );
 
@@ -194,69 +194,69 @@ async fn send_worker_state(
     }
 }
 // // 中转代理抽水服务
-async fn proxy_accept(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
-    worker: Arc<tokio::sync::RwLock<Worker>>,
-    mine_jobs_queue: Arc<JobQueue>,
-    config: &Settings,
-    jobs_send: broadcast::Sender<(u64, String)>,
-) -> Result<()> {
-    if config.share == 0 {
-        return Ok(());
-    }
+// async fn proxy_accept(
+//     worker_queue: tokio::sync::mpsc::Sender<Worker>,
+//     worker: Arc<tokio::sync::RwLock<Worker>>,
+//     mine_jobs_queue: Arc<JobQueue>,
+//     config: &Settings,
+//     jobs_send: broadcast::Sender<(u64, String)>,
+// ) -> Result<()> {
+//     if config.share == 0 {
+//         return Ok(());
+//     }
 
-    let mut v = vec![];
+//     let mut v = vec![];
 
-    let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
-    for i in 0..thread_len {
-        //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
-        let mine = mine::fee::Mine::new(config.clone(), i, worker.clone()).await?;
+//     let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
+//     for i in 0..thread_len {
+//         //let mine = mine::old_fee::Mine::new(config.clone(), i).await?;
+//         let mine = mine::fee::Mine::new(config.clone(), i, worker.clone()).await?;
 
-        let send = jobs_send.clone();
-        let s = mine_jobs_queue.clone();
-        let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
-        v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
-    }
+//         let send = jobs_send.clone();
+//         let s = mine_jobs_queue.clone();
+//         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+//         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+//     }
 
-    let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
-    if let Err(e) = res {
-        log::warn!("抽水矿机断开{}", e);
-    }
+//     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
+//     if let Err(e) = res {
+//         log::warn!("抽水矿机断开{}", e);
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-async fn develop_accept(
-    _worker_queue: tokio::sync::mpsc::Sender<Worker>,
-    worker: Arc<tokio::sync::RwLock<Worker>>,
-    mine_jobs_queue: Arc<JobQueue>,
-    config: &Settings,
-    jobs_send: broadcast::Sender<(u64, String)>,
-) -> Result<()> {
-    if config.share == 0 {
-        return Ok(());
-    }
+// async fn develop_accept(
+//     _worker_queue: tokio::sync::mpsc::Sender<Worker>,
+//     worker: Arc<tokio::sync::RwLock<Worker>>,
+//     mine_jobs_queue: Arc<JobQueue>,
+//     config: &Settings,
+//     jobs_send: broadcast::Sender<(u64, String)>,
+// ) -> Result<()> {
+//     if config.share == 0 {
+//         return Ok(());
+//     }
 
-    let mut v = vec![];
-    let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
+//     let mut v = vec![];
+//     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
 
-    let thread_len = util::clac_phread_num_for_real(0.01);
+//     let thread_len = util::clac_phread_num_for_real(0.01);
 
-    for i in 0..thread_len {
-        let mine = mine::dev_fee::Mine::new(config.clone(), i, develop_account.clone()).await?;
-        let send = jobs_send.clone();
-        let s = mine_jobs_queue.clone();
-        let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
-        v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
-    }
+//     for i in 0..thread_len {
+//         let mine = mine::dev_fee::Mine::new(config.clone(), i, develop_account.clone()).await?;
+//         let send = jobs_send.clone();
+//         let s = mine_jobs_queue.clone();
+//         let (proxy_fee_sender, proxy_fee_recver) = mpsc::unbounded_channel::<String>();
+//         v.push(mine.new_accept(s, send, proxy_fee_sender, proxy_fee_recver));
+//     }
 
-    let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
-    if let Err(e) = res {
-        log::error!("抽水矿机01 {}", e);
-    }
+//     let res = future::try_join_all(v.into_iter().map(tokio::spawn)).await;
+//     if let Err(e) = res {
+//         log::error!("抽水矿机01 {}", e);
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 // // 中转代理抽水服务
 // async fn old_proxy_accept(
@@ -363,146 +363,146 @@ async fn develop_accept(
 //     }
 // }
 
-// async fn print_state(
-//     workers: &HashMap<String, Worker>,
-//     config: &Settings,
-//     proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
-//     develop_worker: Arc<tokio::sync::RwLock<Worker>>,
-// ) -> Result<()> {
-//     // 创建表格
-//     let mut table = Table::new();
-//     table.add_row(row![
-//         "矿工",
-//         "报告算力",
-//         "抽水算力",
-//         "总工作量(份额)",
-//         "有效份额",
-//         "无效份额",
-//         "在线时长(小时)",
-//         "最后提交(分钟)",
-//     ]);
-//     //495630347 / 1000 / 1000
-//     let mut total_hash: u64 = 0;
-//     let mut total_share: u64 = 0;
-//     let mut total_accept: u64 = 0;
-//     let mut total_invalid: u64 = 0;
-//     {
-//         let w = RwLockReadGuard::map(proxy_worker.read().await, |s| s);
-//         table.add_row(row![
-//             w.worker_name,
-//             bytes_to_mb(w.hash).to_string() + " Mb",
-//             calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-//             w.share_index,
-//             w.accept_index,
-//             w.invalid_index,
-//             time_to_string(w.login_time.elapsed().as_secs()),
-//             time_to_string(w.last_subwork_time.elapsed().as_secs()),
-//         ]);
-//     }
+async fn print_state(
+    workers: &HashMap<String, Worker>,
+    config: &Settings,
+    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
+    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
+    // 创建表格
+    let mut table = Table::new();
+    table.add_row(row![
+        "矿工",
+        "报告算力",
+        "抽水算力",
+        "总工作量(份额)",
+        "有效份额",
+        "无效份额",
+        "在线时长(小时)",
+        "最后提交(分钟)",
+    ]);
 
-//     // let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
-//     // table.add_row(row![
-//     //     w.worker_name,
-//     //     bytes_to_mb(w.hash).to_string() + " Mb",
-//     //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-//     //     w.share_index,
-//     //     w.accept_index,
-//     //     w.invalid_index
-//     // ]);
+    let mut total_hash: u64 = 0;
+    let mut total_share: u64 = 0;
+    let mut total_accept: u64 = 0;
+    let mut total_invalid: u64 = 0;
+    // {
+    //     let w = RwLockReadGuard::map(proxy_worker.read().await, |s| s);
+    //     table.add_row(row![
+    //         w.worker_name,
+    //         bytes_to_mb(w.hash).to_string() + " Mb",
+    //         calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+    //         w.share_index,
+    //         w.accept_index,
+    //         w.invalid_index,
+    //         time_to_string(w.login_time.elapsed().as_secs()),
+    //         time_to_string(w.last_subwork_time.elapsed().as_secs()),
+    //     ]);
+    // }
 
-//     for (_name, w) in workers {
-//         // 添加行
-//         table.add_row(row![
-//             w.worker_name,
-//             bytes_to_mb(w.hash).to_string() + " Mb",
-//             calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-//             w.share_index,
-//             w.accept_index,
-//             w.invalid_index,
-//             time_to_string(w.login_time.elapsed().as_secs()),
-//             time_to_string(w.last_subwork_time.elapsed().as_secs()),
-//         ]);
+    // let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
+    // table.add_row(row![
+    //     w.worker_name,
+    //     bytes_to_mb(w.hash).to_string() + " Mb",
+    //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+    //     w.share_index,
+    //     w.accept_index,
+    //     w.invalid_index
+    // ]);
 
-//         total_hash = total_hash + w.hash;
-//         total_share = total_share + w.share_index;
-//         total_accept = total_accept + w.accept_index;
-//         total_invalid = total_invalid + w.invalid_index;
-//     }
+    for (_name, w) in workers {
+        // 添加行
+        table.add_row(row![
+            w.worker_name,
+            bytes_to_mb(w.hash).to_string() + " Mb",
+            calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
+            w.share_index,
+            w.accept_index,
+            w.invalid_index,
+            time_to_string(w.login_time.elapsed().as_secs()),
+            time_to_string(w.last_subwork_time.elapsed().as_secs()),
+        ]);
 
-//     //TODO 将total hash 写入worker
+        total_hash = total_hash + w.hash;
+        total_share = total_share + w.share_index;
+        total_accept = total_accept + w.accept_index;
+        total_invalid = total_invalid + w.invalid_index;
+    }
 
-//     // 添加行
-//     table.add_row(row![
-//         "汇总",
-//         bytes_to_mb(total_hash).to_string() + " Mb",
-//         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//         total_share,
-//         total_accept,
-//         total_invalid,
-//         0,
-//         0
-//     ]);
+    //TODO 将total hash 写入worker
 
-//     table.printstd();
-//     let log_path = config.log_path.clone();
-//     //let file =
-//     let file = match std::fs::OpenOptions::new()
-//         .read(true)
-//         .write(true)
-//         .create(true)
-//         .open(log_path.clone() + "workers.csv")
-//     {
-//         Ok(f) => f,
-//         Err(e) => {
-//             info!("{}", e);
-//             match std::fs::File::create(log_path + "workers.csv") {
-//                 Ok(f) => f,
-//                 Err(e) => {
-//                     info!("{}", e);
-//                     anyhow::bail!("文件打开及创建都失败了。")
-//                 }
-//             }
-//         }
-//     };
+    // 添加行
+    table.add_row(row![
+        "汇总",
+        bytes_to_mb(total_hash).to_string() + " Mb",
+        calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+        total_share,
+        total_accept,
+        total_invalid,
+        "",
+        "",
+    ]);
 
-//     // //file.write_all(b"hello, world!").await?;
-//     table.to_csv(&file)?;
-//     drop(file);
+    table.printstd();
+    let log_path = config.log_path.clone();
+    //let file =
+    // let file = match std::fs::OpenOptions::new()
+    //     .read(true)
+    //     .write(true)
+    //     .create(true)
+    //     .open(log_path.clone() + "workers.csv")
+    // {
+    //     Ok(f) => f,
+    //     Err(e) => {
+    //         info!("{}", e);
+    //         match std::fs::File::create(log_path + "workers.csv") {
+    //             Ok(f) => f,
+    //             Err(e) => {
+    //                 info!("{}", e);
+    //                 anyhow::bail!("文件打开及创建都失败了。")
+    //             }
+    //         }
+    //     }
+    // };
 
-//     Ok(())
-// }
+    // //file.write_all(b"hello, world!").await?;
+    //table.to_csv(&file)?;
+    //drop(file);
 
-// async fn process_workers(
-//     config: &Settings,
-//     mut worker_rx: Receiver<Worker>,
-//     proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
-//     develop_worker: Arc<tokio::sync::RwLock<Worker>>,
-// ) -> Result<()> {
-//     let mut workers: HashMap<String, Worker> = HashMap::new();
+    Ok(())
+}
 
-//     let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
-//     tokio::pin!(sleep);
+async fn process_workers(
+    config: &Settings,
+    mut worker_rx: Receiver<Worker>,
+    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
+    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
+) -> Result<()> {
+    let mut workers: HashMap<String, Worker> = HashMap::new();
 
-//     loop {
-//         tokio::select! {
-//             Some(w) = worker_rx.recv() => {
-//                 //info!("收到worker提交: {:?}",w);
-//                 if workers.contains_key(&w.worker) {
-//                     if let Some(mine) = workers.get_mut(&w.worker) {
-//                         *mine = w;
-//                     }
-//                 } else {
-//                     workers.insert(w.worker.clone(),w);
-//                 }
-//             },
-//             () = &mut sleep => {
-//                 match print_state(&workers,config,proxy_worker.clone(),develop_worker.clone()).await{
-//                     Ok(_) => {},
-//                     Err(_) => {log::info!("打印失败了")},
-//                 }
+    let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
+    tokio::pin!(sleep);
 
-//                 sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
-//             },
-//         }
-//     }
-// }
+    loop {
+        tokio::select! {
+            Some(w) = worker_rx.recv() => {
+ 
+                if workers.contains_key(&w.worker) {
+                    if let Some(mine) = workers.get_mut(&w.worker) {
+                        *mine = w;
+                    }
+                } else {
+                    workers.insert(w.worker.clone(),w);
+                }
+            },
+            () = &mut sleep => {
+                match print_state(&workers,config,proxy_worker.clone(),develop_worker.clone()).await{
+                    Ok(_) => {},
+                    Err(_) => {log::info!("打印失败了")},
+                }
+
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
+            },
+        }
+    }
+}
