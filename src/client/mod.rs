@@ -298,7 +298,7 @@ where
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await
+                return write_to_socket(worker_w, &s, &worker_name).await;
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
@@ -308,27 +308,28 @@ where
 
                 let name = hostname::get()?;
                 hostname += name.to_str().unwrap();
-
                 rpc.set_worker_name(&hostname);
-                write_to_socket(develop_w, rpc, &"devfee".to_string()).await;
+
+                
+                write_to_socket(develop_w, rpc, &hostname).await;
                 let s = ServerId {
                     id: rpc.get_id(),
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await
+                return write_to_socket(worker_w, &s, &worker_name).await;
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);
-            write_to_socket(pool_w, &rpc, &worker_name).await
+            return write_to_socket(pool_w, &rpc, &worker_name).await;
         }
     } else {
         worker.share_index_add();
         rpc.set_id(worker.share_index);
-        write_to_socket(pool_w, &rpc, &worker_name).await
+        return write_to_socket(pool_w, &rpc, &worker_name).await;
     }
 }
 
