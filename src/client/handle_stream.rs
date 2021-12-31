@@ -326,11 +326,12 @@ where
                                 // }
 
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                    Ok(_) => {},
+                                    Ok(_) => {
+                                        
+                                        info!("写入成功开发者抽水任务 {:?}",job_rpc);
+                                                                        },
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                               };
-
-
                             }
 
                             if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
@@ -340,7 +341,9 @@ where
                                 //     }
                                 // }
                                                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
+                                      Ok(_) => {
+                                        info!("写入成功抽水任务 {:?}",job_rpc);
+                                      },
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                                 continue;
@@ -350,8 +353,8 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                      Ok(_) => {info!("写入成功正常任务 {:?}",job_rpc);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                             }
@@ -361,12 +364,12 @@ where
                                     job_rpc.id = rpc_id ;
                                 }
                             }
-                                                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
+                            };
                         }
-                        info!("当前任务发送人 {}",state);
+
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
@@ -389,7 +392,7 @@ where
                                     }
                                 }
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
+                                      Ok(_) => {info!("写入成功开发者抽水任务 {:?}",job_rpc);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
 
@@ -402,7 +405,7 @@ where
                                     }
                                 }
                                                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
+                                      Ok(_) => {info!("写入成功抽水任务 {:?}",job_rpc);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                                 continue;
@@ -413,7 +416,7 @@ where
                                     }
                                 }
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
+                                      Ok(_) => {info!("写入成功正常任务 {:?}",job_rpc);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                             }
@@ -552,6 +555,8 @@ where
 
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        #[cfg(debug_assertions)]
+                        debug!("收到抽水矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
 
                         if diff > job_diff {
@@ -565,6 +570,8 @@ where
                             }
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到抽水矿机任务 {:?}", job_rpc);
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
@@ -640,6 +647,8 @@ where
                         }
 
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到开发者矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
                         if diff > job_diff {
                             job_diff = diff;
@@ -651,6 +660,8 @@ where
                             }
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到开发者矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
 
                         if diff > job_diff {
