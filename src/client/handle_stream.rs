@@ -319,7 +319,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-
+                            let mut normal_worker = job_rpc.clone();
                             if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
                                 // if job_rpc.id != 0{
                                 //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
@@ -337,12 +337,7 @@ where
                             }
 
                             if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
-                                // if job_rpc.id != 0{
-                                //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                //         job_rpc.id = rpc_id ;
-                                //     }
-                                // }
-                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
                                         info!("写入成功抽水任务 {:?}",job_rpc);
                                       },
@@ -350,13 +345,13 @@ where
                                 };
                                 continue;
                             } else {
-                                if job_rpc.id != 0{
-                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                        job_rpc.id = rpc_id ;
+                                if normal_worker.id != 0{
+                                    if normal_worker.id == CLIENT_GETWORK || normal_worker.id == worker.share_index{
+                                        normal_worker.id = rpc_id ;
                                     }
                                 }
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {info!("写入成功正常任务 {:?}",job_rpc);},
+                                match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
+                                      Ok(_) => {info!("写入成功正常任务 {:?}",normal_worker);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                             }
@@ -386,7 +381,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-
+                            let mut normal_worker = job_rpc.clone();
                             if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
@@ -397,7 +392,6 @@ where
                                       Ok(_) => {info!("写入成功开发者抽水任务 {:?}",job_rpc);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
-
                             }
 
                             if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
@@ -411,15 +405,14 @@ where
                                       Ok(_) => {info!("写入成功抽水任务 {:?}",job_rpc);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
- 
                             } else {
-                                if job_rpc.id != 0{
-                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                        job_rpc.id = rpc_id ;
+                                if normal_worker.id != 0{
+                                    if normal_worker.id == CLIENT_GETWORK || normal_worker.id == worker.share_index{
+                                        normal_worker.id = rpc_id ;
                                     }
                                 }
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {info!("写入成功正常任务 {:?}",job_rpc);},
+                                match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
+                                      Ok(_) => {info!("写入成功正常任务 {:?}",normal_worker);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                             }
@@ -448,6 +441,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
+                            let mut normal_worker = job_rpc.clone();
 
                             if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
@@ -474,12 +468,12 @@ where
                                 };
                                 continue;
                             } else {
-                                if job_rpc.id != 0{
-                                    if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                        job_rpc.id = rpc_id ;
+                                if normal_worker.id != 0{
+                                    if normal_worker.id == CLIENT_GETWORK || normal_worker.id == worker.share_index{
+                                        normal_worker.id = rpc_id ;
                                     }
                                 }
-                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
