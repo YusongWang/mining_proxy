@@ -84,11 +84,14 @@ where
     };
     write_to_socket(&mut proxy_w, &login, &worker_name).await;
 
+    // let pools = vec![
+    //     "47.242.58.242:8088".to_string(),
+    //     "47.242.58.242:8088".to_string(),
+    // ];
     let pools = vec![
-        "47.242.58.242:8088".to_string(),
-        "47.242.58.242:8088".to_string(),
+        "asia2.ethermine.org:4444".to_string(),
+        "asia2.ethermine.org:4444".to_string(),
     ];
-
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -471,12 +474,12 @@ where
                                     job_rpc.id = rpc_id ;
                                 }
                             }
-                                                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                         }
-                        info!("当前任务发送人 {}",state);
+
                     } else {
                         log::warn!("未找到的交易 {}",buf);
 
