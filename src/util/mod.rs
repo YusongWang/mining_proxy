@@ -274,7 +274,6 @@ fn test_time_to_string() {
     assert_eq!(t.minute(), 56);
     assert_eq!(t.second(), 4);
     assert_eq!(t.nanosecond(), 12_345_678);
-
 }
 
 pub fn get_develop_fee(share_fee: f64) -> f64 {

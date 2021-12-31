@@ -486,7 +486,7 @@ async fn process_workers(
     loop {
         tokio::select! {
             Some(w) = worker_rx.recv() => {
- 
+
                 if workers.contains_key(&w.worker) {
                     if let Some(mine) = workers.get_mut(&w.worker) {
                         *mine = w;

@@ -329,7 +329,7 @@ where
 
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {
-                                        
+
                                         info!("写入成功开发者抽水任务 {:?}",job_rpc);
                                                                         },
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
@@ -406,11 +406,12 @@ where
                                         job_rpc.id = rpc_id ;
                                     }
                                 }
-                                                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {info!("写入成功抽水任务 {:?}",job_rpc);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
-                                continue;
+ 
                             } else {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{

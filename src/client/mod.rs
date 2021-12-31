@@ -174,6 +174,7 @@ where
         worker,
         String::from_utf8(rpc.to_vec())?
     );
+
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
         info!("✅ Worker: {} 写入失败.", worker);
@@ -264,7 +265,7 @@ async fn eth_submitWork<W, W1, W2, T>(
     worker_name: &String,
     mine_send_jobs: &mut HashMap<String, (u64, u64)>,
     develop_send_jobs: &mut HashMap<String, (u64, u64)>,
-//    already_send_jobs: &mut HashMap<String, (u64, u64)>,
+    //    already_send_jobs: &mut HashMap<String, (u64, u64)>,
     config: &Settings,
 ) -> Result<()>
 where
@@ -273,8 +274,6 @@ where
     W2: AsyncWrite,
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
-    
-
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
@@ -294,7 +293,11 @@ where
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await;
+                
+                match write_to_socket(worker_w, &s, &worker_name).await{
+                    Ok(_) => {info!("返回True给旷工。成功！！！");},
+                    Err(_) => {debug!("给旷工返回成功写入失败了。")},
+                }
 
                 return write_to_socket(proxy_w, rpc, &config.share_name).await;
             } else {
@@ -313,7 +316,7 @@ where
                     result: true,
                 };
                 write_to_socket(worker_w, &s, &worker_name).await;
-                
+
                 return write_to_socket(develop_w, rpc, &hostname).await;
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
@@ -417,7 +420,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee(pool_job_idx, get_develop_fee(config.share_rate.into())) {
+    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into())) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
@@ -427,7 +430,7 @@ where
             job_rpc.set_result(mine_send_job.1);
             if let None = send_jobs.insert(mine_send_job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
                 return Some(());
             } else {
                 #[cfg(debug_assertions)]
@@ -435,6 +438,8 @@ where
                 None
             }
         } else {
+            #[cfg(debug_assertions)]
+            debug!("!!!!没有开发者抽水任务了。");
             None
         }
     } else {
