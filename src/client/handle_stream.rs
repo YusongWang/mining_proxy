@@ -293,10 +293,11 @@ where
                             //info!("份额被接受.");
                             worker.share_accept();
                         } else if result_rpc.result {
-                            log::warn!("份额被接受，但是索引乱了.要上报给开发者");
+                            log::warn!("份额被接受，但是索引乱了.要上报给开发者 {:?}",result_rpc);
                             worker.share_accept();
                         } else {
                             worker.share_reject();
+                            log::warn!("拒绝原因 {:?}",result_rpc);
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
 
