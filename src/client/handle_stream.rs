@@ -326,9 +326,11 @@ where
                                     Ok(_) => {},
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                               };
-                                continue;
 
-                            }else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+
+                            }
+
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 // if job_rpc.id != 0{
                                 //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                 //         job_rpc.id = rpc_id ;
@@ -387,8 +389,10 @@ where
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
-                                continue;
-                            } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+
+                            }
+
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                         job_rpc.id = rpc_id ;
@@ -447,7 +451,9 @@ where
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
-                            } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                            }
+
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 if job_rpc.id != 0{
                                     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                         job_rpc.id = rpc_id ;
