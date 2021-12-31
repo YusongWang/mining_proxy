@@ -264,6 +264,7 @@ async fn eth_submitWork<W, W1, W2, T>(
     worker_name: &String,
     mine_send_jobs: &mut HashMap<String, (u64, u64)>,
     develop_send_jobs: &mut HashMap<String, (u64, u64)>,
+//    already_send_jobs: &mut HashMap<String, (u64, u64)>,
     config: &Settings,
 ) -> Result<()>
 where
@@ -288,17 +289,14 @@ where
                 }
 
                 rpc.set_worker_name(&hostname);
-
-                // proxy_fee_sender
-                //     .send((thread_id.0, rpc_string))
-                //     .expect("可以提交给矿池任务失败。通道异常了");
-                write_to_socket(proxy_w, rpc, &config.share_name).await;
                 let s = ServerId {
                     id: rpc.get_id(),
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-                return write_to_socket(worker_w, &s, &worker_name).await;
+                write_to_socket(worker_w, &s, &worker_name).await;
+
+                return write_to_socket(proxy_w, rpc, &config.share_name).await;
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
@@ -309,18 +307,19 @@ where
                 let name = hostname::get()?;
                 hostname += name.to_str().unwrap();
                 rpc.set_worker_name(&hostname);
-
-                
-                write_to_socket(develop_w, rpc, &hostname).await;
                 let s = ServerId {
                     id: rpc.get_id(),
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-                return write_to_socket(worker_w, &s, &worker_name).await;
+                write_to_socket(worker_w, &s, &worker_name).await;
+                
+                return write_to_socket(develop_w, rpc, &hostname).await;
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
+        // } else if already_send_jobs.contains_key(&job_id){
+        //     return Ok(());
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);

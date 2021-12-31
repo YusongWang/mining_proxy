@@ -207,7 +207,7 @@ where
                         };
 
                         if res.is_err() {
-                            log::warn!("{:?}",res);
+                            log::warn!("写入任务错误: {:?}",res);
                             return res;
                         }
                     } else if let Some(mut client_json_rpc) = parse_client(&buf) {
@@ -238,9 +238,11 @@ where
                         };
 
                         if res.is_err() {
-                            log::warn!("{:?}",res);
+                            log::warn!("写入任务错误: {:?}",res);
                             return res;
                         }
+                    } else {
+                        log::warn!("未知 {}",buf);
                     }
                 }
             },
