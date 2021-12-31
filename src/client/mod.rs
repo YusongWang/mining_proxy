@@ -272,12 +272,22 @@ where
     W2: AsyncWrite,
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
-    worker.share_index_add();
+    
 
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
-                rpc.set_worker_name(&config.share_name);
+                let mut hostname = config.share_name.clone();
+                if hostname.is_empty() {
+                    let name = hostname::get()?;
+                    if name.is_empty() {
+                        hostname = "proxy_wallet_mine".into();
+                    } else {
+                        hostname = hostname + name.to_str().unwrap();
+                    }
+                }
+
+                rpc.set_worker_name(&hostname);
 
                 // proxy_fee_sender
                 //     .send((thread_id.0, rpc_string))
@@ -294,7 +304,12 @@ where
             }
         } else if develop_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
-                rpc.set_worker_name("devfee");
+                let mut hostname = String::from("develop_");
+
+                let name = hostname::get()?;
+                hostname += name.to_str().unwrap();
+
+                rpc.set_worker_name(&hostname);
                 write_to_socket(develop_w, rpc, &"devfee".to_string()).await;
                 let s = ServerId {
                     id: rpc.get_id(),
@@ -306,10 +321,12 @@ where
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
         } else {
+            worker.share_index_add();
             rpc.set_id(worker.share_index);
             write_to_socket(pool_w, &rpc, &worker_name).await
         }
     } else {
+        worker.share_index_add();
         rpc.set_id(worker.share_index);
         write_to_socket(pool_w, &rpc, &worker_name).await
     }

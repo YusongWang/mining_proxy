@@ -72,7 +72,6 @@ where
     };
 
     let outbound = TcpStream::from_std(stream)?;
-
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let mut proxy_lines = proxy_r.lines();
@@ -80,8 +79,9 @@ where
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![config.share_wallet.clone(), "x".into()],
-        worker: worker_name.to_string(),
+        worker: "".to_string(),
     };
+
     write_to_socket(&mut proxy_w, &login, &worker_name).await;
 
     // let pools = vec![
@@ -90,7 +90,9 @@ where
     // ];
     let pools = vec![
         "asia2.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:4444".to_string(),
+        "asia1.ethermine.org:4444".to_string(),
+        "asia2.ethermine.org:14444".to_string(),
+        "asia1.ethermine.org:14444".to_string(),
     ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
@@ -112,7 +114,7 @@ where
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![develop_account.clone(), "x".into()],
-        worker: "devfee".to_string(),
+        worker: "".to_string(),
     };
 
     write_to_socket(&mut develop_w, &login, &worker_name).await;
