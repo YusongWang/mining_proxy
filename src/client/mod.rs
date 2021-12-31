@@ -362,7 +362,7 @@ async fn fee_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::fee(pool_job_idx, &config, config.share_rate.into()) {
+    if crate::util::is_fee(pool_job_idx, config.share_rate.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
 
@@ -400,7 +400,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into())) {
+    if crate::util::is_fee(pool_job_idx, get_develop_fee(config.share_rate.into())) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;

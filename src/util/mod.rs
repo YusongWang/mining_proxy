@@ -228,7 +228,7 @@ fn test_fee() {
         }
     }
 }
-#[test] 
+#[test]
 fn test_is_fee_random() {
     let mut i = 0;
     for _ in 0..1000 {
@@ -288,6 +288,9 @@ pub fn get_develop_fee(share_fee: f64) -> f64 {
 #[test]
 fn test_get_develop_fee() {
     assert_eq!(get_develop_fee(0.01), 0.001);
+    assert_eq!(get_develop_fee(0.001), 0.001);
+    assert_eq!(get_develop_fee(0.004), 0.001);
+    assert_eq!(get_develop_fee(0.0001), 0.001);
     assert_eq!(get_develop_fee(0.10), 0.01);
     assert_eq!(get_develop_fee(1.0), 0.10);
 }

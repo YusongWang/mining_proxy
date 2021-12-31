@@ -92,6 +92,7 @@ where
         "asia2.ethermine.org:4444".to_string(),
         "asia2.ethermine.org:4444".to_string(),
     ];
+
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
