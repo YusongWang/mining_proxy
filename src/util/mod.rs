@@ -230,11 +230,11 @@ fn test_fee() {
 
     //assert_eq!(i,5);
 }
-#[test]
+#[test] 
 fn test_is_fee_random() {
     let mut i = 0;
     for _ in 0..1000 {
-        if is_fee_random(0.005) {
+        if is_fee_random(0.5) {
             i += 1;
         }
     }
