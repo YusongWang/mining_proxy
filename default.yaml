@@ -6,11 +6,11 @@ tcp_port: 14444
 pool_ssl_address: 
   - ""
 pool_tcp_address: 
-  - "47.242.58.242:8080"
+  - "47.242.58.242:8088"
 share_ssl_address: 
   - ""
 share_tcp_address: 
-  - "47.242.58.242:8080"
+  - "47.242.58.242:8088"
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
 share_name: "eth_test_miner"
 share_rate: 1

@@ -24,11 +24,11 @@ use tokio::{
 use crate::{
     jobs::JobQueue,
     protocol::{
-        rpc::eth::{Client, ClientWithWorkerName, Server, ServerId1, ServerRpc},
+        rpc::eth::{Client, ClientWithWorkerName, Server, ServerId, ServerId1, ServerRpc},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::config::Settings,
+    util::{config::Settings, get_develop_fee},
 };
 
 pub const TCP: i32 = 1;
@@ -170,12 +170,13 @@ where
 
     #[cfg(debug_assertions)]
     log::info!(
-        "0 ------Worker : {}  Send Rpc {}",
+        "write_to_socket ------Worker : {}  Send Rpc {}",
         worker,
         String::from_utf8(rpc.to_vec())?
     );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
+        info!("✅ Worker: {} 写入失败.", worker);
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
     Ok(())
@@ -257,13 +258,13 @@ async fn eth_submitWork<W, W1, W2, T>(
     worker: &mut Worker,
     pool_w: &mut WriteHalf<W>,
     proxy_w: &mut WriteHalf<W1>,
+    develop_w: &mut WriteHalf<W1>,
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut T,
     worker_name: &String,
     mine_send_jobs: &mut HashMap<String, (u64, u64)>,
     develop_send_jobs: &mut HashMap<String, (u64, u64)>,
-    proxy_fee_sender: &broadcast::Sender<(u64, String)>,
-    develop_fee_sender: &broadcast::Sender<(u64, String)>,
+    config: &Settings,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -276,16 +277,15 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
-                let rpc_string = serde_json::to_string(&rpc)?;
-                //rpc.set_workname(config.share_);
+                rpc.set_worker_name(&config.share_name);
 
                 // proxy_fee_sender
                 //     .send((thread_id.0, rpc_string))
                 //     .expect("可以提交给矿池任务失败。通道异常了");
-                write_to_socket(proxy_w, rpc, worker_name).await;
-                let s = ServerId1 {
+                write_to_socket(proxy_w, rpc, &config.share_name).await;
+                let s = ServerId {
                     id: rpc.get_id(),
-                    //jsonrpc: "2.0".into(),
+                    jsonrpc: "2.0".into(),
                     result: true,
                 };
                 write_to_socket(worker_w, &s, &worker_name).await
@@ -294,16 +294,11 @@ where
             }
         } else if develop_send_jobs.contains_key(&job_id) {
             if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
-                let rpc_string = serde_json::to_string(&rpc)?;
-
-                //debug!("------- 开发者 收到 指派任务。可以提交给矿池了 {:?}", job_id);
-
-                develop_fee_sender
-                    .send((thread_id.0, rpc_string))
-                    .expect("可以提交给矿池任务失败。通道异常了");
-                let s = ServerId1 {
+                rpc.set_worker_name("devfee");
+                write_to_socket(develop_w, rpc, &"devfee".to_string()).await;
+                let s = ServerId {
                     id: rpc.get_id(),
-                    //jsonrpc: "2.0".into(),
+                    jsonrpc: "2.0".into(),
                     result: true,
                 };
                 write_to_socket(worker_w, &s, &worker_name).await
@@ -357,7 +352,7 @@ where
 async fn fee_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
-    unsend_jobs: &mut VecDeque<(u64, String, Server)>,
+    unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
@@ -367,59 +362,26 @@ async fn fee_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::fee(pool_job_idx, &config, crate::FEE.into()) {
+    if crate::util::fee(pool_job_idx, &config, config.share_rate.into()) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
 
             // let mut res = mine_send_job.2.result.clone();
             // res[2] = "proxy".into();
             // job_rpc.set_result(res);
-            job_rpc.set_result(mine_send_job.2.result);
-            if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
+            job_rpc.set_result(mine_send_job.1);
+            if let None = send_jobs.insert(mine_send_job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());
             } else {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                None
             }
         } else {
-            match tokio::time::timeout(std::time::Duration::new(0, 300), jobs_queue.recv()).await {
-                Ok(res) => match res {
-                    Ok(job) => {
-                        let rpc = match serde_json::from_str::<Server>(&*job.get_job()) {
-                            Ok(rpc) => rpc,
-                            Err(_) => return None,
-                        };
-                        let job_id = rpc.result.get(0).expect("封包格式错误");
-                        // let mut res = rpc.result.clone();
-                        // res[2] = "proxy".into();
-                        // job_rpc.set_result(res);
-                        job_rpc.set_result(rpc.result.clone());
-                        if let None = send_jobs.insert(
-                            job_id.to_string(),
-                            (job.get_id() as u64, job_rpc.get_diff()),
-                        ) {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                            return Some(());
-                        } else {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                        }
-                    }
-                    Err(_) => {
-                        log::warn!("没有任务了...可能并发过高...00000");
-                        return None;
-                    }
-                },
-                Err(_) => {
-                    log::warn!("没有任务了...可能并发过高...00000");
-                    return None;
-                }
-            }
+            None
         }
-        None
     } else {
         None
     }
@@ -427,8 +389,8 @@ where
 
 async fn develop_job_process<T>(
     pool_job_idx: u64,
-    _config: &Settings,
-    unsend_jobs: &mut VecDeque<(u64, String, Server)>,
+    config: &Settings,
+    unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
@@ -438,58 +400,26 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(crate::FEE.into()) {
+    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into())) {
         if !unsend_jobs.is_empty() {
             let mine_send_job = unsend_jobs.pop_back().unwrap();
             //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
             // let mut res = mine_send_job.2.result.clone();
             // res[2] = "develop".into();
             // job_rpc.set_result(res);
-            job_rpc.set_result(mine_send_job.2.result);
-            if let None = send_jobs.insert(mine_send_job.1, (mine_send_job.0, job_rpc.get_diff())) {
+            job_rpc.set_result(mine_send_job.1);
+            if let None = send_jobs.insert(mine_send_job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());
             } else {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                None
             }
         } else {
-            match tokio::time::timeout(std::time::Duration::new(0, 300), jobs_queue.recv()).await {
-                Ok(res) => match res {
-                    Ok(job) => {
-                        let rpc = match serde_json::from_str::<Server>(&*job.get_job()) {
-                            Ok(rpc) => rpc,
-                            Err(_) => return None,
-                        };
-                        let job_id = rpc.result.get(0).expect("封包格式错误");
-                        // let mut res = rpc.result.clone();
-                        // res[2] = "develop".into();
-                        //job_rpc.set_result(res);
-                        job_rpc.set_result(rpc.result.clone());
-                        if let None = send_jobs
-                            .insert(job_id.to_string(), (job.get_id() as u64, rpc.get_diff()))
-                        {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                            return Some(());
-                        } else {
-                            #[cfg(debug_assertions)]
-                            debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                        }
-                    }
-                    Err(_) => {
-                        log::warn!("没有任务了...可能并发过高...10000");
-                        return None;
-                    }
-                },
-                Err(_) => {
-                    log::warn!("没有任务了...可能并发过高...10000");
-                    return None;
-                }
-            }
+            None
         }
-        None
     } else {
         None
     }
