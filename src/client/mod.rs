@@ -379,6 +379,7 @@ async fn fee_job_process<T>(
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     mine_send_jobs: &mut HashMap<String, (u64, u64)>,
+    normal_send_jobs: &mut HashMap<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -395,7 +396,9 @@ where
                         if mine_send_jobs.contains_key(&job.0) {
                             continue;
                         }
-
+                        if normal_send_jobs.contains_key(&job.0) {
+                            continue;
+                        }
                         break Some(job);
                     }
                     None => break None,
@@ -430,6 +433,7 @@ async fn develop_job_process<T>(
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
     mine_send_jobs: &mut HashMap<String, (u64, u64)>,
+    normal_send_jobs: &mut HashMap<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -446,7 +450,9 @@ where
                         if mine_send_jobs.contains_key(&job.0) {
                             continue;
                         }
-
+                        if normal_send_jobs.contains_key(&job.0) {
+                            continue;
+                        }
                         break Some(job);
                     }
                     None => break None,
