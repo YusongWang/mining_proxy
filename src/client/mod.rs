@@ -302,7 +302,7 @@ where
                         debug!("给旷工返回成功写入失败了。")
                     }
                 }
-
+                info!("提交抽水任务!");
                 return write_to_socket(proxy_w, rpc, &config.share_name).await;
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
@@ -319,8 +319,16 @@ where
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-                write_to_socket(worker_w, &s, &worker_name).await;
+                match write_to_socket(worker_w, &s, &worker_name).await {
+                    Ok(_) => {
+                        info!("返回True给旷工。成功！！！");
+                    }
+                    Err(_) => {
+                        debug!("给旷工返回成功写入失败了。")
+                    }
+                }
 
+                info!("提交开发者任务!");
                 return write_to_socket(develop_w, rpc, &hostname).await;
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
@@ -420,6 +428,8 @@ where
                 None
             }
         } else {
+            #[cfg(debug_assertions)]
+            debug!("!!!!没有抽水任务了。");
             None
         }
     } else {

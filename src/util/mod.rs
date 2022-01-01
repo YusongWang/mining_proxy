@@ -277,7 +277,7 @@ fn test_time_to_string() {
 }
 
 pub fn get_develop_fee(share_fee: f64) -> f64 {
-    if share_fee <= 0.01 {
+    if share_fee <= 0.05 {
         return 0.005;
     }
     share_fee / 10.0
