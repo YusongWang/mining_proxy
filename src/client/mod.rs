@@ -294,7 +294,9 @@ where
                     jsonrpc: "2.0".into(),
                     result: true,
                 };
-
+                #[cfg(debug_assertions)]
+                info!("提交抽水任务!");
+                write_to_socket(proxy_w, rpc, &config.share_name).await;
                 match write_to_socket(worker_w, &s, &worker_name).await {
                     Ok(_) => {
                         #[cfg(debug_assertions)]
@@ -305,9 +307,8 @@ where
                         debug!("给旷工返回成功写入失败了。")
                     }
                 }
-                #[cfg(debug_assertions)]
-                info!("提交抽水任务!");
-                return write_to_socket(proxy_w, rpc, &config.share_name).await;
+                return Ok(());
+                
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
@@ -318,6 +319,12 @@ where
                 let name = hostname::get()?;
                 hostname += name.to_str().unwrap();
                 rpc.set_worker_name(&hostname);
+                #[cfg(debug_assertions)]
+                info!("提交开发者任务!");
+                write_to_socket(develop_w, rpc, &hostname).await;
+
+
+
                 let s = ServerId {
                     id: rpc.get_id(),
                     jsonrpc: "2.0".into(),
@@ -333,10 +340,8 @@ where
                         debug!("给旷工返回成功写入失败了。")
                     }
                 }
-                
-                #[cfg(debug_assertions)]
-                info!("提交开发者任务!");
-                return write_to_socket(develop_w, rpc, &hostname).await;
+
+                return Ok(());
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }

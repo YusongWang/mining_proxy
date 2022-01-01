@@ -26,7 +26,6 @@ use tokio::{
 
 mod client;
 mod jobs;
-mod mine;
 mod protocol;
 mod state;
 mod util;
