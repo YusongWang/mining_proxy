@@ -405,7 +405,17 @@ where
                             continue;
                         }
                         if normal_send_jobs.contains_key(&job.0) {
-                            continue;
+                            //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
+                            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
+                                #[cfg(debug_assertions)]
+                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
+                                //return Some(());
+                                return None;
+                            } else {
+                                #[cfg(debug_assertions)]
+                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                                return None
+                            }
                         }
                         break Some(job);
                     }
@@ -461,7 +471,18 @@ where
                             continue;
                         }
                         if normal_send_jobs.contains_key(&job.0) {
-                            continue;
+                            
+                            //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
+                            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
+                                #[cfg(debug_assertions)]
+                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
+                                //return Some(());
+                                return None;
+                            } else {
+                                #[cfg(debug_assertions)]
+                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                                return None
+                            }
                         }
                         break Some(job);
                     }
