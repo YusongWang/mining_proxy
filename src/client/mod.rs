@@ -297,12 +297,15 @@ where
 
                 match write_to_socket(worker_w, &s, &worker_name).await {
                     Ok(_) => {
+                        #[cfg(debug_assertions)]
                         info!("返回True给旷工。成功！！！");
                     }
                     Err(_) => {
+                        #[cfg(debug_assertions)]
                         debug!("给旷工返回成功写入失败了。")
                     }
                 }
+                #[cfg(debug_assertions)]
                 info!("提交抽水任务!");
                 return write_to_socket(proxy_w, rpc, &config.share_name).await;
             } else {
@@ -322,13 +325,16 @@ where
                 };
                 match write_to_socket(worker_w, &s, &worker_name).await {
                     Ok(_) => {
+                        #[cfg(debug_assertions)]
                         info!("返回True给旷工。成功！！！");
                     }
                     Err(_) => {
+                        #[cfg(debug_assertions)]
                         debug!("给旷工返回成功写入失败了。")
                     }
                 }
-
+                
+                #[cfg(debug_assertions)]
                 info!("提交开发者任务!");
                 return write_to_socket(develop_w, rpc, &hostname).await;
             } else {
