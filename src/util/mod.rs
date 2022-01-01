@@ -28,7 +28,29 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
             .short("c")
             .long("config")
             .value_name("FILE")
-            .help("Sets a custom config file")
+            .help("指定配置文件路径 默认 ./default.yaml")
+            .takes_value(true),
+        
+    )
+    .arg(
+        Arg::with_name("mode")
+            .short("m")
+            .long("mode")
+            .help("指定运行模式 server 服务端模式 client 客户端模式")
+            .takes_value(true),
+    )
+    .arg(
+        Arg::with_name("key")
+            .short("k")
+            .long("key")
+            .help("指定加密秘钥")
+            .takes_value(true),
+    )
+    .arg(
+        Arg::with_name("iv")
+            .short("i")
+            .long("iv")
+            .help("指定向量")
             .takes_value(true),
     )
     .get_matches();
