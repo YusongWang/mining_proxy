@@ -64,7 +64,7 @@ pub fn get_pool_stream(
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(2, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
             Ok(stream) => stream,
             Err(_) => {
                 //info!("{} 访问不通。切换备用矿池！！！！", address);
@@ -105,7 +105,7 @@ pub async fn get_pool_stream_with_tls(
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(2, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
             Ok(straem) => straem,
             Err(_) => {
                 //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
@@ -308,7 +308,6 @@ where
                     }
                 }
                 return Ok(());
-                
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
@@ -322,8 +321,6 @@ where
                 #[cfg(debug_assertions)]
                 info!("提交开发者任务!");
                 write_to_socket(develop_w, rpc, &hostname).await;
-
-
 
                 let s = ServerId {
                     id: rpc.get_id(),
