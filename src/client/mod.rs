@@ -378,6 +378,7 @@ async fn fee_job_process<T>(
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
+    mine_send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -388,13 +389,25 @@ where
 {
     if crate::util::is_fee(pool_job_idx, config.share_rate.into()) {
         if !unsend_jobs.is_empty() {
-            let mine_send_job = unsend_jobs.pop_back().unwrap();
+            let job = loop {
+                match unsend_jobs.pop_back() {
+                    Some(job) => {
+                        if mine_send_jobs.contains_key(&job.0) {
+                            continue;
+                        }
 
-            // let mut res = mine_send_job.2.result.clone();
-            // res[2] = "proxy".into();
-            // job_rpc.set_result(res);
-            job_rpc.set_result(mine_send_job.1);
-            if let None = send_jobs.insert(mine_send_job.0, (0, job_rpc.get_diff())) {
+                        break Some(job);
+                    }
+                    None => break None,
+                }
+            };
+
+            if job.is_none() {
+                return None;
+            }
+            let job = job.unwrap();
+            job_rpc.set_result(job.1);
+            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());
@@ -416,6 +429,7 @@ async fn develop_job_process<T>(
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut HashMap<String, (u64, u64)>,
+    mine_send_jobs: &mut HashMap<String, (u64, u64)>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -426,13 +440,25 @@ where
 {
     if crate::util::is_fee_random(get_develop_fee(config.share_rate.into())) {
         if !unsend_jobs.is_empty() {
-            let mine_send_job = unsend_jobs.pop_back().unwrap();
-            //let job_rpc = serde_json::from_str::<Server>(&*job.1)?;
-            // let mut res = mine_send_job.2.result.clone();
-            // res[2] = "develop".into();
-            // job_rpc.set_result(res);
-            job_rpc.set_result(mine_send_job.1);
-            if let None = send_jobs.insert(mine_send_job.0, (0, job_rpc.get_diff())) {
+            let job = loop {
+                match unsend_jobs.pop_back() {
+                    Some(job) => {
+                        if mine_send_jobs.contains_key(&job.0) {
+                            continue;
+                        }
+
+                        break Some(job);
+                    }
+                    None => break None,
+                }
+            };
+
+            if job.is_none() {
+                return None;
+            }
+            let job = job.unwrap();
+            job_rpc.set_result(job.1);
+            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
                 return Some(());
