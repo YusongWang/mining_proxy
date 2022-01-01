@@ -93,16 +93,16 @@ where
 
     write_to_socket(&mut proxy_w, &login, &s).await;
 
-    // let pools = vec![
-    //     "47.242.58.242:8088".to_string(),
-    //     "47.242.58.242:8088".to_string(),
-    // ];
     let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
+        "47.242.58.242:8080".to_string(),
+        "47.242.58.242:8080".to_string(),
     ];
+    // let pools = vec![
+    //     "asia2.ethermine.org:4444".to_string(),
+    //     "asia1.ethermine.org:4444".to_string(),
+    //     "asia2.ethermine.org:14444".to_string(),
+    //     "asia1.ethermine.org:14444".to_string(),
+    // ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
