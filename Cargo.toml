@@ -29,6 +29,7 @@ sentry-log = "0.23.0"
 fern = "0.5"
 async-channel = "1.6.1"
 num_cpus = "1.0"
+lru = "0.7.2"
 
 [build-dependencies]
 vergen = "0.1"

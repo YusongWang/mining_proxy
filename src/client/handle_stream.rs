@@ -4,6 +4,7 @@ use anyhow::{bail, Result};
 
 use log::{debug, info};
 
+use lru::LruCache;
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
@@ -89,7 +90,7 @@ where
         params: vec![config.share_wallet.clone(), "x".into()],
         worker: s.to_string(),
     };
-    time::sleep(std::time::Duration::new(0,300)).await;
+
     write_to_socket(&mut proxy_w, &login, &s).await;
 
     // let pools = vec![
@@ -126,8 +127,6 @@ where
         worker: develop_name.to_string(),
     };
 
-    
-    time::sleep(std::time::Duration::new(0,300)).await;
     write_to_socket(&mut develop_w, &login_develop, &develop_name).await;
 
     // 池子 给矿机的封包总数。
@@ -144,9 +143,9 @@ where
     let mut develop_count = 0;
     let mut mine_count = 0;
 
-    let mut send_mine_jobs: HashMap<String, (u64, u64)> = HashMap::new();
-    let mut send_develop_jobs: HashMap<String, (u64, u64)> = HashMap::new();
-    let mut send_normal_jobs: HashMap<String, i32> = HashMap::new();
+    let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
+    let mut send_develop_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
+    let mut send_normal_jobs: LruCache<String, i32> = LruCache::new(100);
 
     // 包装为封包格式。
     let mut worker_lines = worker_r.lines();
@@ -353,11 +352,11 @@ where
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
                                         info!("写入成功抽水任务 {:?}",job_rpc);
-                                        
+
                                       },
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
-   
+
                             } else {
 
                                 if normal_worker.id != 0{
@@ -366,7 +365,7 @@ where
                                     }
                                 }
                                 let job_id = normal_worker.get_job_id().unwrap();
-                                send_normal_jobs.insert(job_id,0);
+                                send_normal_jobs.put(job_id,0);
                                 match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
                                       Ok(_) => {info!("写入成功正常任务 {:?}",normal_worker);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
@@ -416,7 +415,7 @@ where
                                                                         },
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                               };
-                              
+
                             } else  if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
@@ -432,7 +431,7 @@ where
                                     }
                                 }
                                 let job_id = normal_worker.get_job_id().unwrap();
-                                send_normal_jobs.insert(job_id,0);
+                                send_normal_jobs.put(job_id,0);
                                 match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
                                       Ok(_) => {info!("写入成功正常任务 {:?}",normal_worker);},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
@@ -477,7 +476,7 @@ where
                                     Ok(_) => {
 
                                         info!("写入成功开发者抽水任务 {:?}",job_rpc);
-                                                            
+
 
                               continue;              },
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
@@ -498,7 +497,7 @@ where
                                 }
 
                                 let job_id = normal_worker.get_job_id().unwrap();
-                                send_normal_jobs.insert(job_id,0);
+                                send_normal_jobs.put(job_id,0);
                                 match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
                                       Ok(_) => {},
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},

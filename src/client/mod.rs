@@ -5,6 +5,7 @@ pub mod tls;
 
 use anyhow::bail;
 use log::{debug, info};
+use lru::LruCache;
 use native_tls::TlsConnector;
 use serde::Serialize;
 use std::{
@@ -263,8 +264,8 @@ async fn eth_submitWork<W, W1, W2, T>(
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut T,
     worker_name: &String,
-    mine_send_jobs: &mut HashMap<String, (u64, u64)>,
-    develop_send_jobs: &mut HashMap<String, (u64, u64)>,
+    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
+    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
     //    already_send_jobs: &mut HashMap<String, (u64, u64)>,
     config: &Settings,
 ) -> Result<()>
@@ -275,8 +276,8 @@ where
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
     if let Some(job_id) = rpc.get_job_id() {
-        if mine_send_jobs.contains_key(&job_id) {
-            if let Some(thread_id) = mine_send_jobs.remove(&job_id) {
+        if mine_send_jobs.contains(&job_id) {
+            if let Some(thread_id) = mine_send_jobs.get(&job_id) {
                 let mut hostname = config.share_name.clone();
                 if hostname.is_empty() {
                     let name = hostname::get()?;
@@ -307,8 +308,8 @@ where
             } else {
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
-        } else if develop_send_jobs.contains_key(&job_id) {
-            if let Some(thread_id) = develop_send_jobs.remove(&job_id) {
+        } else if develop_send_jobs.contains(&job_id) {
+            if let Some(thread_id) = develop_send_jobs.get(&job_id) {
                 let mut hostname = String::from("develop_");
 
                 let name = hostname::get()?;
@@ -385,9 +386,9 @@ async fn fee_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut HashMap<String, (u64, u64)>,
-    mine_send_jobs: &mut HashMap<String, (u64, u64)>,
-    normal_send_jobs: &mut HashMap<String, i32>,
+    send_jobs: &mut LruCache<String, (u64, u64)>,
+    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
+    normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -401,20 +402,22 @@ where
             let job = loop {
                 match unsend_jobs.pop_back() {
                     Some(job) => {
-                        if mine_send_jobs.contains_key(&job.0) {
+                        if mine_send_jobs.contains(&job.0) {
                             continue;
                         }
-                        if normal_send_jobs.contains_key(&job.0) {
+                        if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
+                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                                 #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
+                                debug!(
+                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                                );
                                 //return Some(());
                                 return None;
                             } else {
                                 #[cfg(debug_assertions)]
                                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None
+                                return None;
                             }
                         }
                         break Some(job);
@@ -428,7 +431,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
-            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
+            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
                 return Some(());
@@ -451,9 +454,9 @@ async fn develop_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut HashMap<String, (u64, u64)>,
-    mine_send_jobs: &mut HashMap<String, (u64, u64)>,
-    normal_send_jobs: &mut HashMap<String, i32>,
+    send_jobs: &mut LruCache<String, (u64, u64)>,
+    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
+    normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
@@ -467,21 +470,22 @@ where
             let job = loop {
                 match unsend_jobs.pop_back() {
                     Some(job) => {
-                        if mine_send_jobs.contains_key(&job.0) {
+                        if mine_send_jobs.contains(&job.0) {
                             continue;
                         }
-                        if normal_send_jobs.contains_key(&job.0) {
-                            
+                        if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
+                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                                 #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
+                                debug!(
+                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                                );
                                 //return Some(());
                                 return None;
                             } else {
                                 #[cfg(debug_assertions)]
                                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None
+                                return None;
                             }
                         }
                         break Some(job);
@@ -495,7 +499,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
-            if let None = send_jobs.insert(job.0, (0, job_rpc.get_diff())) {
+            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
                 return Some(());
