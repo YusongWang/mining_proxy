@@ -348,7 +348,8 @@ where
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                               };
 
-                            } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                            }
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
                                         info!("写入成功抽水任务 {:?}",job_rpc);
@@ -416,7 +417,9 @@ where
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                               };
 
-                            } else  if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                            }
+                            
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
                                         info!("写入成功抽水任务 {:?}",job_rpc);
@@ -481,7 +484,9 @@ where
                               continue;              },
                                     Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                               };
-                            } else if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
+                            }
+                            
+                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
                                         info!("写入成功抽水任务 {:?}",job_rpc);
