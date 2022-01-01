@@ -89,7 +89,7 @@ where
         params: vec![config.share_wallet.clone(), "x".into()],
         worker: s.to_string(),
     };
-
+    time::sleep(std::time::Duration::new(0,300)).await;
     write_to_socket(&mut proxy_w, &login, &s).await;
 
     // let pools = vec![
@@ -126,6 +126,8 @@ where
         worker: develop_name.to_string(),
     };
 
+    
+    time::sleep(std::time::Duration::new(0,300)).await;
     write_to_socket(&mut develop_w, &login_develop, &develop_name).await;
 
     // 池子 给矿机的封包总数。
