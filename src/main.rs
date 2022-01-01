@@ -410,6 +410,10 @@ async fn print_state(
     // ]);
 
     for (_name, w) in workers {
+        if w.last_subwork_time.elapsed().as_secs() >= 1800 {
+            continue;
+        }
+
         // 添加行
         table.add_row(row![
             w.worker_name,
@@ -429,7 +433,11 @@ async fn print_state(
     }
 
     //TODO 将total hash 写入worker
+    let mine_hash = calc_hash_rate(bytes_to_mb(total_hash), config.share_rate);
+    
 
+
+    let develop_hash = calc_hash_rate(bytes_to_mb(total_hash), util::get_develop_fee(config.share_rate.into()) as f32);
     // 添加行
     table.add_row(row![
         "汇总",
@@ -443,30 +451,6 @@ async fn print_state(
     ]);
 
     table.printstd();
-    let log_path = config.log_path.clone();
-    //let file =
-    // let file = match std::fs::OpenOptions::new()
-    //     .read(true)
-    //     .write(true)
-    //     .create(true)
-    //     .open(log_path.clone() + "workers.csv")
-    // {
-    //     Ok(f) => f,
-    //     Err(e) => {
-    //         info!("{}", e);
-    //         match std::fs::File::create(log_path + "workers.csv") {
-    //             Ok(f) => f,
-    //             Err(e) => {
-    //                 info!("{}", e);
-    //                 anyhow::bail!("文件打开及创建都失败了。")
-    //             }
-    //         }
-    //     }
-    // };
-
-    // //file.write_all(b"hello, world!").await?;
-    //table.to_csv(&file)?;
-    //drop(file);
 
     Ok(())
 }
