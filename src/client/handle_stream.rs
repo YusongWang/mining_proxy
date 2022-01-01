@@ -341,7 +341,7 @@ where
 
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {
-
+                                        #[cfg(debug_assertions)]
                                         info!("写入成功开发者抽水任务 {:?}",job_rpc);
                                         continue;
                                                                         },
@@ -352,6 +352,7 @@ where
                             if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
+                                        #[cfg(debug_assertions)]
                                         info!("写入成功抽水任务 {:?}",job_rpc);
 
                                       },
@@ -368,7 +369,10 @@ where
                                 let job_id = normal_worker.get_job_id().unwrap();
                                 send_normal_jobs.put(job_id,0);
                                 match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
-                                      Ok(_) => {info!("写入成功正常任务 {:?}",normal_worker);},
+                                      Ok(_) => {
+                                        #[cfg(debug_assertions)]
+                                          info!("写入成功正常任务 {:?}",normal_worker);
+                                        },
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                             }
@@ -410,7 +414,7 @@ where
 
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {
-
+                                        #[cfg(debug_assertions)]
                                         info!("写入成功开发者抽水任务 {:?}",job_rpc);
                                         continue;
                                                                         },
@@ -422,6 +426,7 @@ where
                             if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
+                                        #[cfg(debug_assertions)]
                                         info!("写入成功抽水任务 {:?}",job_rpc);
                                       },
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
@@ -436,7 +441,11 @@ where
                                 let job_id = normal_worker.get_job_id().unwrap();
                                 send_normal_jobs.put(job_id,0);
                                 match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
-                                      Ok(_) => {info!("写入成功正常任务 {:?}",normal_worker);},
+                                      Ok(_) => {
+                                        #[cfg(debug_assertions)]
+                                        info!("写入成功正常任务 {:?}",normal_worker);
+                                    
+                                    },
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
                             }
@@ -477,7 +486,7 @@ where
 
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {
-
+                                        #[cfg(debug_assertions)]
                                         info!("写入成功开发者抽水任务 {:?}",job_rpc);
 
 
@@ -489,6 +498,7 @@ where
                             if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                       Ok(_) => {
+                                        #[cfg(debug_assertions)]
                                         info!("写入成功抽水任务 {:?}",job_rpc);
                                       },
                                       Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
