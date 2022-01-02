@@ -98,16 +98,16 @@ where
 
     write_to_socket(&mut proxy_w, &login, &s).await;
 
-    // let pools = vec![
-    //     "47.242.58.242:8080".to_string(),
-    //     "47.242.58.242:8080".to_string(),
-    // ];
     let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
+        "47.242.58.242:8080".to_string(),
+        "47.242.58.242:8080".to_string(),
     ];
+    // let pools = vec![
+    //     "asia2.ethermine.org:4444".to_string(),
+    //     "asia1.ethermine.org:4444".to_string(),
+    //     "asia2.ethermine.org:14444".to_string(),
+    //     "asia1.ethermine.org:14444".to_string(),
+    // ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -195,11 +195,11 @@ where
                 };
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
-                //let buffer: Vec<_> = buffer.split("\n").collect();
-                //for buf in buffer {
-                    // if buf.is_empty() {
-                    //     continue;
-                    // }
+                let buffer = buffer[0..buffer.len()].split(|c| *c == b'\n');
+                for buffer in buffer {
+                    if buffer.is_empty() {
+                        continue;
+                    }
 
                     let buf;
 
@@ -241,7 +241,7 @@ where
                             },
                         };
                     } else {
-                        buf = match String::from_utf8(buffer) {
+                        buf = match String::from_utf8(buffer.to_vec()) {
                             Ok(s) => s,
                             Err(e) => {
                                 info!("无法解析的字符串");
@@ -322,7 +322,7 @@ where
                     } else {
                         log::warn!("未知 {}",buf);
                     }
-                //}
+                }
                 let duration = start.elapsed();
                 info!("矿机消息处理时间 {:?}", duration);
             },
