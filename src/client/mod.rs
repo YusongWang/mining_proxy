@@ -33,7 +33,8 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_develop_fee}, SPLIT,
+    util::{config::Settings, get_develop_fee},
+    SPLIT,
 };
 
 pub const TCP: i32 = 1;
@@ -184,13 +185,12 @@ where
     //let data = b"Some Crypto Text";
     let mut rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
-    
-    info!("加密信息 {:?}",rpc);
+    info!("加密信息 {:?}", rpc);
 
     let base64 = base64::encode(&rpc[..]);
     let mut rpc = base64.as_bytes().to_vec();
     rpc.push(crate::SPLIT);
-    
+
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
         info!("✅ Worker: {} 写入失败.", worker);
@@ -204,14 +204,15 @@ where
     W: AsyncWrite,
     T: Serialize,
 {
+
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
-
     #[cfg(debug_assertions)]
+
     log::info!(
-        "write_to_socket ------Worker : {}  Send Rpc {}",
+        "write_to_socket ------Worker : {}  Send Rpc {:?}",
         worker,
-        String::from_utf8(rpc.to_vec())?
+        String::from_utf8(rpc.clone())?
     );
 
     let write_len = w.write(&rpc).await?;
@@ -277,7 +278,6 @@ where
     }
     Ok(())
 }
-
 
 pub fn parse_client(buf: &str) -> Option<Client> {
     match serde_json::from_str::<Client>(buf) {
