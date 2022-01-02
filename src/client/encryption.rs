@@ -14,7 +14,7 @@ use tokio::{
     select,
 };
 
-use crate::client::{write_to_socket_byte, write_to_socket_string, self_write_socket_byte};
+use crate::client::{self_write_socket_byte, write_to_socket_byte, write_to_socket_string};
 
 pub async fn accept_encrypt_tcp(
     port: i32,
@@ -55,7 +55,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
     let pool_stream = TcpStream::from_std(std_stream)?;
     let (pool_r, mut pool_w) = tokio::io::split(pool_stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
-    let mut pool_r = pool_r.split(b'\n');
+    let mut pool_r = pool_r.split(crate::SPLIT);
     let mut client_timeout_sec = 1;
 
     let key = key.clone();
@@ -113,8 +113,10 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
 
                     info!("{:?}",ciphertext);
 
+                    let base64 = base64::encode(&ciphertext[..]);
+                    // let write_len = w.write(&base64.as_bytes()).await?;
 
-                    match self_write_socket_byte(&mut pool_w,ciphertext,&"加密".to_string()).await{
+                    match self_write_socket_byte(&mut pool_w,base64.as_bytes().to_vec(),&"加密".to_string()).await{
                         Ok(_) => {},
                         Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)}
                     }
@@ -136,29 +138,47 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                     Err(e) => {info!("矿机下线了");bail!("矿机下线了: {}",e)},
                 };
 
-                
+
                 #[cfg(debug_assertions)]
                 debug!("<------ :  矿池 -> 矿机  {:?}", buffer);
-                let cipher = Cipher::aes_256_cbc();
-                // 解密
-                let buffer = match decrypt(
-                    cipher,
-                    &key,
-                    Some(&iv),
-                    &buffer[..]) {
-                        Ok(s) => s,
+
+                let buffer = buffer[0..buffer.len()].split(|c| *c == crate::SPLIT);
+                for buf in buffer {
+                    if buf.is_empty() {
+                        continue;
+                    }
+
+                    
+                    let buf = match base64::decode(&buf[..]) {
+                        Ok(buf) => buf,
                         Err(e) => {
-                            info!("解密失败 {}",e);
+                            log::error!("{}",e);
                             pool_w.shutdown().await;
                             return Ok(());
                         },
                     };
 
-                match write_to_socket_byte(&mut worker_w,buffer,&"解密".to_string()).await{
-                    Ok(_) => {},
-                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)}
-                }
 
+                    let cipher = Cipher::aes_256_cbc();
+                    // 解密
+                    let buffer = match decrypt(
+                        cipher,
+                        &key,
+                        Some(&iv),
+                        &buf[..]) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                info!("解密失败 {}",e);
+                                pool_w.shutdown().await;
+                                return Ok(());
+                            },
+                        };
+
+                    match write_to_socket_byte(&mut worker_w,buffer,&"解密".to_string()).await{
+                        Ok(_) => {},
+                        Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)}
+                    }
+                }
             }
         }
     }

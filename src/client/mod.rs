@@ -33,7 +33,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_develop_fee},
+    util::{config::Settings, get_develop_fee}, SPLIT,
 };
 
 pub const TCP: i32 = 1;
@@ -183,10 +183,14 @@ where
     let cipher = openssl::symm::Cipher::aes_256_cbc();
     //let data = b"Some Crypto Text";
     let mut rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+
+    
     info!("加密信息 {:?}",rpc);
 
-    rpc.push(b'|');
-
+    let base64 = base64::encode(&rpc[..]);
+    let mut rpc = base64.as_bytes().to_vec();
+    rpc.push(crate::SPLIT);
+    
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
         info!("✅ Worker: {} 写入失败.", worker);
@@ -266,7 +270,7 @@ pub async fn self_write_socket_byte<W>(
 where
     W: AsyncWrite,
 {
-    rpc.push(b'\n');
+    rpc.push(SPLIT);
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
         bail!("✅ Worker: {} 服务器断开连接.", worker);

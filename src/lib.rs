@@ -1,4 +1,6 @@
 #![feature(test)]
+const SPLIT: u8 = b'\n';
+
 
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));

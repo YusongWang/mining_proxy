@@ -157,11 +157,10 @@ where
     let mut pool_lines = pool_r.lines();
     let mut worker_lines;
     if is_encrypted {
-        worker_lines = worker_r.split(b'\n');
+        worker_lines = worker_r.split(SPLIT);
     } else {
         worker_lines = worker_r.split(b'\n');
     }
-    
 
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
@@ -208,6 +207,17 @@ where
                         let key = Vec::from_hex(config.key.clone()).unwrap();
                         let iv = Vec::from_hex(config.iv.clone()).unwrap();
                         let cipher = Cipher::aes_256_cbc();
+
+                        let buffer = match base64::decode(&buffer[..]) {
+                            Ok(buffer) => buffer,
+                            Err(e) => {
+                                log::error!("{}",e);
+                                pool_w.shutdown().await;
+                                return Ok(());
+                            },
+                        };
+
+
                         //let data = b"Some Crypto Text";
                         let buffer = match decrypt(
                             cipher,
