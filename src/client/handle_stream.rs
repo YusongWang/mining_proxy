@@ -1,10 +1,13 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{bail, Result};
 
+use bytes::buf;
+use hex::FromHex;
 use log::{debug, info};
 
 use lru::LruCache;
+use openssl::symm::{decrypt, encrypt, Cipher};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
@@ -14,7 +17,7 @@ use tokio::{
 };
 
 use crate::{
-    client::{*},
+    client::*,
     jobs::JobQueue,
     protocol::{
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
@@ -27,7 +30,6 @@ use crate::{
 use super::write_to_socket;
 use rand::{distributions::Alphanumeric, Rng};
 
-
 pub async fn handle_stream<R, W, R1, W1>(
     workers_queue: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
@@ -39,6 +41,7 @@ pub async fn handle_stream<R, W, R1, W1>(
     develop_jobs_queue: Arc<JobQueue>,
     _proxy_fee_sender: broadcast::Sender<(u64, String)>,
     _dev_fee_send: broadcast::Sender<(u64, String)>,
+    is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -150,8 +153,15 @@ where
     let mut send_normal_jobs: LruCache<String, i32> = LruCache::new(100);
 
     // 包装为封包格式。
-    let mut worker_lines = worker_r.lines();
+    // let mut worker_lines = worker_r.lines();
     let mut pool_lines = pool_r.lines();
+    let mut worker_lines;
+    if is_encrypted {
+        worker_lines = worker_r.split(b'\n');
+    } else {
+        worker_lines = worker_r.split(b'\n');
+    }
+    
 
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
@@ -159,12 +169,11 @@ where
     let duration = start.elapsed();
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
-    info!("工作线程处理时间 {:?}", duration);
-
+    info!("工作线程初始化时间 {:?}", duration);
 
     loop {
         select! {
-            res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_line()) => {
+            res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_segment()) => {
                 let start = std::time::Instant::now();
                 let buffer = match res{
                     Ok(res) => {
@@ -187,11 +196,52 @@ where
                 };
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
-                let buffer: Vec<_> = buffer.split("\n").collect();
-                for buf in buffer {
-                    if buf.is_empty() {
-                        continue;
+                //let buffer: Vec<_> = buffer.split("\n").collect();
+                //for buf in buffer {
+                    // if buf.is_empty() {
+                    //     continue;
+                    // }
+
+                    let buf;
+
+                    if is_encrypted {
+                        let key = Vec::from_hex(config.key.clone()).unwrap();
+                        let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                        let cipher = Cipher::aes_256_cbc();
+                        //let data = b"Some Crypto Text";
+                        let buffer = match decrypt(
+                            cipher,
+                            &key,
+                            Some(&iv),
+                            &buffer[..]) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    info!("解密失败 {}",e);
+                                    pool_w.shutdown().await;
+                                    return Ok(());
+                                },
+                            };
+
+                        buf = match String::from_utf8(buffer) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                info!("无法解析的字符串");
+                                pool_w.shutdown().await;
+                                return Ok(());
+                            },
+                        };
+                    } else {
+                        buf = match String::from_utf8(buffer) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                info!("无法解析的字符串");
+                                pool_w.shutdown().await;
+
+                                return Ok(());
+                            },
+                        };
                     }
+
 
                     if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
                         rpc_id = client_json_rpc.id;
@@ -262,7 +312,7 @@ where
                     } else {
                         log::warn!("未知 {}",buf);
                     }
-                }
+                //}
                 let duration = start.elapsed();
                 info!("矿机消息处理时间 {:?}", duration);
             },
@@ -326,8 +376,24 @@ where
                         }
 
                         result_rpc.id = rpc_id ;
-                        write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
+                        if is_encrypted {
+                            // let rpc = serde_json::to_vec(&result_rpc)?;
+                            // let cipher = Cipher::aes_256_cbc();
+                            // let key = Vec::from_hex(config.key.clone()).unwrap();
+                            // let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                            // let rpc = encrypt(
+                            //     cipher,
+                            //     &key,
+                            //     Some(&iv),
+                            //     &rpc[..]).unwrap();
+                            write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await;
+                        } else {
+                            write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
+                        }
+
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
+                        pool_job_idx += 1;
+
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
                         }
@@ -339,65 +405,21 @@ where
                             unsend_develop_jobs.clear();
                         }
 
-                        pool_job_idx += 1;
+
                         if config.share != 0 {
-                            let mut normal_worker = job_rpc.clone();
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
-                                // if job_rpc.id != 0{
-                                //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                //         job_rpc.id = rpc_id ;
-                                //     }
-                                // }
-
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                    Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                        info!("写入成功开发者抽水任务 {:?}",job_rpc);
-                                        continue;
-                                                                        },
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                              };
-
-                            }
-                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                        info!("写入成功抽水任务 {:?}",job_rpc);
-
-                                      },
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
-
-                            } else {
-
-                                if normal_worker.id != 0{
-                                    if normal_worker.id == CLIENT_GETWORK || normal_worker.id == worker.share_index{
-                                        normal_worker.id = rpc_id ;
-                                    }
-                                }
-                                let job_id = normal_worker.get_job_id().unwrap();
-                                send_normal_jobs.put(job_id,0);
-                                match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
-                                      Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                          info!("写入成功正常任务 {:?}",normal_worker);
-                                        },
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
-                            }
+                            share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut pool_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
                         } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
+                            if is_encrypted {
+                                match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
+                                    Ok(_) => {},
+                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
+                            } else {
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                    Ok(_) => {},
+                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
                             }
-
-
-                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                            };
                         }
 
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
@@ -414,62 +436,19 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            let mut normal_worker = job_rpc.clone();
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
-                                // if job_rpc.id != 0{
-                                //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                //         job_rpc.id = rpc_id ;
-                                //     }
-                                // }
-
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                    Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                        info!("写入成功开发者抽水任务 {:?}",job_rpc);
-                                        continue;
-                                                                        },
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                              };
-
-                            }
-
-                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                        info!("写入成功抽水任务 {:?}",job_rpc);
-                                      },
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
-                                continue;
-                            } else {
-                                if normal_worker.id != 0{
-                                    if normal_worker.id == CLIENT_GETWORK || normal_worker.id == worker.share_index{
-                                        normal_worker.id = rpc_id ;
-                                    }
-                                }
-                                let job_id = normal_worker.get_job_id().unwrap();
-                                send_normal_jobs.put(job_id,0);
-                                match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
-                                      Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                        info!("写入成功正常任务 {:?}",normal_worker);
-
-                                    },
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
-                            }
+                            share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut pool_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
                         } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
-                            }
-
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                            if is_encrypted {
+                                match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
+                                    Ok(_) => {},
+                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
                                 };
+                            } else {
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                    Ok(_) => {},
+                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
+                            }
                         }
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         if pool_job_idx  == u64::MAX {
@@ -485,61 +464,26 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            let mut normal_worker = job_rpc.clone();
-
-                            if develop_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,"00".to_string(),develop_jobs_queue.clone()).await.is_some() {
-                                // if job_rpc.id != 0{
-                                //     if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                //         job_rpc.id = rpc_id ;
-                                //     }
-                                // }
-
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                    Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                        info!("写入成功开发者抽水任务 {:?}",job_rpc);
-
-
-                              continue;              },
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                              };
-                            }
-
-                            if fee_job_process(pool_job_idx,&config,&mut unsend_mine_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_normal_jobs,&mut job_rpc,&mut mine_count,"00".to_string(),mine_jobs_queue.clone()).await.is_some() {
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {
-                                        #[cfg(debug_assertions)]
-                                        info!("写入成功抽水任务 {:?}",job_rpc);
-                                      },
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
-                                continue;
-                            } else {
-                                if normal_worker.id != 0{
-                                    if normal_worker.id == CLIENT_GETWORK || normal_worker.id == worker.share_index{
-                                        normal_worker.id = rpc_id ;
-                                    }
-                                }
-
-                                let job_id = normal_worker.get_job_id().unwrap();
-                                send_normal_jobs.put(job_id,0);
-                                match write_to_socket(&mut worker_w, &normal_worker, &worker_name).await{
-                                      Ok(_) => {},
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
-                            }
+                            share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut pool_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
                         } else {
                             if job_rpc.id != 0{
                                 if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
                                     job_rpc.id = rpc_id ;
                                 }
                             }
-                            match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                      Ok(_) => {},
-                                      Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
-                                };
-                        }
 
+                            if is_encrypted {
+                                match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
+                                    Ok(_) => {},
+                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
+                            } else {
+                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
+                                    Ok(_) => {},
+                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                };
+                            }
+                        }
                     } else {
                         log::warn!("未找到的交易 {}",buf);
 
@@ -639,8 +583,6 @@ where
                         //write_to_socket_string(&mut pool_w, &buf, &worker_name).await;
                     }
 
-                    //将所有权还给主矿池
-                    //state = 1;
                 }
             },
             res = develop_lines.next_line() => {

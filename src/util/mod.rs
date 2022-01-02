@@ -30,7 +30,6 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
             .value_name("FILE")
             .help("指定配置文件路径 默认 ./default.yaml")
             .takes_value(true),
-        
     )
     .get_matches();
     Ok(matches)

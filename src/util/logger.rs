@@ -40,7 +40,6 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
     Ok(())
 }
 
-
 pub fn init_client(log_level: u32) -> anyhow::Result<()> {
     let lavel = match log_level {
         4 => log::LevelFilter::Off,

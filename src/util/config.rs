@@ -20,7 +20,7 @@ pub struct Settings {
     pub p12_path: String,
     pub p12_pass: String,
     pub key: String,
-    pub iv:String,
+    pub iv: String,
 }
 
 impl Default for Settings {

@@ -1,16 +1,19 @@
+pub mod encry;
+pub mod encryption;
 pub mod handle_stream;
 pub mod mine;
 pub mod tcp;
 pub mod tls;
-pub mod encryption;
 
 use anyhow::bail;
+use hex::FromHex;
 use log::{debug, info};
 use lru::LruCache;
 use native_tls::TlsConnector;
 use serde::Serialize;
 use std::{
-    collections::{VecDeque},
+    collections::VecDeque,
+    fmt::Debug,
     net::{SocketAddr, ToSocketAddrs},
     sync::Arc,
     time::Duration,
@@ -162,6 +165,36 @@ pub async fn get_pool_stream_with_tls(
     None
 }
 
+pub async fn write_encrypt_socket<W, T>(
+    w: &mut WriteHalf<W>,
+    rpc: &T,
+    worker: &String,
+    key: String,
+    iv: String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+    T: Serialize,
+{
+    let key = Vec::from_hex(key).unwrap();
+    let iv = Vec::from_hex(iv).unwrap();
+
+    let rpc = serde_json::to_vec(&rpc)?;
+    let cipher = openssl::symm::Cipher::aes_256_cbc();
+    //let data = b"Some Crypto Text";
+    let mut rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+    info!("加密信息 {:?}",rpc);
+
+    rpc.push(b'|');
+
+    let write_len = w.write(&rpc).await?;
+    if write_len == 0 {
+        info!("✅ Worker: {} 写入失败.", worker);
+        bail!("✅ Worker: {} 服务器断开连接.", worker);
+    }
+    Ok(())
+}
+
 pub async fn write_to_socket<W, T>(w: &mut WriteHalf<W>, rpc: &T, worker: &String) -> Result<()>
 where
     W: AsyncWrite,
@@ -208,6 +241,39 @@ where
     }
     Ok(())
 }
+
+pub async fn write_to_socket_byte<W>(
+    w: &mut WriteHalf<W>,
+    mut rpc: Vec<u8>,
+    worker: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    rpc.push(b'\n');
+
+    let write_len = w.write(&rpc).await?;
+    if write_len == 0 {
+        bail!("✅ Worker: {} 服务器断开连接.", worker);
+    }
+    Ok(())
+}
+pub async fn self_write_socket_byte<W>(
+    w: &mut WriteHalf<W>,
+    mut rpc: Vec<u8>,
+    worker: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    rpc.push(b'\n');
+    let write_len = w.write(&rpc).await?;
+    if write_len == 0 {
+        bail!("✅ Worker: {} 服务器断开连接.", worker);
+    }
+    Ok(())
+}
+
 
 pub fn parse_client(buf: &str) -> Option<Client> {
     match serde_json::from_str::<Client>(buf) {
@@ -527,6 +593,177 @@ where
     }
 }
 
+async fn share_job_process<T, W>(
+    pool_job_idx: u64,
+    config: &Settings,
+    develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
+    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
+    normal_send_jobs: &mut LruCache<String, i32>,
+    job_rpc: &mut T,
+    count: &mut i32,
+    develop_jobs_queue: Arc<JobQueue>,
+    mine_jobs_queue: Arc<JobQueue>,
+    worker_w: &mut WriteHalf<W>,
+    worker_name: &String,
+    worker: &mut Worker,
+    rpc_id: u64,
+    is_encrypted: bool,
+) -> Option<()>
+where
+    T: ServerRpc + Serialize + Clone + Debug,
+    W: AsyncWrite,
+{
+    let mut normal_worker = job_rpc.clone();
+    if develop_job_process(
+        pool_job_idx,
+        &config,
+        develop_unsend_jobs,
+        develop_send_jobs,
+        mine_send_jobs,
+        normal_send_jobs,
+        job_rpc,
+        count,
+        "00".to_string(),
+        develop_jobs_queue.clone(),
+    )
+    .await
+    .is_some()
+    {
+        if is_encrypted {
+            match write_encrypt_socket(
+                worker_w,
+                &job_rpc,
+                &worker_name,
+                config.key.clone(),
+                config.iv.clone(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        } else {
+            match write_to_socket(worker_w, &job_rpc, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        }
+    }
+
+    if fee_job_process(
+        pool_job_idx,
+        &config,
+        mine_unsend_jobs,
+        mine_send_jobs,
+        develop_send_jobs,
+        normal_send_jobs,
+        job_rpc,
+        count,
+        "00".to_string(),
+        mine_jobs_queue.clone(),
+    )
+    .await
+    .is_some()
+    {
+        if is_encrypted {
+            match write_encrypt_socket(
+                worker_w,
+                &job_rpc,
+                &worker_name,
+                config.key.clone(),
+                config.iv.clone(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        } else {
+            match write_to_socket(worker_w, &job_rpc, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        }
+    } else {
+        if normal_worker.get_id() != 0 {
+            if normal_worker.get_id() == CLIENT_GETWORK
+                || normal_worker.get_id() == worker.share_index
+            {
+                //normal_worker.id = rpc_id;
+                normal_worker.set_id(rpc_id);
+            }
+        }
+
+        let job_id = normal_worker.get_job_id().unwrap();
+        normal_send_jobs.put(job_id, 0);
+        if is_encrypted {
+            match write_encrypt_socket(
+                worker_w,
+                &normal_worker,
+                worker_name,
+                config.key.clone(),
+                config.iv.clone(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", normal_worker);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        } else {
+            match write_to_socket(worker_w, &normal_worker, worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", normal_worker);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        }
+    }
+
+    Some(())
+}
+
 pub async fn handle<R, W, S>(
     worker_queue: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
@@ -537,6 +774,7 @@ pub async fn handle<R, W, S>(
     develop_jobs_queue: Arc<JobQueue>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
     develop_fee_sender: broadcast::Sender<(u64, String)>,
+    is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -556,6 +794,7 @@ where
         develop_jobs_queue,
         proxy_fee_sender,
         develop_fee_sender,
+        is_encrypted,
     )
     .await
 }
@@ -570,6 +809,7 @@ pub async fn handle_tcp_pool<R, W>(
     develop_jobs_queue: Arc<JobQueue>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
     develop_fee_sender: broadcast::Sender<(u64, String)>,
+    is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -594,6 +834,7 @@ where
         develop_jobs_queue,
         proxy_fee_sender,
         develop_fee_sender,
+        is_encrypted,
     )
     .await
 }
@@ -608,6 +849,7 @@ pub async fn handle_tls_pool<R, W>(
     develop_jobs_queue: Arc<JobQueue>,
     proxy_fee_sender: broadcast::Sender<(u64, String)>,
     develop_fee_sender: broadcast::Sender<(u64, String)>,
+    is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -632,6 +874,7 @@ where
         develop_jobs_queue,
         proxy_fee_sender,
         develop_fee_sender,
+        is_encrypted,
     )
     .await
 }

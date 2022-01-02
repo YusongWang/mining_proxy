@@ -5,23 +5,33 @@ mod version {
 }
 use log::info;
 
-use proxy::state::Worker;
+use proxy::{client::encry::accept_en_tcp, state::Worker};
 
-use std::{sync::Arc, collections::HashMap};
+use std::{collections::HashMap, sync::Arc};
 
+use anyhow::Result;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version};
-use anyhow::Result;
 
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
-use tokio::{sync::{mpsc::{self, Receiver}, broadcast, RwLock, RwLockReadGuard}, fs::File, io::AsyncReadExt, time::sleep, select};
+use tokio::{
+    fs::File,
+    io::AsyncReadExt,
+    select,
+    sync::{
+        broadcast,
+        mpsc::{self, Receiver},
+        RwLock, RwLockReadGuard,
+    },
+    time::sleep,
+};
 
-use proxy::util::*;
-use proxy::jobs::JobQueue;
-use proxy::util::config::Settings;
 use proxy::client::tcp::accept_tcp;
 use proxy::client::tls::accept_tcp_with_tls;
+use proxy::jobs::JobQueue;
+use proxy::util::config::Settings;
+use proxy::util::*;
 
 #[tokio::main]
 //#[tokio::main(worker_threads = 1)]
@@ -34,7 +44,6 @@ async fn main() -> Result<()> {
             ..Default::default()
         },
     ));
-    
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
@@ -44,7 +53,6 @@ async fn main() -> Result<()> {
         config.log_level,
     )?;
 
-
     info!(
         "✅ {}, 版本: {} commit: {} {}",
         crate_name!(),
@@ -52,7 +60,6 @@ async fn main() -> Result<()> {
         version::commit_date(),
         version::short_sha()
     );
-
 
     // 分配任务给矿机channel
     let (state_send, _state_recv) = mpsc::unbounded_channel::<(u64, String)>();
@@ -113,6 +120,17 @@ async fn main() -> Result<()> {
             state_send.clone(),
             dev_state_send.clone(),
         ),
+        accept_en_tcp(
+            worker_tx.clone(),
+            mine_jobs.clone(),
+            develop_jobs.clone(),
+            config.clone(),
+            job_send.clone(),
+            proxy_job_channel.clone(),
+            fee_tx.clone(),
+            state_send.clone(),
+            dev_state_send.clone(),
+        ),
         accept_tcp_with_tls(
             worker_tx.clone(),
             mine_jobs.clone(),
@@ -156,10 +174,6 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-
-
-
 
 pub async fn send_worker_state(
     worker_queue: tokio::sync::mpsc::Sender<Worker>,
@@ -480,4 +494,3 @@ pub async fn process_workers(
         }
     }
 }
-
