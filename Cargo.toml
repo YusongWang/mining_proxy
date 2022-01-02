@@ -30,7 +30,8 @@ fern = "0.5"
 async-channel = "1.6.1"
 num_cpus = "1.0"
 lru = "0.7.2"
-openssl = { version = "0.10.38", features = ["vendored"] }
+openssl-sys = "0.9"
+openssl = "0.10"
 base64 = "0.13.0"
 
 [build-dependencies]
