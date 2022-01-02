@@ -174,7 +174,7 @@ where
         select! {
             res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_segment()) => {
                 let start = std::time::Instant::now();
-                let buffer = match res{
+                let buf_bytes = match res{
                     Ok(res) => {
                         match res {
                             Ok(buf) => match buf{
@@ -194,15 +194,14 @@ where
                     Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
                 };
                 #[cfg(debug_assertions)]
-                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buffer);
-                let buffer = buffer[0..buffer.len()].split(|c| *c == b'\n');
-                for buffer in buffer {
+                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
+                let buf_bytes = buf_bytes[0..buf_bytes.len()].split(|c| *c == b'\n');
+                for buffer in buf_bytes {
                     if buffer.is_empty() {
                         continue;
                     }
 
-                    let buf;
-
+                    let buf: String;
                     if is_encrypted {
                         let key = Vec::from_hex(config.key.clone()).unwrap();
                         let iv = Vec::from_hex(config.iv.clone()).unwrap();
@@ -252,7 +251,8 @@ where
                         };
                     }
 
-
+                    #[cfg(debug_assertions)]
+                    debug!("0:  矿机 -> 矿池 {} 发送 {}", worker_name, buf);
                     if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
