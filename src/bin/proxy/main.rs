@@ -1,17 +1,40 @@
+#![feature(test)]
+
+mod version {
+    include!(concat!(env!("OUT_DIR"), "/version.rs"));
+}
+use log::info;
+
+use proxy::state::Worker;
+
 use std::{sync::Arc, collections::HashMap};
 
 use bytes::BytesMut;
-use clap::{ArgMatches, crate_name, crate_version};
+use clap::{crate_name, crate_version};
 use anyhow::Result;
-use log::info;
+
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
 use tokio::{sync::{mpsc::{self, Receiver}, broadcast, RwLock, RwLockReadGuard}, fs::File, io::AsyncReadExt, time::sleep, select};
 
-use crate::{util::{self, *, config::Settings}, version, state::Worker, jobs::JobQueue, client::{tcp::accept_tcp, tls::accept_tcp_with_tls}};
+use proxy::util::*;
+use proxy::jobs::JobQueue;
+use proxy::util::config::Settings;
+use proxy::client::tcp::accept_tcp;
+use proxy::client::tls::accept_tcp_with_tls;
 
-
-pub async fn server_mode(matches: ArgMatches<'static> ) -> Result<()> {
+#[tokio::main]
+//#[tokio::main(worker_threads = 1)]
+async fn main() -> Result<()> {
+    let matches = get_app_command_matches().await?;
+    let _guard = sentry::init((
+        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
+    
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name)?;
@@ -73,7 +96,7 @@ pub async fn server_mode(matches: ArgMatches<'static> ) -> Result<()> {
     // 当前中转总报告算力。Arc<> Or atom 变量
     let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
 
-    let thread_len = util::clac_phread_num_for_real(config.share_rate.into());
+    let thread_len = clac_phread_num_for_real(config.share_rate.into());
     let thread_len = thread_len * 3; //扩容三倍存储更多任务
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
     let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
@@ -404,7 +427,7 @@ pub async fn print_state(
 
     let develop_hash = calc_hash_rate(
         bytes_to_mb(total_hash),
-        util::get_develop_fee(config.share_rate.into()) as f32,
+        get_develop_fee(config.share_rate.into()) as f32,
     );
     // 添加行
     table.add_row(row![
@@ -457,3 +480,4 @@ pub async fn process_workers(
         }
     }
 }
+

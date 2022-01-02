@@ -8,6 +8,7 @@ pub struct Settings {
     pub log_path: String,
     pub ssl_port: u32,
     pub tcp_port: u32,
+    pub encrypt_port: u32,
     pub pool_ssl_address: Vec<String>,
     pub pool_tcp_address: Vec<String>,
     pub share_tcp_address: Vec<String>,
@@ -18,6 +19,8 @@ pub struct Settings {
     pub share_alg: u32,
     pub p12_path: String,
     pub p12_pass: String,
+    pub key: String,
+    pub iv:String,
 }
 
 impl Default for Settings {
@@ -32,12 +35,15 @@ impl Default for Settings {
             share_rate: 0.0,
             ssl_port: 8443,
             tcp_port: 14444,
+            encrypt_port: 14444,
             p12_path: "./identity.p12".into(),
-            p12_pass: "".into(),
+            p12_pass: "mypass".into(),
             share: 0,
             share_name: "".into(),
             name: "proxy".into(),
             share_alg: 0,
+            key: "0000000000000000000000".into(),
+            iv: "123456".into(),
         }
     }
 }

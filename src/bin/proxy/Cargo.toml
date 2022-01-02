@@ -31,19 +31,3 @@ async-channel = "1.6.1"
 num_cpus = "1.0"
 lru = "0.7.2"
 openssl = { version = "0.10", features = ["vendored"] }
-
-[build-dependencies]
-vergen = "0.1"
-
-
-[profile.release]
-panic = 'abort'
-opt-level = "z"
-# lto = true
-# codegen-units = 1
-
-
-
-[[bin]]
-name = "proxy"
-src = "./proxy/main.rs"

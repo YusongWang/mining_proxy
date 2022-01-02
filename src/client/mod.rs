@@ -2,6 +2,7 @@ pub mod handle_stream;
 pub mod mine;
 pub mod tcp;
 pub mod tls;
+pub mod encryption;
 
 use anyhow::bail;
 use log::{debug, info};
@@ -9,7 +10,7 @@ use lru::LruCache;
 use native_tls::TlsConnector;
 use serde::Serialize;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{VecDeque},
     net::{SocketAddr, ToSocketAddrs},
     sync::Arc,
     time::Duration,
@@ -25,7 +26,7 @@ use tokio::{
 use crate::{
     jobs::JobQueue,
     protocol::{
-        rpc::eth::{Client, ClientWithWorkerName, Server, ServerId, ServerId1, ServerRpc},
+        rpc::eth::{Client, ClientWithWorkerName, ServerId, ServerRpc},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
@@ -277,7 +278,7 @@ where
 {
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains(&job_id) {
-            if let Some(thread_id) = mine_send_jobs.get(&job_id) {
+            if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
                 let mut hostname = config.share_name.clone();
                 if hostname.is_empty() {
                     let name = hostname::get()?;
@@ -312,7 +313,7 @@ where
                 bail!("任务失败.找到jobid .但是remove失败了");
             }
         } else if develop_send_jobs.contains(&job_id) {
-            if let Some(thread_id) = develop_send_jobs.get(&job_id) {
+            if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
                 let mut hostname = String::from("develop_");
 
                 let name = hostname::get()?;
@@ -400,7 +401,7 @@ async fn fee_job_process<T>(
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
-    jobs_queue: Arc<JobQueue>,
+    _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -459,7 +460,7 @@ where
 }
 
 async fn develop_job_process<T>(
-    pool_job_idx: u64,
+    _pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut LruCache<String, (u64, u64)>,
@@ -468,7 +469,7 @@ async fn develop_job_process<T>(
     job_rpc: &mut T,
     _count: &mut i32,
     _diff: String,
-    jobs_queue: Arc<JobQueue>,
+    _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,

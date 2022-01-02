@@ -74,7 +74,7 @@ impl ClientRpc for Client {
         }
     }
 
-    fn set_worker_name(&mut self, worker_name: &str) -> bool {
+    fn set_worker_name(&mut self, _worker_name: &str) -> bool {
         true
     }
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{sync::Arc};
 
 use anyhow::{bail, Result};
 
@@ -14,7 +14,7 @@ use tokio::{
 };
 
 use crate::{
-    client::{mine::send_job_to_client, *},
+    client::{*},
     jobs::JobQueue,
     protocol::{
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
@@ -25,8 +25,8 @@ use crate::{
 };
 
 use super::write_to_socket;
-use rand::{distributions::Alphanumeric, Rng, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+use rand::{distributions::Alphanumeric, Rng};
+
 
 pub async fn handle_stream<R, W, R1, W1>(
     workers_queue: tokio::sync::mpsc::Sender<Worker>,
@@ -37,8 +37,8 @@ pub async fn handle_stream<R, W, R1, W1>(
     config: &Settings,
     mine_jobs_queue: Arc<JobQueue>,
     develop_jobs_queue: Arc<JobQueue>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    dev_fee_send: broadcast::Sender<(u64, String)>,
+    _proxy_fee_sender: broadcast::Sender<(u64, String)>,
+    _dev_fee_send: broadcast::Sender<(u64, String)>,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -46,6 +46,8 @@ where
     R1: AsyncRead,
     W1: AsyncWrite,
 {
+    let start = std::time::Instant::now();
+
     let mut worker_name: String = String::new();
 
     // if config.share != 0 {
@@ -154,12 +156,16 @@ where
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
 
+    let duration = start.elapsed();
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
+    info!("工作线程处理时间 {:?}", duration);
+
 
     loop {
         select! {
             res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_line()) => {
+                let start = std::time::Instant::now();
                 let buffer = match res{
                     Ok(res) => {
                         match res {
@@ -257,8 +263,12 @@ where
                         log::warn!("未知 {}",buf);
                     }
                 }
+                let duration = start.elapsed();
+                info!("矿机消息处理时间 {:?}", duration);
             },
             res = pool_lines.next_line() => {
+                let start = std::time::Instant::now();
+
                 let buffer = match res{
                     Ok(res) => {
                         match res {
@@ -537,7 +547,8 @@ where
                     }
                 }
 
-
+                let duration = start.elapsed();
+                info!("任务分配时间 {:?}", duration);
             },
             res = proxy_lines.next_line() => {
                 let buffer = match res{
