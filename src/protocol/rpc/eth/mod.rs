@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub trait ServerRpc {
+    fn set_id(&mut self, id: u64) -> bool;
+    fn get_id(&mut self) -> u64;
     fn set_result(&mut self, res: Vec<std::string::String>) -> bool;
     fn set_diff(&mut self, diff: String) -> bool;
     fn get_diff(&self) -> u64;
@@ -17,7 +19,7 @@ pub trait ClientRpc {
     fn get_wallet(&mut self) -> Option<String>;
 
     fn get_worker_name(&mut self) -> String;
-    fn set_worker_name(&mut self,worker_name: &str) -> bool;
+    fn set_worker_name(&mut self, worker_name: &str) -> bool;
 
     fn get_submit_hashrate(&self) -> u64;
 }
@@ -74,7 +76,7 @@ impl ClientRpc for Client {
         }
     }
 
-    fn set_worker_name(&mut self,worker_name: &str) -> bool {
+    fn set_worker_name(&mut self, _worker_name: &str) -> bool {
         true
     }
 }
@@ -131,7 +133,7 @@ impl ClientRpc for ClientWithWorkerName {
         }
     }
 
-    fn set_worker_name(&mut self,worker_name: &str) -> bool {
+    fn set_worker_name(&mut self, worker_name: &str) -> bool {
         self.worker = worker_name.to_string();
         true
     }
@@ -198,8 +200,17 @@ impl ServerRpc for ServerSideJob {
     fn get_job_id(&self) -> Option<String> {
         match self.result.get(0) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
+    }
+
+    fn set_id(&mut self, id: u64) -> bool {
+        self.id = id;
+        true
+    }
+
+    fn get_id(&mut self) -> u64 {
+        self.id
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -254,6 +265,15 @@ impl ServerRpc for Server {
             Some(s) => Some(s.to_string()),
             None => todo!(),
         }
+    }
+
+    fn set_id(&mut self, id: u64) -> bool {
+        self.id = id;
+        true
+    }
+
+    fn get_id(&mut self) -> u64 {
+        self.id
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -313,6 +333,15 @@ impl ServerRpc for ServerJobsWithHeight {
             Some(s) => Some(s.to_string()),
             None => todo!(),
         }
+    }
+
+    fn set_id(&mut self, id: u64) -> bool {
+        self.id = id;
+        true
+    }
+
+    fn get_id(&mut self) -> u64 {
+        self.id
     }
 }
 //币印 {"id":0,"jsonrpc":"2.0","result":["0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"], "height":13834471}

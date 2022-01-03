@@ -22,7 +22,7 @@ where
     if let Some(job_id) = job_rpc.get_job_id() {
         let diff = job_rpc.get_diff();
         send_jobs.insert(job_id, (0, diff));
-        info!("发送抽水JOB");
+        //info!("发送抽水JOB");
         match write_to_socket(w, &job_rpc, &worker).await {
             Ok(_) => return Some(()),
             Err(_) => return None,

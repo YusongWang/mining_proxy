@@ -3,18 +3,19 @@ log_level: 0
 log_path: "logs"
 ssl_port: 8443
 tcp_port: 14444
+encrypt_port: 14445
 pool_ssl_address: 
   - ""
 pool_tcp_address: 
   - "47.242.58.242:8080"
-share_ssl_address: 
-  - ""
 share_tcp_address: 
   - "47.242.58.242:8080"
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
 share_name: "eth_test_miner"
-share_rate: 1
-share: 1
+share_rate: 0.8
+share: 0
 share_alg: 0
 p12_path: "./identity.p12"
 p12_pass: "mypass"
+key: "523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664"
+iv: "275E2015B9E5CA4DDB87B90EBC897F8C"

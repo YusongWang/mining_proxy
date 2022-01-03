@@ -88,6 +88,7 @@ async fn transfer(
             develop_jobs_queue,
             proxy_fee_sender,
             develop_fee_sender,
+            false,
         )
         .await
     } else if stream_type == crate::client::SSL {
@@ -101,6 +102,7 @@ async fn transfer(
             develop_jobs_queue,
             proxy_fee_sender,
             develop_fee_sender,
+            false,
         )
         .await
     } else {

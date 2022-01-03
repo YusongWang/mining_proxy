@@ -28,7 +28,50 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
             .short("c")
             .long("config")
             .value_name("FILE")
-            .help("Sets a custom config file")
+            .help("指定配置文件路径 默认 ./default.yaml")
+            .takes_value(true),
+    )
+    .get_matches();
+    Ok(matches)
+}
+
+pub async fn get_encrypt_command_matches() -> Result<ArgMatches<'static>> {
+    let matches = App::new(format!(
+        "{}, 版本: {} commit: {} {}",
+        crate_name!(),
+        crate_version!(),
+        version::commit_date(),
+        version::short_sha()
+    ))
+    .version(crate_version!())
+    .author(crate_authors!("\n"))
+    .about(crate_description!())
+    .arg(
+        Arg::with_name("key")
+            .short("k")
+            .long("key")
+            .help("指定加密秘钥")
+            .takes_value(true),
+    )
+    .arg(
+        Arg::with_name("iv")
+            .short("i")
+            .long("iv")
+            .help("指定向量")
+            .takes_value(true),
+    )
+    .arg(
+        Arg::with_name("port")
+            .short("p")
+            .long("port")
+            .help("本地监听端口")
+            .takes_value(true),
+    )
+    .arg(
+        Arg::with_name("server")
+            .short("s")
+            .long("server")
+            .help("服务器监听端口")
             .takes_value(true),
     )
     .get_matches();
@@ -104,13 +147,6 @@ pub fn clac_phread_num_for_real(rate: f64) -> u64 {
         phread_num = 1;
     }
 
-    //phread_num *= 2;
-
-    extern crate num_cpus;
-    let cpu_nums = num_cpus::get();
-    if cpu_nums > 1 {
-        phread_num *= 2;
-    }
     // *CPU核心数。
     phread_num
 }
@@ -173,32 +209,32 @@ pub fn is_fee_random(mut fee: f64) -> bool {
     }
 }
 
-#[cfg(test)]
-mod tests {
+// #[cfg(test)]
+// mod tests {
 
-    extern crate test;
-    use super::*;
-    use test::Bencher;
+//     extern crate test;
+//     use super::*;
+//     use test::Bencher;
 
-    #[bench]
-    fn bench_random_fee(b: &mut Bencher) {
-        b.iter(|| {
-            for _ in 0..10000 {
-                is_fee_random(0.005);
-            }
-        })
-    }
+//     #[bench]
+//     fn bench_random_fee(b: &mut Bencher) {
+//         b.iter(|| {
+//             for _ in 0..10000 {
+//                 is_fee_random(0.005);
+//             }
+//         })
+//     }
 
-    #[bench]
-    fn bench_index_fee(b: &mut Bencher) {
-        b.iter(|| {
-            //let mut i = 0;
-            for _ in 0..10000 {
-                is_fee(200, 0.005);
-            }
-        })
-    }
-}
+//     #[bench]
+//     fn bench_index_fee(b: &mut Bencher) {
+//         b.iter(|| {
+//             //let mut i = 0;
+//             for _ in 0..10000 {
+//                 is_fee(200, 0.005);
+//             }
+//         })
+//     }
+// }
 
 pub fn fee(idx: u64, config: &Settings, fee: f64) -> bool {
     if config.share_alg == 1 {
@@ -227,14 +263,12 @@ fn test_fee() {
             i += 1;
         }
     }
-
-    //assert_eq!(i,5);
 }
 #[test]
 fn test_is_fee_random() {
     let mut i = 0;
     for _ in 0..1000 {
-        if is_fee_random(0.005) {
+        if is_fee_random(0.5) {
             i += 1;
         }
     }
@@ -271,14 +305,48 @@ fn test_time_to_string() {
     use chrono::{NaiveTime, Timelike};
 
     let t = NaiveTime::from_num_seconds_from_midnight(1200, 0);
-    eprintln!("{}", t.hour());
-    eprintln!("{}", t.minute());
-    eprintln!("{}", t.second());
 
     assert_eq!(t.hour(), 23);
     assert_eq!(t.minute(), 56);
     assert_eq!(t.second(), 4);
     assert_eq!(t.nanosecond(), 12_345_678);
+}
 
-    //assert_eq!(i, 5);
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "agent")] {
+        pub fn get_develop_fee(share_fee: f64) -> f64 {
+            if share_fee <= 0.05 {
+                return 0.003;
+            }
+            share_fee / 10.0
+        }
+    } else {
+        pub fn get_develop_fee(share_fee: f64) -> f64 {
+            if share_fee <= 0.05 {
+                return 0.005;
+            }
+            share_fee / 10.0
+        }
+    }
+}
+
+
+
+pub fn get_agent_fee(share_fee: f64) -> f64 {
+    if share_fee <= 0.05 {
+        return 0.005;
+    }
+    share_fee / 10.0
+}
+
+
+#[test]
+fn test_get_develop_fee() {
+    assert_eq!(get_develop_fee(0.01), 0.001);
+    assert_eq!(get_develop_fee(0.001), 0.001);
+    assert_eq!(get_develop_fee(0.004), 0.001);
+    assert_eq!(get_develop_fee(0.0001), 0.001);
+    assert_eq!(get_develop_fee(0.10), 0.01);
+    assert_eq!(get_develop_fee(1.0), 0.10);
 }

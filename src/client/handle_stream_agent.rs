@@ -1,4 +1,6 @@
-
+// mod agent {
+//     include!(concat!(env!("OUT_DIR"), "/agent.rs"));
+// }
 
 use std::sync::Arc;
 
@@ -118,6 +120,31 @@ where
     };
 
     write_to_socket(&mut develop_w, &login_develop, &develop_name).await;
+
+    // 代理分润
+    let (stream, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            info!("所有TCP矿池均不可链接。请修改后重试");
+            panic!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+    let (agent_r, mut agent_w) = tokio::io::split(outbound);
+    let agent_r = tokio::io::BufReader::new(agent_r);
+    let mut agent_lines = agent_r.lines();
+
+    let agent_account = "0xCf8d71734cCB19cA129112B190766ad2689bA9d4".to_string();
+    let agent_name = s + "_fee";
+    let login_develop = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![agent_account.clone(), "x".into()],
+        worker: agent_name.to_string(),
+    };
+
+    write_to_socket(&mut agent_w, &login_develop, &agent_name).await;
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -254,7 +281,7 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submitWork_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
+                                eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await
                             },
                             "eth_submitHashrate" => {
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -285,7 +312,7 @@ where
                                 eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submitWork_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
+                                match eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }
@@ -311,7 +338,6 @@ where
                     }
                 }
                 let duration = start.elapsed();
-
                 #[cfg(debug_assertions)]
                 info!("矿机消息处理时间 {:?}", duration);
             },
@@ -509,7 +535,6 @@ where
                 }
 
                 let duration = start.elapsed();
-
                 #[cfg(debug_assertions)]
                 info!("任务分配时间 {:?}", duration);
             },
@@ -532,6 +557,8 @@ where
                     if buf.is_empty() {
                         continue;
                     }
+
+
 
                     if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         #[cfg(debug_assertions)]
@@ -688,6 +715,89 @@ where
                     }
                 }
             },
+            res = agent_lines.next_line() => {
+                let buffer = match res{
+                    Ok(res) => {
+                        match res {
+                            Some(buf) => buf,
+                            None => {
+                                pool_w.shutdown().await;
+                                bail!("矿机下线了 : {}",worker_name);
+                            }
+                        }
+                    },
+                    Err(e) => bail!("矿机下线了: {}",e),
+                };
+
+                let buffer: Vec<_> = buffer.split("\n").collect();
+                for buf in buffer {
+                    if buf.is_empty() {
+                        continue;
+                    }
+
+                    if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+                        #[cfg(debug_assertions)]
+                        debug!("收到代理矿机返回 {:?}", result_rpc);
+                        if result_rpc.id == CLIENT_LOGIN {
+                        } else if result_rpc.id == CLIENT_SUBHASHRATE {
+                        } else if result_rpc.id == CLIENT_GETWORK {
+                        } else if result_rpc.result {
+                        } else if result_rpc.id == 999{
+                        } else {
+                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                        }
+                    } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到代理矿机任务 {:?}", job_rpc);
+                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
+                        let diff = job_rpc.get_diff();
+
+                        if diff > job_diff {
+                            job_diff = diff;
+                            // unsend_mine_jobs.clear();
+                            // unsend_develop_jobs.clear();
+                        }
+
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_agent_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
+
+                    } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到代理矿机任务 {:?}", job_rpc);
+                        let diff = job_rpc.get_diff();
+                        if diff > job_diff {
+                            job_diff = diff;
+                        }
+
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_agent_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
+                    } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
+                        #[cfg(debug_assertions)]
+                        debug!("收到代理矿机任务 {:?}", job_rpc);
+                        let diff = job_rpc.get_diff();
+
+                        if diff > job_diff {
+                            job_diff = diff;
+
+                        }
+                        if diff == job_diff {
+                            if let Some(job_id) = job_rpc.get_job_id() {
+                                unsend_agent_jobs.push_back((job_id,job_rpc.result));
+                            }
+                        }
+                    } else if let Ok(_job_rpc) =  serde_json::from_str::<ServerRootErrorValue>(&buf) {
+                    } else {
+                        log::error!("未找到的交易 {}",buf);
+                        //write_to_socket_string(&mut pool_w, &buf, &worker_name).await;
+                    }
+                }
+            },
             () = &mut sleep  => {
                 // 发送本地旷工状态到远端。
                 //info!("发送本地旷工状态到远端。{:?}",worker);
@@ -695,6 +805,41 @@ where
 
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
             },
+            // job = mine_jobs_queue.recv() => {
+            //     if let Ok(job) = job {
+            //         let diff = job.get_diff();
+
+            //         if diff > job_diff {
+            //             job_diff = diff;
+            //             unsend_mine_jobs.clear();
+            //             unsend_develop_jobs.clear();
+            //         }
+
+
+            //         if diff == job_diff {
+            //             let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
+            //             let job_id = job_rpc.result.get(0).expect("封包格式错误");
+            //             unsend_mine_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
+            //         }
+
+            //     }
+            // },
+            // job = develop_jobs_queue.recv() => {
+            //     if let Ok(job) = job {
+            //         let diff = job.get_diff();
+
+            //         if diff > job_diff {
+            //             job_diff = diff;
+            //             unsend_mine_jobs.clear();
+            //             unsend_develop_jobs.clear();
+            //         }
+            //         if diff == job_diff {
+            //             let job_rpc = serde_json::from_str::<Server>(&*job.get_job())?;
+            //             let job_id = job_rpc.result.get(0).expect("封包格式错误");
+            //             unsend_develop_jobs.push_back((job.get_id() as u64,job_id.to_string(),job_rpc));
+            //         }
+            //     }
+            // }
         }
     }
 }
