@@ -37,6 +37,11 @@ cfg-if= "1.0.0"
 
 [build-dependencies]
 vergen = "0.1"
+
+
 [profile.release]
 panic = 'abort'
 opt-level = "z"
+
+[features]
+agent = []

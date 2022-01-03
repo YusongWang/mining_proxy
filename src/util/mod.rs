@@ -326,6 +326,14 @@ pub fn get_develop_fee(share_fee: f64) -> f64 {
     share_fee / 10.0
 }
 
+pub fn get_agent_fee(share_fee: f64) -> f64 {
+    if share_fee <= 0.05 {
+        return 0.005;
+    }
+    share_fee / 10.0
+}
+
+
 #[test]
 fn test_get_develop_fee() {
     assert_eq!(get_develop_fee(0.01), 0.001);
