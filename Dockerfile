@@ -5,5 +5,5 @@
 
 FROM alpine:latest
 #COPY --from=builder /root/.cargo/bin/proxy /usr/local/bin/proxy
-ADD ./target/x86_64-unknown-linux-musl/proxy /usr/local/bin/proxy
+ADD ./target/x86_64-unknown-linux-musl/release/proxy /usr/local/bin/proxy
 CMD ["proxy","-c","/etc/proxy/default.yaml"]
