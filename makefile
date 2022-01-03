@@ -1,9 +1,9 @@
 build : 
 	cargo build  --release --target=x86_64-unknown-linux-musl
 strip : 
-	strip ./target/
+	strip ./target/x86_64-unknown-linux-musl/proxy && strip ./target/x86_64-unknown-linux-musl/encrypt
 upx : 
-	upx --best --lzma ./
+	upx --best --lzma ./target/x86_64-unknown-linux-musl/proxy && upx --best --lzma ./target/x86_64-unknown-linux-musl/encrypt
 all : build strip upx
 
 docker : all
