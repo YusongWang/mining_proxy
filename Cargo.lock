@@ -992,6 +992,7 @@ dependencies = [
  "async-channel",
  "base64",
  "bytes",
+ "cfg-if",
  "chrono",
  "clap",
  "config",

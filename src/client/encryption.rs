@@ -148,7 +148,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                         continue;
                     }
 
-                    
+
                     let buf = match base64::decode(&buf[..]) {
                         Ok(buf) => buf,
                         Err(e) => {

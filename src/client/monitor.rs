@@ -149,7 +149,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
 
                     //#[cfg(debug_assertions)]
                     debug!("<------ :  矿池 -> 矿机  {}", String::from_utf8(buf.to_vec()).unwrap());
-            
+
                     match write_to_socket_byte(&mut worker_w,buf.to_vec(),&"解密".to_string()).await{
                         Ok(_) => {},
                         Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)}

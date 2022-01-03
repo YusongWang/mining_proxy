@@ -1,4 +1,3 @@
-
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -25,7 +24,7 @@ async fn main() -> Result<()> {
         },
     ));
 
-    logger::init("monitor","./logs/".into(),0)?;
+    logger::init("monitor", "./logs/".into(), 0)?;
 
     info!(
         "✅ {}, 版本: {} commit: {} {}",

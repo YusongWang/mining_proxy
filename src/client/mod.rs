@@ -2,10 +2,9 @@ pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
 pub mod mine;
+pub mod monitor;
 pub mod tcp;
 pub mod tls;
-pub mod monitor;
-
 
 use anyhow::bail;
 use hex::FromHex;
@@ -206,7 +205,6 @@ where
     W: AsyncWrite,
     T: Serialize,
 {
-
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
     #[cfg(debug_assertions)]

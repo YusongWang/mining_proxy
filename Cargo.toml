@@ -33,23 +33,10 @@ lru = "0.7.2"
 openssl-sys = "0.9"
 openssl = "0.10"
 base64 = "0.13.0"
+cfg-if= "1.0.0"
 
 [build-dependencies]
 vergen = "0.1"
-
-
 [profile.release]
 panic = 'abort'
 opt-level = "z"
-# lto = true
-# codegen-units = 1
-
-
-
-# [[bin]]
-# name = "proxy"
-# src = "./proxy/main.rs"
-
-
-[target.armv7-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"

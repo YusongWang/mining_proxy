@@ -1,6 +1,4 @@
-
 const SPLIT: u8 = b'\n';
-
 
 pub mod client;
 pub mod jobs;

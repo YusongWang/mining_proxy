@@ -1,4 +1,3 @@
-
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -17,11 +16,10 @@ use prettytable::{cell, row, Table};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
-    select,
     sync::{
         broadcast,
         mpsc::{self, Receiver},
-        RwLock, RwLockReadGuard,
+        RwLock,
     },
     time::sleep,
 };
@@ -142,59 +140,42 @@ async fn main() -> Result<()> {
             dev_state_send.clone(),
             cert,
         ),
-        // proxy_accept(
-        //     worker_tx.clone(),
-        //     proxy_worker.clone(),
-        //     mine_jobs.clone(),
-        //     &config,
-        //     proxy_job_channel.clone()
-        // ),
-        // develop_accept(
-        //     worker_tx.clone(),
-        //     develop_worker.clone(),
-        //     develop_jobs.clone(),
-        //     &config,
-        //     fee_tx.clone()
-        // ),
-        // process_mine_state(state.clone(), state_recv),
-        // process_dev_state(state.clone(), dev_state_recv),
         process_workers(
             &config,
             worker_rx,
             proxy_worker.clone(),
             develop_worker.clone()
         ),
-        // clear_state(state.clone(), config.clone()),
     );
 
     if let Err(err) = res {
-        log::warn!("矿机下线本地或远程断开: {}", err);
+        log::error!("致命错误 : {}", err);
     }
 
     Ok(())
 }
 
-pub async fn send_worker_state(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
-    worker: Arc<tokio::sync::RwLock<Worker>>,
-) -> Result<()> {
-    let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
-    tokio::pin!(sleep);
-    loop {
-        select! {
-            () = &mut sleep => {
-                {
-                    let w = RwLockReadGuard::map(worker.read().await, |s| s);
-                    worker_queue.send(w.clone()).await;
-                }
-                if false {
-                    anyhow::bail!("false");
-                }
-                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
-            },
-        }
-    }
-}
+// pub async fn send_worker_state(
+//     worker_queue: tokio::sync::mpsc::Sender<Worker>,
+//     worker: Arc<tokio::sync::RwLock<Worker>>,
+// ) -> Result<()> {
+//     let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
+//     tokio::pin!(sleep);
+//     loop {
+//         select! {
+//             () = &mut sleep => {
+//                 {
+//                     let w = RwLockReadGuard::map(worker.read().await, |s| s);
+//                     worker_queue.send(w.clone()).await;
+//                 }
+//                 if false {
+//                     anyhow::bail!("false");
+//                 }
+//                 sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
+//             },
+//         }
+//     }
+// }
 // // 中转代理抽水服务
 // async fn proxy_accept(
 //     worker_queue: tokio::sync::mpsc::Sender<Worker>,
