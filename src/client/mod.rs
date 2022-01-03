@@ -4,6 +4,8 @@ pub mod handle_stream;
 pub mod mine;
 pub mod tcp;
 pub mod tls;
+pub mod monitor;
+
 
 use anyhow::bail;
 use hex::FromHex;

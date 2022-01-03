@@ -46,6 +46,6 @@ opt-level = "z"
 
 
 
-[[bin]]
-name = "proxy"
-src = "./proxy/main.rs"
+# [[bin]]
+# name = "proxy"
+# src = "./proxy/main.rs"
