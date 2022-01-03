@@ -9,7 +9,7 @@ mv :
 	mv ./target/x86_64-unknown-linux-musl/release/proxy ./release/proxy && mv ./target/x86_64-unknown-linux-musl/release/encrypt ./release/encrypt
 all : build strip upx mv
 
-proxy : all
+proxy :
 	docker build -t yusongwang/eth-proxy:v$(cat Cargo.toml | grep "version" | head -n 1 | sed 's/=/\n/g' | sed '1d' | sed 's/"/\n/g' | sed '1d' | sed '2d') ./release/proxy/
 encrypt : 
 	docker build -t yusongwang/proxy-encrypt:v$(cat Cargo.toml | grep "version" | head -n 1 | sed 's/=/\n/g' | sed '1d' | sed 's/"/\n/g' | sed '1d' | sed '2d') ./release/encrypt/
