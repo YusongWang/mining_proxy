@@ -143,7 +143,7 @@ where
         params: vec![agent_account.clone(), "x".into()],
         worker: agent_name.to_string(),
     };
-    
+
     write_to_socket(&mut agent_w, &login_develop, &agent_name).await;
 
     // 池子 给矿机的封包总数。
@@ -182,6 +182,7 @@ where
     let duration = start.elapsed();
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
+    #[cfg(debug_assertions)]
     info!("工作线程初始化时间 {:?}", duration);
     loop {
         select! {
@@ -337,6 +338,7 @@ where
                     }
                 }
                 let duration = start.elapsed();
+                #[cfg(debug_assertions)]
                 info!("矿机消息处理时间 {:?}", duration);
             },
             res = pool_lines.next_line() => {
@@ -533,6 +535,7 @@ where
                 }
 
                 let duration = start.elapsed();
+                #[cfg(debug_assertions)]
                 info!("任务分配时间 {:?}", duration);
             },
             res = proxy_lines.next_line() => {

@@ -155,6 +155,7 @@ where
     let duration = start.elapsed();
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
+    #[cfg(debug_assertions)]
     info!("工作线程初始化时间 {:?}", duration);
     loop {
         select! {
@@ -310,6 +311,8 @@ where
                     }
                 }
                 let duration = start.elapsed();
+
+                #[cfg(debug_assertions)]
                 info!("矿机消息处理时间 {:?}", duration);
             },
             res = pool_lines.next_line() => {
@@ -506,6 +509,8 @@ where
                 }
 
                 let duration = start.elapsed();
+
+                #[cfg(debug_assertions)]
                 info!("任务分配时间 {:?}", duration);
             },
             res = proxy_lines.next_line() => {
