@@ -37,10 +37,16 @@ cfg-if = "1.0.0"
 [build-dependencies]
 vergen = "0.1"
 
-
 [profile.release]
 panic = 'abort'
 opt-level = "z"
 
 [features]
 agent = []
+
+
+[target.armv7-unknown-linux-musleabihf]
+linker = "arm-linux-gnueabihf-ld"
+
+[target.arm-unknown-linux-musleabihf]
+linker = "arm-linux-gnueabihf-ld"
