@@ -89,7 +89,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                     client_timeout_sec = 60;
                 }
 
-                #[cfg(debug_assertions)]
+                //#[cfg(debug_assertions)]
                 debug!("------> :  矿机 -> 矿池  {:?}", buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
@@ -147,7 +147,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                         continue;
                     }
 
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     debug!("<------ :  矿池 -> 矿机  {}", String::from_utf8(buf.to_vec()).unwrap());
             
                     match write_to_socket_byte(&mut worker_w,buf.to_vec(),&"解密".to_string()).await{
