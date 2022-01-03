@@ -49,3 +49,7 @@ opt-level = "z"
 # [[bin]]
 # name = "proxy"
 # src = "./proxy/main.rs"
+
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"

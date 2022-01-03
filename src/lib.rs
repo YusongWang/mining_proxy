@@ -1,4 +1,4 @@
-#![feature(test)]
+
 const SPLIT: u8 = b'\n';
 
 
