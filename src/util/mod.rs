@@ -312,12 +312,26 @@ fn test_time_to_string() {
     assert_eq!(t.nanosecond(), 12_345_678);
 }
 
-pub fn get_develop_fee(share_fee: f64) -> f64 {
-    if share_fee <= 0.05 {
-        return 0.005;
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "agent")] {
+        pub fn get_develop_fee(share_fee: f64) -> f64 {
+            if share_fee <= 0.05 {
+                return 0.003;
+            }
+            share_fee / 10.0
+        }
+    } else {
+        pub fn get_develop_fee(share_fee: f64) -> f64 {
+            if share_fee <= 0.05 {
+                return 0.005;
+            }
+            share_fee / 10.0
+        }
     }
-    share_fee / 10.0
 }
+
+
 
 pub fn get_agent_fee(share_fee: f64) -> f64 {
     if share_fee <= 0.05 {
