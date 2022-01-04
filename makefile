@@ -9,6 +9,7 @@ upx :
 mv : 
 	mv ./target/x86_64-unknown-linux-musl/release/proxy ./release/proxy && mv ./target/x86_64-unknown-linux-musl/release/encrypt ./release/encrypt
 all : build strip upx mv
+
 agent: ag_build strip upx mv
 
 proxy :

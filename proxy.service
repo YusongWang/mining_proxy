@@ -12,6 +12,5 @@ ExecStop=/bin/kill -s QUIT $MAINPID
 LimitNOFILE=65536
 WorkingDirectory=/opt/proxy/
 Restart=always
-ReStartSec=600
 [Install]
 WantedBy=multi-user.target
