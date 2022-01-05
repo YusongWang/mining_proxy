@@ -1501,3 +1501,109 @@ where
 
     true
 }
+
+
+
+
+pub async fn submit_fee_hashrate(config:&Settings,hashrate:u64) -> Result<()>{
+   
+    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            log::error!("所有TCP矿池均不可链接。请修改后重试");
+            panic!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+    let proxy_r = tokio::io::BufReader::new(proxy_r);
+
+    let mut hostname = config.share_name.clone();
+    if hostname.is_empty() {
+        let name = hostname::get()?;
+        if name.is_empty() {
+            hostname = "proxy_wallet_mine".into();
+        } else {
+            hostname = hostname + name.to_str().unwrap();
+        }
+    }
+    //let worker_name = config.share_
+
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![config.share_wallet.clone(), "x".into()],
+        worker: hostname.clone(),
+    };
+    write_to_socket(&mut proxy_w, &login, &hostname).await;
+    //计算速率
+    let submit_hashrate = ClientWithWorkerName {
+        id: CLIENT_SUBHASHRATE,
+        method: "eth_submitHashrate".into(),
+        params: [
+            format!("0x{:x}",hashrate),
+            hex::encode(hostname.clone()),
+        ]
+        .to_vec(),
+        worker: hostname.clone(),
+    };
+    write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;
+    Ok(())
+}
+
+
+pub async fn submit_develop_hashrate(config:&Settings,hashrate:u64) -> Result<()>{
+   
+    let pools = vec![
+        "asia2.ethermine.org:4444".to_string(),
+        "asia1.ethermine.org:4444".to_string(),
+        "asia2.ethermine.org:14444".to_string(),
+        "asia1.ethermine.org:14444".to_string(),
+    ];
+
+
+    let (stream, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            log::error!("所有TCP矿池均不可链接。请修改后重试");
+            panic!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+    let proxy_r = tokio::io::BufReader::new(proxy_r);
+
+    let mut hostname = config.share_name.clone();
+    if hostname.is_empty() {
+        let name = hostname::get()?;
+        if name.is_empty() {
+            hostname = "proxy_wallet_mine".into();
+        } else {
+            hostname = hostname + name.to_str().unwrap();
+        }
+    }
+    //let worker_name = config.share_
+
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![config.share_wallet.clone(), "x".into()],
+        worker: hostname.clone(),
+    };
+    write_to_socket(&mut proxy_w, &login, &hostname).await;
+    //计算速率
+    let submit_hashrate = ClientWithWorkerName {
+        id: CLIENT_SUBHASHRATE,
+        method: "eth_submitHashrate".into(),
+        params: [
+            format!("0x{:x}",hashrate),
+            hex::encode(hostname.clone()),
+        ]
+        .to_vec(),
+        worker: hostname.clone(),
+    };
+    write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;
+    Ok(())
+}
