@@ -1041,6 +1041,7 @@ where
                         Ok(_) => {
                             #[cfg(debug_assertions)]
                             info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                            return Some(());
                         }
                         Err(e) => {
                             log::error!("agent :{}", e);
@@ -1051,6 +1052,7 @@ where
                         Ok(_) => {
                             #[cfg(debug_assertions)]
                             info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                            return Some(());
                         }
                         Err(e) => {
                             log::error!("agent :{}", e);
@@ -1060,8 +1062,6 @@ where
             }
         }
     }
-
-
 
     if fee_job_process(
         pool_job_idx,
@@ -1096,6 +1096,7 @@ where
                 }
                 Err(e) => {
                     log::error!("fee :{}", e);
+                    return None;
                 }
             };
         } else {
@@ -1107,6 +1108,7 @@ where
                 }
                 Err(e) => {
                     log::error!("agent :{}", e);
+                    return None;
                 }
             };
         }
@@ -1122,10 +1124,22 @@ where
 
         let job_id = normal_worker.get_job_id().unwrap();
         let chage_job_id = job_rpc.get_job_id().unwrap();
-        if job_id == chage_job_id{
+        if job_id == chage_job_id {
             return Some(());
         }
-        
+
+        if develop_send_jobs.contains(&job_id) {
+            return Some(());
+        }
+
+        if agent_send_jobs.contains(&job_id) {
+            return Some(());
+        }
+
+        if mine_send_jobs.contains(&job_id) {
+            return Some(());
+        }
+
         normal_send_jobs.put(job_id, 0);
         if is_encrypted {
             match write_encrypt_socket(

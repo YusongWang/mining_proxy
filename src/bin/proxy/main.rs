@@ -444,13 +444,15 @@ pub async fn print_state(
         total_invalid = total_invalid + w.invalid_index;
     }
 
-    //TODO 将total hash 写入worker
+    //将total hash 写入worker
     let mine_hash = calc_hash_rate(bytes_to_mb(total_hash), config.share_rate);
 
     let develop_hash = calc_hash_rate(
         bytes_to_mb(total_hash),
         get_develop_fee(config.share_rate.into()) as f32,
     );
+
+    
     // 添加行
     table.add_row(row![
         "汇总",
