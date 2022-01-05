@@ -282,10 +282,21 @@ fn test_is_fee_random() {
     assert_eq!(i, 5);
 }
 
-pub fn time_to_string(time: u64) -> String {
-    use chrono::{NaiveTime, Timelike};
-    let t = NaiveTime::from_num_seconds_from_midnight(time as u32, 0);
+pub fn time_to_string(mut time:u64) -> String {
     let mut res = String::new();
+
+    use chrono::{NaiveTime, Timelike};
+    let day = time / 86_400;
+    if day > 0 {
+        let s = day.to_string() + "天";
+        res += &s;
+        time %= time;
+    }
+    
+    let t = match (NaiveTime::from_num_seconds_from_midnight_opt(time as u32, 0)) {
+        Some(t) => t,
+        None => return "格式化错误".into(),
+    };
 
     if t.hour() > 0 {
         let s = t.hour().to_string() + "小时";
@@ -319,7 +330,6 @@ fn test_time_to_string() {
     assert_eq!(t.nanosecond(), 12_345_678);
 }
 
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "agent")] {
         pub fn get_develop_fee(share_fee: f64) -> f64 {
@@ -338,15 +348,12 @@ cfg_if::cfg_if! {
     }
 }
 
-
-
 pub fn get_agent_fee(share_fee: f64) -> f64 {
     if share_fee <= 0.05 {
         return 0.005;
     }
     share_fee / 10.0
 }
-
 
 #[test]
 fn test_get_develop_fee() {

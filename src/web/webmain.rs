@@ -10,7 +10,7 @@ use log::info;
 use tokio::select;
 
 use super::{
-    greet::{greet, index},
+    greet::{greet, index, admin_info, pool_list},
     DbPool,
 };
 
@@ -37,14 +37,20 @@ pub async fn init_worker(r: Receiver<String>) -> std::io::Result<()> {
     }
 }
 
+
+
+
 pub async fn init_http(pool: DbPool) -> std::io::Result<()> {
     let sys = actix_rt::System::new("web");
     let http_server = HttpServer::new(move || {
         App::new()
             //.data(AppState { queue: s.clone() })
             .data(pool.clone())
+            .service(admin_info)
+            .service(pool_list)
             .route("/", web::get().to(index))
             .service(fs::Files::new("/", "./static/").show_files_listing())
+        
         // .route("/", web::get().to(greet))
         // .route("/{name}", web::get().to(greet))
     })
