@@ -418,14 +418,7 @@ where
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
                         }
-                        let diff = job_rpc.get_diff();
-                        if diff > job_diff {
-                            job_diff = diff;
-
-                            unsend_mine_jobs.clear();
-                            unsend_develop_jobs.clear();
-                            unsend_agent_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
 
                         if config.share != 0 {
@@ -455,14 +448,7 @@ where
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
                         }
-                        let diff = job_rpc.get_diff();
-                        if diff > job_diff {
-                            job_diff = diff;
-
-                            unsend_mine_jobs.clear();
-                            unsend_develop_jobs.clear();
-                            unsend_agent_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
                         pool_job_idx += 1;
                         if config.share != 0 {
@@ -491,14 +477,7 @@ where
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
                         }
-                        let diff = job_rpc.get_diff();
-                        if diff > job_diff {
-                            job_diff = diff;
-
-                            unsend_mine_jobs.clear();
-                            unsend_develop_jobs.clear();
-                            unsend_agent_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
                         pool_job_idx += 1;
                         if config.share != 0 {
@@ -573,11 +552,7 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        if diff > job_diff {
-                            job_diff = diff;
-                            // unsend_mine_jobs.clear();
-                            // unsend_develop_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
@@ -591,11 +566,7 @@ where
                         debug!("收到抽水矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
 
-                        if diff > job_diff {
-                            job_diff = diff;
-                            // unsend_mine_jobs.clear();
-                            // unsend_develop_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
@@ -607,11 +578,7 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        if diff > job_diff {
-                            job_diff = diff;
-                            // unsend_mine_jobs.clear();
-                            // unsend_develop_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
@@ -664,11 +631,7 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        if diff > job_diff {
-                            job_diff = diff;
-                            // unsend_mine_jobs.clear();
-                            // unsend_develop_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
@@ -748,11 +711,7 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        if diff > job_diff {
-                            job_diff = diff;
-                            // unsend_mine_jobs.clear();
-                            // unsend_develop_jobs.clear();
-                        }
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {

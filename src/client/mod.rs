@@ -799,7 +799,6 @@ where
     }
 }
 
-
 async fn develop_job_process<T>(
     _pool_job_idx: u64,
     config: &Settings,
@@ -1165,7 +1164,6 @@ where
     Some(())
 }
 
-
 async fn share_job_process_develop<T, W>(
     pool_job_idx: u64,
     config: &Settings,
@@ -1337,8 +1335,6 @@ where
     Some(())
 }
 
-
-
 pub async fn handle<R, W, S>(
     worker_queue: tokio::sync::mpsc::Sender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
@@ -1472,4 +1468,26 @@ where
         is_encrypted,
     )
     .await
+}
+
+pub fn job_diff_change<T>(
+    diff: &mut u64,
+    rpc: &T,
+    a: &mut VecDeque<(String, Vec<String>)>,
+    b: &mut VecDeque<(String, Vec<String>)>,
+    c: &mut VecDeque<(String, Vec<String>)>,
+) -> bool
+where
+    T: ServerRpc,
+{
+    let job_diff = rpc.get_diff();
+    if job_diff > *diff {
+        *diff = job_diff;
+        a.clear();
+        b.clear();
+        c.clear();
+    }
+
+
+    true
 }
