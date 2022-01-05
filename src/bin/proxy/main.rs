@@ -1,14 +1,9 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
-use actix_web::{HttpServer, App, web, HttpRequest, Responder};
-#[macro_use]
-extern crate diesel;
-use diesel::{r2d2::ConnectionManager, SqliteConnection};
+
 use log::info;
-
-use proxy::{client::encry::accept_en_tcp, state::Worker, web::webmain::init_http};
-
+use proxy::{client::encry::accept_en_tcp, state::Worker};
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -38,13 +33,13 @@ use proxy::util::*;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = get_app_command_matches().await?;
-    // let _guard = sentry::init((
-    //     "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-    //     sentry::ClientOptions {
-    //         release: sentry::release_name!(),
-    //         ..Default::default()
-    //     },
-    // ));
+    let _guard = sentry::init((
+        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
 
     info!(
         "✅ {}, 版本: {} commit: {} {}",
@@ -54,31 +49,31 @@ async fn main() -> Result<()> {
         version::short_sha()
     );
 
-    if matches.is_present("ui") {
-        proxy::util::logger::init("web", "".to_string(), 0).unwrap();
-        // let manager = SqliteConnectionManager::file("db/proxy.db");
-        // let pool = Pool::new(manager).unwrap();
-        let manager = ConnectionManager::<SqliteConnection>::new("db/proxy.db");
-        let pool = diesel::r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create pool.");
-        let http_server = init_http(pool);
-        //let proxy_worker = proxy::web::webmain::init_worker(r);
+    // if matches.is_present("ui") {
+    //     proxy::util::logger::init("web", "".to_string(), 0).unwrap();
+    //     // let manager = SqliteConnectionManager::file("db/proxy.db");
+    //     // let pool = Pool::new(manager).unwrap();
+    //     let manager = ConnectionManager::<SqliteConnection>::new("db/proxy.db");
+    //     let pool = diesel::r2d2::Pool::builder()
+    //         .build(manager)
+    //         .expect("Failed to create pool.");
+    //     let http_server = init_http(pool);
+    //     //let proxy_worker = proxy::web::webmain::init_worker(r);
     
-        let res = tokio::try_join!(http_server);
-        // match a {
-        //     Ok(_) => {return Ok(())},
-        //     Err(e) => {
-        //         return std::io::Error::new(std::io::ErrorKind::Other);
-        //     },
-        // }
-        if let Err(err) = res {
-            log::error!("致命错误 : {}", err);
-            //return std::io::Error::new(std::io::ErrorKind::Other,err);
-        }
+    //     let res = tokio::try_join!(http_server);
+    //     // match a {
+    //     //     Ok(_) => {return Ok(())},
+    //     //     Err(e) => {
+    //     //         return std::io::Error::new(std::io::ErrorKind::Other);
+    //     //     },
+    //     // }
+    //     if let Err(err) = res {
+    //         log::error!("致命错误 : {}", err);
+    //         //return std::io::Error::new(std::io::ErrorKind::Other,err);
+    //     }
 
-        return Ok(());
-    } else {
+    //     return Ok(());
+    // } else {
 
         let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
         let config = config::Settings::new(config_file_name)?;
@@ -184,7 +179,7 @@ async fn main() -> Result<()> {
         }
     
         Ok(())
-    }
+    //}
 
 }
 
