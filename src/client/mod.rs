@@ -995,11 +995,9 @@ where
                 Ok(_) => {
                     #[cfg(debug_assertions)]
                     info!("写入成功开发者抽水任务 {:?}", job_rpc);
-                    return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
-                    return None;
+                    log::error!("dev {}", e);
                 }
             };
         } else {
@@ -1007,63 +1005,63 @@ where
                 Ok(_) => {
                     #[cfg(debug_assertions)]
                     info!("写入成功开发者抽水任务 {:?}", job_rpc);
-                    return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
-                    return None;
+                    log::error!("dev {}", e);
                 }
             };
         }
     }
 
-    if agnet_job_process(
-        pool_job_idx,
-        &config,
-        agent_unsend_jobs,
-        agent_send_jobs,
-        mine_send_jobs,
-        develop_send_jobs,
-        normal_send_jobs,
-        job_rpc,
-    )
-    .await
-    .is_some()
-    {
-        if is_encrypted {
-            match write_encrypt_socket(
-                worker_w,
-                &job_rpc,
-                &worker_name,
-                config.key.clone(),
-                config.iv.clone(),
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "agent")] {
+            if agnet_job_process(
+                pool_job_idx,
+                &config,
+                agent_unsend_jobs,
+                agent_send_jobs,
+                mine_send_jobs,
+                develop_send_jobs,
+                normal_send_jobs,
+                job_rpc,
             )
             .await
+            .is_some()
             {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
-                    return Some(());
+                if is_encrypted {
+                    match write_encrypt_socket(
+                        worker_w,
+                        &job_rpc,
+                        &worker_name,
+                        config.key.clone(),
+                        config.iv.clone(),
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            #[cfg(debug_assertions)]
+                            info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                        }
+                        Err(e) => {
+                            log::error!("agent :{}", e);
+                        }
+                    };
+                } else {
+                    match write_to_socket(worker_w, &job_rpc, &worker_name).await {
+                        Ok(_) => {
+                            #[cfg(debug_assertions)]
+                            info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                        }
+                        Err(e) => {
+                            log::error!("agent :{}", e);
+                        }
+                    };
                 }
-                Err(e) => {
-                    info!("{}", e);
-                    return None;
-                }
-            };
-        } else {
-            match write_to_socket(worker_w, &job_rpc, &worker_name).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
-                    return Some(());
-                }
-                Err(e) => {
-                    info!("{}", e);
-                    return None;
-                }
-            };
+            }
         }
     }
+
+
 
     if fee_job_process(
         pool_job_idx,
@@ -1097,8 +1095,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
-                    return None;
+                    log::error!("fee :{}", e);
                 }
             };
         } else {
@@ -1109,8 +1106,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
-                    return None;
+                    log::error!("agent :{}", e);
                 }
             };
         }
@@ -1125,6 +1121,11 @@ where
         }
 
         let job_id = normal_worker.get_job_id().unwrap();
+        let chage_job_id = job_rpc.get_job_id().unwrap();
+        if job_id == chage_job_id{
+            return Some(());
+        }
+        
         normal_send_jobs.put(job_id, 0);
         if is_encrypted {
             match write_encrypt_socket(
@@ -1487,7 +1488,6 @@ where
         b.clear();
         c.clear();
     }
-
 
     true
 }
