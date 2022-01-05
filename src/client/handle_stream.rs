@@ -182,7 +182,7 @@ where
                 };
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
-                let buf_bytes = buf_bytes[0..buf_bytes.len()].split(|c| *c == b'\n');
+                let buf_bytes = buf_bytes.split(|c| *c == b'\n');
                 for buffer in buf_bytes {
                     if buffer.is_empty() {
                         continue;
@@ -348,11 +348,6 @@ where
                     if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         if result_rpc.id == CLIENT_LOGIN {
                             if client_timeout_sec == 1 {
-                                //读取成功一次。以后不关闭了。这里直接设置一分钟把。看看矿机是否掉线.
-                                // let timeout: u64 = match std::env::var("CLIENT_TIMEOUT_SEC") {
-                                //     Ok(s) => s.parse(),
-                                //     Err(_) => 60,
-                                // }
                                 client_timeout_sec = 60;
                             }
                             worker.logind();
@@ -366,25 +361,16 @@ where
                             //info!("份额被接受.");
                             worker.share_accept();
                         } else if result_rpc.result {
-                            log::warn!("份额被接受，但是索引乱了.要上报给开发者 {:?}",result_rpc);
+                            //log::warn!("份额被接受，但是索引乱了.要上报给开发者 {:?}",result_rpc);
                             worker.share_accept();
-                        } else {
+                        } else if result_rpc.id == worker.share_index {
                             worker.share_reject();
-                            log::warn!("拒绝原因 {:?}",result_rpc);
+                            log::warn!("拒绝原因 {}",buf);
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
 
                         result_rpc.id = rpc_id ;
                         if is_encrypted {
-                            // let rpc = serde_json::to_vec(&result_rpc)?;
-                            // let cipher = Cipher::aes_256_cbc();
-                            // let key = Vec::from_hex(config.key.clone()).unwrap();
-                            // let iv = Vec::from_hex(config.iv.clone()).unwrap();
-                            // let rpc = encrypt(
-                            //     cipher,
-                            //     &key,
-                            //     Some(&iv),
-                            //     &rpc[..]).unwrap();
                             write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await;
                         } else {
                             write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
@@ -536,7 +522,7 @@ where
 
                         job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
-                        
+
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
@@ -594,8 +580,6 @@ where
                     if buf.is_empty() {
                         continue;
                     }
-
-
 
                     if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         #[cfg(debug_assertions)]

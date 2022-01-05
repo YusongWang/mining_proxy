@@ -388,7 +388,7 @@ where
                             //info!("份额被接受.");
                             worker.share_accept();
                         } else if result_rpc.result {
-                            log::warn!("份额被接受，但是索引乱了.要上报给开发者 {:?}",result_rpc);
+                            //log::warn!("份额被接受，但是索引乱了.要上报给开发者 {:?}",result_rpc);
                             worker.share_accept();
                         } else {
                             worker.share_reject();
