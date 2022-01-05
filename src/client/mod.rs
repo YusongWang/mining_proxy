@@ -1123,10 +1123,6 @@ where
         }
 
         let job_id = normal_worker.get_job_id().unwrap();
-        let chage_job_id = job_rpc.get_job_id().unwrap();
-        if job_id == chage_job_id {
-            return Some(());
-        }
 
         if develop_send_jobs.contains(&job_id) {
             return Some(());
