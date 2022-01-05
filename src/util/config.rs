@@ -1,3 +1,5 @@
+use std::env;
+
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 
@@ -69,6 +71,31 @@ impl Settings {
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
         s.merge(Environment::with_prefix("PROXY"))?;
 
+        match env::var("PROXY_POOL_TCP_ADDRESS") {
+            Ok(tcp_address) => {
+                let arr: Vec<&str> = tcp_address.split(',').collect();
+                s.set("pool_tcp_address", arr)?;
+            },
+            Err(_) => {},
+        }
+
+        match env::var("PROXY_POOL_SSL_ADDRESS") {
+            Ok(tcp_address) => {
+                let arr: Vec<&str> = tcp_address.split(',').collect();
+                s.set("pool_ssl_address", arr)?;
+            },
+            Err(_) => {},
+        }
+
+        match env::var("PROXY_SHARE_TCP_ADDRESS") {
+            Ok(tcp_address) => {
+                let arr: Vec<&str> = tcp_address.split(',').collect();
+                s.set("share_tcp_address", arr)?;
+            },
+            Err(_) => {},
+        }
+
+        
         // // You may also programmatically change settings
         // s.set("database.url", "postgres://")?;
 

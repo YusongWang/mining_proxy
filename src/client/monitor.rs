@@ -104,7 +104,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                     //let mut output = buf.as_bytes().to_vec().clone();
 
                     // let cipher = Cipher::aes_256_cbc();
-                    // //let data = b"Some Crypto Text";
+                    // //let data = b"Some Crypto String";
                     // let ciphertext = encrypt(
                     //     cipher,
                     //     &key,

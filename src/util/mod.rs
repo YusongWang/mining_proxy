@@ -31,6 +31,13 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
             .help("指定配置文件路径 默认 ./default.yaml")
             .takes_value(true),
     )
+    .arg(
+        Arg::with_name("ui")
+            .short("u")
+            .long("ui")
+            .help("web界面模式。无需配置文件。")
+            .takes_value(false),
+    )
     .get_matches();
     Ok(matches)
 }

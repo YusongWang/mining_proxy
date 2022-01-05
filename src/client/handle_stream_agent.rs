@@ -227,7 +227,7 @@ where
                         };
 
 
-                        //let data = b"Some Crypto Text";
+                        //let data = b"Some Crypto String";
                         let buffer = match decrypt(
                             cipher,
                             &key,

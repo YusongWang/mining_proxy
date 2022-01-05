@@ -1,9 +1,14 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
+use actix_web::{HttpServer, App, web, HttpRequest, Responder};
+#[macro_use]
+extern crate diesel;
+use diesel::{r2d2::ConnectionManager, SqliteConnection};
 use log::info;
 
-use proxy::{client::encry::accept_en_tcp, state::Worker};
+use proxy::{client::encry::accept_en_tcp, state::Worker, web::webmain::init_http};
+
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -31,24 +36,15 @@ use proxy::util::config::Settings;
 use proxy::util::*;
 
 #[tokio::main]
-//#[tokio::main(worker_threads = 1)]
 async fn main() -> Result<()> {
     let matches = get_app_command_matches().await?;
-    let _guard = sentry::init((
-        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            ..Default::default()
-        },
-    ));
-
-    let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
-    let config = config::Settings::new(config_file_name)?;
-    logger::init(
-        config.name.as_str(),
-        config.log_path.clone(),
-        config.log_level,
-    )?;
+    // let _guard = sentry::init((
+    //     "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+    //     sentry::ClientOptions {
+    //         release: sentry::release_name!(),
+    //         ..Default::default()
+    //     },
+    // ));
 
     info!(
         "✅ {}, 版本: {} commit: {} {}",
@@ -58,101 +54,138 @@ async fn main() -> Result<()> {
         version::short_sha()
     );
 
-    // 分配任务给矿机channel
-    let (state_send, _state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+    if matches.is_present("ui") {
+        proxy::util::logger::init("web", "".to_string(), 0).unwrap();
+        // let manager = SqliteConnectionManager::file("db/proxy.db");
+        // let pool = Pool::new(manager).unwrap();
+        let manager = ConnectionManager::<SqliteConnection>::new("db/proxy.db");
+        let pool = diesel::r2d2::Pool::builder()
+            .build(manager)
+            .expect("Failed to create pool.");
+        let http_server = init_http(pool);
+        //let proxy_worker = proxy::web::webmain::init_worker(r);
+    
+        let res = tokio::try_join!(http_server);
+        // match a {
+        //     Ok(_) => {return Ok(())},
+        //     Err(e) => {
+        //         return std::io::Error::new(std::io::ErrorKind::Other);
+        //     },
+        // }
+        if let Err(err) = res {
+            log::error!("致命错误 : {}", err);
+            //return std::io::Error::new(std::io::ErrorKind::Other,err);
+        }
 
-    // 分配dev任务给矿机channel
-    let (dev_state_send, _dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+        return Ok(());
+    } else {
 
-    if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
-        info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
-        std::process::exit(1);
-    };
-
-    if config.share != 0 && config.share_wallet.is_empty() {
-        info!("❎ 抽水模式钱包为空。");
-        std::process::exit(1);
+        let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
+        let config = config::Settings::new(config_file_name)?;
+        logger::init(
+            config.name.as_str(),
+            config.log_path.clone(),
+            config.log_level,
+        )?;
+    
+    
+        // 分配任务给矿机channel
+        let (state_send, _state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+    
+        // 分配dev任务给矿机channel
+        let (dev_state_send, _dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+    
+        if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
+            info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
+            std::process::exit(1);
+        };
+    
+        if config.share != 0 && config.share_wallet.is_empty() {
+            info!("❎ 抽水模式钱包为空。");
+            std::process::exit(1);
+        }
+    
+        let mut p12 = File::open(config.p12_path.clone())
+            .await
+            .expect("证书路径错误");
+    
+        let mut buffer = BytesMut::with_capacity(10240);
+        let read_key_len = p12.read_buf(&mut buffer).await?;
+        info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
+        let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
+        info!("✅ config init success!");
+    
+        // 分配任务给 抽水矿机
+        let (job_send, _) = broadcast::channel::<String>(100);
+    
+        // 抽水费用矿工
+        let proxy_worker = Arc::new(RwLock::new(Worker::default()));
+        let develop_worker = Arc::new(RwLock::new(Worker::default()));
+    
+        //let mine = Mine::new(config.clone(), 0).await?;
+        let (proxy_job_channel, _) = broadcast::channel::<(u64, String)>(100);
+    
+        // 开发者费用
+        let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
+    
+        // 当前中转总报告算力。Arc<> Or atom 变量
+        let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
+    
+        let thread_len = clac_phread_num_for_real(config.share_rate.into());
+        let thread_len = thread_len * 3; //扩容三倍存储更多任务
+        let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
+        let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
+    
+        let res = tokio::try_join!(
+            accept_tcp(
+                worker_tx.clone(),
+                mine_jobs.clone(),
+                develop_jobs.clone(),
+                config.clone(),
+                job_send.clone(),
+                proxy_job_channel.clone(),
+                fee_tx.clone(),
+                state_send.clone(),
+                dev_state_send.clone(),
+            ),
+            accept_en_tcp(
+                worker_tx.clone(),
+                mine_jobs.clone(),
+                develop_jobs.clone(),
+                config.clone(),
+                job_send.clone(),
+                proxy_job_channel.clone(),
+                fee_tx.clone(),
+                state_send.clone(),
+                dev_state_send.clone(),
+            ),
+            accept_tcp_with_tls(
+                worker_tx.clone(),
+                mine_jobs.clone(),
+                develop_jobs.clone(),
+                config.clone(),
+                job_send.clone(),
+                proxy_job_channel.clone(),
+                fee_tx.clone(),
+                state_send.clone(),
+                dev_state_send.clone(),
+                cert,
+            ),
+            process_workers(
+                &config,
+                worker_rx,
+                proxy_worker.clone(),
+                develop_worker.clone()
+            ),
+        );
+    
+        if let Err(err) = res {
+            log::error!("致命错误 : {}", err);
+        }
+    
+        Ok(())
     }
 
-    let mut p12 = File::open(config.p12_path.clone())
-        .await
-        .expect("证书路径错误");
-
-    let mut buffer = BytesMut::with_capacity(10240);
-    let read_key_len = p12.read_buf(&mut buffer).await?;
-    info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
-    let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
-    info!("✅ config init success!");
-
-    // 分配任务给 抽水矿机
-    let (job_send, _) = broadcast::channel::<String>(100);
-
-    // 抽水费用矿工
-    let proxy_worker = Arc::new(RwLock::new(Worker::default()));
-    let develop_worker = Arc::new(RwLock::new(Worker::default()));
-
-    //let mine = Mine::new(config.clone(), 0).await?;
-    let (proxy_job_channel, _) = broadcast::channel::<(u64, String)>(100);
-
-    // 开发者费用
-    let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
-
-    // 当前中转总报告算力。Arc<> Or atom 变量
-    let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
-
-    let thread_len = clac_phread_num_for_real(config.share_rate.into());
-    let thread_len = thread_len * 3; //扩容三倍存储更多任务
-    let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
-    let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
-
-    let res = tokio::try_join!(
-        accept_tcp(
-            worker_tx.clone(),
-            mine_jobs.clone(),
-            develop_jobs.clone(),
-            config.clone(),
-            job_send.clone(),
-            proxy_job_channel.clone(),
-            fee_tx.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-        ),
-        accept_en_tcp(
-            worker_tx.clone(),
-            mine_jobs.clone(),
-            develop_jobs.clone(),
-            config.clone(),
-            job_send.clone(),
-            proxy_job_channel.clone(),
-            fee_tx.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-        ),
-        accept_tcp_with_tls(
-            worker_tx.clone(),
-            mine_jobs.clone(),
-            develop_jobs.clone(),
-            config.clone(),
-            job_send.clone(),
-            proxy_job_channel.clone(),
-            fee_tx.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-            cert,
-        ),
-        process_workers(
-            &config,
-            worker_rx,
-            proxy_worker.clone(),
-            develop_worker.clone()
-        ),
-    );
-
-    if let Err(err) = res {
-        log::error!("致命错误 : {}", err);
-    }
-
-    Ok(())
 }
 
 // pub async fn send_worker_state(
