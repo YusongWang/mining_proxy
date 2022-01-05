@@ -290,7 +290,7 @@ pub fn time_to_string(mut time:u64) -> String {
     if day > 0 {
         let s = day.to_string() + "天";
         res += &s;
-        time %= time;
+        time %= 86_400;
     }
     
     let t = match (NaiveTime::from_num_seconds_from_midnight_opt(time as u32, 0)) {
