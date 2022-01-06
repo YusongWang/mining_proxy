@@ -1526,7 +1526,6 @@ pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()>
             hostname = hostname + name.to_str().unwrap();
         }
     }
-    //let worker_name = config.share_
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
