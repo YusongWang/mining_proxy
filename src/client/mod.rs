@@ -1571,11 +1571,11 @@ pub async fn submit_develop_hashrate(config: &Settings, hashrate: u64) -> Result
     hostname += name.to_str().unwrap();
 
     //let worker_name = config.share_
-
+    let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![config.share_wallet.clone(), "x".into()],
+        params: vec![develop_account.clone(), "x".into()],
         worker: hostname.clone(),
     };
 

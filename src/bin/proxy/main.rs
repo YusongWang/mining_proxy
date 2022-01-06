@@ -436,7 +436,7 @@ pub async fn print_state(
             time_to_string(w.last_subwork_time.elapsed().as_secs()),
         ]);
 
-        total_hash = total_hash + w.hash;
+        total_hash +=  w.hash;
         total_share = total_share + w.share_index;
         total_accept = total_accept + w.accept_index;
         total_invalid = total_invalid + w.invalid_index;
