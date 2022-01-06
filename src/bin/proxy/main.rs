@@ -40,15 +40,6 @@ async fn main() -> Result<()> {
             ..Default::default()
         },
     ));
-
-    info!(
-        "✅ {}, 版本: {} commit: {} {}",
-        crate_name!(),
-        crate_version!(),
-        version::commit_date(),
-        version::short_sha()
-    );
-
     // if matches.is_present("ui") {
     //     proxy::util::logger::init("web", "".to_string(), 0).unwrap();
     //     // let manager = SqliteConnectionManager::file("db/proxy.db");
@@ -103,11 +94,18 @@ async fn main() -> Result<()> {
         .await
         .expect("证书路径错误");
 
+    info!(
+        "版本: {} commit: {} {}",
+        crate_version!(),
+        version::commit_date(),
+        version::short_sha()
+    );
+
     let mut buffer = BytesMut::with_capacity(10240);
     let read_key_len = p12.read_buf(&mut buffer).await?;
-    info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
+    //info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
-    info!("✅ config init success!");
+    //info!("✅ config init success!");
 
     // 分配任务给 抽水矿机
     let (job_send, _) = broadcast::channel::<String>(100);
@@ -436,7 +434,7 @@ pub async fn print_state(
             time_to_string(w.last_subwork_time.elapsed().as_secs()),
         ]);
 
-        total_hash +=  w.hash;
+        total_hash += w.hash;
         total_share = total_share + w.share_index;
         total_accept = total_accept + w.accept_index;
         total_invalid = total_invalid + w.invalid_index;
