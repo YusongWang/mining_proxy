@@ -17,8 +17,9 @@ rm -rf ~/proxy_tmp
 cd ~/
 mkdir ~/proxy_tmp
 cd ~/proxy_tmp
-wget -c "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.8/linux.tar.gz"
-tar xvf linux.tar.gz
+wget -c "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.8/proxy.tar.gz"
+tar -xvf ./proxy.tar.gz
+
 rm -rf "/opt/$workname/"
 mkdir -p "/opt/$workname/bin"
 mkdir -p "/opt/$workname/config"
@@ -29,7 +30,7 @@ mv identity.p12 "/opt/$workname/config/"
 mv default.yaml "/opt/$workname/config/"
 
 
-cat >> /opt/$workname/config/$workname.conf << EOF
+cat > /opt/$workname/config/$workname.conf << EOF
 PROXY_NAME="$workname"
 PROXY_LOG_LEVEL=1
 PROXY_LOG_PATH="/opt/$workname/logs/"
@@ -45,7 +46,9 @@ PROXY_SHARE=2
 PROXY_P12_PATH="/var/p12/identity.p12"
 PROXY_P12_PASS="mypass"
 EOF
-cat >> /usr/lib/systemd/system/proxy.service << EOF
+
+
+cat > /usr/lib/systemd/system/proxy.service << EOF
 [Unit]
 Description=Proxy
 After=network.target
