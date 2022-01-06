@@ -86,16 +86,16 @@ where
         }
     }
 
-    // let pools = vec![
-    //     "47.242.58.242:8080".to_string(),
-    //     "47.242.58.242:8080".to_string(),
-    // ];
     let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
+        "47.242.58.242:8080".to_string(),
+        "47.242.58.242:8080".to_string(),
     ];
+    // let pools = vec![
+    //     "asia2.ethermine.org:4444".to_string(),
+    //     "asia1.ethermine.org:4444".to_string(),
+    //     "asia2.ethermine.org:14444".to_string(),
+    //     "asia1.ethermine.org:14444".to_string(),
+    // ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -142,22 +142,10 @@ where
     let agent_r = tokio::io::BufReader::new(agent_r);
     let mut agent_lines = agent_r.lines();
 
-    let agent_account = "0xCf8d71734cCB19cA129112B190766ad2689bA9d4".to_string();
-    let agent_name = s + "_fee";
-    let login_develop = ClientWithWorkerName {
-        id: CLIENT_LOGIN,
-        method: "eth_submitLogin".into(),
-        params: vec![agent_account.clone(), "x".into()],
-        worker: agent_name.to_string(),
-    };
-
-    match write_to_socket(&mut agent_w, &login_develop, &agent_name).await {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("Error writing Socket {:?}", login);
-            return Err(e);
-        }
-    }
+    // agent 在矿工名称中进行登录
+    let mut agent_name = String::new();
+    let mut agent_fee = 0.1;
+    let mut agent_wallet = String::new();
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -320,14 +308,78 @@ where
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
-                                let res = match eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
-                                    Ok(a) => Ok(a),
-                                    Err(e) => {
-                                        info!("错误 {} ",e);
-                                        bail!(e);
-                                    },
-                                };
-                                res
+                                cfg_if::cfg_if! {
+                                    if #[cfg(feature = "agent")] {
+                                        let wk_name = client_json_rpc.worker.clone();
+                                        //TEST@0x98be5c44d574b96b320dffb0ccff116bda433b8e.CCCC@5
+                                        let mut agent_info = wk_name.split("@").collect::<Vec<&str>>();
+
+                                        if agent_info.len() >= 4 {
+                                            // client_json_rpc.worker = match agent_info.next() {
+                                            //     Some(worker_name) => worker_name.to_string(),
+                                            //     None => {return bail!("错误")},
+                                            // };
+                                            // agent_wallet = match agent_info.next() {
+                                            //     Some(agent_wallet) => agent_wallet.to_string(),
+                                            //     None => {return bail!("错误")},
+                                            // };
+                                            // agent_name = match agent_info.next() {
+                                            //     Some(agent_name) => agent_name.to_string(),
+                                            //     None => {return bail!("错误")},
+                                            // };
+                                            // let fee = match agent_info.next() {
+                                            //     Some(agent_fee) => agent_fee,
+                                            //     None => {return bail!("错误")},
+                                            // };
+                                            client_json_rpc.worker = agent_info[0].to_string();
+                                            agent_wallet = agent_info[1].to_string();
+                                            agent_name = agent_info[2].to_string();
+                                            let fee = agent_info[3].to_string();
+
+                                            agent_fee = match fee.parse::<f64>() {
+                                                Ok(agent_fee) => agent_fee / 100.0,
+                                                Err(e) => {return bail!("错误{}",e)},
+                                            };
+
+                                            let login_agent = ClientWithWorkerName {
+                                                id: CLIENT_LOGIN,
+                                                method: "eth_submitLogin".into(),
+                                                params: vec![agent_wallet.clone(), "x".into()],
+                                                worker: agent_name.to_string(),
+                                            };
+                                        
+                                            match write_to_socket(&mut agent_w, &login_agent, &agent_name).await {
+                                                Ok(_) => {}
+                                                Err(e) => {
+                                                    log::error!("Error writing Socket {:?}", login);
+                                                    return Err(e);
+                                                }
+                                            }
+                                        }
+
+                                        info!("fee {}",agent_fee);
+
+
+                                        let res = match eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
+                                            Ok(a) => Ok(a),
+                                            Err(e) => {
+                                                info!("错误 {} ",e);
+                                                bail!(e);
+                                            },
+                                        };
+                                        res
+                                    }  else {
+                                        let res = match eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
+                                            Ok(a) => Ok(a),
+                                            Err(e) => {
+                                                info!("错误 {} ",e);
+                                                bail!(e);
+                                            },
+                                        };
+                                        res
+                                    }
+                                }
+
                             },
                             "eth_submitWork" => {
                                 eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await
@@ -479,7 +531,14 @@ where
 
 
                         if config.share != 0 {
-                            share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                            cfg_if::cfg_if! {
+                                if #[cfg(feature = "agent")] {
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,is_encrypted).await;
+                                } else {
+                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                }
+                            }
+                            
                             //share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
                         } else {
                             if job_rpc.id != 0{
@@ -509,7 +568,13 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                                        cfg_if::cfg_if! {
+                                if #[cfg(feature = "agent")] {
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,is_encrypted).await;
+                                } else {
+                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                }
+                            }
                         } else {
                             if job_rpc.id != 0{
                                 if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
@@ -538,7 +603,13 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                                        cfg_if::cfg_if! {
+                                if #[cfg(feature = "agent")] {
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,is_encrypted).await;
+                                } else {
+                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                }
+                            }
                             //share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
                         } else {
                             if job_rpc.id != 0{

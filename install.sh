@@ -66,3 +66,5 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 EOF
+
+systemctl daemon-reload

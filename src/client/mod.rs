@@ -941,6 +941,315 @@ where
     }
 }
 
+
+async fn agnet_job_process_with_fee<T>(
+    _pool_job_idx: u64,
+    config: &Settings,
+    unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    send_jobs: &mut LruCache<String, (u64, u64)>,
+    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
+    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
+    normal_send_jobs: &mut LruCache<String, i32>,
+    job_rpc: &mut T,
+    fee:f64,
+) -> Option<()>
+where
+    T: crate::protocol::rpc::eth::ServerRpc + Serialize,
+{
+    if crate::util::is_fee_random(fee) {
+        if !unsend_jobs.is_empty() {
+            let job = loop {
+                match unsend_jobs.pop_back() {
+                    Some(job) => {
+                        if mine_send_jobs.contains(&job.0) {
+                            continue;
+                        }
+                        if develop_send_jobs.contains(&job.0) {
+                            continue;
+                        }
+
+                        if normal_send_jobs.contains(&job.0) {
+                            //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
+                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                                #[cfg(debug_assertions)]
+                                debug!(
+                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                                );
+                                //return Some(());
+                                return None;
+                            } else {
+                                #[cfg(debug_assertions)]
+                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                                return None;
+                            }
+                        }
+                        break Some(job);
+                    }
+                    None => break None,
+                }
+            };
+
+            if job.is_none() {
+                return None;
+            }
+            let job = job.unwrap();
+            job_rpc.set_result(job.1);
+            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                #[cfg(debug_assertions)]
+                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
+                return Some(());
+            } else {
+                #[cfg(debug_assertions)]
+                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                None
+            }
+        } else {
+            #[cfg(debug_assertions)]
+            debug!("!!!!没有开发者抽水任务了。");
+            None
+        }
+    } else {
+        None
+    }
+}
+
+async fn share_job_process_agent_fee<T, W>(
+    pool_job_idx: u64,
+    config: &Settings,
+    develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
+    agent_send_jobs: &mut LruCache<String, (u64, u64)>,
+    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
+    normal_send_jobs: &mut LruCache<String, i32>,
+    job_rpc: &mut T,
+    count: &mut i32,
+    develop_jobs_queue: Arc<JobQueue>,
+    mine_jobs_queue: Arc<JobQueue>,
+    worker_w: &mut WriteHalf<W>,
+    worker_name: &String,
+    worker: &mut Worker,
+    rpc_id: u64,
+    agent_fee: f64,
+    is_encrypted: bool,
+) -> Option<()>
+where
+    T: ServerRpc + Serialize + Clone + Debug,
+    W: AsyncWrite,
+{
+    let mut normal_worker = job_rpc.clone();
+    if develop_job_process(
+        pool_job_idx,
+        &config,
+        develop_unsend_jobs,
+        develop_send_jobs,
+        mine_send_jobs,
+        agent_send_jobs,
+        normal_send_jobs,
+        job_rpc,
+        count,
+        "00".to_string(),
+        develop_jobs_queue.clone(),
+    )
+    .await
+    .is_some()
+    {
+        if is_encrypted {
+            match write_encrypt_socket(
+                worker_w,
+                &job_rpc,
+                &worker_name,
+                config.key.clone(),
+                config.iv.clone(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    log::error!("dev {}", e);
+                }
+            };
+        } else {
+            match write_to_socket(worker_w, &job_rpc, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    log::error!("dev {}", e);
+                }
+            };
+        }
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "agent")] {
+            if agnet_job_process_with_fee(
+                pool_job_idx,
+                &config,
+                agent_unsend_jobs,
+                agent_send_jobs,
+                mine_send_jobs,
+                develop_send_jobs,
+                normal_send_jobs,
+                job_rpc,
+                agent_fee,
+            )
+            .await
+            .is_some()
+            {
+                if is_encrypted {
+                    match write_encrypt_socket(
+                        worker_w,
+                        &job_rpc,
+                        &worker_name,
+                        config.key.clone(),
+                        config.iv.clone(),
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            #[cfg(debug_assertions)]
+                            info!("写入成功代理抽水任务 {:?}", job_rpc);
+                            return Some(());
+                        }
+                        Err(e) => {
+                            log::error!("agent :{}", e);
+                        }
+                    };
+                } else {
+                    match write_to_socket(worker_w, &job_rpc, &worker_name).await {
+                        Ok(_) => {
+                            #[cfg(debug_assertions)]
+                            info!("写入成功代理抽水任务 {:?}", job_rpc);
+                            return Some(());
+                        }
+                        Err(e) => {
+                            log::error!("agent :{}", e);
+                        }
+                    };
+                }
+            }
+        }
+    }
+
+    if fee_job_process(
+        pool_job_idx,
+        &config,
+        mine_unsend_jobs,
+        mine_send_jobs,
+        develop_send_jobs,
+        agent_send_jobs,
+        normal_send_jobs,
+        job_rpc,
+        count,
+        "00".to_string(),
+        mine_jobs_queue.clone(),
+    )
+    .await
+    .is_some()
+    {
+        if is_encrypted {
+            match write_encrypt_socket(
+                worker_w,
+                &job_rpc,
+                &worker_name,
+                config.key.clone(),
+                config.iv.clone(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    log::error!("fee :{}", e);
+                    return None;
+                }
+            };
+        } else {
+            match write_to_socket(worker_w, &job_rpc, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功抽水任务 {:?}", job_rpc);
+                    return Some(());
+                }
+                Err(e) => {
+                    log::error!("agent :{}", e);
+                    return None;
+                }
+            };
+        }
+    } else {
+        if normal_worker.get_id() != 0 {
+            if normal_worker.get_id() == CLIENT_GETWORK
+                || normal_worker.get_id() == worker.share_index
+            {
+                //normal_worker.id = rpc_id;
+                normal_worker.set_id(rpc_id);
+            }
+        }
+
+        let job_id = normal_worker.get_job_id().unwrap();
+
+        if develop_send_jobs.contains(&job_id) {
+            return Some(());
+        }
+
+        if agent_send_jobs.contains(&job_id) {
+            return Some(());
+        }
+
+        if mine_send_jobs.contains(&job_id) {
+            return Some(());
+        }
+
+        normal_send_jobs.put(job_id, 0);
+        if is_encrypted {
+            match write_encrypt_socket(
+                worker_w,
+                &normal_worker,
+                worker_name,
+                config.key.clone(),
+                config.iv.clone(),
+            )
+            .await
+            {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功普通任务 {:?}", normal_worker);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        } else {
+            match write_to_socket(worker_w, &normal_worker, worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("写入成功普通任务 {:?}", normal_worker);
+                    return Some(());
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    return None;
+                }
+            };
+        }
+    }
+
+    Some(())
+}
 async fn share_job_process<T, W>(
     pool_job_idx: u64,
     config: &Settings,
@@ -1042,7 +1351,7 @@ where
                     {
                         Ok(_) => {
                             #[cfg(debug_assertions)]
-                            info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                            info!("写入成功代理抽水任务 {:?}", job_rpc);
                             return Some(());
                         }
                         Err(e) => {
@@ -1053,7 +1362,7 @@ where
                     match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                         Ok(_) => {
                             #[cfg(debug_assertions)]
-                            info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                            info!("写入成功代理抽水任务 {:?}", job_rpc);
                             return Some(());
                         }
                         Err(e) => {
@@ -1093,7 +1402,7 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    info!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1105,7 +1414,7 @@ where
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    info!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1151,7 +1460,7 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", normal_worker);
+                    info!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {
@@ -1163,7 +1472,7 @@ where
             match write_to_socket(worker_w, &normal_worker, worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", normal_worker);
+                    info!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {

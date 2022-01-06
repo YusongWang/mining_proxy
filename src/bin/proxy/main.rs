@@ -440,18 +440,18 @@ pub async fn print_state(
         total_invalid = total_invalid + w.invalid_index;
     }
 
-    //将total hash 写入worker
-    let mine_hash = calc_hash_rate(total_hash, config.share_rate);
-    match proxy::client::submit_fee_hashrate(config, mine_hash).await {
-        Ok(_) => {}
-        Err(_) => {}
-    }
+    // //将total hash 写入worker
+    // let mine_hash = calc_hash_rate(total_hash, config.share_rate);
+    // match proxy::client::submit_fee_hashrate(config, mine_hash).await {
+    //     Ok(_) => {}
+    //     Err(_) => {}
+    // }
 
-    let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into()) as f32);
-    match proxy::client::submit_develop_hashrate(config, develop_hash).await {
-        Ok(_) => {}
-        Err(_) => {}
-    }
+    // let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into()) as f32);
+    // match proxy::client::submit_develop_hashrate(config, develop_hash).await {
+    //     Ok(_) => {}
+    //     Err(_) => {}
+    // }
 
     // 添加行
     table.add_row(row![
