@@ -282,7 +282,7 @@ fn test_is_fee_random() {
     assert_eq!(i, 5);
 }
 
-pub fn time_to_string(mut time:u64) -> String {
+pub fn time_to_string(mut time: u64) -> String {
     let mut res = String::new();
 
     use chrono::{NaiveTime, Timelike};
@@ -292,7 +292,7 @@ pub fn time_to_string(mut time:u64) -> String {
         res += &s;
         time %= 86_400;
     }
-    
+
     let t = match (NaiveTime::from_num_seconds_from_midnight_opt(time as u32, 0)) {
         Some(t) => t,
         None => return "格式化错误".into(),

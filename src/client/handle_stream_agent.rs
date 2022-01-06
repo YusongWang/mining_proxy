@@ -2,12 +2,11 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 
-use bytes::buf;
 use hex::FromHex;
 use log::{debug, info};
 
 use lru::LruCache;
-use openssl::symm::{decrypt, encrypt, Cipher};
+use openssl::symm::{decrypt, Cipher};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
@@ -79,7 +78,13 @@ where
         worker: s.to_string(),
     };
 
-    write_to_socket(&mut proxy_w, &login, &s).await;
+    match write_to_socket(&mut proxy_w, &login, &s).await {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Error writing Socket {:?}", login);
+            return Err(e);
+        }
+    }
 
     // let pools = vec![
     //     "47.242.58.242:8080".to_string(),
@@ -115,7 +120,13 @@ where
         worker: develop_name.to_string(),
     };
 
-    write_to_socket(&mut develop_w, &login_develop, &develop_name).await;
+    match write_to_socket(&mut develop_w, &login_develop, &develop_name).await {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Error writing Socket {:?}", login);
+            return Err(e);
+        }
+    }
 
     // 代理分润
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
@@ -140,7 +151,13 @@ where
         worker: agent_name.to_string(),
     };
 
-    write_to_socket(&mut agent_w, &login_develop, &agent_name).await;
+    match write_to_socket(&mut agent_w, &login_develop, &agent_name).await {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Error writing Socket {:?}", login);
+            return Err(e);
+        }
+    }
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -155,7 +172,6 @@ where
     let mut unsend_agent_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
 
     let mut develop_count = 0;
-    let mut mine_count = 0;
 
     let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
     let mut send_develop_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
@@ -190,18 +206,35 @@ where
                             Ok(buf) => match buf{
                                     Some(buf) => buf,
                                     None =>       {
-                                    pool_w.shutdown().await;
+                                    match pool_w.shutdown().await  {
+                                        Ok(_) => {},
+                                        Err(e) => {
+                                            log::error!("Error Shutdown Socket {:?}",e);
+                                        },
+                                    };
                                     info!("矿机下线了 : {}",worker_name);
                                     bail!("矿机下线了 : {}",worker_name)},
                                 },
                             _ => {
-                                pool_w.shutdown().await;
+                                     match pool_w.shutdown().await  {
+                                        Ok(_) => {},
+                                        Err(e) => {
+                                            log::error!("Error Shutdown Socket {:?}",e);
+                                        },
+                                    }
                                 info!("矿机下线了 : {}",worker_name);
                                 bail!("矿机下线了 : {}",worker_name)
                             },
                         }
                     },
-                    Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
+                    Err(e) => {
+                        match pool_w.shutdown().await  {
+                            Ok(_) => {},
+                            Err(e) => {
+                                log::error!("Error Shutdown Socket {:?}",e);
+                            },
+                        }
+                        bail!("读取超时了 矿机下线了: {}",e)},
                 };
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
@@ -221,7 +254,12 @@ where
                             Ok(buffer) => buffer,
                             Err(e) => {
                                 log::error!("{}",e);
-                                pool_w.shutdown().await;
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
                                 return Ok(());
                             },
                         };
@@ -235,26 +273,41 @@ where
                             &buffer[..]) {
                                 Ok(s) => s,
                                 Err(e) => {
-                                    info!("解密失败 {}",e);
-                                    pool_w.shutdown().await;
+                                    log::warn!("解密失败 {}",e);
+                                    match pool_w.shutdown().await  {
+                                        Ok(_) => {},
+                                        Err(e) => {
+                                            log::error!("Error Shutdown Socket {:?}",e);
+                                        },
+                                    };
                                     return Ok(());
                                 },
                             };
 
                         buf = match String::from_utf8(buffer) {
                             Ok(s) => s,
-                            Err(e) => {
+                            Err(_) => {
                                 info!("无法解析的字符串");
-                                pool_w.shutdown().await;
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
                                 return Ok(());
                             },
                         };
                     } else {
                         buf = match String::from_utf8(buffer.to_vec()) {
                             Ok(s) => s,
-                            Err(e) => {
+                            Err(_) => {
                                 info!("无法解析的字符串");
-                                pool_w.shutdown().await;
+                                    match pool_w.shutdown().await  {
+                                        Ok(_) => {},
+                                        Err(e) => {
+                                            log::error!("Error Shutdown Socket {:?}",e);
+                                        },
+                                    };
 
                                 return Ok(());
                             },
@@ -267,7 +320,7 @@ where
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
-                                let res = match eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
+                                let res = match eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
                                     Ok(a) => Ok(a),
                                     Err(e) => {
                                         info!("错误 {} ",e);
@@ -305,7 +358,7 @@ where
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitLogin" => {
-                                eth_submitLogin(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
                                 match eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await {
@@ -345,7 +398,10 @@ where
                         match res {
                             Some(buf) => buf,
                             None => {
-                                worker_w.shutdown().await;
+                                match worker_w.shutdown().await {
+                                    Ok(_) => {},
+                                    Err(_) => {},
+                                }
                                 info!("矿机下线了 : {}",worker_name);
                                 bail!("矿机下线了 : {}",worker_name)
                             }
@@ -398,18 +454,19 @@ where
 
                         result_rpc.id = rpc_id ;
                         if is_encrypted {
-                            // let rpc = serde_json::to_vec(&result_rpc)?;
-                            // let cipher = Cipher::aes_256_cbc();
-                            // let key = Vec::from_hex(config.key.clone()).unwrap();
-                            // let iv = Vec::from_hex(config.iv.clone()).unwrap();
-                            // let rpc = encrypt(
-                            //     cipher,
-                            //     &key,
-                            //     Some(&iv),
-                            //     &rpc[..]).unwrap();
-                            write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await;
+                            match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
+                                Ok(_) => {},
+                                Err(e) => {
+                                    log::error!("Error Worker Write Socket {:?}",e);
+                                },
+                            };
                         } else {
-                            write_to_socket(&mut worker_w, &result_rpc, &worker_name).await;
+                            match write_to_socket(&mut worker_w, &result_rpc, &worker_name).await {
+                                Ok(_) => {},
+                                Err(e) => {
+                                    log::error!("Error Worker Write Socket {:?}",e);
+                                },
+                            };
                         }
 
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
@@ -505,7 +562,12 @@ where
                     } else {
                         log::warn!("未找到的交易 {}",buf);
 
-                        write_to_socket_string(&mut worker_w, &buf, &worker_name).await;
+                        match write_to_socket_string(&mut worker_w, &buf, &worker_name).await {
+                            Ok(_) => {},
+                            Err(e) => {
+                                log::error!("Error Worker Write Socket {:?}",e);
+                            },
+                        };
                     }
                 }
 
@@ -519,7 +581,12 @@ where
                         match res {
                             Some(buf) => buf,
                             None => {
-                                pool_w.shutdown().await;
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
                                 bail!("矿机下线了 : {}",worker_name);
                             }
                         }
@@ -598,7 +665,12 @@ where
                         match res {
                             Some(buf) => buf,
                             None => {
-                                pool_w.shutdown().await;
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
                                 bail!("矿机下线了 : {}",worker_name);
                             }
                         }
@@ -680,7 +752,12 @@ where
                         match res {
                             Some(buf) => buf,
                             None => {
-                                pool_w.shutdown().await;
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
                                 bail!("矿机下线了 : {}",worker_name);
                             }
                         }
@@ -756,7 +833,10 @@ where
             () = &mut sleep  => {
                 // 发送本地旷工状态到远端。
                 //info!("发送本地旷工状态到远端。{:?}",worker);
-                workers_queue.try_send(worker.clone());
+                match workers_queue.try_send(worker.clone()){
+                    Ok(_) => {},
+                    Err(_) => {log::warn!("发送旷工状态失败");},
+                }
 
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
             },

@@ -185,7 +185,7 @@ where
     let rpc = serde_json::to_vec(&rpc)?;
     let cipher = openssl::symm::Cipher::aes_256_cbc();
     //let data = b"Some Crypto String";
-    let mut rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+    let rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
     info!("加密信息 {:?}", rpc);
 
@@ -294,17 +294,7 @@ pub fn parse_client_workername(buf: &str) -> Option<ClientWithWorkerName> {
     }
 }
 
-async fn shutdown<W>(w: &mut WriteHalf<W>) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    match w.shutdown().await {
-        Ok(_) => Ok(()),
-        Err(_) => bail!("关闭Pool 链接失败"),
-    }
-}
-
-async fn eth_submitLogin<W, T>(
+async fn eth_submit_login<W, T>(
     worker: &mut Worker,
     w: &mut WriteHalf<W>,
     rpc: &mut T,
@@ -1504,11 +1494,7 @@ where
     true
 }
 
-
-
-
-pub async fn submit_fee_hashrate(config:&Settings,hashrate:u64) -> Result<()>{
-   
+pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()> {
     let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -1543,27 +1529,20 @@ pub async fn submit_fee_hashrate(config:&Settings,hashrate:u64) -> Result<()>{
     let submit_hashrate = ClientWithWorkerName {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".into(),
-        params: [
-            format!("0x{:x}",hashrate),
-            hex::encode(hostname.clone()),
-        ]
-        .to_vec(),
+        params: [format!("0x{:x}", hashrate), hex::encode(hostname.clone())].to_vec(),
         worker: hostname.clone(),
     };
     write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;
     Ok(())
 }
 
-
-pub async fn submit_develop_hashrate(config:&Settings,hashrate:u64) -> Result<()>{
-   
+pub async fn submit_develop_hashrate(config: &Settings, hashrate: u64) -> Result<()> {
     let pools = vec![
         "asia2.ethermine.org:4444".to_string(),
         "asia1.ethermine.org:4444".to_string(),
         "asia2.ethermine.org:14444".to_string(),
         "asia1.ethermine.org:14444".to_string(),
     ];
-
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -1574,18 +1553,13 @@ pub async fn submit_develop_hashrate(config:&Settings,hashrate:u64) -> Result<()
     };
 
     let outbound = TcpStream::from_std(stream)?;
-    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
-    let proxy_r = tokio::io::BufReader::new(proxy_r);
+    let (_, mut proxy_w) = tokio::io::split(outbound);
 
-    let mut hostname = config.share_name.clone();
-    if hostname.is_empty() {
-        let name = hostname::get()?;
-        if name.is_empty() {
-            hostname = "proxy_wallet_mine".into();
-        } else {
-            hostname = hostname + name.to_str().unwrap();
-        }
-    }
+    let mut hostname = String::from("develop_");
+
+    let name = hostname::get()?;
+    hostname += name.to_str().unwrap();
+
     //let worker_name = config.share_
 
     let login = ClientWithWorkerName {
@@ -1594,16 +1568,13 @@ pub async fn submit_develop_hashrate(config:&Settings,hashrate:u64) -> Result<()
         params: vec![config.share_wallet.clone(), "x".into()],
         worker: hostname.clone(),
     };
+
     write_to_socket(&mut proxy_w, &login, &hostname).await;
     //计算速率
     let submit_hashrate = ClientWithWorkerName {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".into(),
-        params: [
-            format!("0x{:x}",hashrate),
-            hex::encode(hostname.clone()),
-        ]
-        .to_vec(),
+        params: [format!("0x{:x}", hashrate), hex::encode(hostname.clone())].to_vec(),
         worker: hostname.clone(),
     };
     write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;

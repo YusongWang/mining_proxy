@@ -1,20 +1,17 @@
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::{bail, Result};
-use hex::FromHex;
 use log::{debug, info};
 
-use openssl::{
-    aes::{aes_ige, AesKey},
-    symm::{decrypt, encrypt, Cipher, Mode},
-};
+use openssl::symm::{decrypt, encrypt, Cipher};
+
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     select,
 };
 
-use crate::client::{self_write_socket_byte, write_to_socket_byte, write_to_socket_string};
+use crate::client::{self_write_socket_byte, write_to_socket_byte};
 
 pub async fn accept_encrypt_tcp(
     port: i32,

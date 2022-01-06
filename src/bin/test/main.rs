@@ -7,7 +7,6 @@ fn main() {
     a.wait().unwrap();
 }
 
-
 // cfg_if::cfg_if! {
 //     if #[cfg(feature = "agent")] {
 //         fn foo() { println!("foo u"); }

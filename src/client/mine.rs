@@ -1,4 +1,3 @@
-use log::info;
 use serde::Serialize;
 use std::collections::HashMap;
 use tokio::io::{AsyncWrite, WriteHalf};

@@ -77,27 +77,26 @@ impl Settings {
             Ok(tcp_address) => {
                 let arr: Vec<&str> = tcp_address.split(',').collect();
                 s.set("pool_tcp_address", arr)?;
-            },
-            Err(_) => {},
+            }
+            Err(_) => {}
         }
 
         match env::var("PROXY_POOL_SSL_ADDRESS") {
             Ok(tcp_address) => {
                 let arr: Vec<&str> = tcp_address.split(',').collect();
                 s.set("pool_ssl_address", arr)?;
-            },
-            Err(_) => {},
+            }
+            Err(_) => {}
         }
 
         match env::var("PROXY_SHARE_TCP_ADDRESS") {
             Ok(tcp_address) => {
                 let arr: Vec<&str> = tcp_address.split(',').collect();
                 s.set("share_tcp_address", arr)?;
-            },
-            Err(_) => {},
+            }
+            Err(_) => {}
         }
 
-        
         // // You may also programmatically change settings
         // s.set("database.url", "postgres://")?;
 
@@ -109,10 +108,9 @@ impl Settings {
         s.try_into()
     }
 
-
     pub fn get_fee(&self) -> f64 {
-        let develop_fee =get_develop_fee(self.share_rate.into());
-        
+        let develop_fee = get_develop_fee(self.share_rate.into());
+
         let share_fee = self.share_rate as f64;
         develop_fee + share_fee
     }
