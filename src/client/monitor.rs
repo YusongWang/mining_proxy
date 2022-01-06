@@ -12,12 +12,7 @@ use tokio::{
 
 use crate::client::{self_write_socket_byte, write_to_socket_byte};
 
-pub async fn accept_monitor_tcp(
-    port: i32,
-    server: SocketAddr,
-    key: Vec<u8>,
-    iv: Vec<u8>,
-) -> Result<()> {
+pub async fn accept_monitor_tcp(port: i32, server: SocketAddr) -> Result<()> {
     let address = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Monitor Tcp On: {}", &address);
@@ -25,8 +20,6 @@ pub async fn accept_monitor_tcp(
     loop {
         let (stream, addr) = listener.accept().await?;
         info!("😄 Accepting Monitor Tcp connection from {}", addr);
-        let iv = iv.clone();
-        let key = key.clone();
 
         tokio::spawn(async move { transfer(stream, server).await });
     }

@@ -330,7 +330,7 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await
+                                eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await
                             },
                             "eth_submitHashrate" => {
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -361,7 +361,7 @@ where
                                 eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submitWork(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await {
+                                match eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }

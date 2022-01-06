@@ -264,12 +264,11 @@ fn test_fee() {
 
     assert_eq!(i, 5);
 
-    let mut i = 0;
-    for idx in 0..1000 {
-        if fee(idx, &config, 0.005) {
-            i += 1;
-        }
-    }
+    // for idx in 0..1000 {
+    //     if fee(idx, &config, 0.005) {
+    //         i += 1;
+    //     }
+    // }
 }
 #[test]
 fn test_is_fee_random() {
@@ -293,7 +292,7 @@ pub fn time_to_string(mut time: u64) -> String {
         time %= 86_400;
     }
 
-    let t = match (NaiveTime::from_num_seconds_from_midnight_opt(time as u32, 0)) {
+    let t = match NaiveTime::from_num_seconds_from_midnight_opt(time as u32, 0) {
         Some(t) => t,
         None => return "格式化错误".into(),
     };

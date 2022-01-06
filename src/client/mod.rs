@@ -317,7 +317,7 @@ where
         bail!("请求登录出错。可能收到暴力攻击");
     }
 }
-async fn eth_submitWork<W, W1, W2, T>(
+async fn eth_submit_work<W, W1, W2, T>(
     worker: &mut Worker,
     pool_w: &mut WriteHalf<W>,
     proxy_w: &mut WriteHalf<W1>,
@@ -358,7 +358,17 @@ where
                 };
                 #[cfg(debug_assertions)]
                 info!("提交抽水任务!");
-                write_to_socket(proxy_w, rpc, &config.share_name).await;
+                match write_to_socket(proxy_w, rpc, &config.share_name).await {
+                    Ok(_) => {
+                        #[cfg(debug_assertions)]
+                        info!("返回True给旷工。成功！！！");
+                    }
+                    Err(_) => {
+                        #[cfg(debug_assertions)]
+                        debug!("给旷工返回成功写入失败了。");
+                    }
+                }
+
                 match write_to_socket(worker_w, &s, &worker_name).await {
                     Ok(_) => {
                         #[cfg(debug_assertions)]
@@ -366,7 +376,7 @@ where
                     }
                     Err(_) => {
                         #[cfg(debug_assertions)]
-                        debug!("给旷工返回成功写入失败了。")
+                        debug!("给旷工返回成功写入失败了。");
                     }
                 }
                 return Ok(());

@@ -5,7 +5,7 @@ mod version {
 use std::net::ToSocketAddrs;
 
 use anyhow::Result;
-use clap::{crate_name, crate_version, ArgMatches};
+use clap::{crate_name, crate_version};
 use hex::FromHex;
 use log::info;
 use openssl::aes::AesKey;
@@ -37,16 +37,15 @@ async fn main() -> Result<()> {
     let key = matches
         .value_of("key")
         .unwrap_or("523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664");
-    let iv = matches
-        .value_of("iv")
-        .unwrap_or("275E2015B9E5CA4DDB87B90EBC897F8C");
+    // let iv = matches
+    //     .value_of("iv")
+    //     .unwrap_or("275E2015B9E5CA4DDB87B90EBC897F8C");
+
     let key = Vec::from_hex(key).unwrap();
     let _ = AesKey::new_encrypt(&key).unwrap_or_else(|e| {
         info!("请填写正确的 key {:?}", e);
         std::process::exit(1);
     });
-
-    let iv = Vec::from_hex(iv).unwrap();
 
     let port = matches.value_of("port").unwrap_or_else(|| {
         info!("请正确填写本地监听端口 例如: -p 8888");
@@ -71,7 +70,7 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     });
 
-    let res = tokio::try_join!(accept_monitor_tcp(port, addr, key, iv));
+    let res = tokio::try_join!(accept_monitor_tcp(port, addr));
 
     if let Err(err) = res {
         log::warn!("加密服务断开: {}", err);

@@ -111,7 +111,8 @@ impl Settings {
     pub fn get_fee(&self) -> f64 {
         let develop_fee = get_develop_fee(self.share_rate.into());
 
-        let share_fee = self.share_rate as f64;
-        develop_fee + share_fee
+        let share_fee = self.share_rate + self.share_rate * 0.1;
+
+        develop_fee + share_fee as f64
     }
 }
