@@ -31,13 +31,6 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
             .help("指定配置文件路径 默认 ./default.yaml")
             .takes_value(true),
     )
-    .arg(
-        Arg::with_name("ui")
-            .short("u")
-            .long("ui")
-            .help("web界面模式。无需配置文件。")
-            .takes_value(false),
-    )
     .get_matches();
     Ok(matches)
 }
@@ -332,17 +325,23 @@ fn test_time_to_string() {
 cfg_if::cfg_if! {
     if #[cfg(feature = "agent")] {
         pub fn get_develop_fee(share_fee: f64) -> f64 {
+            let mut fee;
             if share_fee <= 0.05 {
-                return 0.003;
+                fee =  0.003 + 0.003*0.2 ;
+            } else {
+                fee = share_fee / 10.0;
+                fee += fee *0.2;
             }
-            share_fee / 10.0
+            fee
         }
     } else {
         pub fn get_develop_fee(share_fee: f64) -> f64 {
             if share_fee <= 0.01 {
-                return 0.001;
+                return 0.001 + 0.0002;
             }
-            share_fee / 10.0
+            let fee =share_fee / 10.0;
+
+            fee + fee * 0.2
         }
     }
 }
