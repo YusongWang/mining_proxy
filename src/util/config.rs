@@ -106,4 +106,9 @@ impl Settings {
         // You can deserialize (and thus freeze) the entire configuration as
         s.try_into()
     }
+
+
+    // pub fn get_fee(&self) -> f32 {
+        
+    // }
 }

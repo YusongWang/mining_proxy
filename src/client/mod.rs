@@ -605,7 +605,7 @@ async fn fee_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee(pool_job_idx, config.share_rate.into()) {
+    if crate::util::is_fee_random(config.share_rate.into()) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -995,6 +995,7 @@ where
                 Ok(_) => {
                     #[cfg(debug_assertions)]
                     info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
                 }
                 Err(e) => {
                     log::error!("dev {}", e);
@@ -1005,6 +1006,7 @@ where
                 Ok(_) => {
                     #[cfg(debug_assertions)]
                     info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    return Some(());
                 }
                 Err(e) => {
                     log::error!("dev {}", e);
