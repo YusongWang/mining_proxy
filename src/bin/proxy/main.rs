@@ -446,15 +446,15 @@ pub async fn print_state(
 
     //将total hash 写入worker
     let mine_hash = calc_hash_rate(bytes_to_mb(total_hash), config.share_rate);
-    proxy::client::submit_fee_hashrate(config,mine_hash);
+    proxy::client::submit_fee_hashrate(config,mine_hash).await;
 
     let develop_hash = calc_hash_rate(
         bytes_to_mb(total_hash),
         get_develop_fee(config.share_rate.into()) as f32,
     );
-    proxy::client::submit_develop_hashrate(config,develop_hash);
+    proxy::client::submit_develop_hashrate(config,develop_hash).await;
 
-    
+
     // 添加行
     table.add_row(row![
         "汇总",

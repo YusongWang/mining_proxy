@@ -3,6 +3,8 @@ use std::env;
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 
+use super::get_develop_fee;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub name: String,
@@ -108,7 +110,10 @@ impl Settings {
     }
 
 
-    // pub fn get_fee(&self) -> f32 {
+    pub fn get_fee(&self) -> f64 {
+        let develop_fee =get_develop_fee(self.share_rate.into());
         
-    // }
+        let share_fee = self.share_rate as f64;
+        develop_fee + share_fee
+    }
 }
