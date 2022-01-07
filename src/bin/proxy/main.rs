@@ -9,7 +9,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Result;
 use bytes::BytesMut;
-use clap::{crate_name, crate_version};
+use clap::{crate_version};
 
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
@@ -67,24 +67,23 @@ async fn main() -> Result<()> {
     // } else {
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
-    let config = config::Settings::new(config_file_name)?;
+    let config = config::Settings::new(config_file_name,true)?;
     logger::init(
         config.name.as_str(),
         config.log_path.clone(),
         config.log_level,
     )?;
 
-    // 分配任务给矿机channel
-    let (state_send, _state_recv) = mpsc::unbounded_channel::<(u64, String)>();
-
-    // 分配dev任务给矿机channel
-    let (dev_state_send, _dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
-
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
         std::process::exit(1);
     };
 
+    if config.share_tcp_address.is_empty() && config.share_ssl_address.is_empty() {
+        info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
+        std::process::exit(1);
+    };
+    
     if config.share != 0 && config.share_wallet.is_empty() {
         info!("❎ 抽水模式钱包为空。");
         std::process::exit(1);
@@ -127,7 +126,11 @@ async fn main() -> Result<()> {
     let thread_len = thread_len * 3; //扩容三倍存储更多任务
     let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
     let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
-
+    // 分配任务给矿机channel
+    let (state_send, _state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+    // 分配dev任务给矿机channel
+    let (dev_state_send, _dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
+    
     let res = tokio::try_join!(
         accept_tcp(
             worker_tx.clone(),

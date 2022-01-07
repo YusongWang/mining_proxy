@@ -16,6 +16,7 @@ pub struct Settings {
     pub pool_ssl_address: Vec<String>,
     pub pool_tcp_address: Vec<String>,
     pub share_tcp_address: Vec<String>,
+    pub share_ssl_address: Vec<String>,
     pub share_wallet: String,
     pub share_name: String,
     pub share_rate: f32,
@@ -35,6 +36,7 @@ impl Default for Settings {
             pool_ssl_address: Vec::new(),
             pool_tcp_address: Vec::new(),
             share_tcp_address: Vec::new(),
+            share_ssl_address: Vec::new(),
             share_wallet: "".into(),
             share_rate: 0.0,
             ssl_port: 8443,
@@ -53,12 +55,12 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub fn new(file_path: &str) -> Result<Self, ConfigError> {
+    pub fn new(file_path: &str,with_file:bool) -> Result<Self, ConfigError> {
         let mut s = Config::default();
 
-        // Start off by merging in the "default" configuration file
-        s.merge(File::with_name(file_path).required(false))?;
-
+        if with_file {
+            s.merge(File::with_name(file_path).required(false))?;
+        }
         // Add in the current environment file
         // Default to 'development' env
         // Note that this file is _optional_
@@ -93,6 +95,14 @@ impl Settings {
             Ok(tcp_address) => {
                 let arr: Vec<&str> = tcp_address.split(',').collect();
                 s.set("share_tcp_address", arr)?;
+            }
+            Err(_) => {}
+        }
+
+        match env::var("PROXY_SHARE_SSL_ADDRESS") {
+            Ok(tcp_address) => {
+                let arr: Vec<&str> = tcp_address.split(',').collect();
+                s.set("share_ssl_address", arr)?;
             }
             Err(_) => {}
         }

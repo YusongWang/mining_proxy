@@ -466,13 +466,13 @@ where
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);
-            rpc.set_worker_name(&worker_name_real);
+            rpc.set_worker_name(&worker_name);
             return write_to_socket(pool_w, &rpc, &worker_name).await;
         }
     } else {
         worker.share_index_add();
         rpc.set_id(worker.share_index);
-        rpc.set_worker_name(&worker_name_real);
+        rpc.set_worker_name(&worker_name);
 
         return write_to_socket(pool_w, &rpc, &worker_name).await;
     }
@@ -620,7 +620,6 @@ async fn fee_job_process<T>(
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
-    _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -694,7 +693,6 @@ async fn fee_job_process_develop<T>(
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
-    _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -833,7 +831,6 @@ async fn develop_job_process<T>(
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
-    _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -1078,7 +1075,6 @@ where
         job_rpc,
         count,
         diff.clone(),
-        develop_jobs_queue.clone(),
     )
     .await
     .is_some()
@@ -1179,7 +1175,6 @@ where
         job_rpc,
         count,
         diff.clone(),
-        mine_jobs_queue.clone(),
     )
     .await
     .is_some()
@@ -1316,7 +1311,6 @@ where
         job_rpc,
         count,
         diff.clone(),
-        develop_jobs_queue.clone(),
     )
     .await
     .is_some()
@@ -1416,7 +1410,6 @@ where
         job_rpc,
         count,
         diff.clone(),
-        mine_jobs_queue.clone(),
     )
     .await
     .is_some()
@@ -1533,6 +1526,7 @@ async fn share_job_process_develop<T, W>(
     worker_name: &String,
     worker: &mut Worker,
     rpc_id: u64,
+    diff:String,
     is_encrypted: bool,
 ) -> Option<()>
 where
@@ -1599,8 +1593,7 @@ where
         normal_send_jobs,
         job_rpc,
         count,
-        "00".to_string(),
-        mine_jobs_queue.clone(),
+        diff.clone(),
     )
     .await
     .is_some()
