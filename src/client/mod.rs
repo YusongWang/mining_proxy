@@ -603,7 +603,7 @@ async fn fee_job_process<T>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
-    _diff: String,
+    diff: String,
     _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
@@ -648,6 +648,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
+            job_rpc.set_diff(diff);
             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -676,7 +677,7 @@ async fn fee_job_process_develop<T>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
-    _diff: String,
+    diff: String,
     _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
@@ -717,6 +718,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
+            job_rpc.set_diff(diff);
             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
@@ -744,7 +746,7 @@ async fn develop_job_process_develop<T>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
-    _diff: String,
+    diff: String,
     _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
@@ -784,6 +786,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
+            job_rpc.set_diff(diff);
             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
@@ -813,7 +816,7 @@ async fn develop_job_process<T>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
-    _diff: String,
+    diff: String,
     _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
@@ -856,6 +859,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
+            job_rpc.set_diff(diff);
             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
@@ -884,6 +888,7 @@ async fn agnet_job_process<T>(
     develop_send_jobs: &mut LruCache<String, (u64, u64)>,
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
+    diff:String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -926,6 +931,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
+            job_rpc.set_diff(diff);
             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
@@ -955,6 +961,7 @@ async fn agnet_job_process_with_fee<T>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     fee: f64,
+    diff:String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -997,6 +1004,7 @@ where
             }
             let job = job.unwrap();
             job_rpc.set_result(job.1);
+            job_rpc.set_diff(diff);
             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
                 #[cfg(debug_assertions)]
                 debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
@@ -1035,6 +1043,7 @@ async fn share_job_process_agent_fee<T, W>(
     worker: &mut Worker,
     rpc_id: u64,
     agent_fee: f64,
+    diff:String,
     is_encrypted: bool,
 ) -> Option<()>
 where
@@ -1052,7 +1061,7 @@ where
         normal_send_jobs,
         job_rpc,
         count,
-        "00".to_string(),
+        diff.clone(),
         develop_jobs_queue.clone(),
     )
     .await
@@ -1103,6 +1112,7 @@ where
                 normal_send_jobs,
                 job_rpc,
                 agent_fee,
+                diff.clone(),
             )
             .await
             .is_some()
@@ -1152,7 +1162,7 @@ where
         normal_send_jobs,
         job_rpc,
         count,
-        "00".to_string(),
+        diff.clone(),
         mine_jobs_queue.clone(),
     )
     .await
@@ -1271,6 +1281,7 @@ async fn share_job_process<T, W>(
     worker_name: &String,
     worker: &mut Worker,
     rpc_id: u64,
+    diff:String,
     is_encrypted: bool,
 ) -> Option<()>
 where
@@ -1288,7 +1299,7 @@ where
         normal_send_jobs,
         job_rpc,
         count,
-        "00".to_string(),
+        diff.clone(),
         develop_jobs_queue.clone(),
     )
     .await
@@ -1338,6 +1349,7 @@ where
                 develop_send_jobs,
                 normal_send_jobs,
                 job_rpc,
+                diff.clone(),
             )
             .await
             .is_some()
@@ -1387,7 +1399,7 @@ where
         normal_send_jobs,
         job_rpc,
         count,
-        "00".to_string(),
+        diff.clone(),
         mine_jobs_queue.clone(),
     )
     .await

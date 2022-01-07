@@ -538,9 +538,9 @@ where
                         if config.share != 0 {
                             cfg_if::cfg_if! {
                                 if #[cfg(feature = "agent")] {
-                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,is_encrypted).await;
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
                                 } else {
-                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await;
                                 }
                             }
 
@@ -575,9 +575,9 @@ where
                         if config.share != 0 {
                                                         cfg_if::cfg_if! {
                                 if #[cfg(feature = "agent")] {
-                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,is_encrypted).await;
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
                                 } else {
-                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await;
                                 }
                             }
                         } else {
@@ -610,9 +610,9 @@ where
                         if config.share != 0 {
                                                         cfg_if::cfg_if! {
                                 if #[cfg(feature = "agent")] {
-                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,is_encrypted).await;
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
                                 } else {
-                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
+                                    share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await;
                                 }
                             }
                             //share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;

@@ -165,12 +165,15 @@ pub struct ServerSideJob {
 impl ServerRpc for ServerSideJob {
     fn set_result(&mut self, res: Vec<std::string::String>) -> bool {
         self.result = res;
+        true
+    }
 
+
+    fn set_diff(&mut self, diff: String) -> bool {
+        self.result[3] = diff;
         true
     }
-    fn set_diff(&mut self, _diff: String) -> bool {
-        true
-    }
+    
 
     fn get_diff(&self) -> u64 {
         let job_diff = match self.result.get(3) {
