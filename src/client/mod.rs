@@ -612,7 +612,7 @@ async fn fee_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee(pool_job_idx,config.get_fee()) {
+    if crate::util::fee(pool_job_idx,config,config.get_fee()) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -826,7 +826,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee(pool_job_idx,get_develop_fee(config.share_rate.into())) {
+    if crate::util::fee(pool_job_idx,config,get_develop_fee(config.share_rate.into())) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -1330,7 +1330,7 @@ where
         } else {
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     info!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
@@ -1430,7 +1430,7 @@ where
         } else {
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     info!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
@@ -1492,7 +1492,7 @@ where
         } else {
             match write_to_socket(worker_w, &normal_worker, worker_name).await {
                 Ok(_) => {
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     info!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
