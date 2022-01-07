@@ -341,7 +341,8 @@ cfg_if::cfg_if! {
             if share_fee <= 0.01 {
                 return 0.001 + 0.0002;
             }
-            let fee =share_fee / 10.0;
+            
+            let fee = share_fee / 10.0;
 
             fee + fee * 0.2
         }

@@ -108,7 +108,8 @@ where
     let mut job_diff = 0;
     // 旷工状态管理
     let mut worker: Worker = Worker::default();
-    //workers.workers.push(&worker);
+
+
     let mut rpc_id = 0;
 
     let mut unsend_mine_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
@@ -116,7 +117,8 @@ where
     let mut unsend_agent_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
 
     let mut develop_count = 0;
-    //let mut mine_count = 0;
+
+    //TODO 完善精简这里的核心代码。加速任务分配。
 
     let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
     let mut send_develop_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
@@ -135,8 +137,9 @@ where
 
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
-
     //let duration = start.elapsed();
+
+    
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 

@@ -612,7 +612,7 @@ async fn fee_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(config.get_fee()) {
+    if crate::util::is_fee(pool_job_idx,config.get_fee()) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -621,8 +621,12 @@ where
                             continue;
                         }
 
-                        if agent_send_jobs.contains(&job.0) {
-                            continue;
+                        cfg_if::cfg_if! {
+                            if #[cfg(feature = "agent")] {
+                                if agent_send_jobs.contains(&job.0) {
+                                    continue;
+                                }        
+                            }
                         }
 
                         if normal_send_jobs.contains(&job.0) {
@@ -808,7 +812,7 @@ where
 }
 
 async fn develop_job_process<T>(
-    _pool_job_idx: u64,
+    pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut LruCache<String, (u64, u64)>,
@@ -822,7 +826,7 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into())) {
+    if crate::util::is_fee(pool_job_idx,get_develop_fee(config.share_rate.into())) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -830,9 +834,15 @@ where
                         if mine_send_jobs.contains(&job.0) {
                             continue;
                         }
-                        if agent_send_jobs.contains(&job.0) {
-                            continue;
+
+                        cfg_if::cfg_if! {
+                            if #[cfg(feature = "agent")] {
+                                if agent_send_jobs.contains(&job.0) {
+                                    continue;
+                                }        
+                            }
                         }
+                        
                         if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
                             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
@@ -1446,8 +1456,12 @@ where
             return Some(());
         }
 
-        if agent_send_jobs.contains(&job_id) {
-            return Some(());
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "agent")] {
+                if agent_send_jobs.contains(&job_id) {
+                    return Some(());
+                }
+            }
         }
 
         if mine_send_jobs.contains(&job_id) {
