@@ -314,6 +314,7 @@ where
                                 cfg_if::cfg_if! {
                                     if #[cfg(feature = "agent")] {
                                         let wk_name = client_json_rpc.worker.clone();
+                                        info!("workername {}",wk_name);
                                         //TEST@0x98be5c44d574b96b320dffb0ccff116bda433b8e.CCCC@5
                                         let mut agent_info = wk_name.split("@").collect::<Vec<&str>>();
 
