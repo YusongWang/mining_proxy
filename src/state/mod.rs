@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use log::info;
+use log::{debug, info};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Worker {
     pub worker: String,
@@ -91,13 +91,13 @@ impl Worker {
         self.last_subwork_time = Instant::now();
 
         self.share_index += 1;
-        info!("✅ Worker {} Share #{}", self.worker, self.share_index);
+        debug!("✅ Worker {} Share #{}", self.worker, self.share_index);
     }
 
     // 接受份额
     pub fn share_accept(&mut self) {
         self.accept_index += 1;
-        info!(
+        debug!(
             "👍 Worker {} Share Accept #{}",
             self.worker, self.share_index
         );
@@ -106,7 +106,7 @@ impl Worker {
     // 拒绝的份额
     pub fn share_reject(&mut self) {
         self.invalid_index += 1;
-        info!("😭 Worker {} Reject! {}", self.worker, self.accept_index);
+        debug!("😭 Worker {} Reject! {}", self.worker, self.accept_index);
     }
 
     pub fn submit_hashrate<T>(&mut self, rpc: &T) -> bool

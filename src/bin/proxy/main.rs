@@ -5,11 +5,11 @@ mod version {
 use log::info;
 use proxy::{client::encry::accept_en_tcp, state::Worker};
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap};
 
 use anyhow::Result;
 use bytes::BytesMut;
-use clap::{crate_version};
+use clap::crate_version;
 
 use native_tls::Identity;
 use prettytable::{cell, row, Table};
@@ -17,16 +17,14 @@ use tokio::{
     fs::File,
     io::AsyncReadExt,
     sync::{
-        broadcast,
         mpsc::{self, Receiver},
-        RwLock,
     },
     time::sleep,
 };
 
 use proxy::client::tcp::accept_tcp;
 use proxy::client::tls::accept_tcp_with_tls;
-use proxy::jobs::JobQueue;
+
 use proxy::util::config::Settings;
 use proxy::util::*;
 
@@ -67,7 +65,7 @@ async fn main() -> Result<()> {
     // } else {
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
-    let config = config::Settings::new(config_file_name,true)?;
+    let config = config::Settings::new(config_file_name, true)?;
     logger::init(
         config.name.as_str(),
         config.log_path.clone(),
@@ -83,7 +81,7 @@ async fn main() -> Result<()> {
         info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
         std::process::exit(1);
     };
-    
+
     if config.share != 0 && config.share_wallet.is_empty() {
         info!("❎ 抽水模式钱包为空。");
         std::process::exit(1);
@@ -104,73 +102,17 @@ async fn main() -> Result<()> {
     let read_key_len = p12.read_buf(&mut buffer).await?;
     //info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
-    //info!("✅ config init success!");
-
-    // 分配任务给 抽水矿机
-    let (job_send, _) = broadcast::channel::<String>(100);
-
-    // 抽水费用矿工
-    let proxy_worker = Arc::new(RwLock::new(Worker::default()));
-    let develop_worker = Arc::new(RwLock::new(Worker::default()));
-
-    //let mine = Mine::new(config.clone(), 0).await?;
-    let (proxy_job_channel, _) = broadcast::channel::<(u64, String)>(100);
-
-    // 开发者费用
-    let (fee_tx, _) = broadcast::channel::<(u64, String)>(100);
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
 
-    let thread_len = clac_phread_num_for_real(config.share_rate.into());
-    let thread_len = thread_len * 3; //扩容三倍存储更多任务
-    let mine_jobs = Arc::new(JobQueue::new(thread_len as usize));
-    let develop_jobs = Arc::new(JobQueue::new(thread_len as usize));
-    // 分配任务给矿机channel
-    let (state_send, _state_recv) = mpsc::unbounded_channel::<(u64, String)>();
-    // 分配dev任务给矿机channel
-    let (dev_state_send, _dev_state_recv) = mpsc::unbounded_channel::<(u64, String)>();
-    
     let res = tokio::try_join!(
-        accept_tcp(
-            worker_tx.clone(),
-            mine_jobs.clone(),
-            develop_jobs.clone(),
-            config.clone(),
-            job_send.clone(),
-            proxy_job_channel.clone(),
-            fee_tx.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-        ),
-        accept_en_tcp(
-            worker_tx.clone(),
-            mine_jobs.clone(),
-            develop_jobs.clone(),
-            config.clone(),
-            job_send.clone(),
-            proxy_job_channel.clone(),
-            fee_tx.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-        ),
-        accept_tcp_with_tls(
-            worker_tx.clone(),
-            mine_jobs.clone(),
-            develop_jobs.clone(),
-            config.clone(),
-            job_send.clone(),
-            proxy_job_channel.clone(),
-            fee_tx.clone(),
-            state_send.clone(),
-            dev_state_send.clone(),
-            cert,
-        ),
+        accept_tcp(worker_tx.clone(), config.clone(),),
+        accept_en_tcp(worker_tx.clone(), config.clone(),),
+        accept_tcp_with_tls(worker_tx.clone(), config.clone(), cert,),
         process_workers(
             &config,
             worker_rx,
-            proxy_worker.clone(),
-            develop_worker.clone()
         ),
     );
 
@@ -371,12 +313,7 @@ async fn main() -> Result<()> {
 //     }
 // }
 
-pub async fn print_state(
-    workers: &HashMap<String, Worker>,
-    config: &Settings,
-    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
-    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
-) -> Result<()> {
+pub async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -> Result<()> {
     // 创建表格
     let mut table = Table::new();
     table.add_row(row![
@@ -474,8 +411,6 @@ pub async fn print_state(
 pub async fn process_workers(
     config: &Settings,
     mut worker_rx: Receiver<Worker>,
-    proxy_worker: Arc<tokio::sync::RwLock<Worker>>,
-    develop_worker: Arc<tokio::sync::RwLock<Worker>>,
 ) -> Result<()> {
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
@@ -495,7 +430,7 @@ pub async fn process_workers(
                 }
             },
             () = &mut sleep => {
-                match print_state(&workers,config,proxy_worker.clone(),develop_worker.clone()).await{
+                match print_state(&workers,config).await{
                     Ok(_) => {},
                     Err(_) => {log::info!("打印失败了")},
                 }

@@ -18,14 +18,7 @@ use crate::util::config::Settings;
 use super::*;
 pub async fn accept_en_tcp(
     worker_queue: tokio::sync::mpsc::Sender<Worker>,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
-    _job_send: broadcast::Sender<String>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
-    _state_send: UnboundedSender<(u64, String)>,
-    _dev_state_send: UnboundedSender<(u64, String)>,
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.encrypt_port);
     let listener = TcpListener::bind(address.clone()).await?;
@@ -38,20 +31,11 @@ pub async fn accept_en_tcp(
         let config = config.clone();
         let workers = worker_queue.clone();
 
-        let mine_jobs_queue = mine_jobs_queue.clone();
-        let develop_jobs_queue = develop_jobs_queue.clone();
-        let proxy_fee_sender = proxy_fee_sender.clone();
-        let develop_fee_sender = develop_fee_sender.clone();
-
         tokio::spawn(async move {
             transfer(
                 workers,
                 stream,
                 &config,
-                mine_jobs_queue,
-                develop_jobs_queue,
-                proxy_fee_sender,
-                develop_fee_sender,
             )
             .await
         });
@@ -62,10 +46,6 @@ async fn transfer(
     worker_queue: tokio::sync::mpsc::Sender<Worker>,
     tcp_stream: TcpStream,
     config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
     let (worker_r, worker_w) = split(tcp_stream);
     let worker_r = BufReader::new(worker_r);
@@ -84,10 +64,6 @@ async fn transfer(
             worker_w,
             &pools,
             &config,
-            mine_jobs_queue,
-            develop_jobs_queue,
-            proxy_fee_sender,
-            develop_fee_sender,
             true,
         )
         .await
@@ -98,10 +74,6 @@ async fn transfer(
             worker_w,
             &pools,
             &config,
-            mine_jobs_queue,
-            develop_jobs_queue,
-            proxy_fee_sender,
-            develop_fee_sender,
             true,
         )
         .await

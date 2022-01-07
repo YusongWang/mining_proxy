@@ -6,6 +6,7 @@ pub mod mine;
 pub mod monitor;
 pub mod tcp;
 pub mod tls;
+pub mod pools;
 
 use anyhow::bail;
 use hex::FromHex;
@@ -1680,10 +1681,6 @@ pub async fn handle<R, W, S>(
     worker_w: WriteHalf<W>,
     stream: S,
     config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1703,10 +1700,6 @@ where
                 pool_r,
                 pool_w,
                 &config,
-                mine_jobs_queue,
-                develop_jobs_queue,
-                proxy_fee_sender,
-                develop_fee_sender,
                 is_encrypted,
             )
             .await
@@ -1718,10 +1711,6 @@ where
                 pool_r,
                 pool_w,
                 &config,
-                mine_jobs_queue,
-                develop_jobs_queue,
-                proxy_fee_sender,
-                develop_fee_sender,
                 is_encrypted,
             )
             .await
@@ -1735,10 +1724,6 @@ pub async fn handle_tcp_pool<R, W>(
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,
     config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1760,10 +1745,6 @@ where
         worker_w,
         stream,
         &config,
-        mine_jobs_queue,
-        develop_jobs_queue,
-        proxy_fee_sender,
-        develop_fee_sender,
         is_encrypted,
     )
     .await
@@ -1775,10 +1756,6 @@ pub async fn handle_tls_pool<R, W>(
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,
     config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1800,10 +1777,6 @@ where
         worker_w,
         outbound,
         &config,
-        mine_jobs_queue,
-        develop_jobs_queue,
-        proxy_fee_sender,
-        develop_fee_sender,
         is_encrypted,
     )
     .await

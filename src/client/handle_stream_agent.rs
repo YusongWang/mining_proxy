@@ -36,10 +36,6 @@ pub async fn handle_stream<R, W, R1, W1>(
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
     mut pool_w: WriteHalf<W1>,
     config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    _proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    _dev_fee_send: broadcast::Sender<(u64, String)>,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -146,7 +142,6 @@ where
     let mut agent_name = String::new();
     let mut agent_fee = 0.1;
     let mut agent_wallet = String::new();
-
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;

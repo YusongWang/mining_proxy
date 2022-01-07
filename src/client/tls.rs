@@ -8,24 +8,16 @@ use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
 use native_tls::Identity;
 
-use tokio::sync::broadcast;
-use tokio::sync::mpsc::UnboundedSender;
+
 
 use super::*;
-use crate::jobs::JobQueue;
+
 use crate::state::Worker;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
     worker_queue: tokio::sync::mpsc::Sender<Worker>,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
     config: Settings,
-    _job_send: broadcast::Sender<String>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
-    _state_send: UnboundedSender<(u64, String)>,
-    _dev_state_send: UnboundedSender<(u64, String)>,
     cert: Identity,
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.ssl_port);
@@ -42,10 +34,6 @@ pub async fn accept_tcp_with_tls(
 
         let config = config.clone();
         let acceptor = tls_acceptor.clone();
-        let mine_jobs_queue = mine_jobs_queue.clone();
-        let develop_jobs_queue = develop_jobs_queue.clone();
-        let proxy_fee_sender = proxy_fee_sender.clone();
-        let develop_fee_sender = develop_fee_sender.clone();
 
         tokio::spawn(async move {
             transfer_ssl(
@@ -53,10 +41,6 @@ pub async fn accept_tcp_with_tls(
                 stream,
                 acceptor,
                 &config,
-                mine_jobs_queue,
-                develop_jobs_queue,
-                proxy_fee_sender,
-                develop_fee_sender,
             )
             .await
         });
@@ -68,10 +52,6 @@ async fn transfer_ssl(
     tcp_stream: TcpStream,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
@@ -94,10 +74,6 @@ async fn transfer_ssl(
             worker_w,
             &pools,
             &config,
-            mine_jobs_queue,
-            develop_jobs_queue,
-            proxy_fee_sender,
-            develop_fee_sender,
             false,
         )
         .await
@@ -108,10 +84,6 @@ async fn transfer_ssl(
             worker_w,
             &pools,
             &config,
-            mine_jobs_queue,
-            develop_jobs_queue,
-            proxy_fee_sender,
-            develop_fee_sender,
             false,
         )
         .await

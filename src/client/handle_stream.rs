@@ -36,10 +36,6 @@ pub async fn handle_stream<R, W, R1, W1>(
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
     mut pool_w: WriteHalf<W1>,
     config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    _proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    _dev_fee_send: broadcast::Sender<(u64, String)>,
     is_encrypted: bool,
 ) -> Result<()>
 where
