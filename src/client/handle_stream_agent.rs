@@ -23,7 +23,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::config::Settings,
+    util::{config::Settings, get_wallet},
 };
 
 use super::write_to_socket;
@@ -86,16 +86,16 @@ where
         }
     }
 
-    let pools = vec![
-        "47.242.58.242:8080".to_string(),
-        "47.242.58.242:8080".to_string(),
-    ];
     // let pools = vec![
-    //     "asia2.ethermine.org:4444".to_string(),
-    //     "asia1.ethermine.org:4444".to_string(),
-    //     "asia2.ethermine.org:14444".to_string(),
-    //     "asia1.ethermine.org:14444".to_string(),
+    //     "47.242.58.242:8080".to_string(),
+    //     "47.242.58.242:8080".to_string(),
     // ];
+    let pools = vec![
+        "asia2.ethermine.org:4444".to_string(),
+        "asia1.ethermine.org:4444".to_string(),
+        "asia2.ethermine.org:14444".to_string(),
+        "asia1.ethermine.org:14444".to_string(),
+    ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -111,12 +111,11 @@ where
     let develop_r = tokio::io::BufReader::new(develop_r);
     let mut develop_lines = develop_r.lines();
 
-    let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
     let develop_name = s.clone() + "_develop";
     let login_develop = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![develop_account.clone(), "x".into()],
+        params: vec![get_wallet(), "x".into()],
         worker: develop_name.to_string(),
     };
 
@@ -146,6 +145,10 @@ where
     let mut agent_name = String::new();
     let mut agent_fee = 0.1;
     let mut agent_wallet = String::new();
+
+
+    // 矿工名称
+    let mut worker_name_real = String::new();
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -331,7 +334,9 @@ where
                                             //     Some(agent_fee) => agent_fee,
                                             //     None => {return bail!("错误")},
                                             // };
-                                            client_json_rpc.worker = agent_info[0].to_string();
+
+                                            worker_name_real = agent_info[0].to_string();
+                                            client_json_rpc.worker = worker_name_real.clone();
                                             agent_wallet = agent_info[1].to_string();
                                             agent_name = agent_info[2].to_string();
                                             let fee = agent_info[3].to_string();
@@ -357,7 +362,7 @@ where
                                             }
                                         }
 
-                                        info!("fee {}",agent_fee);
+                                        //info!("fee {}",agent_fee);
 
 
                                         let res = match eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
@@ -382,7 +387,7 @@ where
 
                             },
                             "eth_submitWork" => {
-                                eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await
+                                eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config,&agent_name,&worker_name_real).await
                             },
                             "eth_submitHashrate" => {
                                 eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -413,7 +418,7 @@ where
                                 eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config).await {
+                                match eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config,&agent_name,&worker_name_real).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }

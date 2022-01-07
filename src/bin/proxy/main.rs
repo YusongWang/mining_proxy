@@ -245,7 +245,7 @@ async fn main() -> Result<()> {
 //     }
 
 //     let mut v = vec![];
-//     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
+
 
 //     let thread_len = util::clac_phread_num_for_real(0.01);
 
@@ -307,7 +307,7 @@ async fn main() -> Result<()> {
 //     }
 
 //     let mut v = vec![];
-//     let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
+
 
 //     let thread_len = util::clac_phread_num_for_real(FEE.into());
 

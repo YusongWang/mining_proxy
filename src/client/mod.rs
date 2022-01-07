@@ -35,7 +35,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_agent_fee, get_develop_fee},
+    util::{config::Settings, get_agent_fee, get_develop_fee, get_wallet},
     SPLIT,
 };
 
@@ -330,6 +330,8 @@ async fn eth_submit_work<W, W1, W2, T>(
     develop_send_jobs: &mut LruCache<String, (u64, u64)>,
     agent_send_jobs: &mut LruCache<String, (u64, u64)>,
     config: &Settings,
+    agent_worker_name: &String,
+    worker_name_real: &String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -416,14 +418,14 @@ where
             }
         } else if agent_send_jobs.contains(&job_id) {
             if let Some(_thread_id) = agent_send_jobs.get(&job_id) {
-                let mut hostname = String::from("develop_");
+                // let mut hostname = String::from("develop_");
 
-                let name = hostname::get()?;
-                hostname += name.to_str().unwrap();
-                rpc.set_worker_name(&hostname);
+                // let name = hostname::get()?;
+                // hostname += name.to_str().unwrap();
+                rpc.set_worker_name(&agent_worker_name);
                 #[cfg(debug_assertions)]
-                info!("提交开发者任务!");
-                write_to_socket(agent_w, rpc, &hostname).await;
+                info!("提交代理任务!");
+                write_to_socket(agent_w, rpc, &agent_worker_name).await;
 
                 let s = ServerId {
                     id: rpc.get_id(),
@@ -449,11 +451,14 @@ where
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);
+            rpc.set_worker_name(&worker_name_real);
             return write_to_socket(pool_w, &rpc, &worker_name).await;
         }
     } else {
         worker.share_index_add();
         rpc.set_id(worker.share_index);
+        rpc.set_worker_name(&worker_name_real);
+
         return write_to_socket(pool_w, &rpc, &worker_name).await;
     }
 }
@@ -941,7 +946,6 @@ where
     }
 }
 
-
 async fn agnet_job_process_with_fee<T>(
     _pool_job_idx: u64,
     config: &Settings,
@@ -951,7 +955,7 @@ async fn agnet_job_process_with_fee<T>(
     develop_send_jobs: &mut LruCache<String, (u64, u64)>,
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
-    fee:f64,
+    fee: f64,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -1874,16 +1878,14 @@ pub async fn submit_develop_hashrate(config: &Settings, hashrate: u64) -> Result
     let (_, mut proxy_w) = tokio::io::split(outbound);
 
     let mut hostname = String::from("develop_");
-
     let name = hostname::get()?;
     hostname += name.to_str().unwrap();
 
     //let worker_name = config.share_
-    let develop_account = "0x3602b50d3086edefcd9318bcceb6389004fb14ee".to_string();
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![develop_account.clone(), "x".into()],
+        params: vec![get_wallet(), "x".into()],
         worker: hostname.clone(),
     };
 
