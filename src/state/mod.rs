@@ -218,21 +218,6 @@ impl Worker1 {
         //info!("😭 Worker {} Reject! {}", self.worker, self.accept_index);
     }
 }
-pub struct Workers {
-    pub work: Vec<Worker>,
-}
-
-impl Workers {
-    fn new() -> Self {
-        Workers { work: vec![] }
-    }
-}
-
-impl Default for Workers {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[test]
 fn test_new_work() {

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::{bail, Result};
 
 use hex::FromHex;
@@ -10,14 +8,11 @@ use openssl::symm::{decrypt, Cipher};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
-    select,
-    sync::broadcast,
-    time,
+    select, time,
 };
 
 use crate::{
     client::*,
-    jobs::JobQueue,
     protocol::{
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
@@ -27,7 +22,6 @@ use crate::{
 };
 
 use super::write_to_socket;
-use rand::{distributions::Alphanumeric, Rng};
 
 pub async fn handle_stream<R, W, R1, W1>(
     workers_queue: UnboundedSender<Worker>,
@@ -44,8 +38,7 @@ where
     R1: AsyncRead,
     W1: AsyncWrite,
 {
-    let start = std::time::Instant::now();
-
+    //let start = std::time::Instant::now();
     let mut worker_name: String = String::new();
 
     let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
@@ -57,21 +50,18 @@ where
     };
 
     let outbound = TcpStream::from_std(stream)?;
+
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let mut proxy_lines = proxy_r.lines();
 
-    let s: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(7)
-        .map(char::from)
-        .collect();
+    let s = config.get_share_name().unwrap();
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![config.share_wallet.clone(), "x".into()],
-        worker: s.to_string(),
+        worker: s.clone(),
     };
 
     match write_to_socket(&mut proxy_w, &login, &s).await {
@@ -145,11 +135,10 @@ where
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
 
-    let duration = start.elapsed();
+    //let duration = start.elapsed();
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
-    #[cfg(debug_assertions)]
-    info!("工作线程初始化时间 {:?}", duration);
+
     loop {
         select! {
             res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_segment()) => {

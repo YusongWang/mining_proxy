@@ -2,7 +2,6 @@ pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
-pub mod mine;
 pub mod monitor;
 pub mod pools;
 pub mod tcp;
@@ -18,7 +17,6 @@ use std::{
     collections::VecDeque,
     fmt::Debug,
     net::{SocketAddr, ToSocketAddrs},
-    sync::Arc,
     time::Duration,
 };
 
@@ -26,11 +24,10 @@ use anyhow::Result;
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
-    sync::{broadcast, mpsc::UnboundedSender},
+    sync::mpsc::UnboundedSender,
 };
 
 use crate::{
-    jobs::JobQueue,
     protocol::{
         rpc::eth::{Client, ClientWithWorkerName, ServerId, ServerRpc},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
@@ -55,6 +52,19 @@ pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i
         Some((TCP, config.pool_tcp_address.clone()))
     } else if !config.pool_ssl_address.is_empty() && config.pool_ssl_address[0] != "" {
         Some((SSL, config.pool_ssl_address.clone()))
+    } else {
+        None
+    }
+}
+
+// 从配置文件返回 连接矿池类型及连接地址
+pub fn get_pool_ip_and_type_for_proxyer(
+    config: &crate::util::config::Settings,
+) -> Option<(i32, Vec<String>)> {
+    if !config.share_tcp_address.is_empty() && config.share_tcp_address[0] != "" {
+        Some((TCP, config.share_tcp_address.clone()))
+    } else if !config.share_ssl_address.is_empty() && config.share_ssl_address[0] != "" {
+        Some((SSL, config.share_ssl_address.clone()))
     } else {
         None
     }
@@ -357,15 +367,7 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains(&job_id) {
             if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
-                let mut hostname = config.share_name.clone();
-                if hostname.is_empty() {
-                    let name = hostname::get()?;
-                    if name.is_empty() {
-                        hostname = "proxy_wallet_mine".into();
-                    } else {
-                        hostname = hostname + name.to_str().unwrap();
-                    }
-                }
+                let mut hostname = config.get_share_name().unwrap();
 
                 rpc.set_worker_name(&hostname);
                 let s = ServerId {
@@ -499,15 +501,7 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains(&job_id) {
             if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
-                let mut hostname = config.share_name.clone();
-                if hostname.is_empty() {
-                    let name = hostname::get()?;
-                    if name.is_empty() {
-                        hostname = "proxy_wallet_mine".into();
-                    } else {
-                        hostname = hostname + name.to_str().unwrap();
-                    }
-                }
+                let mut hostname = config.get_share_name().unwrap();
 
                 rpc.set_worker_name(&hostname);
                 let s = ServerId {
@@ -1814,15 +1808,7 @@ pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()>
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
 
-    let mut hostname = config.share_name.clone();
-    if hostname.is_empty() {
-        let name = hostname::get()?;
-        if name.is_empty() {
-            hostname = "proxy_wallet_mine".into();
-        } else {
-            hostname = hostname + name.to_str().unwrap();
-        }
-    }
+    let mut hostname = config.get_share_name().unwrap();
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
@@ -1855,7 +1841,6 @@ pub async fn submit_develop_hashrate(config: &Settings, hashrate: u64) -> Result
     let name = hostname::get()?;
     hostname += name.to_str().unwrap();
 
-    //let worker_name = config.share_
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),

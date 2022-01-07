@@ -55,12 +55,7 @@ where
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let mut proxy_lines = proxy_r.lines();
 
-    // let s: String = rand::thread_rng()
-    //     .sample_iter(&Alphanumeric)
-    //     .take(7)
-    //     .map(char::from)
-    //     .collect();
-    let s = config.share_name.clone();
+    let s = config.get_share_name().unwrap();
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
@@ -77,22 +72,11 @@ where
         }
     }
 
-    // let pools = vec![
-    //     "47.242.58.242:8080".to_string(),
-    //     "47.242.58.242:8080".to_string(),
-    // ];
-    let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
-    ];
-
-    let (stream, _) = match crate::client::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            info!("所有TCP矿池均不可链接。请修改后重试");
-            panic!("所有TCP矿池均不可链接。请修改后重试");
+    let stream = match pools::get_develop_pool_stream().await {
+        Ok(s) => s,
+        Err(e) => {
+            debug!("无法链接到矿池{}", e);
+            return Err(e);
         }
     };
 

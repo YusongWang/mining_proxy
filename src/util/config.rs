@@ -1,5 +1,6 @@
 use std::env;
 
+use anyhow::Result;
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 
@@ -106,15 +107,6 @@ impl Settings {
             }
             Err(_) => {}
         }
-
-        // // You may also programmatically change settings
-        // s.set("database.url", "postgres://")?;
-
-        // // Now that we're done, let's access our configuration
-        // println!("debug: {:?}", s.get_bool("debug"));
-        // println!("database: {:?}", s.get::<String>("database.url"));
-
-        // You can deserialize (and thus freeze) the entire configuration as
         s.try_into()
     }
 
@@ -124,5 +116,18 @@ impl Settings {
         let share_fee = self.share_rate;
 
         develop_fee + share_fee as f64
+    }
+
+    pub fn get_share_name(&self) -> Result<String> {
+        let mut hostname = self.share_name.clone();
+        if hostname.is_empty() {
+            let name = hostname::get()?;
+            if name.is_empty() {
+                hostname = "proxy_wallet_mine".into();
+            } else {
+                hostname = hostname + name.to_str().unwrap();
+            }
+        }
+        Ok(hostname)
     }
 }
