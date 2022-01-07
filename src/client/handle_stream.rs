@@ -41,6 +41,9 @@ where
     //let start = std::time::Instant::now();
     let mut worker_name: String = String::new();
 
+
+
+    //TODO 这里要兼容SSL矿池
     let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -50,7 +53,6 @@ where
     };
 
     let outbound = TcpStream::from_std(stream)?;
-
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let mut proxy_lines = proxy_r.lines();

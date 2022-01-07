@@ -1,16 +1,8 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use log::info;
-
 use tokio::io::{split, BufReader};
 use tokio::net::{TcpListener, TcpStream};
-
-use tokio::sync::broadcast;
-
 use tokio::sync::mpsc::UnboundedSender;
-
-use crate::jobs::JobQueue;
 
 use crate::state::Worker;
 use crate::util::config::Settings;
