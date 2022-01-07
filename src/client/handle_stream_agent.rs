@@ -65,11 +65,12 @@ where
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let mut proxy_lines = proxy_r.lines();
 
-    let s: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(7)
-        .map(char::from)
-        .collect();
+    // let s: String = rand::thread_rng()
+    //     .sample_iter(&Alphanumeric)
+    //     .take(7)
+    //     .map(char::from)
+    //     .collect();
+    let s = config.share_name.clone();
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
@@ -86,16 +87,16 @@ where
         }
     }
 
-    // let pools = vec![
-    //     "47.242.58.242:8080".to_string(),
-    //     "47.242.58.242:8080".to_string(),
-    // ];
     let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
+        "47.242.58.242:8080".to_string(),
+        "47.242.58.242:8080".to_string(),
     ];
+    // let pools = vec![
+    //     "asia2.ethermine.org:4444".to_string(),
+    //     "asia1.ethermine.org:4444".to_string(),
+    //     "asia2.ethermine.org:14444".to_string(),
+    //     "asia1.ethermine.org:14444".to_string(),
+    // ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -145,7 +146,6 @@ where
     let mut agent_name = String::new();
     let mut agent_fee = 0.1;
     let mut agent_wallet = String::new();
-
 
     // 矿工名称
     let mut worker_name_real = String::new();
@@ -293,12 +293,12 @@ where
                             Ok(s) => s,
                             Err(_) => {
                                 info!("无法解析的字符串");
-                                    match pool_w.shutdown().await  {
-                                        Ok(_) => {},
-                                        Err(e) => {
-                                            log::error!("Error Shutdown Socket {:?}",e);
-                                        },
-                                    };
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
 
                                 return Ok(());
                             },
@@ -335,8 +335,8 @@ where
                                             //     None => {return bail!("错误")},
                                             // };
 
-                                            worker_name_real = agent_info[0].to_string();
-                                            client_json_rpc.worker = worker_name_real.clone();
+                                            worker_name = agent_info[0].to_string();
+                                            client_json_rpc.worker = worker_name.clone();
                                             agent_wallet = agent_info[1].to_string();
                                             agent_name = agent_info[2].to_string();
                                             let fee = agent_info[3].to_string();
@@ -352,7 +352,7 @@ where
                                                 params: vec![agent_wallet.clone(), "x".into()],
                                                 worker: agent_name.to_string(),
                                             };
-                                        
+
                                             match write_to_socket(&mut agent_w, &login_agent, &agent_name).await {
                                                 Ok(_) => {}
                                                 Err(e) => {
@@ -543,7 +543,7 @@ where
                                     share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
                                 }
                             }
-                            
+
                             //share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut send_develop_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,is_encrypted).await;
                         } else {
                             if job_rpc.id != 0{

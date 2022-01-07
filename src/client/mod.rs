@@ -209,7 +209,6 @@ where
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
     #[cfg(debug_assertions)]
-
     log::info!(
         "write_to_socket ------Worker : {}  Send Rpc {:?}",
         worker,

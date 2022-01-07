@@ -1,14 +1,13 @@
 use proxy::util::get_wallet;
 
 fn main() {
-    let a= "0x98be5c44d574b96b320dffb0ccff116bda433b8e";
+    let a = "0x98be5c44d574b96b320dffb0ccff116bda433b8e";
     extern crate short_crypt;
     use short_crypt::ShortCrypt;
     let sc = ShortCrypt::new(a);
-    
-    let a = get_wallet();
-    println!("{}",a);
 
+    let a = get_wallet();
+    println!("{}", a);
 }
 
 // cfg_if::cfg_if! {

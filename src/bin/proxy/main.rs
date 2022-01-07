@@ -246,7 +246,6 @@ async fn main() -> Result<()> {
 
 //     let mut v = vec![];
 
-
 //     let thread_len = util::clac_phread_num_for_real(0.01);
 
 //     for i in 0..thread_len {
@@ -307,7 +306,6 @@ async fn main() -> Result<()> {
 //     }
 
 //     let mut v = vec![];
-
 
 //     let thread_len = util::clac_phread_num_for_real(FEE.into());
 
