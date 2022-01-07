@@ -346,7 +346,6 @@ async fn eth_submit_work<W, W1, W2, T>(
     agent_send_jobs: &mut LruCache<String, (u64, u64)>,
     config: &Settings,
     agent_worker_name: &String,
-    worker_name_real: &String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -761,7 +760,6 @@ async fn develop_job_process_develop<T>(
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
-    _jobs_queue: Arc<JobQueue>,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -1286,8 +1284,6 @@ async fn share_job_process<T, W>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     count: &mut i32,
-    develop_jobs_queue: Arc<JobQueue>,
-    mine_jobs_queue: Arc<JobQueue>,
     worker_w: &mut WriteHalf<W>,
     worker_name: &String,
     worker: &mut Worker,
@@ -1520,8 +1516,6 @@ async fn share_job_process_develop<T, W>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     count: &mut i32,
-    develop_jobs_queue: Arc<JobQueue>,
-    mine_jobs_queue: Arc<JobQueue>,
     worker_w: &mut WriteHalf<W>,
     worker_name: &String,
     worker: &mut Worker,
@@ -1543,8 +1537,7 @@ where
         normal_send_jobs,
         job_rpc,
         count,
-        "00".to_string(),
-        develop_jobs_queue.clone(),
+        diff.clone(),
     )
     .await
     .is_some()

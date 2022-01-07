@@ -450,7 +450,7 @@ where
 
 
                         if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
+                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
                                 Some(_) => {},
                                 None => {
                                     log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
@@ -485,7 +485,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
+                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
                                 Some(_) => {},
                                 None => {
                                     log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
@@ -521,7 +521,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
+                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
                                 Some(_) => {},
                                 None => {
                                     log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
