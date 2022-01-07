@@ -63,7 +63,15 @@ pub fn get_pool_stream(
     pool_tcp_address: &Vec<String>,
 ) -> Option<(std::net::TcpStream, SocketAddr)> {
     for address in pool_tcp_address {
-        let addr = match address.to_socket_addrs().unwrap().next() {
+        let mut tcp = match address.to_socket_addrs() {
+            Ok(t)=> t,
+            Err(_) => {
+                log::error!("矿池地址格式化失败 {}",address);
+                continue;
+            },
+        };
+
+        let addr = match tcp.next() {
             Some(address) => address,
             None => {
                 //info!("{} 访问不通。切换备用矿池！！！！", address);
@@ -104,7 +112,15 @@ pub async fn get_pool_stream_with_tls(
     SocketAddr,
 )> {
     for address in pool_tcp_address {
-        let addr = match address.to_socket_addrs().unwrap().next() {
+        let mut tcp = match address.to_socket_addrs() {
+            Ok(t)=> t,
+            Err(_) => {
+                log::error!("矿池地址格式化失败 {}",address);
+                continue;
+            },
+        };
+
+        let addr = match tcp.next() {
             Some(address) => address,
             None => {
                 //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
