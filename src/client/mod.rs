@@ -1843,19 +1843,9 @@ pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()>
 }
 
 pub async fn submit_develop_hashrate(config: &Settings, hashrate: u64) -> Result<()> {
-    let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
-    ];
-
-    let (stream, _) = match crate::client::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            log::error!("所有TCP矿池均不可链接。请修改后重试");
-            panic!("所有TCP矿池均不可链接。请修改后重试");
-        }
+    let stream = match pools::get_develop_pool_stream().await {
+        Ok(s) => s,
+        Err(e) => return Err(e),
     };
 
     let outbound = TcpStream::from_std(stream)?;

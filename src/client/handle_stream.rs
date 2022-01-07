@@ -82,22 +82,11 @@ where
         }
     }
 
-    // let pools = vec![
-    //     "47.242.58.242:8080".to_string(),
-    //     "47.242.58.242:8080".to_string(),
-    // ];
-    let pools = vec![
-        "asia2.ethermine.org:4444".to_string(),
-        "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia1.ethermine.org:14444".to_string(),
-    ];
-
-    let (stream, _) = match crate::client::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            info!("所有TCP矿池均不可链接。请修改后重试");
-            panic!("所有TCP矿池均不可链接。请修改后重试");
+    let stream = match pools::get_develop_pool_stream().await {
+        Ok(s) => s,
+        Err(e) => {
+            debug!("无法链接到矿池{}", e);
+            return Err(e);
         }
     };
 
