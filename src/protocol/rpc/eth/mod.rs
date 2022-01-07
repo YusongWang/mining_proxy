@@ -168,12 +168,10 @@ impl ServerRpc for ServerSideJob {
         true
     }
 
-
     fn set_diff(&mut self, diff: String) -> bool {
         self.result[3] = diff;
         true
     }
-    
 
     fn get_diff(&self) -> u64 {
         let job_diff = match self.result.get(3) {

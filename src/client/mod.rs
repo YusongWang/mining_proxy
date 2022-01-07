@@ -4,9 +4,9 @@ pub mod handle_stream;
 pub mod handle_stream_agent;
 pub mod mine;
 pub mod monitor;
+pub mod pools;
 pub mod tcp;
 pub mod tls;
-pub mod pools;
 
 use anyhow::bail;
 use hex::FromHex;
@@ -26,7 +26,7 @@ use anyhow::Result;
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
-    sync::broadcast,
+    sync::{broadcast, mpsc::UnboundedSender},
 };
 
 use crate::{
@@ -65,11 +65,11 @@ pub fn get_pool_stream(
 ) -> Option<(std::net::TcpStream, SocketAddr)> {
     for address in pool_tcp_address {
         let mut tcp = match address.to_socket_addrs() {
-            Ok(t)=> t,
+            Ok(t) => t,
             Err(_) => {
-                log::error!("矿池地址格式化失败 {}",address);
+                log::error!("矿池地址格式化失败 {}", address);
                 continue;
-            },
+            }
         };
 
         let addr = match tcp.next() {
@@ -114,11 +114,11 @@ pub async fn get_pool_stream_with_tls(
 )> {
     for address in pool_tcp_address {
         let mut tcp = match address.to_socket_addrs() {
-            Ok(t)=> t,
+            Ok(t) => t,
             Err(_) => {
-                log::error!("矿池地址格式化失败 {}",address);
+                log::error!("矿池地址格式化失败 {}", address);
                 continue;
-            },
+            }
         };
 
         let addr = match tcp.next() {
@@ -900,7 +900,7 @@ async fn agnet_job_process<T>(
     develop_send_jobs: &mut LruCache<String, (u64, u64)>,
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
-    diff:String,
+    diff: String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -973,7 +973,7 @@ async fn agnet_job_process_with_fee<T>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     fee: f64,
-    diff:String,
+    diff: String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -1048,14 +1048,12 @@ async fn share_job_process_agent_fee<T, W>(
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     count: &mut i32,
-    develop_jobs_queue: Arc<JobQueue>,
-    mine_jobs_queue: Arc<JobQueue>,
     worker_w: &mut WriteHalf<W>,
     worker_name: &String,
     worker: &mut Worker,
     rpc_id: u64,
     agent_fee: f64,
-    diff:String,
+    diff: String,
     is_encrypted: bool,
 ) -> Option<()>
 where
@@ -1289,7 +1287,7 @@ async fn share_job_process<T, W>(
     worker_name: &String,
     worker: &mut Worker,
     rpc_id: u64,
-    diff:String,
+    diff: String,
     is_encrypted: bool,
 ) -> Option<()>
 where
@@ -1521,7 +1519,7 @@ async fn share_job_process_develop<T, W>(
     worker_name: &String,
     worker: &mut Worker,
     rpc_id: u64,
-    diff:String,
+    diff: String,
     is_encrypted: bool,
 ) -> Option<()>
 where
@@ -1676,7 +1674,7 @@ where
 }
 
 pub async fn handle<R, W, S>(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
     stream: S,
@@ -1719,7 +1717,7 @@ where
 }
 
 pub async fn handle_tcp_pool<R, W>(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,
@@ -1751,7 +1749,7 @@ where
 }
 
 pub async fn handle_tls_pool<R, W>(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,

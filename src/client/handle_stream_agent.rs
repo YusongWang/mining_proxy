@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::{bail, Result};
 
 use hex::FromHex;
@@ -10,14 +8,11 @@ use openssl::symm::{decrypt, Cipher};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
-    select,
-    sync::broadcast,
-    time,
+    select, time,
 };
 
 use crate::{
     client::*,
-    jobs::JobQueue,
     protocol::{
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
@@ -27,10 +22,9 @@ use crate::{
 };
 
 use super::write_to_socket;
-use rand::{distributions::Alphanumeric, Rng};
 
 pub async fn handle_stream<R, W, R1, W1>(
-    workers_queue: tokio::sync::mpsc::Sender<Worker>,
+    workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
@@ -526,13 +520,13 @@ where
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
                         }
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
 
                         if config.share != 0 {
                             cfg_if::cfg_if! {
                                 if #[cfg(feature = "agent")] {
-                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
                                 } else {
                                     share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await;
                                 }
@@ -567,9 +561,10 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                                                        cfg_if::cfg_if! {
+                                cfg_if::cfg_if! {
                                 if #[cfg(feature = "agent")] {
-                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
+
                                 } else {
                                     share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await;
                                 }
@@ -602,9 +597,9 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                                                        cfg_if::cfg_if! {
+                            cfg_if::cfg_if! {
                                 if #[cfg(feature = "agent")] {
-                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,develop_jobs_queue.clone(),mine_jobs_queue.clone(),&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
+                                    share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
                                 } else {
                                     share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await;
                                 }
@@ -903,7 +898,7 @@ where
             () = &mut sleep  => {
                 // 发送本地旷工状态到远端。
                 //info!("发送本地旷工状态到远端。{:?}",worker);
-                match workers_queue.try_send(worker.clone()){
+                match workers_queue.send(worker.clone()){
                     Ok(_) => {},
                     Err(_) => {log::warn!("发送旷工状态失败");},
                 }

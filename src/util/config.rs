@@ -55,7 +55,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub fn new(file_path: &str,with_file:bool) -> Result<Self, ConfigError> {
+    pub fn new(file_path: &str, with_file: bool) -> Result<Self, ConfigError> {
         let mut s = Config::default();
 
         if with_file {

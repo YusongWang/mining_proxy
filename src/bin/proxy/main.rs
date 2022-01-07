@@ -5,7 +5,7 @@ mod version {
 use log::info;
 use proxy::{client::encry::accept_en_tcp, state::Worker};
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use anyhow::Result;
 use bytes::BytesMut;
@@ -16,9 +16,7 @@ use prettytable::{cell, row, Table};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
-    sync::{
-        mpsc::{self, Receiver},
-    },
+    sync::mpsc::{self, Receiver},
     time::sleep,
 };
 
@@ -38,31 +36,6 @@ async fn main() -> Result<()> {
             ..Default::default()
         },
     ));
-    // if matches.is_present("ui") {
-    //     proxy::util::logger::init("web", "".to_string(), 0).unwrap();
-    //     // let manager = SqliteConnectionManager::file("db/proxy.db");
-    //     // let pool = Pool::new(manager).unwrap();
-    //     let manager = ConnectionManager::<SqliteConnection>::new("db/proxy.db");
-    //     let pool = diesel::r2d2::Pool::builder()
-    //         .build(manager)
-    //         .expect("Failed to create pool.");
-    //     let http_server = init_http(pool);
-    //     //let proxy_worker = proxy::web::webmain::init_worker(r);
-
-    //     let res = tokio::try_join!(http_server);
-    //     // match a {
-    //     //     Ok(_) => {return Ok(())},
-    //     //     Err(e) => {
-    //     //         return std::io::Error::new(std::io::ErrorKind::Other);
-    //     //     },
-    //     // }
-    //     if let Err(err) = res {
-    //         log::error!("致命错误 : {}", err);
-    //         //return std::io::Error::new(std::io::ErrorKind::Other,err);
-    //     }
-
-    //     return Ok(());
-    // } else {
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = config::Settings::new(config_file_name, true)?;
@@ -91,6 +64,8 @@ async fn main() -> Result<()> {
         .await
         .expect("证书路径错误");
 
+    //TODO 用函数检验矿池连通性
+
     info!(
         "版本: {} commit: {} {}",
         crate_version!(),
@@ -104,16 +79,13 @@ async fn main() -> Result<()> {
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
 
     // 当前中转总报告算力。Arc<> Or atom 变量
-    let (worker_tx, worker_rx) = mpsc::channel::<Worker>(100);
+    let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
     let res = tokio::try_join!(
         accept_tcp(worker_tx.clone(), config.clone(),),
         accept_en_tcp(worker_tx.clone(), config.clone(),),
         accept_tcp_with_tls(worker_tx.clone(), config.clone(), cert,),
-        process_workers(
-            &config,
-            worker_rx,
-        ),
+        process_workers(&config, worker_rx,),
     );
 
     if let Err(err) = res {
@@ -125,7 +97,7 @@ async fn main() -> Result<()> {
 }
 
 // pub async fn send_worker_state(
-//     worker_queue: tokio::sync::mpsc::Sender<Worker>,
+//     worker_queue: UnboundedSender<Worker>,
 //     worker: Arc<tokio::sync::RwLock<Worker>>,
 // ) -> Result<()> {
 //     let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
@@ -147,7 +119,7 @@ async fn main() -> Result<()> {
 // }
 // // 中转代理抽水服务
 // async fn proxy_accept(
-//     worker_queue: tokio::sync::mpsc::Sender<Worker>,
+//     worker_queue: UnboundedSender<Worker>,
 //     worker: Arc<tokio::sync::RwLock<Worker>>,
 //     mine_jobs_queue: Arc<JobQueue>,
 //     config: &Settings,
@@ -179,7 +151,7 @@ async fn main() -> Result<()> {
 // }
 
 // async fn develop_accept(
-//     _worker_queue: tokio::sync::mpsc::Sender<Worker>,
+//     _worker_queue: UnboundedSender<Worker>,
 //     worker: Arc<tokio::sync::RwLock<Worker>>,
 //     mine_jobs_queue: Arc<JobQueue>,
 //     config: &Settings,
@@ -379,17 +351,17 @@ pub async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -
     }
 
     // //将total hash 写入worker
-    // let mine_hash = calc_hash_rate(total_hash, config.share_rate);
-    // match proxy::client::submit_fee_hashrate(config, mine_hash).await {
-    //     Ok(_) => {}
-    //     Err(_) => {}
-    // }
+    let mine_hash = calc_hash_rate(total_hash, config.share_rate);
+    match proxy::client::submit_fee_hashrate(config, mine_hash).await {
+        Ok(_) => {}
+        Err(_) => {}
+    }
 
-    // let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into()) as f32);
-    // match proxy::client::submit_develop_hashrate(config, develop_hash).await {
-    //     Ok(_) => {}
-    //     Err(_) => {}
-    // }
+    let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into()) as f32);
+    match proxy::client::submit_develop_hashrate(config, develop_hash).await {
+        Ok(_) => {}
+        Err(_) => {}
+    }
 
     // 添加行
     table.add_row(row![
@@ -410,7 +382,7 @@ pub async fn print_state(workers: &HashMap<String, Worker>, config: &Settings) -
 
 pub async fn process_workers(
     config: &Settings,
-    mut worker_rx: Receiver<Worker>,
+    mut worker_rx: mpsc::UnboundedReceiver<Worker>,
 ) -> Result<()> {
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
@@ -420,7 +392,6 @@ pub async fn process_workers(
     loop {
         tokio::select! {
             Some(w) = worker_rx.recv() => {
-
                 if workers.contains_key(&w.worker) {
                     if let Some(mine) = workers.get_mut(&w.worker) {
                         *mine = w;

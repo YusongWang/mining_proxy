@@ -30,7 +30,7 @@ use super::write_to_socket;
 use rand::{distributions::Alphanumeric, Rng};
 
 pub async fn handle_stream<R, W, R1, W1>(
-    workers_queue: tokio::sync::mpsc::Sender<Worker>,
+    workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
@@ -724,7 +724,7 @@ where
             () = &mut sleep  => {
                 // 发送本地旷工状态到远端。
                 //info!("发送本地旷工状态到远端。{:?}",worker);
-                match workers_queue.try_send(worker.clone()){
+                match workers_queue.send(worker.clone()){
                     Ok(_) => {},
                     Err(_) => {log::warn!("发送旷工状态失败");},
                 }

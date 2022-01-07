@@ -7,8 +7,7 @@ use tokio::io::{split, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 extern crate native_tls;
 use native_tls::Identity;
-
-
+use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
 
@@ -16,7 +15,7 @@ use crate::state::Worker;
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker_queue: UnboundedSender<Worker>,
     config: Settings,
     cert: Identity,
 ) -> Result<()> {
@@ -35,20 +34,12 @@ pub async fn accept_tcp_with_tls(
         let config = config.clone();
         let acceptor = tls_acceptor.clone();
 
-        tokio::spawn(async move {
-            transfer_ssl(
-                workers,
-                stream,
-                acceptor,
-                &config,
-            )
-            .await
-        });
+        tokio::spawn(async move { transfer_ssl(workers, stream, acceptor, &config).await });
     }
 }
 
 async fn transfer_ssl(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
+    worker_queue: UnboundedSender<Worker>,
     tcp_stream: TcpStream,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     config: &Settings,
@@ -68,25 +59,9 @@ async fn transfer_ssl(
     };
 
     if stream_type == crate::client::TCP {
-        handle_tcp_pool(
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            false,
-        )
-        .await
+        handle_tcp_pool(worker_queue, worker_r, worker_w, &pools, &config, false).await
     } else if stream_type == crate::client::SSL {
-        handle_tls_pool(
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            false,
-        )
-        .await
+        handle_tls_pool(worker_queue, worker_r, worker_w, &pools, &config, false).await
     } else {
         log::error!("致命错误：未找到支持的矿池BUG 请上报");
         return Ok(());
