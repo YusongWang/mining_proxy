@@ -32,19 +32,13 @@ use crate::{
         rpc::eth::{Client, ClientWithWorkerName, ServerId, ServerRpc},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
-    state::Worker,
+    state::{State, Worker},
     util::{config::Settings, get_agent_fee, get_develop_fee, get_wallet},
     SPLIT,
 };
 
 pub const TCP: i32 = 1;
 pub const SSL: i32 = 2;
-
-pub enum State {
-    POOL,
-    PROXY,
-    DEVELOP,
-}
 
 // 从配置文件返回 连接矿池类型及连接地址
 pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i32, Vec<String>)> {
@@ -1673,6 +1667,7 @@ pub async fn handle<R, W, S>(
     worker_w: WriteHalf<W>,
     stream: S,
     config: &Settings,
+    state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1692,6 +1687,7 @@ where
                 pool_r,
                 pool_w,
                 &config,
+                state,
                 is_encrypted,
             )
             .await
@@ -1703,6 +1699,7 @@ where
                 pool_r,
                 pool_w,
                 &config,
+                state,
                 is_encrypted,
             )
             .await
@@ -1716,6 +1713,7 @@ pub async fn handle_tcp_pool<R, W>(
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,
     config: &Settings,
+    state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1737,6 +1735,7 @@ where
         worker_w,
         stream,
         &config,
+        state,
         is_encrypted,
     )
     .await
@@ -1748,6 +1747,7 @@ pub async fn handle_tls_pool<R, W>(
     worker_w: WriteHalf<W>,
     pools: &Vec<String>,
     config: &Settings,
+    state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1769,6 +1769,7 @@ where
         worker_w,
         outbound,
         &config,
+        state,
         is_encrypted,
     )
     .await

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLockWriteGuard};
 
 use anyhow::Result;
 use log::info;
@@ -11,13 +11,14 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
 
-use crate::state::Worker;
+use crate::state::{State, Worker};
 use crate::util::config::Settings;
 
 pub async fn accept_tcp_with_tls(
     worker_queue: UnboundedSender<Worker>,
     config: Settings,
     cert: Identity,
+    state: State,
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
@@ -33,8 +34,26 @@ pub async fn accept_tcp_with_tls(
 
         let config = config.clone();
         let acceptor = tls_acceptor.clone();
+        let state = state.clone();
 
-        tokio::spawn(async move { transfer_ssl(workers, stream, acceptor, &config).await });
+        state
+            .online
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+        tokio::spawn(async move {
+            match transfer_ssl(workers, stream, acceptor, &config, state.clone()).await {
+                Ok(_) => {
+                    state
+                        .online
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                }
+                Err(_) => {
+                    state
+                        .online
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
+        });
     }
 }
 
@@ -43,6 +62,7 @@ async fn transfer_ssl(
     tcp_stream: TcpStream,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
     config: &Settings,
+    state: State,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
@@ -59,9 +79,27 @@ async fn transfer_ssl(
     };
 
     if stream_type == crate::client::TCP {
-        handle_tcp_pool(worker_queue, worker_r, worker_w, &pools, &config, false).await
+        handle_tcp_pool(
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            state,
+            false,
+        )
+        .await
     } else if stream_type == crate::client::SSL {
-        handle_tls_pool(worker_queue, worker_r, worker_w, &pools, &config, false).await
+        handle_tls_pool(
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            state,
+            false,
+        )
+        .await
     } else {
         log::error!("致命错误：未找到支持的矿池BUG 请上报");
         return Ok(());

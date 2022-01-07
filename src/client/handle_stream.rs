@@ -30,6 +30,7 @@ pub async fn handle_stream<R, W, R1, W1>(
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
     mut pool_w: WriteHalf<W1>,
     config: &Settings,
+    state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -40,8 +41,6 @@ where
 {
     //let start = std::time::Instant::now();
     let mut worker_name: String = String::new();
-
-
 
     //TODO 这里要兼容SSL矿池
     let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
@@ -148,7 +147,7 @@ where
                 let buf_bytes = match res{
                     Ok(res) => {
                         match res {
-                            Ok(buf) => match buf{
+                            Ok(buf) => match buf {
                                     Some(buf) => buf,
                                     None =>       {
                                     match pool_w.shutdown().await  {
@@ -335,7 +334,7 @@ where
                 }
                 let duration = start.elapsed();
 
-                #[cfg(debug_assertions)]
+
                 info!("矿机消息处理时间 {:?}", duration);
             },
             res = pool_lines.next_line() => {
@@ -535,8 +534,6 @@ where
                 }
 
                 let duration = start.elapsed();
-
-                #[cfg(debug_assertions)]
                 info!("任务分配时间 {:?}", duration);
             },
             res = proxy_lines.next_line() => {
@@ -706,10 +703,12 @@ where
                 //info!("发送本地旷工状态到远端。{:?}",worker);
                 match workers_queue.send(worker.clone()){
                     Ok(_) => {},
-                    Err(_) => {log::warn!("发送旷工状态失败");},
-                }
+                    Err(_) => {
+                        log::warn!("发送旷工状态失败");
+                    },
+                };
 
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 5));
             },
         }
     }

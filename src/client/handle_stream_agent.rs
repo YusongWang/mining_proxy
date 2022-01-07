@@ -30,6 +30,7 @@ pub async fn handle_stream<R, W, R1, W1>(
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
     mut pool_w: WriteHalf<W1>,
     config: &Settings,
+    state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
