@@ -129,7 +129,7 @@ where
     }
 
     // 代理分润
-    let (stream, _) = match crate::client::get_pool_stream(&pools) {
+    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有TCP矿池均不可链接。请修改后重试");
