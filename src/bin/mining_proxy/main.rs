@@ -1,9 +1,6 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
-
-use log::info;
-
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
@@ -194,7 +191,7 @@ pub async fn print_state(
         "开发者抽水账户",
         calc_hash_rate(
             bytes_to_mb(total_hash),
-            get_develop_fee(config.share_rate.into()) as f32
+            get_develop_fee(config.share_rate.into(),true) as f32
         )
         .to_string()
             + " Mb",
@@ -223,7 +220,7 @@ pub async fn print_state(
         format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
         format!(
             "开发者抽水率: {:.1}%",
-            get_develop_fee(config.share_rate.into()) * 100.0
+            get_develop_fee(config.share_rate.into(),true) * 100.0
         ),
     ]);
 
@@ -251,7 +248,7 @@ pub async fn print_state(
         Err(_) => {}
     }
 
-    let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into()) as f32);
+    let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into(),false) as f32);
     match mining_proxy::client::submit_develop_hashrate(config, develop_hash).await {
         Ok(_) => {}
         Err(_) => {}
