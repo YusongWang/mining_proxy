@@ -30,7 +30,7 @@ pub async fn accept_tcp(
     println!("本地TCP端口{} 启动成功!!!", &address);
 
     loop {
-        let (stream, _addr) = listener.accept().await?;
+        let (stream, addr) = listener.accept().await?;
 
         let config = config.clone();
         let workers = worker_queue.clone();
@@ -42,15 +42,27 @@ pub async fn accept_tcp(
         tokio::spawn(async move {
             // 旷工状态管理
             let mut worker: Worker = Worker::default();
-            match transfer(&mut worker, workers, stream, &config, state.clone()).await {
+            match transfer(&mut worker, workers.clone(), stream, &config, state.clone()).await {
                 Ok(_) => {
-                    info!("矿机下线了。");
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                    if worker.is_online() {
+                        worker.offline();
+                        workers.send(worker);
+                    } else {
+                        info!("连接中断 未知协议 可能受到攻击 IP:{}", addr);
+                    }
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    info!("IP: {} 断开: {}", addr, e);
+                    if worker.is_online() {
+                        worker.offline();
+                        workers.send(worker);
+                    } else {
+                        //info!("连接中断 未知协议 可能受到攻击 {}", e);
+                    }
+
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);

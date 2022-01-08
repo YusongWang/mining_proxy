@@ -108,6 +108,7 @@ pub async fn print_state(
     workers: &HashMap<String, Worker>,
     config: &Settings,
     state: mining_proxy::state::State,
+    runtime: std::time::Instant,
 ) -> Result<()> {
     info!(
         "当前在线矿机 {} 台",
@@ -132,7 +133,7 @@ pub async fn print_state(
     let mut total_accept: u64 = 0;
     let mut total_invalid: u64 = 0;
     for (_name, w) in workers {
-        if w.last_subwork_time.elapsed().as_secs() >= 1800 {
+        if !w.is_online() {
             continue;
         }
 
@@ -177,7 +178,49 @@ pub async fn print_state(
     //     w.accept_index,
     //     w.invalid_index
     // ]);
-    // 添加行
+
+    table.add_row(row![
+        config.share_name.clone(),
+        calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+        "TODO",
+        state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
+        state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
+        state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
+    ]);
+
+    table.add_row(row![
+        "开发者抽水账户",
+        calc_hash_rate(
+            bytes_to_mb(total_hash),
+            get_develop_fee(config.share_rate.into()) as f32
+        )
+        .to_string()
+            + " Mb",
+        "TODO",
+        state
+            .develop_share
+            .load(std::sync::atomic::Ordering::SeqCst),
+        state
+            .develop_accept
+            .load(std::sync::atomic::Ordering::SeqCst),
+        state
+            .develop_reject
+            .load(std::sync::atomic::Ordering::SeqCst),
+    ]);
+
+    // // 添加行
+    table.add_row(row![
+        "说明",
+        "不同矿池难度不一样",
+        "份额高低不能决定算力!!!",
+        "只能提供参考!!!",
+        format!("你的抽水率 {}", config.share_rate.to_string()),
+        format!(
+            "开发者抽水率 {}",
+            get_develop_fee(config.share_rate.into()).to_string()
+        ),
+    ]);
+
     table.add_row(row![
         "汇总",
         bytes_to_mb(total_hash).to_string() + " Mb",
@@ -189,6 +232,7 @@ pub async fn print_state(
         "",
     ]);
 
+    //(不通矿池难度不一样。份额高低不能决定算力)
     table.printstd();
 
     let mine_hash = calc_hash_rate(total_hash, config.share_rate);
@@ -210,6 +254,7 @@ pub async fn process_workers(
     mut worker_rx: mpsc::UnboundedReceiver<Worker>,
     state: mining_proxy::state::State,
 ) -> Result<()> {
+    let runtime = std::time::Instant::now();
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
     let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
@@ -227,7 +272,7 @@ pub async fn process_workers(
                 }
             },
             () = &mut sleep => {
-                match print_state(&workers,config,state.clone()).await{
+                match print_state(&workers,config,state.clone(),runtime).await{
                     Ok(_) => {},
                     Err(_) => {log::info!("打印失败了")},
                 }
