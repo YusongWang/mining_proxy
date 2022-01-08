@@ -512,6 +512,7 @@ where
     T: crate::protocol::rpc::eth::ClientRpc + Serialize + Debug,
 {
     if let Some(job_id) = rpc.get_job_id() {
+        #[cfg(debug_assertions)]
         debug!("提交的JobID{}", job_id);
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
@@ -1842,11 +1843,11 @@ where
         b.clear();
         c.clear();
 
-        //清空已发送任务。这个时候之后发送的任务都已经超时了。
-        mine_send_jobs.clear();
-        develop_send_jobs.clear();
-        proxy_send_jobs.clear();
-        normal_send_jobs.clear();
+        // 清空已发送任务。这个时候之后发送的任务都已经超时了。
+        // mine_send_jobs.clear();
+        // develop_send_jobs.clear();
+        // proxy_send_jobs.clear();
+        // normal_send_jobs.clear();
     }
 
     true
