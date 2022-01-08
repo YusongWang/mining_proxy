@@ -398,7 +398,7 @@ where
                         } else if result_rpc.id == worker.share_index {
                             worker.share_reject();
                             log::warn!("拒绝原因 {}",buf);
-                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                             result_rpc.result = true;
                         }
 
@@ -576,8 +576,9 @@ where
                         } else if result_rpc.result {
                         } else if result_rpc.id == 999{
                         } else {
-                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
+
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]
                         debug!("收到抽水矿机任务 {:?}", job_rpc);
@@ -659,7 +660,7 @@ where
                         } else if result_rpc.result {
                         } else if result_rpc.id == 999{
                         } else {
-                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]

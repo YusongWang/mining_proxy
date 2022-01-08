@@ -485,7 +485,7 @@ where
                         } else {
                             worker.share_reject();
                             log::warn!("拒绝原因 {:?}",result_rpc);
-                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
 
                         result_rpc.id = rpc_id ;
@@ -667,7 +667,7 @@ where
                         } else if result_rpc.result {
                         } else if result_rpc.id == 999{
                         } else {
-                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]
@@ -751,7 +751,7 @@ where
                         } else if result_rpc.result {
                         } else if result_rpc.id == 999{
                         } else {
-                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]
@@ -836,7 +836,7 @@ where
                         } else if result_rpc.result {
                         } else if result_rpc.id == 999{
                         } else {
-                            crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]
