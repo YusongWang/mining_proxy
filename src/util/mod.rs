@@ -200,7 +200,7 @@ pub fn is_fee_random(mut fee: f64) -> bool {
     }
 
     let mut max = (1000.0 * fee) as i32;
-    if (1000 - max) <= 0{
+    if (1000 - max) <= 0 {
         max = 0;
     } else {
         max = 1000 - max;

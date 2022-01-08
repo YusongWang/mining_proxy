@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
         println!("抽水费率不正确不能大于1.或小于0.001");
         std::process::exit(1);
     };
-    
+
     if config.share_name.is_empty() {
         println!("抽水旷工名称未设置");
         std::process::exit(1);

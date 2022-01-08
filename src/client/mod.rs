@@ -512,8 +512,7 @@ where
     T: crate::protocol::rpc::eth::ClientRpc + Serialize + Debug,
 {
     if let Some(job_id) = rpc.get_job_id() {
-
-        debug!("提交的JobID{}",job_id);
+        debug!("提交的JobID{}", job_id);
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
@@ -522,7 +521,7 @@ where
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             rpc.set_worker_name(&hostname);
             #[cfg(debug_assertions)]
-            debug!("得到抽水任务。{:?}",rpc);
+            debug!("得到抽水任务。{:?}", rpc);
             let s = ServerId {
                 id: rpc.get_id(),
                 jsonrpc: "2.0".into(),
@@ -542,9 +541,6 @@ where
                 }
             }
             return Ok(());
-            // } else {
-            //     bail!("任务失败.找到jobid .但是remove失败了");
-            // }
         } else if develop_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
             let mut hostname = String::from("develop_");
@@ -556,7 +552,7 @@ where
             hostname += name.to_str().unwrap();
             rpc.set_worker_name(&hostname);
             #[cfg(debug_assertions)]
-            debug!("得到开发者抽水任务。{:?}",rpc);
+            debug!("得到开发者抽水任务。{:?}", rpc);
             #[cfg(debug_assertions)]
             debug!("提交开发者任务!");
             write_to_socket(develop_w, rpc, &hostname).await;
@@ -670,13 +666,12 @@ where
                 }
             };
             #[cfg(debug_assertions)]
-            debug!("{:?}",job);
+            debug!("{:?}", job);
 
             if job.is_none() {
                 return None;
             }
 
-            
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
@@ -739,7 +734,7 @@ where
             };
 
             #[cfg(debug_assertions)]
-            debug!("{:?}",job);
+            debug!("{:?}", job);
             if job.is_none() {
                 return None;
             }
@@ -1303,14 +1298,11 @@ async fn share_job_process<T, W>(
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
 
-
-
     develop_send_jobs: &mut Vec<String>,
     agent_send_jobs: &mut Vec<String>,
     mine_send_jobs: &mut Vec<String>,
     normal_send_jobs: &mut Vec<String>,
 
-    
     job_rpc: &mut T,
     count: &mut i32,
     worker_w: &mut WriteHalf<W>,

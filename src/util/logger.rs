@@ -29,13 +29,13 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
                     .chain(std::io::stdout())
                     .chain(log)
                     .into_log();
-        
+
                 let logger = sentry_log::SentryLogger::with_dest(logger).filter(|md| match md.level() {
                     log::Level::Error => sentry_log::LogFilter::Event,
                     log::Level::Warn => sentry_log::LogFilter::Event,
                     _ => sentry_log::LogFilter::Ignore,
                 });
-        
+
                 log::set_boxed_logger(Box::new(logger)).unwrap();
                 log::set_max_level(lavel);
             } else {
@@ -54,13 +54,13 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
                     .level_for("reqwest", log::LevelFilter::Off)
                     .chain(std::io::stdout())
                     .into_log();
-        
+
                 let logger = sentry_log::SentryLogger::with_dest(logger).filter(|md| match md.level() {
                     log::Level::Error => sentry_log::LogFilter::Event,
                     log::Level::Warn => sentry_log::LogFilter::Event,
                     _ => sentry_log::LogFilter::Ignore,
                 });
-        
+
                 log::set_boxed_logger(Box::new(logger)).unwrap();
                 log::set_max_level(lavel);
             }
@@ -84,13 +84,13 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
                     .chain(std::io::stdout())
                     .chain(log)
                     .into_log();
-        
+
                 let logger = sentry_log::SentryLogger::with_dest(logger).filter(|md| match md.level() {
                     log::Level::Error => sentry_log::LogFilter::Event,
                     log::Level::Warn => sentry_log::LogFilter::Event,
                     _ => sentry_log::LogFilter::Ignore,
                 });
-        
+
                 log::set_boxed_logger(Box::new(logger)).unwrap();
                 log::set_max_level(lavel);
             } else {
@@ -107,19 +107,18 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
                     .level_for("reqwest", log::LevelFilter::Off)
                     .chain(std::io::stdout())
                     .into_log();
-        
+
                 let logger = sentry_log::SentryLogger::with_dest(logger).filter(|md| match md.level() {
                     log::Level::Error => sentry_log::LogFilter::Event,
                     log::Level::Warn => sentry_log::LogFilter::Event,
                     _ => sentry_log::LogFilter::Ignore,
                 });
-        
+
                 log::set_boxed_logger(Box::new(logger)).unwrap();
                 log::set_max_level(lavel);
             }
         }
     }
-
 
     Ok(())
 }

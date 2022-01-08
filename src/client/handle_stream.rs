@@ -137,7 +137,7 @@ where
     } else {
         worker_lines = worker_r.split(b'\n');
     }
-    
+
     let mut is_submithashrate = false;
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
