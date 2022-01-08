@@ -137,7 +137,8 @@ where
     } else {
         worker_lines = worker_r.split(b'\n');
     }
-
+    
+    let mut is_submithashrate = false;
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
     //let duration = start.elapsed();
@@ -390,6 +391,12 @@ where
                             };
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             //info!("矿工提交算力");
+                            match workers_queue.send(worker.clone()){
+                                Ok(_) => {},
+                                Err(_) => {
+                                    log::warn!("发送矿工状态失败");
+                                },
+                            };
                         } else if result_rpc.id == CLIENT_GETWORK {
                             //info!("矿工请求任务");
                         } else if result_rpc.id == SUBSCRIBE {
