@@ -515,7 +515,6 @@ where
         #[cfg(debug_assertions)]
         debug!("提交的JobID{}", job_id);
 
-
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
@@ -525,7 +524,6 @@ where
             rpc.set_worker_name(&hostname);
             //#[cfg(debug_assertions)]
             debug!("得到抽水任务。{:?}", rpc);
-
 
             let s = ServerId {
                 id: rpc.get_id(),
@@ -669,8 +667,8 @@ where
                     None => break None,
                 }
             };
-            #[cfg(debug_assertions)]
-            debug!("{:?}", job);
+            //#[cfg(debug_assertions)]
+            debug!("抽水任务本次结果 {:?}", job);
 
             if job.is_none() {
                 return None;
@@ -680,6 +678,8 @@ where
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
             send_jobs.push(job.0);
+
+            debug!("当前已有抽水任务 {:?}", send_jobs);
             return Some(());
         } else {
             #[cfg(debug_assertions)]
@@ -737,16 +737,19 @@ where
                 }
             };
 
-            #[cfg(debug_assertions)]
+            //#[cfg(debug_assertions)]
             debug!("{:?}", job);
+
             if job.is_none() {
                 return None;
             }
-
+            debug!("抽水任务本次结果 {:?}", job);
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
             send_jobs.push(job.0);
+
+            debug!("当前已有抽水任务 {:?}", send_jobs);
             return Some(());
             // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
             //     #[cfg(debug_assertions)]
@@ -1446,7 +1449,7 @@ where
             .await
             {
                 Ok(_) => {
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
@@ -1458,7 +1461,7 @@ where
         } else {
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
