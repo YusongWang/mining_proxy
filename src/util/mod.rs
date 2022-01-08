@@ -193,14 +193,19 @@ fn test_is_fee() {
 pub fn is_fee_random(mut fee: f64) -> bool {
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let secret_number = rand::Rng::gen_range(&mut rng, 1..1000);
+    let secret_number = rand::Rng::gen_range(&mut rng, 1..1000) as i32;
 
     if fee <= 0.000 {
         fee = 0.001;
     }
 
-    let max = (1000.0 * fee) as u32;
-    let max = 1000 - max;
+    let mut max = (1000.0 * fee) as i32;
+    if (1000 - max) <= 0{
+        max = 0;
+    } else {
+        max = 1000 - max;
+    }
+
     match secret_number.cmp(&max) {
         std::cmp::Ordering::Less => {
             return false;

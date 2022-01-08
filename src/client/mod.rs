@@ -509,9 +509,11 @@ where
     W: AsyncWrite,
     W1: AsyncWrite,
     W2: AsyncWrite,
-    T: crate::protocol::rpc::eth::ClientRpc + Serialize,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize + Debug,
 {
     if let Some(job_id) = rpc.get_job_id() {
+
+        debug!("提交的JobID{}",job_id);
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
@@ -519,6 +521,8 @@ where
                 .proxy_share
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             rpc.set_worker_name(&hostname);
+            #[cfg(debug_assertions)]
+            debug!("得到抽水任务。{:?}",rpc);
             let s = ServerId {
                 id: rpc.get_id(),
                 jsonrpc: "2.0".into(),
@@ -551,6 +555,8 @@ where
             let name = hostname::get()?;
             hostname += name.to_str().unwrap();
             rpc.set_worker_name(&hostname);
+            #[cfg(debug_assertions)]
+            debug!("得到开发者抽水任务。{:?}",rpc);
             #[cfg(debug_assertions)]
             debug!("提交开发者任务!");
             write_to_socket(develop_w, rpc, &hostname).await;
@@ -663,11 +669,14 @@ where
                     None => break None,
                 }
             };
+            #[cfg(debug_assertions)]
+            debug!("{:?}",job);
 
             if job.is_none() {
                 return None;
             }
 
+            
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
@@ -729,13 +738,16 @@ where
                 }
             };
 
+            #[cfg(debug_assertions)]
+            debug!("{:?}",job);
             if job.is_none() {
                 return None;
             }
+
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
-            send_jobs.push(job.0.clone());
+            send_jobs.push(job.0);
             return Some(());
             // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
             //     #[cfg(debug_assertions)]
@@ -1290,10 +1302,15 @@ async fn share_job_process<T, W>(
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+
+
+
     develop_send_jobs: &mut Vec<String>,
     agent_send_jobs: &mut Vec<String>,
     mine_send_jobs: &mut Vec<String>,
     normal_send_jobs: &mut Vec<String>,
+
+    
     job_rpc: &mut T,
     count: &mut i32,
     worker_w: &mut WriteHalf<W>,
@@ -1445,7 +1462,7 @@ where
         } else {
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
