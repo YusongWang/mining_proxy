@@ -514,6 +514,8 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         #[cfg(debug_assertions)]
         debug!("提交的JobID{}", job_id);
+
+
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
@@ -521,23 +523,24 @@ where
                 .proxy_share
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             rpc.set_worker_name(&hostname);
-            #[cfg(debug_assertions)]
+            //#[cfg(debug_assertions)]
             debug!("得到抽水任务。{:?}", rpc);
+
+
             let s = ServerId {
                 id: rpc.get_id(),
                 jsonrpc: "2.0".into(),
                 result: true,
             };
-            #[cfg(debug_assertions)]
-            debug!("提交抽水任务!");
+
             write_to_socket(proxy_w, rpc, &config.share_name).await;
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     debug!("返回True给矿工。成功！！！");
                 }
                 Err(_) => {
-                    #[cfg(debug_assertions)]
+                    //#[cfg(debug_assertions)]
                     debug!("给矿工返回成功写入失败了。")
                 }
             }
