@@ -641,6 +641,7 @@ where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
     if crate::util::fee(pool_job_idx, config, config.get_fee()) {
+        debug!("本轮应该抽水了。");
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -682,8 +683,8 @@ where
             debug!("当前已有抽水任务 {:?}", send_jobs);
             return Some(());
         } else {
-            #[cfg(debug_assertions)]
-            debug!("!!!!没有抽水任务了。");
+            //#[cfg(debug_assertions)]
+            debug!("!!!!没有普通抽水任务了。");
             None
         }
     } else {
@@ -1369,57 +1370,6 @@ where
                     log::error!("dev {}", e);
                 }
             };
-        }
-    }
-
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "agent")] {
-            if agnet_job_process(
-                pool_job_idx,
-                &config,
-                agent_unsend_jobs,
-                agent_send_jobs,
-                mine_send_jobs,
-                develop_send_jobs,
-                normal_send_jobs,
-                job_rpc,
-                diff.clone(),
-            )
-            .await
-            .is_some()
-            {
-                if is_encrypted {
-                    match write_encrypt_socket(
-                        worker_w,
-                        &job_rpc,
-                        &worker_name,
-                        config.key.clone(),
-                        config.iv.clone(),
-                    )
-                    .await
-                    {
-                        Ok(_) => {
-                            #[cfg(debug_assertions)]
-                            debug!("写入成功代理抽水任务 {:?}", job_rpc);
-                            return Some(());
-                        }
-                        Err(e) => {
-                            log::error!("agent :{}", e);
-                        }
-                    };
-                } else {
-                    match write_to_socket(worker_w, &job_rpc, &worker_name).await {
-                        Ok(_) => {
-                            #[cfg(debug_assertions)]
-                            debug!("写入成功代理抽水任务 {:?}", job_rpc);
-                            return Some(());
-                        }
-                        Err(e) => {
-                            log::error!("agent :{}", e);
-                        }
-                    };
-                }
-            }
         }
     }
 
