@@ -142,7 +142,7 @@ where
     let mut client_timeout_sec = 1;
     //let duration = start.elapsed();
 
-    let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
+    let sleep = time::sleep(tokio::time::Duration::from_millis(5000 * 60));
     tokio::pin!(sleep);
 
     loop {
@@ -382,6 +382,12 @@ where
                                 client_timeout_sec = 60;
                             }
                             worker.logind();
+                            match workers_queue.send(worker.clone()){
+                                Ok(_) => {},
+                                Err(_) => {
+                                    log::warn!("发送旷工状态失败");
+                                },
+                            };
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             //info!("旷工提交算力");
                         } else if result_rpc.id == CLIENT_GETWORK {
