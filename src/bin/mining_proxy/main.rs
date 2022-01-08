@@ -186,6 +186,8 @@ pub async fn print_state(
         state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
+        "",
+        time_to_string(runtime.elapsed().as_secs()),
     ]);
 
     table.add_row(row![
@@ -206,6 +208,8 @@ pub async fn print_state(
         state
             .develop_reject
             .load(std::sync::atomic::Ordering::SeqCst),
+        "",
+        time_to_string(runtime.elapsed().as_secs())
     ]);
 
     // // 添加行
@@ -214,6 +218,8 @@ pub async fn print_state(
         "不同矿池难度不一样",
         "份额高低不能决定算力!!!",
         "只能提供参考!!!",
+        "",
+        "",
         format!("你的抽水率: {:.1}%", config.share_rate * 1000.0),
         format!(
             "开发者抽水率: {:.1}%",
