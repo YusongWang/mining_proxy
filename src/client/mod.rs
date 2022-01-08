@@ -520,7 +520,7 @@ where
                 .proxy_share
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             rpc.set_worker_name(&hostname);
-            //#[cfg(debug_assertions)]
+            #[cfg(debug_assertions)]
             debug!("得到抽水任务。{:?}", rpc);
 
             let s = ServerId {
@@ -532,11 +532,11 @@ where
             write_to_socket(proxy_w, rpc, &config.share_name).await;
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("返回True给矿工。成功！！！");
                 }
                 Err(_) => {
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("给矿工返回成功写入失败了。")
                 }
             }
@@ -572,11 +572,7 @@ where
                     debug!("给矿工返回成功写入失败了。")
                 }
             }
-
             return Ok(());
-            // } else {
-            //     bail!("任务失败.找到jobid .但是remove失败了");
-            // }
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);
