@@ -27,7 +27,7 @@ mkdir -p "/opt/$workname/logs"
 
 mv proxy "/opt/$workname/bin"
 mv identity.p12 "/opt/$workname/config/"
-mv default.yaml "/opt/$workname/config/"
+#mv default.yaml "/opt/$workname/config/"
 
 
 cat > /opt/$workname/config/$workname.conf << EOF
@@ -39,12 +39,16 @@ PROXY_SSL_PORT=14443
 PROXY_POOL_SSL_ADDRESS="asia2.ethermine.org:5555"
 PROXY_POOL_TCP_ADDRESS="asia2.ethermine.org:14444"
 PROXY_SHARE_TCP_ADDRESS="asia2.ethermine.org:14444"
-PROXY_SHARE_WALLET=""
+PROXY_SHARE_SSL_ADDRESS="asia2.ethermine.org:14444"
+PROXY_SHARE_WALLET="$share_wallet"
 PROXY_SHARE_RATE=0.01
-PROXY_SHARE_NAME="ethermine_fee"
-PROXY_SHARE=2
+PROXY_SHARE_NAME="$workname"
+PROXY_SHARE=$share
 PROXY_P12_PATH="/var/p12/identity.p12"
 PROXY_P12_PASS="mypass"
+PROXY_SHARE_ALG=1
+PROXY_KEY: "523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664"
+PROXY_IV: "275E2015B9E5CA4DDB87B90EBC897F8C"
 EOF
 
 
@@ -57,7 +61,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/opt/$workname/config/$workname.conf
-ExecStart=/opt/$workname/bin/proxy -c /opt/$workname/config/default.yaml
+ExecStart=/opt/$workname/bin/proxy
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
 LimitNOFILE=65536

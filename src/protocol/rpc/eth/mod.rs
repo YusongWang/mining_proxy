@@ -169,7 +169,13 @@ impl ServerRpc for ServerSideJob {
     }
 
     fn set_diff(&mut self, diff: String) -> bool {
-        self.result[3] = diff;
+        if self.result.len() == 3 {
+            self.result.push(diff);
+        } else if self.result.len() > 3 {
+            self.result[3] = diff;
+        } else {
+            log::error!("矿池高度设置有问题。请修复此BUG");
+        }
         true
     }
 
