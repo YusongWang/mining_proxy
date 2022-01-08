@@ -1448,7 +1448,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("fee :{}", e);
+                    //log::error!("fee :{}", e);
                     return None;
                 }
             };
@@ -1460,7 +1460,8 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    debug!("agent :{}", e);
+                    //debug!("agent :{}", e);
+                    //log::error!("fee :{}", e);
                     return None;
                 }
             };

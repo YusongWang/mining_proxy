@@ -193,8 +193,8 @@ pub async fn print_state(
         state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
-        "",
         time_to_string(runtime.elapsed().as_secs()),
+        "",
     ]);
 
     table.add_row(row![
@@ -215,8 +215,8 @@ pub async fn print_state(
         state
             .develop_reject
             .load(std::sync::atomic::Ordering::SeqCst),
+        time_to_string(runtime.elapsed().as_secs()),
         "",
-        time_to_string(runtime.elapsed().as_secs())
     ]);
 
     // // 添加行
