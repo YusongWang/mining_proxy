@@ -26,7 +26,7 @@ pub async fn accept_encrypt_tcp(
     println!("本地加密协议端口{}启动成功!!!", &address);
 
     loop {
-        let (stream, addr) = listener.accept().await?;
+        let (stream, _addr) = listener.accept().await?;
         //info!("😄 Accepting EncryptData Tcp connection from {}", addr);
         let iv = iv.clone();
         let key = key.clone();
@@ -58,12 +58,12 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
     let mut client_timeout_sec = 1;
 
     let key = key.clone();
-    let mut iv = iv.clone();
+    let iv = iv.clone();
 
     loop {
         select! {
             res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_r.next_line()) => {
-                let start = std::time::Instant::now();
+                let _start = std::time::Instant::now();
                 let buffer = match res{
                     Ok(res) => {
                         match res {
@@ -122,7 +122,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                 }
             },
             res = pool_r.next_segment() => {
-                let start = std::time::Instant::now();
+                let _start = std::time::Instant::now();
                 let buffer = match res{
                     Ok(res) => {
                         match res {

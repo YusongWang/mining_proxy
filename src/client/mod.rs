@@ -361,7 +361,7 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains(&job_id) {
             if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
-                let mut hostname = config.get_share_name().unwrap();
+                let hostname = config.get_share_name().unwrap();
 
                 rpc.set_worker_name(&hostname);
                 let s = ServerId {
@@ -495,7 +495,7 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains(&job_id) {
             if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
-                let mut hostname = config.get_share_name().unwrap();
+                let hostname = config.get_share_name().unwrap();
 
                 rpc.set_worker_name(&hostname);
                 let s = ServerId {
@@ -603,7 +603,7 @@ async fn fee_job_process<T>(
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut LruCache<String, (u64, u64)>,
     mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    agent_send_jobs: &mut LruCache<String, (u64, u64)>,
+    _agent_send_jobs: &mut LruCache<String, (u64, u64)>,
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
@@ -817,7 +817,7 @@ async fn develop_job_process<T>(
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut LruCache<String, (u64, u64)>,
     mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    agent_send_jobs: &mut LruCache<String, (u64, u64)>,
+    _agent_send_jobs: &mut LruCache<String, (u64, u64)>,
     normal_send_jobs: &mut LruCache<String, i32>,
     job_rpc: &mut T,
     _count: &mut i32,
@@ -967,7 +967,7 @@ where
 
 async fn agnet_job_process_with_fee<T>(
     _pool_job_idx: u64,
-    config: &Settings,
+    _config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     send_jobs: &mut LruCache<String, (u64, u64)>,
     mine_send_jobs: &mut LruCache<String, (u64, u64)>,
@@ -1043,7 +1043,7 @@ async fn share_job_process_agent_fee<T, W>(
     config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    _agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     develop_send_jobs: &mut LruCache<String, (u64, u64)>,
     agent_send_jobs: &mut LruCache<String, (u64, u64)>,
     mine_send_jobs: &mut LruCache<String, (u64, u64)>,
@@ -1054,7 +1054,7 @@ async fn share_job_process_agent_fee<T, W>(
     worker_name: &String,
     worker: &mut Worker,
     rpc_id: u64,
-    agent_fee: f64,
+    _agent_fee: f64,
     diff: String,
     is_encrypted: bool,
 ) -> Option<()>
@@ -1278,7 +1278,7 @@ async fn share_job_process<T, W>(
     config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    _agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     develop_send_jobs: &mut LruCache<String, (u64, u64)>,
     agent_send_jobs: &mut LruCache<String, (u64, u64)>,
     mine_send_jobs: &mut LruCache<String, (u64, u64)>,
@@ -1825,9 +1825,9 @@ pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()>
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
-    let proxy_r = tokio::io::BufReader::new(proxy_r);
+    let _proxy_r = tokio::io::BufReader::new(proxy_r);
 
-    let mut hostname = config.get_share_name().unwrap();
+    let hostname = config.get_share_name().unwrap();
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
@@ -1847,7 +1847,7 @@ pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()>
     Ok(())
 }
 
-pub async fn submit_develop_hashrate(config: &Settings, hashrate: u64) -> Result<()> {
+pub async fn submit_develop_hashrate(_config: &Settings, hashrate: u64) -> Result<()> {
     let stream = match pools::get_develop_pool_stream().await {
         Ok(s) => s,
         Err(e) => return Err(e),

@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLockWriteGuard};
-
 use anyhow::Result;
 use log::info;
 
@@ -32,7 +30,7 @@ pub async fn accept_tcp_with_tls(
         tokio_native_tls::TlsAcceptor::from(native_tls::TlsAcceptor::builder(cert).build()?);
     loop {
         // Asynchronously wait for an inbound TcpStream.
-        let (stream, addr) = listener.accept().await?;
+        let (stream, _addr) = listener.accept().await?;
         //info!("😄 accept connection from {}", addr);
         let workers = worker_queue.clone();
 

@@ -23,7 +23,7 @@ pub async fn accept_tcp(
     println!("本地TCP端口{} 启动成功!!!", &address);
 
     loop {
-        let (stream, addr) = listener.accept().await?;
+        let (stream, _addr) = listener.accept().await?;
 
         let config = config.clone();
         let workers = worker_queue.clone();

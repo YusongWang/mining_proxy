@@ -24,7 +24,7 @@ pub async fn accept_en_tcp(
     println!("本地TCP加密协议端口{}启动成功!!!", &address);
 
     loop {
-        let (stream, addr) = listener.accept().await?;
+        let (stream, _addr) = listener.accept().await?;
 
         let config = config.clone();
         let sender = worker_sender.clone();

@@ -7,7 +7,7 @@ use std::net::ToSocketAddrs;
 use anyhow::Result;
 use clap::{crate_name, crate_version};
 use hex::FromHex;
-use log::info;
+
 use openssl::aes::AesKey;
 
 #[tokio::main]

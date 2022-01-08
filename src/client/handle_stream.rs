@@ -30,7 +30,7 @@ pub async fn handle_stream<R, W, R1, W1>(
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
     mut pool_w: WriteHalf<W1>,
     config: &Settings,
-    state: State,
+    _state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -118,7 +118,6 @@ where
     let mut develop_count = 0;
 
     //TODO 完善精简这里的核心代码。加速任务分配。
-
     let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
     let mut send_develop_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
     let mut send_agent_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
