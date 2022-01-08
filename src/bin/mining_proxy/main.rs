@@ -228,8 +228,8 @@ pub async fn print_state(
         total_share,
         total_accept,
         total_invalid,
-        "",
-        "",
+        format!("版本 {}", crate_version!()),
+        format!("软件已启动 {}", time_to_string(runtime.elapsed().as_secs())),
     ]);
 
     //(不通矿池难度不一样。份额高低不能决定算力)

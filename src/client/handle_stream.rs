@@ -32,7 +32,7 @@ pub async fn handle_stream<R, W, R1, W1>(
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
     mut pool_w: WriteHalf<W1>,
     config: &Settings,
-    _state: State,
+    mut state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -281,7 +281,7 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
+                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
                             },
                             "eth_submitHashrate" => {
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -312,7 +312,7 @@ where
                                 eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
+                                match eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }
@@ -579,11 +579,16 @@ where
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                         } else if result_rpc.id == CLIENT_GETWORK {
                         } else if result_rpc.result {
+                            state
+                            .proxy_accept
+                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         } else if result_rpc.id == 999{
                         } else {
+                            state
+                            .proxy_reject
+                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
-
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]
                         debug!("收到抽水矿机任务 {:?}", job_rpc);
@@ -663,8 +668,14 @@ where
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                         } else if result_rpc.id == CLIENT_GETWORK {
                         } else if result_rpc.result {
+                            state
+                            .develop_accept
+                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         } else if result_rpc.id == 999{
                         } else {
+                            state
+                            .develop_reject
+                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {

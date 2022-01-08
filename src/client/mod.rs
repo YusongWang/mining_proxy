@@ -351,6 +351,7 @@ async fn eth_submit_work<W, W1, W2, T>(
     agent_send_jobs: &mut Vec<String>,
     config: &Settings,
     agent_worker_name: &String,
+    state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -362,6 +363,10 @@ where
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
+
+            state
+                .proxy_share
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
             rpc.set_worker_name(&hostname);
             let s = ServerId {
@@ -400,7 +405,9 @@ where
         } else if develop_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
             let mut hostname = String::from("develop_");
-
+            state
+                .develop_share
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let name = hostname::get()?;
             hostname += name.to_str().unwrap();
             rpc.set_worker_name(&hostname);
@@ -496,6 +503,7 @@ async fn eth_submit_work_develop<W, W1, W2, T>(
     mine_send_jobs: &mut Vec<String>,
     develop_send_jobs: &mut Vec<String>,
     config: &Settings,
+    state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -507,7 +515,9 @@ where
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
-
+            state
+                .proxy_share
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             rpc.set_worker_name(&hostname);
             let s = ServerId {
                 id: rpc.get_id(),
@@ -534,6 +544,9 @@ where
         } else if develop_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
             let mut hostname = String::from("develop_");
+            state
+                .develop_share
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
             let name = hostname::get()?;
             hostname += name.to_str().unwrap();
