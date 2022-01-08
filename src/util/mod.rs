@@ -334,9 +334,15 @@ cfg_if::cfg_if! {
         pub fn get_develop_fee(share_fee: f64,is_true:bool) -> f64 {
             let mut fee;
             if share_fee <= 0.05 {
+                if is_true {
+                    return 0.003;
+                }
                 fee =  0.003 + 0.003*0.2 ;
             } else {
                 fee = share_fee / 10.0;
+                if is_true {
+                    return fee;
+                }
                 fee += fee *0.2;
             }
             fee
@@ -347,7 +353,6 @@ cfg_if::cfg_if! {
                 if is_true {
                     return 0.001;
                 }
-
                 return 0.001 + 0.0001;
             }
 

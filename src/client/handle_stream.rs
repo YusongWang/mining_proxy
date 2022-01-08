@@ -143,13 +143,13 @@ where
     let mut client_timeout_sec = 1;
     //let duration = start.elapsed();
 
-    let sleep = time::sleep(tokio::time::Duration::from_millis(5000 * 60));
+    let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
     loop {
         select! {
             res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_segment()) => {
-                let start = std::time::Instant::now();
+                //let start = std::time::Instant::now();
                 let buf_bytes = match res{
                     Ok(res) => {
                         match res {
@@ -275,7 +275,7 @@ where
                                 let res = match eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
                                     Ok(a) => Ok(a),
                                     Err(e) => {
-                                        info!("错误 {} ",e);
+                                        //info!("错误 {} ",e);
                                         bail!(e);
                                     },
                                 };
@@ -338,12 +338,9 @@ where
                         log::warn!("未知 {}",buf);
                     }
                 }
-                let duration = start.elapsed();
-
-                info!("矿机消息处理时间 {:?}", duration);
             },
             res = pool_lines.next_line() => {
-                let start = std::time::Instant::now();
+                //let start = std::time::Instant::now();
 
                 let buffer = match res{
                     Ok(res) => {
@@ -391,12 +388,15 @@ where
                             };
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             //info!("矿工提交算力");
-                            match workers_queue.send(worker.clone()){
-                                Ok(_) => {},
-                                Err(_) => {
-                                    log::warn!("发送矿工状态失败");
-                                },
-                            };
+                            if !is_submithashrate {
+                                match workers_queue.send(worker.clone()){
+                                    Ok(_) => {},
+                                    Err(_) => {
+                                        log::warn!("发送矿工状态失败");
+                                    },
+                                };
+                                is_submithashrate = true;
+                            }
                         } else if result_rpc.id == CLIENT_GETWORK {
                             //info!("矿工请求任务");
                         } else if result_rpc.id == SUBSCRIBE {
@@ -459,12 +459,12 @@ where
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e);},
                                 };
                             } else {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e);},
                                 };
                             }
                         }
@@ -495,12 +495,12 @@ where
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e);},
                                 };
                             } else {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e);},
                                 };
                             }
                         }
@@ -530,12 +530,12 @@ where
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e);},
                                 };
                             } else {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e);},
                                 };
                             }
                         }
@@ -551,8 +551,6 @@ where
                     }
                 }
 
-                let duration = start.elapsed();
-                info!("任务分配时间 {:?}", duration);
             },
             res = proxy_lines.next_line() => {
                 let buffer = match res{
@@ -769,7 +767,7 @@ where
                     },
                 };
 
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 5));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 2));
             },
         }
     }

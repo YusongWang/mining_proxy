@@ -110,7 +110,6 @@ where
     let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
-            info!("所有TCP矿池均不可链接。请修改后重试");
             bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
@@ -242,35 +241,21 @@ where
                             &buffer[..]) {
                                 Ok(s) => s,
                                 Err(e) => {
-                                    log::warn!("解密失败 {}",e);
+                                    //log::warn!("解密失败 {}",e);
                                     match pool_w.shutdown().await  {
                                         Ok(_) => {},
                                         Err(e) => {
                                             log::error!("Error Shutdown Socket {:?}",e);
                                         },
                                     };
-                                    return Ok(());
+                                    bail!("解密失败 {}",e);
                                 },
                             };
 
                         buf = match String::from_utf8(buffer) {
                             Ok(s) => s,
                             Err(_) => {
-                                info!("无法解析的字符串");
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                return Ok(());
-                            },
-                        };
-                    } else {
-                        buf = match String::from_utf8(buffer.to_vec()) {
-                            Ok(s) => s,
-                            Err(_) => {
-                                info!("无法解析的字符串");
+
                                 match pool_w.shutdown().await  {
                                     Ok(_) => {},
                                     Err(e) => {
@@ -278,7 +263,22 @@ where
                                     },
                                 };
 
-                                return Ok(());
+                                bail!("无法解析的字符串");
+                            },
+                        };
+                    } else {
+                        buf = match String::from_utf8(buffer.to_vec()) {
+                            Ok(s) => s,
+                            Err(_) => {
+
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+
+                                bail!("无法解析的字符串");
                             },
                         };
                     }
@@ -292,7 +292,7 @@ where
                                 cfg_if::cfg_if! {
                                     if #[cfg(feature = "agent")] {
                                         let wk_name = client_json_rpc.worker.clone();
-                                        info!("workername {}",wk_name);
+                                        //info!("workername {}",wk_name);
                                         //TEST@0x98be5c44d574b96b320dffb0ccff116bda433b8e.CCCC@5
                                         let mut agent_info = wk_name.split("@").collect::<Vec<&str>>();
 
@@ -344,7 +344,7 @@ where
                                         let res = match eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
                                             Ok(a) => Ok(a),
                                             Err(e) => {
-                                                info!("错误 {} ",e);
+                                                //info!("错误 {} ",e);
                                                 bail!(e);
                                             },
                                         };
@@ -353,7 +353,7 @@ where
                                         let res = match eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
                                             Ok(a) => Ok(a),
                                             Err(e) => {
-                                                info!("错误 {} ",e);
+                                                //info!("错误 {} ",e);
                                                 bail!(e);
                                             },
                                         };
@@ -537,12 +537,12 @@ where
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e)},
                                 };
                             } else {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e)},
                                 };
                             }
                         }
@@ -609,12 +609,12 @@ where
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e)},
                                 };
                             } else {
                                 match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
                                     Ok(_) => {},
-                                    Err(e) => {info!("{}",e);bail!("矿机下线了 {}",e)},
+                                    Err(e) => {bail!("矿机下线了 {}",e)},
                                 };
                             }
                         }

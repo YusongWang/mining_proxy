@@ -216,7 +216,6 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        debug!("✅ Worker: {} 写入失败.", worker);
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
     Ok(())
@@ -238,7 +237,6 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        debug!("✅ Worker: {} 写入失败.", worker);
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
     Ok(())
@@ -641,7 +639,6 @@ where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
     if crate::util::fee(pool_job_idx, config, config.get_fee()) {
-        debug!("本轮应该抽水了。");
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -668,7 +665,7 @@ where
                     None => break None,
                 }
             };
-            //#[cfg(debug_assertions)]
+            #[cfg(debug_assertions)]
             debug!("抽水任务本次结果 {:?}", job);
 
             if job.is_none() {
@@ -679,11 +676,9 @@ where
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
             send_jobs.push(job.0);
-
-            debug!("当前已有抽水任务 {:?}", send_jobs);
             return Some(());
         } else {
-            //#[cfg(debug_assertions)]
+            #[cfg(debug_assertions)]
             debug!("!!!!没有普通抽水任务了。");
             None
         }
@@ -738,19 +733,19 @@ where
                 }
             };
 
-            //#[cfg(debug_assertions)]
+            #[cfg(debug_assertions)]
             debug!("{:?}", job);
 
             if job.is_none() {
                 return None;
             }
+            #[cfg(debug_assertions)]
             debug!("抽水任务本次结果 {:?}", job);
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
             send_jobs.push(job.0);
 
-            debug!("当前已有抽水任务 {:?}", send_jobs);
             return Some(());
             // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
             //     #[cfg(debug_assertions)]
@@ -1399,7 +1394,7 @@ where
             .await
             {
                 Ok(_) => {
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
@@ -1411,7 +1406,7 @@ where
         } else {
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
@@ -1801,10 +1796,10 @@ where
         c.clear();
 
         // 清空已发送任务。这个时候之后发送的任务都已经超时了。
-        // mine_send_jobs.clear();
-        // develop_send_jobs.clear();
-        // proxy_send_jobs.clear();
-        // normal_send_jobs.clear();
+        mine_send_jobs.clear();
+        develop_send_jobs.clear();
+        proxy_send_jobs.clear();
+        normal_send_jobs.clear();
     }
 
     true
