@@ -1743,8 +1743,7 @@ where
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
-            debug!("所有TCP矿池均不可链接。请修改后重试");
-            return Ok(());
+            bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
 
@@ -1780,8 +1779,7 @@ where
     {
         Some((stream, addr)) => (stream, addr),
         None => {
-            debug!("所有SSL矿池均不可链接。请修改后重试");
-            return Ok(());
+            bail!("所有SSL矿池均不可链接。请修改后重试");
         }
     };
 

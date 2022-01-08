@@ -37,7 +37,7 @@ pub async fn accept_tcp_with_tls(
         tokio_native_tls::TlsAcceptor::from(native_tls::TlsAcceptor::builder(cert).build()?);
     loop {
         // Asynchronously wait for an inbound TcpStream.
-        let (stream, _addr) = listener.accept().await?;
+        let (stream, addr) = listener.accept().await?;
         //info!("😄 accept connection from {}", addr);
         let workers = worker_queue.clone();
 
@@ -54,7 +54,7 @@ pub async fn accept_tcp_with_tls(
             let mut worker: Worker = Worker::default();
             match transfer_ssl(
                 &mut worker,
-                workers,
+                workers.clone(),
                 stream,
                 acceptor,
                 &config,
@@ -63,13 +63,25 @@ pub async fn accept_tcp_with_tls(
             .await
             {
                 Ok(_) => {
-                    info!("矿机下线了。");
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                    if worker.is_online() {
+                        worker.offline();
+                        workers.send(worker);
+                    } else {
+                        info!("连接中断 未知协议 可能受到攻击 IP:{}", addr);
+                    }
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    info!("IP: {} 断开: {}", addr, e);
+                    if worker.is_online() {
+                        worker.offline();
+                        workers.send(worker);
+                    } else {
+                        //info!("连接中断 未知协议 可能受到攻击 {}", e);
+                    }
+
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
@@ -94,8 +106,7 @@ async fn transfer_ssl(
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
         Some(pool) => pool,
         None => {
-            info!("未匹配到矿池 或 均不可链接。请修改后重试");
-            return Ok(());
+            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
 
@@ -125,6 +136,6 @@ async fn transfer_ssl(
         .await
     } else {
         log::error!("致命错误：未找到支持的矿池BUG 请上报");
-        return Ok(());
+        bail!("致命错误：未找到支持的矿池BUG 请上报");
     }
 }

@@ -72,7 +72,16 @@ impl Worker {
     pub fn offline(&mut self) -> bool {
         self.online = false;
         //TODO 清理读写线程。然后直接返回.
-        info!("😭 Worker {} 下线", self.worker);
+        if self.is_online() {
+            info!(
+                "矿工 {} 下线 在线时长 {}",
+                self.worker,
+                crate::util::time_to_string(self.login_time.elapsed().as_secs())
+            );
+        } else {
+            info!("恶意攻击");
+        }
+
         true
     }
 

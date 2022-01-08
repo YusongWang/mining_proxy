@@ -71,8 +71,7 @@ async fn transfer(
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
         Some(pool) => pool,
         None => {
-            info!("未匹配到矿池 或 均不可链接。请修改后重试");
-            return Ok(());
+            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
 
@@ -101,7 +100,6 @@ async fn transfer(
         )
         .await
     } else {
-        log::error!("致命错误：未找到支持的矿池BUG 请上报");
-        return Ok(());
+        bail!("致命错误：未找到支持的矿池BUG 请上报");
     }
 }
