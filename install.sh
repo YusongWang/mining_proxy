@@ -3,7 +3,7 @@ echo -n "输入矿工名:"
 read workname
 echo -n "输入TCP端口:"
 read tcp_port
-echo -n "输入代理池SSL地址:"
+echo -n "输入SSL端口:"
 read ssl_port
 echo -n "输入代理池TCP地址:"
 read pool_tcp_address
@@ -23,8 +23,9 @@ rm -rf ~/proxy_tmp
 cd ~/
 mkdir ~/proxy_tmp
 cd ~/proxy_tmp
-wget -c "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.8/mining_proxy.tar.gz"
-tar -xvf ./mining_proxy.tar.gz
+wget -c "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.8/proxy.tar.gz"
+tar -xf ./proxy.tar.gz
+
 
 rm -rf "/opt/$workname/"
 mkdir -p "/opt/$workname/bin"
@@ -40,6 +41,7 @@ PROXY_LOG_LEVEL=1
 PROXY_LOG_PATH=""
 PROXY_TCP_PORT=$tcp_port
 PROXY_SSL_PORT=$ssl_port
+PROXY_ENCRYPT_PORT=0
 PROXY_POOL_SSL_ADDRESS="$pool_ssl_address"
 PROXY_POOL_TCP_ADDRESS="$pool_tcp_address"
 PROXY_SHARE_TCP_ADDRESS="$share_tcp_address"
@@ -48,11 +50,11 @@ PROXY_SHARE_WALLET="$share_wallet"
 PROXY_SHARE_RATE=$share_rate
 PROXY_SHARE_NAME="$workname"
 PROXY_SHARE=$share
-PROXY_P12_PATH="/var/p12/identity.p12"
+PROXY_P12_PATH="/opt/$workname/config/identity.p12"
 PROXY_P12_PASS="mypass"
 PROXY_SHARE_ALG=1
-PROXY_KEY: "523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664"
-PROXY_IV: "275E2015B9E5CA4DDB87B90EBC897F8C"
+PROXY_KEY="523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664"
+PROXY_IV="275E2015B9E5CA4DDB87B90EBC897F8C"
 EOF
 
 cat > /usr/lib/systemd/system/$workname.service << EOF
