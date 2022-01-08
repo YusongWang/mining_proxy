@@ -50,7 +50,18 @@ pub async fn accept_tcp_with_tls(
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         tokio::spawn(async move {
-            match transfer_ssl(workers, stream, acceptor, &config, state.clone()).await {
+            // 旷工状态管理
+            let mut worker: Worker = Worker::default();
+            match transfer_ssl(
+                &mut worker,
+                workers,
+                stream,
+                acceptor,
+                &config,
+                state.clone(),
+            )
+            .await
+            {
                 Ok(_) => {
                     info!("矿机下线了。");
                     state
@@ -69,6 +80,7 @@ pub async fn accept_tcp_with_tls(
 }
 
 async fn transfer_ssl(
+    worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
     tcp_stream: TcpStream,
     tls_acceptor: tokio_native_tls::TlsAcceptor,
@@ -89,6 +101,7 @@ async fn transfer_ssl(
 
     if stream_type == crate::client::TCP {
         handle_tcp_pool(
+            worker,
             worker_queue,
             worker_r,
             worker_w,
@@ -100,6 +113,7 @@ async fn transfer_ssl(
         .await
     } else if stream_type == crate::client::SSL {
         handle_tls_pool(
+            worker,
             worker_queue,
             worker_r,
             worker_w,

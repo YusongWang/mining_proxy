@@ -25,6 +25,7 @@ use crate::{
 use super::write_to_socket;
 
 pub async fn handle_stream<R, W, R1, W1>(
+    worker: &mut Worker,
     workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
@@ -107,8 +108,6 @@ where
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
     let mut job_diff = 0;
-    // 旷工状态管理
-    let mut worker: Worker = Worker::default();
 
     let mut rpc_id = 0;
 
@@ -272,7 +271,7 @@ where
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
-                                let res = match eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
+                                let res = match eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
                                     Ok(a) => Ok(a),
                                     Err(e) => {
                                         info!("错误 {} ",e);
@@ -282,10 +281,10 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submit_work_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
+                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
                             },
                             "eth_submitHashrate" => {
-                                eth_submit_hashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -310,16 +309,16 @@ where
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitLogin" => {
-                                eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submit_work_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
+                                match eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }
                             },
                             "eth_submitHashrate" => {
-                                eth_submit_hashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
                                 subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -431,7 +430,7 @@ where
 
 
                         if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
+                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
                                 Some(_) => {},
                                 None => {
                                     log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
@@ -466,7 +465,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
+                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
                                 Some(_) => {},
                                 None => {
                                     log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
@@ -502,7 +501,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,&mut worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
+                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
                                 Some(_) => {},
                                 None => {
                                     log::error!("任务没有分配成功! at_count :{}",pool_job_idx);

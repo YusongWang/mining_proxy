@@ -1678,6 +1678,7 @@ where
 }
 
 pub async fn handle<R, W, S>(
+    worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
@@ -1697,6 +1698,7 @@ where
     cfg_if::cfg_if! {
         if #[cfg(feature = "agent")] {
             handle_stream_agent::handle_stream(
+                worker,
                 worker_queue,
                 worker_r,
                 worker_w,
@@ -1709,6 +1711,7 @@ where
             .await
         }  else {
             handle_stream::handle_stream(
+                worker,
                 worker_queue,
                 worker_r,
                 worker_w,
@@ -1724,6 +1727,7 @@ where
 }
 
 pub async fn handle_tcp_pool<R, W>(
+    worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
@@ -1746,6 +1750,7 @@ where
 
     let stream = TcpStream::from_std(outbound)?;
     handle(
+        worker,
         worker_queue,
         worker_r,
         worker_w,
@@ -1758,6 +1763,7 @@ where
 }
 
 pub async fn handle_tls_pool<R, W>(
+    worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
@@ -1780,6 +1786,7 @@ where
     };
 
     handle(
+        worker,
         worker_queue,
         worker_r,
         worker_w,

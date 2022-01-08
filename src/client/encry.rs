@@ -39,7 +39,9 @@ pub async fn accept_en_tcp(
         // 在这里初始化矿工信息。传入spawn. 然后退出的时候再进行旷工下线通知。
 
         tokio::spawn(async move {
-            match transfer(sender, stream, &config, state.clone()).await {
+            // 旷工状态管理
+            let mut worker: Worker = Worker::default();
+            match transfer(&mut worker, sender, stream, &config, state.clone()).await {
                 Ok(_) => {
                     info!("矿机下线了。");
                     state
@@ -58,6 +60,7 @@ pub async fn accept_en_tcp(
 }
 
 async fn transfer(
+    worker: &mut Worker,
     worker_sender: UnboundedSender<Worker>,
     tcp_stream: TcpStream,
     config: &Settings,
@@ -75,6 +78,7 @@ async fn transfer(
 
     if stream_type == crate::client::TCP {
         handle_tcp_pool(
+            worker,
             worker_sender,
             worker_r,
             worker_w,
@@ -86,6 +90,7 @@ async fn transfer(
         .await
     } else if stream_type == crate::client::SSL {
         handle_tls_pool(
+            worker,
             worker_sender,
             worker_r,
             worker_w,
