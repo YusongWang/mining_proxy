@@ -10,12 +10,9 @@ use hex::FromHex;
 use log::info;
 use openssl::aes::AesKey;
 
-use proxy::client::monitor::accept_monitor_tcp;
-use proxy::util::*;
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = get_encrypt_command_matches().await?;
+    let matches = mining_proxy::util::get_encrypt_command_matches().await?;
     let _guard = sentry::init((
         "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
         sentry::ClientOptions {
@@ -24,7 +21,7 @@ async fn main() -> Result<()> {
         },
     ));
 
-    logger::init("monitor", "./logs/".into(), 0)?;
+    mining_proxy::util::logger::init("monitor", "./logs/".into(), 0)?;
 
     info!(
         "✅ {}, 版本: {} commit: {} {}",
@@ -70,7 +67,9 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     });
 
-    let res = tokio::try_join!(accept_monitor_tcp(port, addr));
+    let res = tokio::try_join!(mining_proxy::client::monitor::accept_monitor_tcp(
+        port, addr
+    ));
 
     if let Err(err) = res {
         log::warn!("加密服务断开: {}", err);

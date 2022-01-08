@@ -10,12 +10,9 @@ use hex::FromHex;
 use log::info;
 use openssl::aes::AesKey;
 
-use proxy::client::encryption::accept_encrypt_tcp;
-use proxy::util::*;
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = get_encrypt_command_matches().await?;
+    let matches = mining_proxy::util::get_encrypt_command_matches().await?;
     let _guard = sentry::init((
         "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
         sentry::ClientOptions {
@@ -24,9 +21,9 @@ async fn main() -> Result<()> {
         },
     ));
 
-    logger::init_client(0)?;
+    mining_proxy::util::logger::init_client(0)?;
 
-    info!(
+    println!(
         "✅ {}, 版本: {} commit: {} {}",
         crate_name!(),
         crate_version!(),
@@ -42,36 +39,38 @@ async fn main() -> Result<()> {
         .unwrap_or("275E2015B9E5CA4DDB87B90EBC897F8C");
     let key = Vec::from_hex(key).unwrap();
     let _ = AesKey::new_encrypt(&key).unwrap_or_else(|e| {
-        info!("请填写正确的 key {:?}", e);
+        println!("请填写正确的 key {:?}", e);
         std::process::exit(1);
     });
 
     let iv = Vec::from_hex(iv).unwrap();
 
     let port = matches.value_of("port").unwrap_or_else(|| {
-        info!("请正确填写本地监听端口 例如: -p 8888");
+        println!("请正确填写本地监听端口 例如: -p 8888");
         std::process::exit(1);
     });
 
     let server = matches.value_of("server").unwrap_or_else(|| {
-        info!("请正确填写服务器地址 例如: -s 8.0.0.0:8888");
+        println!("请正确填写服务器地址 例如: -s 8.0.0.0:8888");
         std::process::exit(1);
     });
 
     let addr = match server.to_socket_addrs().unwrap().next() {
         Some(address) => address,
         None => {
-            info!("请正确填写服务器地址 例如: -s 8.0.0.0:8888");
+            println!("请正确填写服务器地址 例如: -s 8.0.0.0:8888");
             std::process::exit(1);
         }
     };
 
     let port: i32 = port.parse().unwrap_or_else(|_| {
-        info!("请正确填写本地监听端口 例如: -p 8888");
+        println!("请正确填写本地监听端口 例如: -p 8888");
         std::process::exit(1);
     });
 
-    let res = tokio::try_join!(accept_encrypt_tcp(port, addr, key, iv));
+    let res = tokio::try_join!(mining_proxy::client::encryption::accept_encrypt_tcp(
+        port, addr, key, iv
+    ));
 
     if let Err(err) = res {
         log::warn!("加密服务断开: {}", err);

@@ -14,13 +14,16 @@ pub async fn accept_tcp(
     config: Settings,
     state: State,
 ) -> Result<()> {
+    if config.tcp_port == 0 {
+        return Ok(());
+    }
+
     let address = format!("0.0.0.0:{}", config.tcp_port);
     let listener = TcpListener::bind(address.clone()).await?;
-    info!("😄 Accepting Tcp On: {}", &address);
+    println!("本地TCP端口{} 启动成功!!!", &address);
 
     loop {
         let (stream, addr) = listener.accept().await?;
-        info!("😄 Accepting Tcp connection from {}", addr);
 
         let config = config.clone();
         let workers = worker_queue.clone();

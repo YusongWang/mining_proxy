@@ -781,6 +781,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 
 [[package]]
+name = "mining_proxy"
+version = "0.1.9"
+dependencies = [
+ "anyhow",
+ "async-channel",
+ "base64",
+ "bytes",
+ "cfg-if",
+ "chrono",
+ "clap",
+ "config",
+ "fern",
+ "futures",
+ "hex",
+ "hostname",
+ "log",
+ "lru",
+ "native-tls",
+ "openssl",
+ "openssl-sys",
+ "prettytable-rs",
+ "rand",
+ "rand_chacha",
+ "sentry",
+ "sentry-log",
+ "serde 1.0.130",
+ "serde_json",
+ "short-crypt",
+ "tokio",
+ "tokio-native-tls",
+ "vergen",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1012,40 +1046,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb37d2df5df740e582f28f8560cf425f52bb267d872fe58358eadb554909f07a"
 dependencies = [
  "unicode-xid",
-]
-
-[[package]]
-name = "proxy"
-version = "0.1.9"
-dependencies = [
- "anyhow",
- "async-channel",
- "base64",
- "bytes",
- "cfg-if",
- "chrono",
- "clap",
- "config",
- "fern",
- "futures",
- "hex",
- "hostname",
- "log",
- "lru",
- "native-tls",
- "openssl",
- "openssl-sys",
- "prettytable-rs",
- "rand",
- "rand_chacha",
- "sentry",
- "sentry-log",
- "serde 1.0.130",
- "serde_json",
- "short-crypt",
- "tokio",
- "tokio-native-tls",
- "vergen",
 ]
 
 [[package]]

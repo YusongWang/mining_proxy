@@ -13,17 +13,27 @@ pub async fn accept_en_tcp(
     config: Settings,
     state: State,
 ) -> Result<()> {
+    if config.encrypt_port == 0 {
+        return Ok(());
+    }
+
     let address = format!("0.0.0.0:{}", config.encrypt_port);
+
     let listener = TcpListener::bind(address.clone()).await?;
-    info!("😄 Accepting Encrypt On: {}", &address);
+
+    println!("本地TCP加密协议端口{}启动成功!!!", &address);
 
     loop {
         let (stream, addr) = listener.accept().await?;
-        info!("😄 Accepting Encrypt connection from {}", addr);
 
         let config = config.clone();
         let sender = worker_sender.clone();
         let state = state.clone();
+        state
+            .online
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        // 在这里初始化矿工信息。传入spawn. 然后退出的时候再进行旷工下线通知。
+
         tokio::spawn(async move { transfer(sender, stream, &config, state).await });
     }
 }

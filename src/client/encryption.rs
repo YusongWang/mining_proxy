@@ -21,11 +21,13 @@ pub async fn accept_encrypt_tcp(
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(address.clone()).await?;
-    info!("😄 Accepting EncryptData Tcp On: {}", &address);
+    //info!("😄 Accepting EncryptData Tcp On: {}", &address);
+
+    println!("本地加密协议端口{}启动成功!!!", &address);
 
     loop {
         let (stream, addr) = listener.accept().await?;
-        info!("😄 Accepting EncryptData Tcp connection from {}", addr);
+        //info!("😄 Accepting EncryptData Tcp connection from {}", addr);
         let iv = iv.clone();
         let key = key.clone();
 

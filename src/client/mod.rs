@@ -612,7 +612,7 @@ async fn fee_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::fee(pool_job_idx,config,config.get_fee()) {
+    if crate::util::fee(pool_job_idx, config, config.get_fee()) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -625,7 +625,7 @@ where
                             if #[cfg(feature = "agent")] {
                                 if agent_send_jobs.contains(&job.0) {
                                     continue;
-                                }        
+                                }
                             }
                         }
 
@@ -826,7 +826,11 @@ async fn develop_job_process<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::fee(pool_job_idx,config,get_develop_fee(config.share_rate.into())) {
+    if crate::util::fee(
+        pool_job_idx,
+        config,
+        get_develop_fee(config.share_rate.into()),
+    ) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -839,10 +843,10 @@ where
                             if #[cfg(feature = "agent")] {
                                 if agent_send_jobs.contains(&job.0) {
                                     continue;
-                                }        
+                                }
                             }
                         }
-                        
+
                         if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
                             if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {

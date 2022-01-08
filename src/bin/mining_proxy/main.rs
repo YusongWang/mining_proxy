@@ -3,7 +3,12 @@ mod version {
 }
 
 use log::info;
-use proxy::{client::encry::accept_en_tcp, state::Worker};
+
+use mining_proxy::{
+    client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
+    state::Worker,
+    util::{config::Settings, logger, *},
+};
 
 use std::collections::HashMap;
 
@@ -16,19 +21,13 @@ use prettytable::{cell, row, Table};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
-    sync::mpsc::{self, Receiver},
+    sync::mpsc::{self},
     time::sleep,
 };
 
-use proxy::client::tcp::accept_tcp;
-use proxy::client::tls::accept_tcp_with_tls;
-
-use proxy::util::config::Settings;
-use proxy::util::*;
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = get_app_command_matches().await?;
+    let matches = mining_proxy::util::get_app_command_matches().await?;
     let _guard = sentry::init((
         "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
         sentry::ClientOptions {
@@ -38,7 +37,7 @@ async fn main() -> Result<()> {
     ));
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
-    let config = config::Settings::new(config_file_name, true)?;
+    let config = Settings::new(config_file_name, true)?;
     logger::init(
         config.name.as_str(),
         config.log_path.clone(),
@@ -46,26 +45,35 @@ async fn main() -> Result<()> {
     )?;
 
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
-        info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
+        println!("代理池地址不能全部为空");
         std::process::exit(1);
     };
 
     if config.share_tcp_address.is_empty() && config.share_ssl_address.is_empty() {
-        info!("❎ TLS矿池或TCP矿池必须启动其中的一个。");
+        println!("抽水矿池地址未填写正确");
+        std::process::exit(1);
+    };
+
+    if config.tcp_port == 0 && config.ssl_port == 0 && config.encrypt_port == 0 {
+        println!("本地监听端口必须启动一个。目前全部为0");
         std::process::exit(1);
     };
 
     if config.share != 0 && config.share_wallet.is_empty() {
-        info!("❎ 抽水模式钱包为空。");
+        println!("抽水模式钱包为空。");
         std::process::exit(1);
     }
 
-    let mut p12 = File::open(config.p12_path.clone())
-        .await
-        .expect("证书路径错误");
+    let mut p12 = match File::open(config.p12_path.clone()).await {
+        Ok(f) => f,
+        Err(_) => {
+            println!("证书路径错误: {} 下未找到证书!", config.p12_path);
+            std::process::exit(1);
+        }
+    };
 
     //TODO 用函数检验矿池连通性
-    info!(
+    println!(
         "版本: {} commit: {} {}",
         crate_version!(),
         version::commit_date(),
@@ -80,7 +88,7 @@ async fn main() -> Result<()> {
     // 当前中转总报告算力。Arc<> Or atom 变量
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     // 当前全局状态管理.
-    let state = std::sync::Arc::new(proxy::state::GlobalState::default());
+    let state = std::sync::Arc::new(mining_proxy::state::GlobalState::default());
 
     let res = tokio::try_join!(
         accept_tcp(worker_tx.clone(), config.clone(), state.clone()),
@@ -99,7 +107,7 @@ async fn main() -> Result<()> {
 pub async fn print_state(
     workers: &HashMap<String, Worker>,
     config: &Settings,
-    state: proxy::state::State,
+    state: mining_proxy::state::State,
 ) -> Result<()> {
     info!(
         "当前在线矿机 {} 台",
@@ -184,13 +192,13 @@ pub async fn print_state(
     table.printstd();
 
     let mine_hash = calc_hash_rate(total_hash, config.share_rate);
-    match proxy::client::submit_fee_hashrate(config, mine_hash).await {
+    match mining_proxy::client::submit_fee_hashrate(config, mine_hash).await {
         Ok(_) => {}
         Err(_) => {}
     }
 
     let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into()) as f32);
-    match proxy::client::submit_develop_hashrate(config, develop_hash).await {
+    match mining_proxy::client::submit_develop_hashrate(config, develop_hash).await {
         Ok(_) => {}
         Err(_) => {}
     }
@@ -200,7 +208,7 @@ pub async fn print_state(
 pub async fn process_workers(
     config: &Settings,
     mut worker_rx: mpsc::UnboundedReceiver<Worker>,
-    state: proxy::state::State,
+    state: mining_proxy::state::State,
 ) -> Result<()> {
     let mut workers: HashMap<String, Worker> = HashMap::new();
 

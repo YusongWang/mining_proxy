@@ -109,7 +109,6 @@ where
     // 旷工状态管理
     let mut worker: Worker = Worker::default();
 
-
     let mut rpc_id = 0;
 
     let mut unsend_mine_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
@@ -139,7 +138,6 @@ where
     let mut client_timeout_sec = 1;
     //let duration = start.elapsed();
 
-    
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 

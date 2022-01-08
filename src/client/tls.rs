@@ -20,16 +20,20 @@ pub async fn accept_tcp_with_tls(
     cert: Identity,
     state: State,
 ) -> Result<()> {
+    if config.ssl_port == 0 {
+        return Ok(());
+    }
+
     let address = format!("0.0.0.0:{}", config.ssl_port);
     let listener = TcpListener::bind(address.clone()).await?;
-    info!("😄 Accepting Tls On: {}", &address);
+    println!("本地SSL端口{} 启动成功!!!", &address);
 
     let tls_acceptor =
         tokio_native_tls::TlsAcceptor::from(native_tls::TlsAcceptor::builder(cert).build()?);
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        info!("😄 accept connection from {}", addr);
+        //info!("😄 accept connection from {}", addr);
         let workers = worker_queue.clone();
 
         let config = config.clone();
