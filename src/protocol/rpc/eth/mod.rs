@@ -169,8 +169,9 @@ impl ServerRpc for ServerSideJob {
     }
 
     fn set_diff(&mut self, diff: String) -> bool {
-        if self.result.len() == 3 {
-            self.result.push(diff);
+        if self.result.len() <= 3 {
+            //self.result.push(diff);
+            //矿池没有难度系数。可能任务会有部分延迟。待解决。
         } else if self.result.len() > 3 {
             self.result[3] = diff;
         } else {
