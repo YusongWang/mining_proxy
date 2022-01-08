@@ -1,4 +1,7 @@
 #!/bin/bash
+echo "-----------"
+echo "超过100台矿机。推荐配置 2核心CPU 数量以上!"
+
 echo -n "输入矿工名:"
 read workname
 echo -n "输入TCP端口:"

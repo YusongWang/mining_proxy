@@ -5,5 +5,5 @@
 
 FROM alpine:latest
 #COPY --from=builder /root/.cargo/bin/proxy /usr/local/bin/proxy
-ADD ./proxy /usr/local/bin/proxy
-CMD ["proxy","-c","/etc/proxy/default.yaml"]
+ADD ./mining_proxy /usr/local/bin/mining_proxy
+CMD ["mining_proxy","-c","/etc/proxy/default.yaml"]
