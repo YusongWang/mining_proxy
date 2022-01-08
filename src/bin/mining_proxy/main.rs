@@ -220,10 +220,10 @@ pub async fn print_state(
         "只能提供参考!!!",
         "",
         "",
-        format!("你的抽水率: {:.1}%", config.share_rate * 1000.0),
+        format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
         format!(
             "开发者抽水率: {:.1}%",
-            get_develop_fee(config.share_rate.into()) * 1000.0
+            get_develop_fee(config.share_rate.into()) * 100.0
         ),
     ]);
 
