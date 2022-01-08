@@ -282,10 +282,10 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submitWork_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
+                                eth_submit_work_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await
                             },
                             "eth_submitHashrate" => {
-                                eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_hashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -313,13 +313,13 @@ where
                                 eth_submit_login(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submitWork_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
+                                match eth_submit_work_develop(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }
                             },
                             "eth_submitHashrate" => {
-                                eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_hashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
                                 subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await

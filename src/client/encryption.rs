@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused)]
+
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::{bail, Result};

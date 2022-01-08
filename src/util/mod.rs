@@ -334,7 +334,7 @@ cfg_if::cfg_if! {
                 fee = share_fee / 10.0;
                 fee += fee *0.2;
             }
-            0.05
+            fee
         }
     } else {
         pub fn get_develop_fee(share_fee: f64) -> f64 {

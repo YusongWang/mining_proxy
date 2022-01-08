@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#![allow(unused)]
+
 use anyhow::{bail, Result};
 
 use hex::FromHex;
@@ -367,7 +369,7 @@ where
                                 eth_submit_work(&mut worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config,&agent_name).await
                             },
                             "eth_submitHashrate" => {
-                                eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_hashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -401,7 +403,7 @@ where
                                 }
                             },
                             "eth_submitHashrate" => {
-                                eth_submitHashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                eth_submit_hashrate(&mut worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
                                 subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await

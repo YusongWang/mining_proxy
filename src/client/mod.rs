@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused)]
 
 pub mod encry;
 pub mod encryption;
@@ -486,7 +487,7 @@ where
     }
 }
 
-async fn eth_submitWork_develop<W, W1, W2, T>(
+async fn eth_submit_work_develop<W, W1, W2, T>(
     worker: &mut Worker,
     pool_w: &mut WriteHalf<W>,
     proxy_w: &mut WriteHalf<W1>,
@@ -575,7 +576,7 @@ where
     }
 }
 
-async fn eth_submitHashrate<W, T>(
+async fn eth_submit_hashrate<W, T>(
     worker: &mut Worker,
     w: &mut WriteHalf<W>,
     rpc: &mut T,
