@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }

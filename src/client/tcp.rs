@@ -19,7 +19,14 @@ pub async fn accept_tcp(
     }
 
     let address = format!("0.0.0.0:{}", config.tcp_port);
-    let listener = TcpListener::bind(address.clone()).await?;
+    let listener = match TcpListener::bind(address.clone()).await {
+        Ok(listener) => listener,
+        Err(_) => {
+            println!("本地端口被占用 {}", address);
+            std::process::exit(1);
+        }
+    };
+
     println!("本地TCP端口{} 启动成功!!!", &address);
 
     loop {

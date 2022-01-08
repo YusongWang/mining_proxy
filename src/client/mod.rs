@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
@@ -10,7 +12,6 @@ pub mod tls;
 use anyhow::bail;
 use hex::FromHex;
 use log::{debug, info};
-use lru::LruCache;
 use native_tls::TlsConnector;
 use serde::Serialize;
 use std::{
@@ -346,9 +347,9 @@ async fn eth_submit_work<W, W1, W2, T>(
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut T,
     worker_name: &String,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
-    agent_send_jobs: &mut LruCache<String, (u64, u64)>,
+    mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>,
+    agent_send_jobs: &mut Vec<String>,
     config: &Settings,
     agent_worker_name: &String,
 ) -> Result<()>
@@ -360,105 +361,116 @@ where
 {
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains(&job_id) {
-            if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
-                let hostname = config.get_share_name().unwrap();
+            //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
+            let hostname = config.get_share_name().unwrap();
 
-                rpc.set_worker_name(&hostname);
-                let s = ServerId {
-                    id: rpc.get_id(),
-                    jsonrpc: "2.0".into(),
-                    result: true,
-                };
-                #[cfg(debug_assertions)]
-                info!("提交抽水任务!");
-                match write_to_socket(proxy_w, rpc, &config.share_name).await {
-                    Ok(_) => {
-                        #[cfg(debug_assertions)]
-                        info!("返回True给旷工。成功！！！");
-                    }
-                    Err(_) => {
-                        #[cfg(debug_assertions)]
-                        debug!("给旷工返回成功写入失败了。");
-                    }
-                }
+            rpc.set_worker_name(&hostname);
+            let s = ServerId {
+                id: rpc.get_id(),
+                jsonrpc: "2.0".into(),
+                result: true,
+            };
+            #[cfg(debug_assertions)]
+            info!("提交抽水任务!");
 
-                match write_to_socket(worker_w, &s, &worker_name).await {
-                    Ok(_) => {
-                        #[cfg(debug_assertions)]
-                        info!("返回True给旷工。成功！！！");
-                    }
-                    Err(_) => {
-                        #[cfg(debug_assertions)]
-                        debug!("给旷工返回成功写入失败了。");
-                    }
+            match write_to_socket(proxy_w, rpc, &config.share_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("提交抽水任务成功！！！");
                 }
-                return Ok(());
-            } else {
-                bail!("任务失败.找到jobid .但是remove失败了");
+                Err(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("提交抽水任务失败");
+                }
             }
+
+            match write_to_socket(worker_w, &s, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("返回True给旷工。成功！！！");
+                }
+                Err(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("给旷工返回成功写入失败了。");
+                }
+            }
+            return Ok(());
+            // } else {
+            //     bail!("任务失败.找到jobid .但是remove失败了");
+            // }
         } else if develop_send_jobs.contains(&job_id) {
-            if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
-                let mut hostname = String::from("develop_");
+            //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
+            let mut hostname = String::from("develop_");
 
-                let name = hostname::get()?;
-                hostname += name.to_str().unwrap();
-                rpc.set_worker_name(&hostname);
-                #[cfg(debug_assertions)]
-                info!("提交开发者任务!");
-                write_to_socket(develop_w, rpc, &hostname).await;
-
-                let s = ServerId {
-                    id: rpc.get_id(),
-                    jsonrpc: "2.0".into(),
-                    result: true,
-                };
-                match write_to_socket(worker_w, &s, &worker_name).await {
-                    Ok(_) => {
-                        #[cfg(debug_assertions)]
-                        info!("返回True给旷工。成功！！！");
-                    }
-                    Err(_) => {
-                        #[cfg(debug_assertions)]
-                        debug!("给旷工返回成功写入失败了。")
-                    }
+            let name = hostname::get()?;
+            hostname += name.to_str().unwrap();
+            rpc.set_worker_name(&hostname);
+            #[cfg(debug_assertions)]
+            info!("提交开发者任务!");
+            match write_to_socket(develop_w, rpc, &hostname).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("提交开发者抽水任务成功！！！");
                 }
-
-                return Ok(());
-            } else {
-                bail!("任务失败.找到jobid .但是remove失败了");
+                Err(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("提交开发者抽水任务失败");
+                }
             }
+
+            let s = ServerId {
+                id: rpc.get_id(),
+                jsonrpc: "2.0".into(),
+                result: true,
+            };
+
+            match write_to_socket(worker_w, &s, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("返回True给旷工。成功！！！");
+                }
+                Err(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("给旷工返回成功写入失败了。")
+                }
+            }
+
+            return Ok(());
+            // } else {
+            //     bail!("任务失败.找到jobid .但是remove失败了");
+            // }
         } else if agent_send_jobs.contains(&job_id) {
-            if let Some(_thread_id) = agent_send_jobs.get(&job_id) {
-                // let mut hostname = String::from("develop_");
+            //if let Some(_thread_id) = agent_send_jobs.get(job_id) {
+            // let mut hostname = String::from("develop_");
 
-                // let name = hostname::get()?;
-                // hostname += name.to_str().unwrap();
-                rpc.set_worker_name(&agent_worker_name);
-                #[cfg(debug_assertions)]
-                info!("提交代理任务!");
-                write_to_socket(agent_w, rpc, &agent_worker_name).await;
+            // let name = hostname::get()?;
+            // hostname += name.to_str().unwrap();
+            rpc.set_worker_name(&agent_worker_name);
+            #[cfg(debug_assertions)]
+            info!("提交代理任务!");
+            write_to_socket(agent_w, rpc, &agent_worker_name).await;
 
-                let s = ServerId {
-                    id: rpc.get_id(),
-                    jsonrpc: "2.0".into(),
-                    result: true,
-                };
+            let s = ServerId {
+                id: rpc.get_id(),
+                jsonrpc: "2.0".into(),
+                result: true,
+            };
 
-                match write_to_socket(worker_w, &s, &worker_name).await {
-                    Ok(_) => {
-                        #[cfg(debug_assertions)]
-                        info!("返回True给旷工。成功！！！");
-                    }
-                    Err(_) => {
-                        #[cfg(debug_assertions)]
-                        debug!("给旷工返回成功写入失败了。")
-                    }
+            match write_to_socket(worker_w, &s, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("返回True给旷工。成功！！！");
                 }
-
-                return Ok(());
-            } else {
-                bail!("任务失败.找到jobid .但是remove失败了");
+                Err(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("给旷工返回成功写入失败了。")
+                }
             }
+
+            return Ok(());
+            // } else {
+            //     bail!("任务失败.找到jobid .但是remove失败了");
+            // }
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);
@@ -482,8 +494,8 @@ async fn eth_submitWork_develop<W, W1, W2, T>(
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut T,
     worker_name: &String,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
+    mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>,
     config: &Settings,
 ) -> Result<()>
 where
@@ -494,63 +506,63 @@ where
 {
     if let Some(job_id) = rpc.get_job_id() {
         if mine_send_jobs.contains(&job_id) {
-            if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
-                let hostname = config.get_share_name().unwrap();
+            //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
+            let hostname = config.get_share_name().unwrap();
 
-                rpc.set_worker_name(&hostname);
-                let s = ServerId {
-                    id: rpc.get_id(),
-                    jsonrpc: "2.0".into(),
-                    result: true,
-                };
-                #[cfg(debug_assertions)]
-                info!("提交抽水任务!");
-                write_to_socket(proxy_w, rpc, &config.share_name).await;
-                match write_to_socket(worker_w, &s, &worker_name).await {
-                    Ok(_) => {
-                        #[cfg(debug_assertions)]
-                        info!("返回True给旷工。成功！！！");
-                    }
-                    Err(_) => {
-                        #[cfg(debug_assertions)]
-                        debug!("给旷工返回成功写入失败了。")
-                    }
+            rpc.set_worker_name(&hostname);
+            let s = ServerId {
+                id: rpc.get_id(),
+                jsonrpc: "2.0".into(),
+                result: true,
+            };
+            #[cfg(debug_assertions)]
+            info!("提交抽水任务!");
+            write_to_socket(proxy_w, rpc, &config.share_name).await;
+            match write_to_socket(worker_w, &s, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("返回True给旷工。成功！！！");
                 }
-                return Ok(());
-            } else {
-                bail!("任务失败.找到jobid .但是remove失败了");
+                Err(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("给旷工返回成功写入失败了。")
+                }
             }
+            return Ok(());
+            // } else {
+            //     bail!("任务失败.找到jobid .但是remove失败了");
+            // }
         } else if develop_send_jobs.contains(&job_id) {
-            if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
-                let mut hostname = String::from("develop_");
+            //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
+            let mut hostname = String::from("develop_");
 
-                let name = hostname::get()?;
-                hostname += name.to_str().unwrap();
-                rpc.set_worker_name(&hostname);
-                #[cfg(debug_assertions)]
-                info!("提交开发者任务!");
-                write_to_socket(develop_w, rpc, &hostname).await;
+            let name = hostname::get()?;
+            hostname += name.to_str().unwrap();
+            rpc.set_worker_name(&hostname);
+            #[cfg(debug_assertions)]
+            info!("提交开发者任务!");
+            write_to_socket(develop_w, rpc, &hostname).await;
 
-                let s = ServerId {
-                    id: rpc.get_id(),
-                    jsonrpc: "2.0".into(),
-                    result: true,
-                };
-                match write_to_socket(worker_w, &s, &worker_name).await {
-                    Ok(_) => {
-                        #[cfg(debug_assertions)]
-                        info!("返回True给旷工。成功！！！");
-                    }
-                    Err(_) => {
-                        #[cfg(debug_assertions)]
-                        debug!("给旷工返回成功写入失败了。")
-                    }
+            let s = ServerId {
+                id: rpc.get_id(),
+                jsonrpc: "2.0".into(),
+                result: true,
+            };
+            match write_to_socket(worker_w, &s, &worker_name).await {
+                Ok(_) => {
+                    #[cfg(debug_assertions)]
+                    info!("返回True给旷工。成功！！！");
                 }
-
-                return Ok(());
-            } else {
-                bail!("任务失败.找到jobid .但是remove失败了");
+                Err(_) => {
+                    #[cfg(debug_assertions)]
+                    debug!("给旷工返回成功写入失败了。")
+                }
             }
+
+            return Ok(());
+            // } else {
+            //     bail!("任务失败.找到jobid .但是remove失败了");
+            // }
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);
@@ -601,10 +613,10 @@ async fn fee_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    _agent_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    agent_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
@@ -631,18 +643,8 @@ where
 
                         if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
-                                );
-                                //return Some(());
-                                return None;
-                            } else {
-                                #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None;
-                            }
+                            send_jobs.push(job.0.clone());
+                            return None;
                         }
                         break Some(job);
                     }
@@ -653,18 +655,12 @@ where
             if job.is_none() {
                 return None;
             }
+
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
-            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                return Some(());
-            } else {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                None
-            }
+            send_jobs.push(job.0);
+            return Some(());
         } else {
             #[cfg(debug_assertions)]
             debug!("!!!!没有抽水任务了。");
@@ -679,9 +675,9 @@ async fn fee_job_process_develop<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
@@ -700,18 +696,20 @@ where
 
                         if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
-                                );
-                                //return Some(());
-                                return None;
-                            } else {
-                                #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None;
-                            }
+                            send_jobs.push(job.0.clone());
+                            return None;
+                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!(
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //     );
+                            //     //return Some(());
+                            //     return None;
+                            // } else {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     return None;
+                            // }
                         }
                         break Some(job);
                     }
@@ -725,15 +723,17 @@ where
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
-            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-                return Some(());
-            } else {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                None
-            }
+            send_jobs.push(job.0.clone());
+            return Some(());
+            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+            //     #[cfg(debug_assertions)]
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
+            //     return Some(());
+            // } else {
+            //     #[cfg(debug_assertions)]
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+            //     None
+            // }
         } else {
             #[cfg(debug_assertions)]
             debug!("!!!!没有抽水任务了。");
@@ -747,9 +747,9 @@ async fn develop_job_process_develop<T>(
     _pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
@@ -766,19 +766,21 @@ where
                             continue;
                         }
                         if normal_send_jobs.contains(&job.0) {
+                            send_jobs.push(job.0.clone());
+                            return None;
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
-                                );
-                                //return Some(());
-                                return None;
-                            } else {
-                                #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None;
-                            }
+                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!(
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //     );
+                            //     //return Some(());
+                            //     return None;
+                            // } else {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     return None;
+                            // }
                         }
                         break Some(job);
                     }
@@ -792,15 +794,8 @@ where
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
-            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
-                return Some(());
-            } else {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                None
-            }
+            send_jobs.push(job.0.clone());
+            return Some(());
         } else {
             #[cfg(debug_assertions)]
             debug!("!!!!没有开发者抽水任务了。");
@@ -815,10 +810,10 @@ async fn develop_job_process<T>(
     pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    _agent_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    agent_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     _count: &mut i32,
     diff: String,
@@ -848,19 +843,21 @@ where
                         }
 
                         if normal_send_jobs.contains(&job.0) {
-                            //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
-                                );
-                                //return Some(());
-                                return None;
-                            } else {
-                                #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None;
-                            }
+                            // 拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
+                            send_jobs.push(job.0.clone());
+                            return None;
+                            // if let None = send_jobs.push(job.0) {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!(
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //     );
+                            //     //return Some(());
+                            //     return None;
+                            // } else {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     return None;
+                            // }
                         }
                         break Some(job);
                     }
@@ -874,15 +871,17 @@ where
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
-            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
-                return Some(());
-            } else {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                None
-            }
+            send_jobs.push(job.0);
+            return Some(());
+            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+            //     #[cfg(debug_assertions)]
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
+            //     return Some(());
+            // } else {
+            //     #[cfg(debug_assertions)]
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+            //     None
+            // }
         } else {
             #[cfg(debug_assertions)]
             debug!("!!!!没有开发者抽水任务了。");
@@ -897,10 +896,10 @@ async fn agnet_job_process<T>(
     _pool_job_idx: u64,
     config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     diff: String,
 ) -> Option<()>
@@ -921,18 +920,20 @@ where
 
                         if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
-                                );
-                                //return Some(());
-                                return None;
-                            } else {
-                                #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None;
-                            }
+                            send_jobs.push(job.0.clone());
+                            return None;
+                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!(
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //     );
+                            //     //return Some(());
+                            //     return None;
+                            // } else {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     return None;
+                            // }
                         }
                         break Some(job);
                     }
@@ -946,15 +947,17 @@ where
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
-            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
-                return Some(());
-            } else {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                None
-            }
+            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+            //     #[cfg(debug_assertions)]
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
+            //     return Some(());
+            // } else {
+            //     #[cfg(debug_assertions)]
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+            //     None
+            // }
+            send_jobs.push(job.0.clone());
+            return None;
         } else {
             #[cfg(debug_assertions)]
             debug!("!!!!没有开发者抽水任务了。");
@@ -969,10 +972,10 @@ async fn agnet_job_process_with_fee<T>(
     _pool_job_idx: u64,
     _config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     fee: f64,
     diff: String,
@@ -994,18 +997,20 @@ where
 
                         if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                                #[cfg(debug_assertions)]
-                                debug!(
-                                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
-                                );
-                                //return Some(());
-                                return None;
-                            } else {
-                                #[cfg(debug_assertions)]
-                                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                                return None;
-                            }
+                            send_jobs.push(job.0.clone());
+                            return None;
+                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!(
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //     );
+                            //     //return Some(());
+                            //     return None;
+                            // } else {
+                            //     #[cfg(debug_assertions)]
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     return None;
+                            // }
                         }
                         break Some(job);
                     }
@@ -1019,15 +1024,8 @@ where
             let job = job.unwrap();
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
-            if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
-                return Some(());
-            } else {
-                #[cfg(debug_assertions)]
-                debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
-                None
-            }
+            send_jobs.push(job.0);
+            return Some(());
         } else {
             #[cfg(debug_assertions)]
             debug!("!!!!没有开发者抽水任务了。");
@@ -1043,18 +1041,18 @@ async fn share_job_process_agent_fee<T, W>(
     config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    _agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
-    agent_send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    develop_send_jobs: &mut Vec<String>,
+    agent_send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     count: &mut i32,
     worker_w: &mut WriteHalf<W>,
     worker_name: &String,
     worker: &mut Worker,
     rpc_id: u64,
-    _agent_fee: f64,
+    agent_fee: f64,
     diff: String,
     is_encrypted: bool,
 ) -> Option<()>
@@ -1235,7 +1233,8 @@ where
             return Some(());
         }
 
-        normal_send_jobs.put(job_id, 0);
+        normal_send_jobs.push(job_id);
+
         if is_encrypted {
             match write_encrypt_socket(
                 worker_w,
@@ -1278,11 +1277,11 @@ async fn share_job_process<T, W>(
     config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    _agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
-    agent_send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
+    develop_send_jobs: &mut Vec<String>,
+    agent_send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     count: &mut i32,
     worker_w: &mut WriteHalf<W>,
@@ -1472,7 +1471,7 @@ where
             return Some(());
         }
 
-        normal_send_jobs.put(job_id, 0);
+        normal_send_jobs.push(job_id);
         if is_encrypted {
             match write_encrypt_socket(
                 worker_w,
@@ -1516,9 +1515,9 @@ async fn share_job_process_develop<T, W>(
     config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    develop_send_jobs: &mut LruCache<String, (u64, u64)>,
-    mine_send_jobs: &mut LruCache<String, (u64, u64)>,
-    normal_send_jobs: &mut LruCache<String, i32>,
+    develop_send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
     job_rpc: &mut T,
     count: &mut i32,
     worker_w: &mut WriteHalf<W>,
@@ -1640,7 +1639,7 @@ where
         }
 
         let job_id = normal_worker.get_job_id().unwrap();
-        normal_send_jobs.put(job_id, 0);
+        normal_send_jobs.push(job_id);
         if is_encrypted {
             match write_encrypt_socket(
                 worker_w,
@@ -1799,6 +1798,10 @@ pub fn job_diff_change<T>(
     a: &mut VecDeque<(String, Vec<String>)>,
     b: &mut VecDeque<(String, Vec<String>)>,
     c: &mut VecDeque<(String, Vec<String>)>,
+    mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>,
+    proxy_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>,
 ) -> bool
 where
     T: ServerRpc,

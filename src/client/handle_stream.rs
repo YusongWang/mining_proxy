@@ -1,9 +1,10 @@
+#![allow(dead_code)]
+
 use anyhow::{bail, Result};
 
 use hex::FromHex;
 use log::{debug, info};
 
-use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
@@ -118,10 +119,15 @@ where
     let mut develop_count = 0;
 
     //TODO 完善精简这里的核心代码。加速任务分配。
-    let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
-    let mut send_develop_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
-    let mut send_agent_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
-    let mut send_normal_jobs: LruCache<String, i32> = LruCache::new(100);
+    // let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
+    // let mut send_develop_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
+    // let mut send_agent_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
+    // let mut send_normal_jobs: LruCache<String, i32> = LruCache::new(100);
+
+    let mut send_mine_jobs: Vec<String> = vec![];
+    let mut send_develop_jobs: Vec<String> = vec![];
+    let mut send_agent_jobs: Vec<String> = vec![];
+    let mut send_normal_jobs: Vec<String> = vec![];
 
     // 包装为封包格式。
     // let mut worker_lines = worker_r.lines();
@@ -421,7 +427,7 @@ where
                         }
 
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
 
                         if config.share != 0 {
@@ -456,7 +462,7 @@ where
                             pool_job_idx = 0;
                         }
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
                         pool_job_idx += 1;
                         if config.share != 0 {
@@ -492,7 +498,7 @@ where
                         }
 
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
                         pool_job_idx += 1;
                         if config.share != 0 {
@@ -578,7 +584,7 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
 
                         if diff == job_diff {
@@ -593,7 +599,7 @@ where
                         debug!("收到抽水矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
@@ -605,7 +611,7 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
@@ -661,7 +667,7 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
@@ -673,7 +679,7 @@ where
                         #[cfg(debug_assertions)]
                         debug!("收到开发者矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
@@ -685,7 +691,7 @@ where
                         debug!("收到开发者矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs);
+                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
                         if diff == job_diff {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_develop_jobs.push_back((job_id,job_rpc.result));

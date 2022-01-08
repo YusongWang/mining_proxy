@@ -33,8 +33,6 @@ pub async fn accept_encrypt_tcp(
 
         tokio::spawn(async move { transfer(stream, server, key, iv).await });
     }
-
-    Ok(())
 }
 
 async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>) -> Result<()> {
