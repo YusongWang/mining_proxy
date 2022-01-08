@@ -1830,7 +1830,7 @@ pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()>
         Some((stream, addr)) => (stream, addr),
         None => {
             log::error!("所有TCP矿池均不可链接。请修改后重试");
-            panic!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
 

@@ -42,11 +42,13 @@ pub async fn accept_tcp(
         tokio::spawn(async move {
             match transfer(workers, stream, &config, state.clone()).await {
                 Ok(_) => {
+                    info!("矿机下线了。");
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                 }
-                Err(_) => {
+                Err(e) => {
+                    info!("{}", e);
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);

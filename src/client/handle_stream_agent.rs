@@ -49,7 +49,7 @@ where
         Some((stream, addr)) => (stream, addr),
         None => {
             log::error!("所有TCP矿池均不可链接。请修改后重试");
-            panic!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
 
@@ -110,7 +110,7 @@ where
         Some((stream, addr)) => (stream, addr),
         None => {
             info!("所有TCP矿池均不可链接。请修改后重试");
-            panic!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
 
@@ -181,7 +181,7 @@ where
                                             log::error!("Error Shutdown Socket {:?}",e);
                                         },
                                     };
-                                    info!("矿机下线了 : {}",worker_name);
+
                                     bail!("矿机下线了 : {}",worker_name)},
                                 },
                             _ => {
@@ -191,7 +191,7 @@ where
                                             log::error!("Error Shutdown Socket {:?}",e);
                                         },
                                     }
-                                info!("矿机下线了 : {}",worker_name);
+
                                 bail!("矿机下线了 : {}",worker_name)
                             },
                         }
@@ -438,12 +438,12 @@ where
                                     Ok(_) => {},
                                     Err(_) => {},
                                 }
-                                info!("矿机下线了 : {}",worker_name);
+
                                 bail!("矿机下线了 : {}",worker_name)
                             }
                         }
                     },
-                    Err(e) => {info!("矿机下线了 : {}",worker_name);bail!("矿机下线了: {}",e)},
+                    Err(e) => {bail!("矿机下线了: {}",e)},
                 };
 
                 #[cfg(debug_assertions)]

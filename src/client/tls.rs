@@ -52,11 +52,13 @@ pub async fn accept_tcp_with_tls(
         tokio::spawn(async move {
             match transfer_ssl(workers, stream, acceptor, &config, state.clone()).await {
                 Ok(_) => {
+                    info!("矿机下线了。");
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                 }
-                Err(_) => {
+                Err(e) => {
+                    info!("{}", e);
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
@@ -76,8 +78,6 @@ async fn transfer_ssl(
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
     let worker_r = BufReader::new(worker_r);
-
-    info!("😄 tls_acceptor Success!");
 
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
         Some(pool) => pool,

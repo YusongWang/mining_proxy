@@ -38,7 +38,22 @@ pub async fn accept_en_tcp(
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         // 在这里初始化矿工信息。传入spawn. 然后退出的时候再进行旷工下线通知。
 
-        tokio::spawn(async move { transfer(sender, stream, &config, state).await });
+        tokio::spawn(async move {
+            match transfer(sender, stream, &config, state.clone()).await {
+                Ok(_) => {
+                    info!("矿机下线了。");
+                    state
+                        .online
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                }
+                Err(e) => {
+                    info!("{}", e);
+                    state
+                        .online
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
+        });
     }
 }
 
