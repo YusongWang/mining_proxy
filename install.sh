@@ -23,9 +23,9 @@ rm -rf ~/proxy_tmp
 cd ~/
 mkdir ~/proxy_tmp
 cd ~/proxy_tmp
-wget -c "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.8/proxy.tar.gz"
-tar -xf ./proxy.tar.gz
 
+wget -c "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.9/mining_proxy.tar.gz"
+tar -xf ./mining_proxy.tar.gz
 
 rm -rf "/opt/$workname/"
 mkdir -p "/opt/$workname/bin"
@@ -77,3 +77,13 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
+systemctl enable $workname
+systemctl start $workname
+echo "已经设置守护进程 $workname"
+echo "加入开机自启动 $workname"
+
+echo "$workname 已经启动"
+echo "启动命令: systemctl start $workname"
+echo "停止命令: systemctl stop $workname"
+echo "重启命令(修改配置后执行此命令即可): systemctl restart $workname"
+echo "查看日志: journalctl -fu $workname"
