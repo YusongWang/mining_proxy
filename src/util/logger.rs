@@ -14,7 +14,7 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
         let (lavel, logger) = fern::Dispatch::new()
             .format(move |out, message, record| {
                 out.finish(format_args!(
-                    "[{} {}] {}",
+                    "[{}] [{}] {}",
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                     record.level(),
                     message
@@ -38,7 +38,7 @@ pub fn init(app_name: &str, path: String, log_level: u32) -> anyhow::Result<()> 
         let (lavel, logger) = fern::Dispatch::new()
             .format(move |out, message, record| {
                 out.finish(format_args!(
-                    "[{} {}] {}",
+                    "[{}] [{}] {}",
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                     record.level(),
                     message

@@ -50,7 +50,7 @@ pub async fn accept_tcp_with_tls(
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         tokio::spawn(async move {
-            // 旷工状态管理
+            // 矿工状态管理
             let mut worker: Worker = Worker::default();
             match transfer_ssl(
                 &mut worker,

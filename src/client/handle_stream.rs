@@ -385,15 +385,15 @@ where
                             match workers_queue.send(worker.clone()){
                                 Ok(_) => {},
                                 Err(_) => {
-                                    log::warn!("发送旷工状态失败");
+                                    log::warn!("发送矿工状态失败");
                                 },
                             };
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                            //info!("旷工提交算力");
+                            //info!("矿工提交算力");
                         } else if result_rpc.id == CLIENT_GETWORK {
-                            //info!("旷工请求任务");
+                            //info!("矿工请求任务");
                         } else if result_rpc.id == SUBSCRIBE {
-                            //info!("旷工请求任务");
+                            //info!("矿工请求任务");
                         } else if result_rpc.id == worker.share_index && result_rpc.result {
                             //info!("份额被接受.");
                             worker.share_accept();
@@ -722,12 +722,12 @@ where
                 }
             },
             () = &mut sleep  => {
-                // 发送本地旷工状态到远端。
-                //info!("发送本地旷工状态到远端。{:?}",worker);
+                // 发送本地矿工状态到远端。
+                //info!("发送本地矿工状态到远端。{:?}",worker);
                 match workers_queue.send(worker.clone()){
                     Ok(_) => {},
                     Err(_) => {
-                        log::warn!("发送旷工状态失败");
+                        log::warn!("发送矿工状态失败");
                     },
                 };
 

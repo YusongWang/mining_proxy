@@ -56,14 +56,14 @@ impl Worker {
     }
 
     pub fn login(&mut self, worker: String, worker_name: String, worker_wallet: String) {
-        info!("✅  Worker {} 请求登录", worker);
+        info!("矿工: {} 请求登录", worker);
         self.worker = worker;
         self.worker_name = worker_name;
         self.worker_wallet = worker_wallet;
     }
 
     pub fn logind(&mut self) {
-        info!("👍  Worker {} 登录成功", self.worker);
+        info!("矿工: {} 登录成功", self.worker);
         self.online = true;
         self.clear_state();
     }
@@ -74,7 +74,7 @@ impl Worker {
         //TODO 清理读写线程。然后直接返回.
         if self.is_online() {
             info!(
-                "矿工 {} 下线 在线时长 {}",
+                "矿工: {} 下线 在线时长 {}",
                 self.worker,
                 crate::util::time_to_string(self.login_time.elapsed().as_secs())
             );
@@ -106,22 +106,19 @@ impl Worker {
         self.last_subwork_time = Instant::now();
 
         self.share_index += 1;
-        debug!("✅ Worker {} Share #{}", self.worker, self.share_index);
+        debug!("矿工: {} Share #{}", self.worker, self.share_index);
     }
 
     // 接受份额
     pub fn share_accept(&mut self) {
         self.accept_index += 1;
-        debug!(
-            "👍 Worker {} Share Accept #{}",
-            self.worker, self.share_index
-        );
+        debug!("矿工: {} Share Accept #{}", self.worker, self.share_index);
     }
 
     // 拒绝的份额
     pub fn share_reject(&mut self) {
         self.invalid_index += 1;
-        debug!("😭 Worker {} Reject! {}", self.worker, self.accept_index);
+        debug!("矿工: {} Reject! {}", self.worker, self.accept_index);
     }
 
     pub fn submit_hashrate<T>(&mut self, rpc: &T) -> bool

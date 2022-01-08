@@ -8,7 +8,7 @@ mod version {
 extern crate clap;
 
 use anyhow::Result;
-use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches};
+use clap::{crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
 use crate::WALLET;
 
@@ -23,7 +23,7 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
         version::short_sha()
     ))
     .version(crate_version!())
-    .author(crate_authors!("\n"))
+    //.author(crate_authors!("\n"))
     .about(crate_description!())
     .arg(
         Arg::with_name("config")
@@ -46,7 +46,7 @@ pub async fn get_encrypt_command_matches() -> Result<ArgMatches<'static>> {
         version::short_sha()
     ))
     .version(crate_version!())
-    .author(crate_authors!("\n"))
+    //.author(crate_authors!("\n"))
     .about(crate_description!())
     .arg(
         Arg::with_name("key")

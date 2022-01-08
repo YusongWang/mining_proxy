@@ -391,11 +391,11 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("返回True给旷工。成功！！！");
+                    debug!("返回True给矿工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("给旷工返回成功写入失败了。");
+                    debug!("给矿工返回成功写入失败了。");
                 }
             }
             return Ok(());
@@ -433,11 +433,11 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("返回True给旷工。成功！！！");
+                    debug!("返回True给矿工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("给旷工返回成功写入失败了。")
+                    debug!("给矿工返回成功写入失败了。")
                 }
             }
 
@@ -465,11 +465,11 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("返回True给旷工。成功！！！");
+                    debug!("返回True给矿工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("给旷工返回成功写入失败了。")
+                    debug!("给矿工返回成功写入失败了。")
                 }
             }
 
@@ -530,11 +530,11 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("返回True给旷工。成功！！！");
+                    debug!("返回True给矿工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("给旷工返回成功写入失败了。")
+                    debug!("给矿工返回成功写入失败了。")
                 }
             }
             return Ok(());
@@ -563,11 +563,11 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("返回True给旷工。成功！！！");
+                    debug!("返回True给矿工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
-                    debug!("给旷工返回成功写入失败了。")
+                    debug!("给矿工返回成功写入失败了。")
                 }
             }
 

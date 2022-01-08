@@ -36,10 +36,10 @@ pub async fn accept_en_tcp(
         state
             .online
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        // 在这里初始化矿工信息。传入spawn. 然后退出的时候再进行旷工下线通知。
+        // 在这里初始化矿工信息。传入spawn. 然后退出的时候再进行矿工下线通知。
 
         tokio::spawn(async move {
-            // 旷工状态管理
+            // 矿工状态管理
             let mut worker: Worker = Worker::default();
             match transfer(&mut worker, sender.clone(), stream, &config, state.clone()).await {
                 Ok(_) => {

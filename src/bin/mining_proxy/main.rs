@@ -110,10 +110,10 @@ pub async fn print_state(
     state: mining_proxy::state::State,
     runtime: std::time::Instant,
 ) -> Result<()> {
-    info!(
-        "当前在线矿机 {} 台",
-        state.online.load(std::sync::atomic::Ordering::SeqCst)
-    );
+    // info!(
+    //     "当前在线矿机 {} 台",
+    //     state.online.load(std::sync::atomic::Ordering::SeqCst)
+    // );
 
     // 创建表格
     let mut table = Table::new();
@@ -214,10 +214,10 @@ pub async fn print_state(
         "不同矿池难度不一样",
         "份额高低不能决定算力!!!",
         "只能提供参考!!!",
-        format!("你的抽水率 {}", config.share_rate.to_string()),
+        format!("你的抽水率: {:.1}%", config.share_rate * 1000.0),
         format!(
-            "开发者抽水率 {}",
-            get_develop_fee(config.share_rate.into()).to_string()
+            "开发者抽水率: {:.1}%",
+            get_develop_fee(config.share_rate.into()) * 1000.0
         ),
     ]);
 
@@ -228,8 +228,12 @@ pub async fn print_state(
         total_share,
         total_accept,
         total_invalid,
-        format!("版本 {}", crate_version!()),
-        format!("软件已启动 {}", time_to_string(runtime.elapsed().as_secs())),
+        format!(
+            "版本号:{} 在线矿工: {}台",
+            crate_version!(),
+            state.online.load(std::sync::atomic::Ordering::SeqCst)
+        ),
+        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
     ]);
 
     //(不通矿池难度不一样。份额高低不能决定算力)
