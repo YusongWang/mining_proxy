@@ -602,10 +602,14 @@ where
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-
-
-                        if diff == job_diff {
+                        if diff != 0 {
+                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
+                            if diff == job_diff {
+                                if let Some(job_id) = job_rpc.get_job_id() {
+                                    unsend_mine_jobs.push_back((job_id,job_rpc.result));
+                                }
+                            }
+                        } else {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
                             }
@@ -616,21 +620,32 @@ where
                         #[cfg(debug_assertions)]
                         debug!("收到抽水矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
-
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-                        if diff == job_diff {
+                        if diff != 0 {
+                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
+                            if diff == job_diff {
+                                if let Some(job_id) = job_rpc.get_job_id() {
+                                    unsend_mine_jobs.push_back((job_id,job_rpc.result));
+                                }
+                            }
+                        } else {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
                             }
                         }
+
                     } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
                         #[cfg(debug_assertions)]
                         debug!("收到抽水矿机任务 {:?}", job_rpc);
-                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
-                        let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-                        if diff == job_diff {
+                        let diff = job_rpc.get_diff();
+                        if diff != 0 {
+                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
+                            if diff == job_diff {
+                                if let Some(job_id) = job_rpc.get_job_id() {
+                                    unsend_mine_jobs.push_back((job_id,job_rpc.result));
+                                }
+                            }
+                        } else {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_mine_jobs.push_back((job_id,job_rpc.result));
                             }
@@ -690,10 +705,14 @@ where
                         debug!("收到开发者矿机任务 {:?}", job_rpc);
                         //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
                         let diff = job_rpc.get_diff();
-
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-
-                        if diff == job_diff {
+                        if diff != 0 {
+                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
+                            if diff == job_diff {
+                                if let Some(job_id) = job_rpc.get_job_id() {
+                                    unsend_develop_jobs.push_back((job_id,job_rpc.result));
+                                }
+                            }
+                        } else {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_develop_jobs.push_back((job_id,job_rpc.result));
                             }
@@ -703,9 +722,15 @@ where
                         #[cfg(debug_assertions)]
                         debug!("收到开发者矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
-                        if diff == job_diff {
+                        if diff != 0 {
+                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
+                            if diff == job_diff {
+                                if let Some(job_id) = job_rpc.get_job_id() {
+                                    unsend_develop_jobs.push_back((job_id,job_rpc.result));
+                                }
+                            }
+                        } else {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_develop_jobs.push_back((job_id,job_rpc.result));
                             }
@@ -715,8 +740,14 @@ where
                         debug!("收到开发者矿机任务 {:?}", job_rpc);
                         let diff = job_rpc.get_diff();
 
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-                        if diff == job_diff {
+                        if diff != 0 {
+                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
+                            if diff == job_diff {
+                                if let Some(job_id) = job_rpc.get_job_id() {
+                                    unsend_develop_jobs.push_back((job_id,job_rpc.result));
+                                }
+                            }
+                        } else {
                             if let Some(job_id) = job_rpc.get_job_id() {
                                 unsend_develop_jobs.push_back((job_id,job_rpc.result));
                             }
