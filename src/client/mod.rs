@@ -12,7 +12,7 @@ pub mod tls;
 
 use anyhow::bail;
 use hex::FromHex;
-use log::{debug, info};
+use log::debug;
 use native_tls::TlsConnector;
 use serde::Serialize;
 use std::{
@@ -81,7 +81,7 @@ pub fn get_pool_stream(
         let addr = match tcp.next() {
             Some(address) => address,
             None => {
-                //info!("{} 访问不通。切换备用矿池！！！！", address);
+                //debug!("{} 访问不通。切换备用矿池！！！！", address);
                 continue;
             }
         };
@@ -89,7 +89,7 @@ pub fn get_pool_stream(
         let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
             Ok(stream) => stream,
             Err(_) => {
-                //info!("{} 访问不通。切换备用矿池！！！！", address);
+                //debug!("{} 访问不通。切换备用矿池！！！！", address);
                 continue;
             }
         };
@@ -100,7 +100,7 @@ pub fn get_pool_stream(
         // std_stream
         //     .set_write_timeout(Some(Duration::from_millis(1)))
         //     .expect("读取超时");
-        // info!(
+        // debug!(
         //     "{} conteact to {}",
         //     std_stream.local_addr().unwrap(),
         //     address
@@ -130,7 +130,7 @@ pub async fn get_pool_stream_with_tls(
         let addr = match tcp.next() {
             Some(address) => address,
             None => {
-                //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //debug!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -138,7 +138,7 @@ pub async fn get_pool_stream_with_tls(
         let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
             Ok(straem) => straem,
             Err(_) => {
-                //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //debug!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -154,7 +154,7 @@ pub async fn get_pool_stream_with_tls(
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
             Err(_) => {
-                //info!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //debug!("{} {} 访问不通。切换备用矿池！！！！", name, address);
                 continue;
             }
         };
@@ -168,7 +168,7 @@ pub async fn get_pool_stream_with_tls(
         {
             Ok(con) => con,
             Err(_) => {
-                //info!("{} {} SSL 校验失败！！！！", name, address);
+                //debug!("{} {} SSL 校验失败！！！！", name, address);
                 continue;
             }
         };
@@ -179,12 +179,12 @@ pub async fn get_pool_stream_with_tls(
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
             Err(_err) => {
-                //info!("{} {} SSL 链接失败！！！！ {:?}", name, address, err);
+                //debug!("{} {} SSL 链接失败！！！！ {:?}", name, address, err);
                 continue;
             }
         };
 
-        //info!("{} conteactd to {}", name, address);
+        //debug!("{} conteactd to {}", name, address);
         return Some((server_stream, addr));
     }
 
@@ -210,15 +210,13 @@ where
     //let data = b"Some Crypto String";
     let rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
-    info!("加密信息 {:?}", rpc);
-
     let base64 = base64::encode(&rpc[..]);
     let mut rpc = base64.as_bytes().to_vec();
     rpc.push(crate::SPLIT);
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        info!("✅ Worker: {} 写入失败.", worker);
+        debug!("✅ Worker: {} 写入失败.", worker);
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
     Ok(())
@@ -232,7 +230,7 @@ where
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
     #[cfg(debug_assertions)]
-    log::info!(
+    log::debug!(
         "write_to_socket ------Worker : {}  Send Rpc {:?}",
         worker,
         String::from_utf8(rpc.clone())?
@@ -240,7 +238,7 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        info!("✅ Worker: {} 写入失败.", worker);
+        debug!("✅ Worker: {} 写入失败.", worker);
         bail!("✅ Worker: {} 服务器断开连接.", worker);
     }
     Ok(())
@@ -258,7 +256,7 @@ where
     rpc.push(b'\n');
 
     #[cfg(debug_assertions)]
-    log::info!(
+    log::debug!(
         "0 ------Worker : {}  Send Rpc {}",
         worker,
         String::from_utf8(rpc.to_vec())?
@@ -372,7 +370,7 @@ where
                 result: true,
             };
             #[cfg(debug_assertions)]
-            info!("提交抽水任务!");
+            debug!("提交抽水任务!");
 
             match write_to_socket(proxy_w, rpc, &config.share_name).await {
                 Ok(_) => {
@@ -388,7 +386,7 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("返回True给旷工。成功！！！");
+                    debug!("返回True给旷工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
@@ -407,7 +405,7 @@ where
             hostname += name.to_str().unwrap();
             rpc.set_worker_name(&hostname);
             #[cfg(debug_assertions)]
-            info!("提交开发者任务!");
+            debug!("提交开发者任务!");
             match write_to_socket(develop_w, rpc, &hostname).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
@@ -428,7 +426,7 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("返回True给旷工。成功！！！");
+                    debug!("返回True给旷工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
@@ -448,7 +446,7 @@ where
             // hostname += name.to_str().unwrap();
             rpc.set_worker_name(&agent_worker_name);
             #[cfg(debug_assertions)]
-            info!("提交代理任务!");
+            debug!("提交代理任务!");
             write_to_socket(agent_w, rpc, &agent_worker_name).await;
 
             let s = ServerId {
@@ -460,7 +458,7 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("返回True给旷工。成功！！！");
+                    debug!("返回True给旷工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
@@ -517,12 +515,12 @@ where
                 result: true,
             };
             #[cfg(debug_assertions)]
-            info!("提交抽水任务!");
+            debug!("提交抽水任务!");
             write_to_socket(proxy_w, rpc, &config.share_name).await;
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("返回True给旷工。成功！！！");
+                    debug!("返回True给旷工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
@@ -541,7 +539,7 @@ where
             hostname += name.to_str().unwrap();
             rpc.set_worker_name(&hostname);
             #[cfg(debug_assertions)]
-            info!("提交开发者任务!");
+            debug!("提交开发者任务!");
             write_to_socket(develop_w, rpc, &hostname).await;
 
             let s = ServerId {
@@ -552,7 +550,7 @@ where
             match write_to_socket(worker_w, &s, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("返回True给旷工。成功！！！");
+                    debug!("返回True给旷工。成功！！！");
                 }
                 Err(_) => {
                     #[cfg(debug_assertions)]
@@ -1089,7 +1087,7 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1100,7 +1098,7 @@ where
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1139,7 +1137,7 @@ where
                     {
                         Ok(_) => {
                             #[cfg(debug_assertions)]
-                            info!("写入成功代理抽水任务 {:?}", job_rpc);
+                            debug!("写入成功代理抽水任务 {:?}", job_rpc);
                             return Some(());
                         }
                         Err(e) => {
@@ -1150,7 +1148,7 @@ where
                     match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                         Ok(_) => {
                             #[cfg(debug_assertions)]
-                            info!("写入成功代理抽水任务 {:?}", job_rpc);
+                            debug!("写入成功代理抽水任务 {:?}", job_rpc);
                             return Some(());
                         }
                         Err(e) => {
@@ -1189,7 +1187,7 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功抽水任务 {:?}", job_rpc);
+                    debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1201,7 +1199,7 @@ where
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功抽水任务 {:?}", job_rpc);
+                    debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1248,11 +1246,11 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功普通任务 {:?}", normal_worker);
+                    debug!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1260,11 +1258,11 @@ where
             match write_to_socket(worker_w, &normal_worker, worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功普通任务 {:?}", normal_worker);
+                    debug!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1324,7 +1322,7 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1335,7 +1333,7 @@ where
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
                     //#[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1373,7 +1371,7 @@ where
                     {
                         Ok(_) => {
                             #[cfg(debug_assertions)]
-                            info!("写入成功代理抽水任务 {:?}", job_rpc);
+                            debug!("写入成功代理抽水任务 {:?}", job_rpc);
                             return Some(());
                         }
                         Err(e) => {
@@ -1384,7 +1382,7 @@ where
                     match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                         Ok(_) => {
                             #[cfg(debug_assertions)]
-                            info!("写入成功代理抽水任务 {:?}", job_rpc);
+                            debug!("写入成功代理抽水任务 {:?}", job_rpc);
                             return Some(());
                         }
                         Err(e) => {
@@ -1423,7 +1421,7 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功抽水任务 {:?}", job_rpc);
+                    debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
@@ -1435,11 +1433,11 @@ where
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
                     //#[cfg(debug_assertions)]
-                    info!("写入成功抽水任务 {:?}", job_rpc);
+                    debug!("写入成功抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("agent :{}", e);
+                    debug!("agent :{}", e);
                     return None;
                 }
             };
@@ -1485,11 +1483,11 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功普通任务 {:?}", normal_worker);
+                    debug!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1497,11 +1495,11 @@ where
             match write_to_socket(worker_w, &normal_worker, worker_name).await {
                 Ok(_) => {
                     //#[cfg(debug_assertions)]
-                    info!("写入成功普通任务 {:?}", normal_worker);
+                    debug!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1559,11 +1557,11 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1571,11 +1569,11 @@ where
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1608,11 +1606,11 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1620,11 +1618,11 @@ where
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", job_rpc);
+                    debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1653,11 +1651,11 @@ where
             {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", normal_worker);
+                    debug!("写入成功开发者抽水任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1665,11 +1663,11 @@ where
             match write_to_socket(worker_w, &normal_worker, worker_name).await {
                 Ok(_) => {
                     #[cfg(debug_assertions)]
-                    info!("写入成功开发者抽水任务 {:?}", normal_worker);
+                    debug!("写入成功开发者抽水任务 {:?}", normal_worker);
                     return Some(());
                 }
                 Err(e) => {
-                    info!("{}", e);
+                    debug!("{}", e);
                     return None;
                 }
             };
@@ -1741,7 +1739,7 @@ where
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
-            info!("所有TCP矿池均不可链接。请修改后重试");
+            debug!("所有TCP矿池均不可链接。请修改后重试");
             return Ok(());
         }
     };
@@ -1776,7 +1774,7 @@ where
     {
         Some((stream, addr)) => (stream, addr),
         None => {
-            info!("所有SSL矿池均不可链接。请修改后重试");
+            debug!("所有SSL矿池均不可链接。请修改后重试");
             return Ok(());
         }
     };
@@ -1811,7 +1809,6 @@ where
     if job_diff > *diff {
         // 写入新难度
         *diff = job_diff;
-        
 
         // 清空已有任务队列
         a.clear();
