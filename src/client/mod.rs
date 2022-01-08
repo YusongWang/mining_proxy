@@ -1354,7 +1354,7 @@ where
         } else {
             match write_to_socket(worker_w, &job_rpc, &worker_name).await {
                 Ok(_) => {
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("写入成功开发者抽水任务 {:?}", job_rpc);
                     return Some(());
                 }
@@ -1516,7 +1516,7 @@ where
         } else {
             match write_to_socket(worker_w, &normal_worker, worker_name).await {
                 Ok(_) => {
-                    //#[cfg(debug_assertions)]
+                    #[cfg(debug_assertions)]
                     debug!("写入成功普通任务 {:?}", normal_worker);
                     return Some(());
                 }
