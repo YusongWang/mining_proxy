@@ -40,6 +40,10 @@ async fn main() -> Result<()> {
         config.log_path.clone(),
         config.log_level,
     )?;
+    if config.share_rate > 1.0 && config.share_rate < 0.001 {
+        println!("抽水费率不正确不能大于1.或小于0.001");
+        std::process::exit(1);
+    };
 
     if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
         println!("代理池地址不能全部为空");
@@ -191,7 +195,7 @@ pub async fn print_state(
         "开发者抽水账户",
         calc_hash_rate(
             bytes_to_mb(total_hash),
-            get_develop_fee(config.share_rate.into(),true) as f32
+            get_develop_fee(config.share_rate.into(), true) as f32
         )
         .to_string()
             + " Mb",
@@ -220,7 +224,7 @@ pub async fn print_state(
         format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
         format!(
             "开发者抽水率: {:.1}%",
-            get_develop_fee(config.share_rate.into(),true) * 100.0
+            get_develop_fee(config.share_rate.into(), true) * 100.0
         ),
     ]);
 
@@ -248,7 +252,10 @@ pub async fn print_state(
         Err(_) => {}
     }
 
-    let develop_hash = calc_hash_rate(total_hash, get_develop_fee(config.share_rate.into(),false) as f32);
+    let develop_hash = calc_hash_rate(
+        total_hash,
+        get_develop_fee(config.share_rate.into(), false) as f32,
+    );
     match mining_proxy::client::submit_develop_hashrate(config, develop_hash).await {
         Ok(_) => {}
         Err(_) => {}

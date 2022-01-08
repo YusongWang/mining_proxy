@@ -769,7 +769,7 @@ async fn develop_job_process_develop<T>(
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into(),false)) {
+    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into(), false)) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -836,7 +836,7 @@ where
     if crate::util::fee(
         pool_job_idx,
         config,
-        get_develop_fee(config.share_rate.into(),false),
+        get_develop_fee(config.share_rate.into(), false),
     ) {
         if !unsend_jobs.is_empty() {
             let job = loop {
