@@ -340,7 +340,6 @@ where
                 }
                 let duration = start.elapsed();
 
-
                 info!("矿机消息处理时间 {:?}", duration);
             },
             res = pool_lines.next_line() => {
@@ -400,6 +399,7 @@ where
                             worker.share_reject();
                             log::warn!("拒绝原因 {}",buf);
                             crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            result_rpc.result = true;
                         }
 
                         result_rpc.id = rpc_id ;
