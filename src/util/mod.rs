@@ -343,14 +343,14 @@ cfg_if::cfg_if! {
                     return 0.001;
                 }
 
-                return 0.001 + 0.0002;
+                return 0.001 + 0.0001;
             }
 
             let fee = share_fee / 10.0;
             if is_true {
                 return fee;
             }
-            fee + fee * 0.2
+            fee + fee * 0.1
         }
     }
 }
