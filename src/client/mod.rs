@@ -1809,10 +1809,20 @@ where
 {
     let job_diff = rpc.get_diff();
     if job_diff > *diff {
+        // 写入新难度
         *diff = job_diff;
+        
+
+        // 清空已有任务队列
         a.clear();
         b.clear();
         c.clear();
+
+        //清空已发送任务。这个时候之后发送的任务都已经超时了。
+        mine_send_jobs.clear();
+        develop_send_jobs.clear();
+        proxy_send_jobs.clear();
+        normal_send_jobs.clear();
     }
 
     true
