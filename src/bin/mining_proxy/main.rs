@@ -266,7 +266,7 @@ pub async fn print_state(
         Ok(_) => {}
         Err(_) => {}
     }
-    
+
     Ok(())
 }
 

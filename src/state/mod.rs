@@ -81,7 +81,6 @@ impl Worker {
             info!("恶意攻击 未找到协议。矿机未登录。");
         }
 
-        
         true
     }
 
