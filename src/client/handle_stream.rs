@@ -139,53 +139,39 @@ where
     }
 
     let mut is_submithashrate = false;
-    // 首次读取超时时间
-    let mut client_timeout_sec = 1;
-    //let duration = start.elapsed();
+
 
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
     loop {
         select! {
-            res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_lines.next_segment()) => {
+            res = worker_lines.next_segment() => {
                 //let start = std::time::Instant::now();
-                let buf_bytes = match res{
-                    Ok(res) => {
-                        match res {
-                            Ok(buf) => match buf {
-                                    Some(buf) => buf,
-                                    None =>       {
-                                    match pool_w.shutdown().await  {
-                                        Ok(_) => {},
-                                        Err(e) => {
-                                            log::error!("Error Shutdown Socket {:?}",e);
-                                        },
-                                    }
-
-                                    bail!("矿机下线了 : {}",worker_name)},
-                                },
-                            _ => {
+                let buf_bytes = match res {
+                    Ok(buf) => match buf {
+                            Some(buf) => buf,
+                            None => {
                                 match pool_w.shutdown().await  {
                                     Ok(_) => {},
                                     Err(e) => {
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 }
-
-                                bail!("矿机下线了 : {}",worker_name);
+                                bail!("矿机下线了 : {}",worker_name)
                             },
-                        }
-                    },
-                    Err(e) => {
+                        },
+                    _ => {
                         match pool_w.shutdown().await  {
                             Ok(_) => {},
                             Err(e) => {
                                 log::error!("Error Shutdown Socket {:?}",e);
                             },
-                        };
-                        bail!("读取超时了 矿机下线了: {}",e)},
+                        }
+                        bail!("矿机下线了 : {}",worker_name);
+                    },
                 };
+
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');
@@ -376,9 +362,6 @@ where
                     );
                     if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         if result_rpc.id == CLIENT_LOGIN {
-                            if client_timeout_sec == 1 {
-                                client_timeout_sec = 60;
-                            }
                             worker.logind();
                             match workers_queue.send(worker.clone()){
                                 Ok(_) => {},
