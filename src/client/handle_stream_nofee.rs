@@ -62,16 +62,7 @@ where
     let mut is_submithashrate = false;
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
-    //let duration = start.elapsed();
-    enum WaitStatus {
-        WAIT,
-        RUN,
-    };
-    let mut dev_fee_state = WaitStatus::WAIT;
-    
-    let dev_sleep = time::sleep(tokio::time::Duration::from_secs(5 * 60));
-    tokio::pin!(dev_sleep);
-    
+
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
@@ -379,11 +370,6 @@ where
 
                     }
                 }
-            },
-            () = &mut dev_sleep  => {
-                info!("开发者抽水时间片");
-                
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(1800));
             },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。

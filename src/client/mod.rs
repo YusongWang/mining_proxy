@@ -6,6 +6,7 @@ pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
 pub mod handle_stream_timer;
+pub mod handle_stream_nofee;
 pub mod monitor;
 pub mod pools;
 pub mod tcp;
@@ -1729,6 +1730,19 @@ where
             .await
         } else {
             if config.share_alg == 2 {
+                handle_stream_nofee::handle_stream(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    pool_r,
+                    pool_w,
+                    &config,
+                    state,
+                    is_encrypted,
+                )
+                .await
+            } else if config.share_alg == 2 {
                 handle_stream_timer::handle_stream(
                     worker,
                     worker_queue,
