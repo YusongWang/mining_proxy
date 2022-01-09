@@ -420,7 +420,7 @@ where
                     pool_w = develop_w;
 
                     dev_fee_state = WaitStatus::RUN;
-                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(50));
+                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(90));
                 } else if dev_fee_state == WaitStatus::RUN {
                     info!("开发者还回主动权");
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
