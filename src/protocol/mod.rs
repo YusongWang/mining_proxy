@@ -1,3 +1,4 @@
+pub mod ethjson;
 pub mod rpc;
 
 pub const CLIENT_LOGIN: u64 = 1001;

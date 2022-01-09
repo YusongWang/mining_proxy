@@ -156,7 +156,6 @@ where
         worker_lines = worker_r.split(b'\n');
     }
 
-
     let duration = start.elapsed();
     let sleep = time::sleep(tokio::time::Duration::from_millis(5000 * 60));
     tokio::pin!(sleep);

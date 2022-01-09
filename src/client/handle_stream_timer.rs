@@ -61,17 +61,16 @@ where
 
     let mut is_submithashrate = false;
 
-
     #[derive(PartialEq)]
     enum WaitStatus {
         WAIT,
         RUN,
     };
     let mut dev_fee_state = WaitStatus::WAIT;
-    
+
     let dev_sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(dev_sleep);
-    
+
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
@@ -376,13 +375,13 @@ where
                             return Err(e);
                         }
                     };
-    
+
                     let outbound = TcpStream::from_std(stream)?;
-    
+
                     let (develop_r, mut develop_w) = tokio::io::split(outbound);
                     let develop_r = tokio::io::BufReader::new(develop_r);
                     let mut develop_lines = develop_r.lines();
-    
+
                     let develop_name = "develop".to_string();
                     let login_develop = ClientWithWorkerName {
                         id: CLIENT_LOGIN,
@@ -390,7 +389,7 @@ where
                         params: vec![get_wallet(), "x".into()],
                         worker: develop_name.to_string(),
                     };
-    
+
                     match write_to_socket(&mut develop_w, &login_develop, &develop_name).await {
                         Ok(_) => {}
                         Err(e) => {
@@ -398,7 +397,7 @@ where
                             return Err(e);
                         }
                     }
-    
+
                     pool_lines = develop_lines;
                     pool_w = develop_w;
 
@@ -429,7 +428,7 @@ where
                         params: vec![worker.worker_wallet.clone(), "x".into()],
                         worker: worker_name.to_string(),
                     };
-    
+
                     match write_to_socket(&mut new_pool_w, &login_develop, &worker_name).await {
                         Ok(_) => {}
                         Err(e) => {
@@ -444,7 +443,7 @@ where
                     dev_fee_state = WaitStatus::WAIT;
                     dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(1800));
                 }
-                
+
             },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。

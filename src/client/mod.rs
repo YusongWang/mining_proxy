@@ -5,8 +5,8 @@ pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
-pub mod handle_stream_timer;
 pub mod handle_stream_nofee;
+pub mod handle_stream_timer;
 pub mod monitor;
 pub mod pools;
 pub mod tcp;
@@ -33,6 +33,7 @@ use tokio::{
 
 use crate::{
     protocol::{
+        ethjson::{EthClientObject, EthClientRootObject, EthClientWorkerObject},
         rpc::eth::{Client, ClientWithWorkerName, ServerId, ServerRpc},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
@@ -343,6 +344,22 @@ pub fn parse_client_workername(buf: &str) -> Option<ClientWithWorkerName> {
     }
 }
 
+pub fn parse(buf: &[u8]) -> Option<Box<dyn EthClientObject>> {
+    if let Ok(c) = serde_json::from_slice::<EthClientWorkerObject>(buf) {
+        Some(Box::new(c))
+    } else if let Ok(c) = serde_json::from_slice::<EthClientRootObject>(buf) {
+        Some(Box::new(c))
+    } else {
+        None
+    }
+}
+
+pub fn parse_workername(buf: &[u8]) -> Option<ClientWithWorkerName> {
+    match serde_json::from_slice::<ClientWithWorkerName>(buf) {
+        Ok(c) => Some(c),
+        Err(_) => None,
+    }
+}
 async fn eth_submit_login<W, T>(
     worker: &mut Worker,
     w: &mut WriteHalf<W>,
@@ -1728,7 +1745,7 @@ where
             )
             .await
         } else {
-            if config.share_alg == 0 {
+            if config.share == 0 {
                 handle_stream_nofee::handle_stream(
                     worker,
                     worker_queue,
