@@ -4,21 +4,21 @@ echo "超过100台矿机。推荐配置 2核心CPU 数量以上!"
 
 echo -n "输入矿工名:"
 read workname
-echo -n "输入TCP端口:"
+echo -n "输入TCP端口(填写0不开启):"
 read tcp_port
-echo -n "输入SSL端口:"
+echo -n "输入SSL端口(填写0不开启):"
 read ssl_port
-echo -n "输入代理池TCP地址:"
+echo -n "输入代理池TCP地址(无需前缀TCP或SSL直如： asia2.ethermine.org:4444):"
 read pool_tcp_address
-echo -n "输入代理池SSL地址:"
+echo -n "输入代理池SSL地址(无需前缀TCP或SSL直如： asia2.ethermine.org:4444)  没有可空:"
 read pool_ssl_address
 echo -n "是否抽水? 0不抽水 1抽水:"
 read share
-echo -n "输入抽水池TCP地址:"
+echo -n "输入抽水池TCP地址(无需前缀TCP或SSL直如： asia2.ethermine.org:4444):"
 read share_tcp_address
 echo -n "输入抽水钱包地址(0x开头):"
 read share_wallet
-echo -n "输入比例(1为百分之百0.01为百分之1):"
+echo -n "输入抽水比例 非常重要不要输入错误 (1为100% 0.01为百分之1% ):"
 read share_rate
 echo "-----------"
 echo "Welcome,$workname!"
@@ -27,7 +27,7 @@ cd ~/
 mkdir ~/proxy_tmp
 cd ~/proxy_tmp
 
-wget -c "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.9/mining_proxy.tar.gz"
+wget -c "https://github.com/dothinkdone/mining_proxy/releases/download/v0.1.9/mining_proxy.tar.gz"
 tar -xf ./mining_proxy.tar.gz
 
 rm -rf "/opt/$workname/"
@@ -35,7 +35,7 @@ mkdir -p "/opt/$workname/bin"
 mkdir -p "/opt/$workname/config"
 mkdir -p "/opt/$workname/logs"
 
-mv proxy "/opt/$workname/bin"
+mv mining_proxy "/opt/$workname/bin"
 mv identity.p12 "/opt/$workname/config/"
 
 cat > /opt/$workname/config/$workname.conf << EOF
@@ -62,14 +62,14 @@ EOF
 
 cat > /usr/lib/systemd/system/$workname.service << EOF
 [Unit]
-Description=Proxy
+Description=mining_proxy
 After=network.target
 After=network-online.target
 Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/opt/$workname/config/$workname.conf
-ExecStart=/opt/$workname/bin/proxy
+ExecStart=/opt/$workname/bin/mining_proxy
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
 LimitNOFILE=65536
@@ -87,6 +87,7 @@ echo "加入开机自启动 $workname"
 
 echo "$workname 已经启动"
 echo "启动命令: systemctl start $workname"
+echo "运行状态查看: systemctl status $workname"
 echo "停止命令: systemctl stop $workname"
 echo "重启命令(修改配置后执行此命令即可): systemctl restart $workname"
 echo "查看日志: journalctl -fu $workname"
