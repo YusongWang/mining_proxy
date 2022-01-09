@@ -5,6 +5,7 @@ pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
+pub mod handle_stream_timer;
 pub mod monitor;
 pub mod pools;
 pub mod tcp;
@@ -221,6 +222,35 @@ where
     Ok(())
 }
 
+pub async fn write_encrypt_socket_string<W>(
+    w: &mut WriteHalf<W>,
+    rpc: &str,
+    worker: &String,
+    key: String,
+    iv: String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    let key = Vec::from_hex(key).unwrap();
+    let iv = Vec::from_hex(iv).unwrap();
+
+    let rpc = rpc.as_bytes().to_vec();
+    let cipher = openssl::symm::Cipher::aes_256_cbc();
+    //let data = b"Some Crypto String";
+    let rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+
+    let base64 = base64::encode(&rpc[..]);
+    let mut rpc = base64.as_bytes().to_vec();
+    rpc.push(crate::SPLIT);
+
+    let write_len = w.write(&rpc).await?;
+    if write_len == 0 {
+        bail!("✅ Worker: {} 服务器断开连接.", worker);
+    }
+    Ok(())
+}
+
 pub async fn write_to_socket<W, T>(w: &mut WriteHalf<W>, rpc: &T, worker: &String) -> Result<()>
 where
     W: AsyncWrite,
@@ -335,7 +365,7 @@ where
         bail!("请求登录出错。可能收到暴力攻击");
     }
 }
-async fn eth_submit_work<W, W1, W2, T>(
+async fn eth_submit_work_agent<W, W1, W2, T>(
     worker: &mut Worker,
     pool_w: &mut WriteHalf<W>,
     proxy_w: &mut WriteHalf<W1>,
@@ -488,6 +518,23 @@ where
 
         return write_to_socket(pool_w, &rpc, &worker_name).await;
     }
+}
+
+async fn eth_submit_work<W, T>(
+    worker: &mut Worker,
+    pool_w: &mut WriteHalf<W>,
+    rpc: &mut T,
+    worker_name: &String,
+    config: &Settings,
+    state: &mut State,
+) -> Result<()>
+where
+    W: AsyncWrite,
+    T: crate::protocol::rpc::eth::ClientRpc + Serialize + Debug,
+{
+    worker.share_index_add();
+    rpc.set_id(worker.share_index);
+    write_to_socket(pool_w, &rpc, &worker_name).await
 }
 
 async fn eth_submit_work_develop<W, W1, W2, T>(
@@ -1680,19 +1727,34 @@ where
                 is_encrypted,
             )
             .await
-        }  else {
-            handle_stream::handle_stream(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                pool_r,
-                pool_w,
-                &config,
-                state,
-                is_encrypted,
-            )
-            .await
+        } else {
+            if config.share_alg == 2 {
+                handle_stream_timer::handle_stream(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    pool_r,
+                    pool_w,
+                    &config,
+                    state,
+                    is_encrypted,
+                )
+                .await
+            } else {
+                handle_stream::handle_stream(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    pool_r,
+                    pool_w,
+                    &config,
+                    state,
+                    is_encrypted,
+                )
+                .await
+            }
         }
     }
 }

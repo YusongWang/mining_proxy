@@ -360,10 +360,13 @@ where
                                         res
                                     }
                                 }
-
                             },
                             "eth_submitWork" => {
-                                eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config,&agent_name,&mut state).await
+                                //eth_submit_work_develop
+                                match eth_submit_work_agent(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config,&agent_name,&mut state).await {
+                                    Ok(_) => Ok(()),
+                                    Err(e) => {log::error!("err: {:?}",e);bail!(e)},
+                                }
                             },
                             "eth_submitHashrate" => {
                                 eth_submit_hashrate( worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -394,7 +397,7 @@ where
                                 eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config,&agent_name,&mut state).await {
+                                match eth_submit_work_agent(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut agent_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&config,&agent_name,&mut state).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }
