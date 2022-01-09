@@ -176,15 +176,86 @@ where
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');
                 for buffer in buf_bytes {
                     if buffer.is_empty() {
-                        break;
+                        continue;
                     }
 
-                    if let Some(mut json_rpc) = parse(&buffer) {
-                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
-                        rpc_id = json_rpc.id;
-                        let res = match json_rpc.method.as_str() {
+                    let buf: String;
+                    if is_encrypted {
+                        let key = Vec::from_hex(config.key.clone()).unwrap();
+                        let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                        let cipher = Cipher::aes_256_cbc();
+
+                        let buffer = match base64::decode(&buffer[..]) {
+                            Ok(buffer) => buffer,
+                            Err(e) => {
+                                log::error!("{}",e);
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(_) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+                                return Ok(());
+                            },
+                        };
+
+
+                        //let data = b"Some Crypto Text";
+                        let buffer = match decrypt(
+                            cipher,
+                            &key,
+                            Some(&iv),
+                            &buffer[..]) {
+                                Ok(s) => s,
+                                Err(_) => {
+
+                                    log::warn!("解密失败{:?}",buffer);
+                                    match pool_w.shutdown().await  {
+                                        Ok(_) => {},
+                                        Err(e) => {
+                                            log::error!("Error Shutdown Socket {:?}",e);
+                                        },
+                                    };
+                                    return Ok(());
+                                },
+                            };
+
+                        buf = match String::from_utf8(buffer) {
+                            Ok(s) => s,
+                            Err(_) => {
+                                log::warn!("无法解析的字符串");
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+                                return Ok(());
+                            },
+                        };
+                    } else {
+                        buf = match String::from_utf8(buffer.to_vec()) {
+                            Ok(s) => s,
+                            Err(_e) => {
+                                log::warn!("无法解析的字符串{:?}",buffer);
+
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+
+                                return Ok(());
+                            },
+                        };
+                    }
+                    if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
+                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
+                        rpc_id = client_json_rpc.id;
+                        let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
-                                let res = match eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await {
+                                let res = match eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
                                     Ok(a) => Ok(a),
                                     Err(e) => {
                                         //info!("错误 {} ",e);
@@ -194,19 +265,51 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
+                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
                             },
                             "eth_submitHashrate" => {
-                                eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await
+                                eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
-                                eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await
+                                eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
-                                subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await
+                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             _ => {
-                                log::warn!("Not found method {:?}",json_rpc);
+                                log::warn!("Not found method {:?}",client_json_rpc);
+                                write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await
+                            },
+                        };
+
+                        if res.is_err() {
+                            log::warn!("写入任务错误: {:?}",res);
+                            return res;
+                        }
+                    } else if let Some(mut client_json_rpc) = parse_client(&buf) {
+                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
+                        rpc_id = client_json_rpc.id;
+                        let res = match client_json_rpc.method.as_str() {
+                            "eth_getWork" => {
+                                eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
+                            "eth_submitLogin" => {
+                                eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
+                            "eth_submitWork" => {
+                                match eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await {
+                                    Ok(_) => Ok(()),
+                                    Err(e) => {log::error!("err: {:?}",e);bail!(e)},
+                                }
+                            },
+                            "eth_submitHashrate" => {
+                                eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
+                            "mining.subscribe" => {
+                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                            },
+                            _ => {
+                                log::warn!("Not found method {:?}",client_json_rpc);
                                 write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await
                             },
                         };

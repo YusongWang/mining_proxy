@@ -219,7 +219,7 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
+        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
     }
     Ok(())
 }
@@ -248,7 +248,7 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
+        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
     }
     Ok(())
 }
@@ -269,7 +269,7 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
+        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
     }
     Ok(())
 }
@@ -293,7 +293,7 @@ where
     );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
+        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
     }
     Ok(())
 }
@@ -310,10 +310,11 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
+        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
     }
     Ok(())
 }
+
 pub async fn self_write_socket_byte<W>(
     w: &mut WriteHalf<W>,
     mut rpc: Vec<u8>,
@@ -325,7 +326,7 @@ where
     rpc.push(SPLIT);
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("✅ Worker: {} 服务器断开连接.", worker);
+        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
     }
     Ok(())
 }
@@ -423,27 +424,20 @@ where
             #[cfg(debug_assertions)]
             debug!("提交抽水任务!");
 
-            match write_to_socket(proxy_w, rpc, &config.share_name).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("提交抽水任务成功！！！");
-                }
-                Err(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("提交抽水任务失败");
-                }
+            let (proxy, worker) = tokio::join!(
+                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(worker_w, &s, &worker_name)
+            );
+            if proxy.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
             }
 
-            match write_to_socket(worker_w, &s, &worker_name).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("返回True给矿工。成功！！！");
-                }
-                Err(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("给矿工返回成功写入失败了。");
-                }
+            if worker.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
             }
+
             return Ok(());
             // } else {
             //     bail!("任务失败.找到jobid .但是remove失败了");
@@ -459,16 +453,6 @@ where
             rpc.set_worker_name(&hostname);
             #[cfg(debug_assertions)]
             debug!("提交开发者任务!");
-            match write_to_socket(develop_w, rpc, &hostname).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("提交开发者抽水任务成功！！！");
-                }
-                Err(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("提交开发者抽水任务失败");
-                }
-            }
 
             let s = ServerId {
                 id: rpc.get_id(),
@@ -476,15 +460,18 @@ where
                 result: true,
             };
 
-            match write_to_socket(worker_w, &s, &worker_name).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("返回True给矿工。成功！！！");
-                }
-                Err(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("给矿工返回成功写入失败了。")
-                }
+            let (proxy, worker) = tokio::join!(
+                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(worker_w, &s, &worker_name)
+            );
+            if proxy.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
+            }
+
+            if worker.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
             }
 
             return Ok(());
@@ -500,7 +487,6 @@ where
             rpc.set_worker_name(&agent_worker_name);
             #[cfg(debug_assertions)]
             debug!("提交代理任务!");
-            write_to_socket(agent_w, rpc, &agent_worker_name).await;
 
             let s = ServerId {
                 id: rpc.get_id(),
@@ -508,15 +494,18 @@ where
                 result: true,
             };
 
-            match write_to_socket(worker_w, &s, &worker_name).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("返回True给矿工。成功！！！");
-                }
-                Err(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("给矿工返回成功写入失败了。")
-                }
+            let (proxy, worker) = tokio::join!(
+                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(worker_w, &s, &worker_name)
+            );
+            if proxy.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
+            }
+
+            if worker.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
             }
 
             return Ok(());
@@ -594,17 +583,24 @@ where
                 result: true,
             };
 
-            write_to_socket(proxy_w, rpc, &config.share_name).await;
-            match write_to_socket(worker_w, &s, &worker_name).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("返回True给矿工。成功！！！");
-                }
-                Err(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("给矿工返回成功写入失败了。")
-                }
+            let (proxy, worker) = tokio::join!(
+                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(worker_w, &s, &worker_name)
+            );
+            if proxy.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。");
+                proxy?;
             }
+
+            if worker.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。");
+                worker?;
+            }
+
+            #[cfg(debug_assertions)]
+            debug!("返回True给矿工。成功！！！");
             return Ok(());
         } else if develop_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
@@ -620,22 +616,23 @@ where
             debug!("得到开发者抽水任务。{:?}", rpc);
             #[cfg(debug_assertions)]
             debug!("提交开发者任务!");
-            write_to_socket(develop_w, rpc, &hostname).await;
-
             let s = ServerId {
                 id: rpc.get_id(),
                 jsonrpc: "2.0".into(),
                 result: true,
             };
-            match write_to_socket(worker_w, &s, &worker_name).await {
-                Ok(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("返回True给矿工。成功！！！");
-                }
-                Err(_) => {
-                    #[cfg(debug_assertions)]
-                    debug!("给矿工返回成功写入失败了。")
-                }
+            let (proxy, worker) = tokio::join!(
+                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(worker_w, &s, &worker_name)
+            );
+            if proxy.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
+            }
+
+            if worker.is_err() {
+                #[cfg(debug_assertions)]
+                debug!("给矿工返回成功写入失败了。")
             }
             return Ok(());
         } else {
