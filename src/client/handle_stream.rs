@@ -147,7 +147,7 @@ where
     loop {
         select! {
             res = worker_lines.next_segment() => {
-                //let start = std::time::Instant::now();
+                let start = std::time::Instant::now();
                 let buf_bytes = match res {
                     Ok(buf) => match buf {
                             Some(buf) => buf,
@@ -255,6 +255,8 @@ where
                     #[cfg(debug_assertions)]
                     debug!("0:  矿机 -> 矿池 {} 发送 {}", worker_name, buf);
                     if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
+                        println!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
+
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
@@ -290,6 +292,7 @@ where
                             return res;
                         }
                     } else if let Some(mut client_json_rpc) = parse_client(&buf) {
+                        println!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_getWork" => {
@@ -324,9 +327,11 @@ where
                         log::warn!("未知 {}",buf);
                     }
                 }
+
+                println!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
-                //let start = std::time::Instant::now();
+                let start = std::time::Instant::now();
 
                 let buffer = match res{
                     Ok(res) => {
@@ -533,7 +538,7 @@ where
                         }
                     }
                 }
-
+                println!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
             },
             res = proxy_lines.next_line() => {
                 let buffer = match res{
