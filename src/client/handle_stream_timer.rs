@@ -24,13 +24,15 @@ use crate::{
 
 use super::write_to_socket;
 
-pub async fn handle_stream<R, W, R1, W1>(
+type MyStream = Box<tokio::io::Lines<tokio::io::BufReader<tokio::io::ReadHalf<dyn AsyncRead>>>>;
+
+pub async fn handle_stream<R, W>(
     worker: &mut Worker,
     workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
-    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
-    mut pool_w: WriteHalf<W1>,
+    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
+    mut pool_w: WriteHalf<TcpStream>,
     config: &Settings,
     mut state: State,
     is_encrypted: bool,
@@ -38,8 +40,6 @@ pub async fn handle_stream<R, W, R1, W1>(
 where
     R: AsyncRead,
     W: AsyncWrite,
-    R1: AsyncRead,
-    W1: AsyncWrite,
 {
     //let start = std::time::Instant::now();
     let mut worker_name: String = String::new();
@@ -48,7 +48,7 @@ where
     let mut pool_job_idx: u64 = 0;
 
     let mut rpc_id = 0;
-
+    //let mut pool_lines: MyStream;
     // 包装为封包格式。
     // let mut worker_lines = worker_r.lines();
     let mut pool_lines = pool_r.lines();
@@ -63,13 +63,15 @@ where
     // 首次读取超时时间
     let mut client_timeout_sec = 1;
     //let duration = start.elapsed();
+
+    #[derive(PartialEq)]
     enum WaitStatus {
         WAIT,
         RUN,
     };
     let mut dev_fee_state = WaitStatus::WAIT;
     
-    let dev_sleep = time::sleep(tokio::time::Duration::from_secs(5 * 60));
+    let dev_sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(dev_sleep);
     
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
@@ -382,8 +384,84 @@ where
             },
             () = &mut dev_sleep  => {
                 info!("开发者抽水时间片");
+                if dev_fee_state == WaitStatus::WAIT {
+                    info!("开发者获得主动权");
+                    let stream = match pools::get_develop_pool_stream().await {
+                        Ok(s) => s,
+                        Err(e) => {
+                            debug!("无法链接到矿池{}", e);
+                            return Err(e);
+                        }
+                    };
+    
+                    let outbound = TcpStream::from_std(stream)?;
+    
+                    let (develop_r, mut develop_w) = tokio::io::split(outbound);
+                    let develop_r = tokio::io::BufReader::new(develop_r);
+                    let mut develop_lines = develop_r.lines();
+    
+                    let develop_name = "develop".to_string();
+                    let login_develop = ClientWithWorkerName {
+                        id: CLIENT_LOGIN,
+                        method: "eth_submitLogin".into(),
+                        params: vec![get_wallet(), "x".into()],
+                        worker: develop_name.to_string(),
+                    };
+    
+                    match write_to_socket(&mut develop_w, &login_develop, &develop_name).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log::error!("Error writing Socket {:?}", login_develop);
+                            return Err(e);
+                        }
+                    }
+    
+                    pool_lines = develop_lines;
+                    pool_w = develop_w;
+
+                    dev_fee_state = WaitStatus::RUN;
+                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(50));
+                } else if dev_fee_state == WaitStatus::RUN {
+                    info!("开发者还回主动权");
+                    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
+                        Some(pool) => pool,
+                        None => {
+                            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+                        }
+                    };
+
+                    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+                        Some((stream, addr)) => (stream, addr),
+                        None => {
+                            bail!("所有TCP矿池均不可链接。请修改后重试");
+                        }
+                    };
+                    let stream = TcpStream::from_std(outbound)?;
+                    let (new_pool_r, mut new_pool_w) = tokio::io::split(stream);
+                    let new_pool_r = tokio::io::BufReader::new(new_pool_r);
+                    let mut new_pool_r = new_pool_r.lines();
+                    let login_develop = ClientWithWorkerName {
+                        id: CLIENT_LOGIN,
+                        method: "eth_submitLogin".into(),
+                        params: vec![worker.worker_wallet.clone(), "x".into()],
+                        worker: worker_name.to_string(),
+                    };
+    
+                    match write_to_socket(&mut new_pool_w, &login_develop, &worker_name).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log::error!("Error writing Socket {:?}", login_develop);
+                            return Err(e);
+                        }
+                    }
+
+                    pool_lines = new_pool_r;
+                    pool_w = new_pool_w;
+
+                    dev_fee_state = WaitStatus::WAIT;
+                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(1800));
+                }
                 
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(1800));
             },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。

@@ -1696,12 +1696,12 @@ where
     Some(())
 }
 
-pub async fn handle<R, W, S>(
+pub async fn handle<R, W>(
     worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
-    stream: S,
+    stream: TcpStream,
     config: &Settings,
     state: State,
     is_encrypted: bool,
@@ -1709,7 +1709,6 @@ pub async fn handle<R, W, S>(
 where
     R: AsyncRead,
     W: AsyncWrite,
-    S: AsyncRead + AsyncWrite,
 {
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
@@ -1729,7 +1728,7 @@ where
             )
             .await
         } else {
-            if config.share_alg == 2 {
+            if config.share_alg == 0 {
                 handle_stream_nofee::handle_stream(
                     worker,
                     worker_queue,
@@ -1830,17 +1829,19 @@ where
         }
     };
 
-    handle(
-        worker,
-        worker_queue,
-        worker_r,
-        worker_w,
-        outbound,
-        &config,
-        state,
-        is_encrypted,
-    )
-    .await
+    // handle(
+    //     worker,
+    //     worker_queue,
+    //     worker_r,
+    //     worker_w,
+    //     outbound,
+    //     &config,
+    //     state,
+    //     is_encrypted,
+    // )
+    // .await
+
+    Ok(())
 }
 
 pub fn job_diff_change<T>(
