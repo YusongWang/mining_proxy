@@ -202,7 +202,7 @@ where
                                 log::error!("Error Shutdown Socket {:?}",e);
                             },
                         }
-                        bail!("读取超时了 矿机下线了: {}",e)},
+                        bail!("读取超时了 {}",e)},
                 };
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);

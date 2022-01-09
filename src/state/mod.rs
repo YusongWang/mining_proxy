@@ -70,18 +70,16 @@ impl Worker {
 
     // 下线
     pub fn offline(&mut self) -> bool {
-        self.online = false;
-        //TODO 清理读写线程。然后直接返回.
         if self.is_online() {
+            self.online = false;
             info!(
                 "矿工: {} 下线 在线时长 {}",
                 self.worker,
                 crate::util::time_to_string(self.login_time.elapsed().as_secs())
             );
         } else {
-            info!("恶意攻击");
+            info!("恶意攻击 协议不正确。没有正确提交协议。强制关闭掉了。");
         }
-
         true
     }
 
