@@ -462,7 +462,7 @@ where
             };
 
             let (proxy, worker) = tokio::join!(
-                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(develop_w, rpc, &config.share_name),
                 write_to_socket(worker_w, &s, &worker_name)
             );
             if proxy.is_err() {
@@ -496,7 +496,7 @@ where
             };
 
             let (proxy, worker) = tokio::join!(
-                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(agent_w, rpc, &config.share_name),
                 write_to_socket(worker_w, &s, &worker_name)
             );
             if proxy.is_err() {
@@ -585,7 +585,7 @@ where
             };
 
             let (proxy, worker) = tokio::join!(
-                write_to_socket(proxy_w, rpc, &config.share_name),
+                write_to_socket(develop_w, rpc, &config.share_name),
                 write_to_socket(worker_w, &s, &worker_name)
             );
             if proxy.is_err() {

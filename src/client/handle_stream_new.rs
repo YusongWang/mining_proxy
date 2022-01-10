@@ -66,7 +66,6 @@ where
     if let Some(job_id) = rpc.get_job_id() {
         #[cfg(debug_assertions)]
         debug!("提交的JobID {}", job_id);
-
         if mine_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
@@ -77,31 +76,7 @@ where
             #[cfg(debug_assertions)]
             debug!("得到抽水任务。{:?}", rpc);
 
-            let s = ServerId {
-                id: rpc.get_id(),
-                jsonrpc: "2.0".into(),
-                result: true,
-            };
-
-            let (proxy, worker) = tokio::join!(
-                write_to_socket(worker_w, &s, &worker_name),
-                write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name),
-            );
-
-            if proxy.is_err() {
-                //#[cfg(debug_assertions)]
-                debug!("给矿工返回成功写入失败了。");
-                proxy?;
-            }
-
-            if worker.is_err() {
-                //#[cfg(debug_assertions)]
-                debug!("给矿工返回成功写入失败了。");
-                worker?;
-            }
-
-            #[cfg(debug_assertions)]
-            debug!("返回True给矿工。成功！！！");
+            write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name).await?;
             return Ok(());
         } else if develop_send_jobs.contains(&job_id) {
             //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
@@ -115,26 +90,7 @@ where
             rpc.set_worker_name(&hostname);
             #[cfg(debug_assertions)]
             debug!("得到开发者抽水任务。{:?}", rpc);
-            #[cfg(debug_assertions)]
-            debug!("提交开发者任务!");
-            let s = ServerId {
-                id: rpc.get_id(),
-                jsonrpc: "2.0".into(),
-                result: true,
-            };
-            let (proxy, worker) = tokio::join!(
-                write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name),
-                write_to_socket(worker_w, &s, &worker_name)
-            );
-            if proxy.is_err() {
-                #[cfg(debug_assertions)]
-                debug!("给矿工返回成功写入失败了。")
-            }
-
-            if worker.is_err() {
-                #[cfg(debug_assertions)]
-                debug!("给矿工返回成功写入失败了。")
-            }
+            write_to_socket_byte(develop_w, rpc.to_vec()?, &config.share_name).await?;
             return Ok(());
         } else {
             worker.share_index_add();
@@ -432,11 +388,13 @@ where
                                     },
                                 };
 
-                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
+                                bail!("矿工：{}  读取到字节0. 矿池主动断开 ",worker_name)
                             }
                         }
                     },
-                    Err(e) => {bail!("矿机下线了: {}",e)},
+                    Err(e) => {
+                        bail!("矿工：{}  读取到字节0. 矿池主动断开 ",worker_name)
+                    },
                 };
 
                 #[cfg(debug_assertions)]
