@@ -180,6 +180,7 @@ where
                     #[cfg(debug_assertions)]
                     debug!("0:  矿机 -> 矿池 {} 发送 {}", worker_name, buf);
                     if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
+                        #[cfg(debug_assertions)]
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
@@ -254,7 +255,7 @@ where
                         log::warn!("未知 {}",buf);
                     }
                 }
-
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
@@ -364,7 +365,9 @@ where
 
                     }
                 }
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
             },
             () = &mut sleep  => {

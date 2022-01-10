@@ -337,7 +337,7 @@ where
                         log::warn!("未知: {}",buf);
                     }
                 }
-
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
@@ -354,7 +354,7 @@ where
                                         log::error!("Error Worker Shutdown Socket {:?}",e);
                                     },
                                 };
-
+                                log::error!("矿池主动断开了 Code: 000357");
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
@@ -548,6 +548,8 @@ where
                         }
                     }
                 }
+
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
             },
             res = proxy_lines.next_line() => {
@@ -562,6 +564,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
+                                log::error!("矿池主动断开了 Code: 000567");
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }

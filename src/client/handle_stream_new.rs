@@ -169,8 +169,18 @@ where
             bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
-    let eth_get_work_rpc = &EthClientRootObject{ id: CLIENT_GETWORK, method: "eth_getWork".to_string(), params: vec![] };
-    let eth_submit_hash = &EthClientRootObject{ id: CLIENT_SUBHASHRATE, method: "eth_submitHashrate".to_string(), params: vec![] };
+
+    // let eth_get_work_rpc = &EthClientRootObject {
+    //     id: CLIENT_GETWORK,
+    //     method: "eth_getWork".to_string(),
+    //     params: vec![],
+    // };
+
+    let eth_submit_hash = &EthClientRootObject {
+        id: CLIENT_SUBHASHRATE,
+        method: "eth_submitHashrate".to_string(),
+        params: vec![],
+    };
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
@@ -307,6 +317,7 @@ where
                     }
 
                     if let Some(mut json_rpc) = parse(&buffer) {
+                        #[cfg(debug_assertions)]
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
 
                         rpc_id = json_rpc.get_id();
@@ -371,7 +382,7 @@ where
                         log::warn!("未知: {}",buf);
                     }
                 }
-
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
@@ -584,7 +595,11 @@ where
                         }
                     }
                 }
+
+
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
+                #[cfg(debug_assertions)]
                 info!("接受矿工: {} 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
             },
             res = proxy_lines.next_line() => {
@@ -599,11 +614,15 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                bail!("矿工：{}  读取到字节0.抽水矿工主动断开 ",worker_name);
+                                log::error!("矿池主动断开了 Code: 000604");
+                                bail!("矿工：{}  读取到字节0.主动断开 ",worker_name);
                             }
                         }
                     },
-                    Err(e) => bail!("矿机下线了: {}",e),
+                    Err(e) => {
+                        log::error!("矿池主动断开了 Code: 000604");
+                        bail!("矿工：{}  读取到字节0.主动断开 ",worker_name);
+                    },
                 };
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -703,11 +722,15 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                bail!("矿工：{}  读取到字节 开发者抽水旷工主动断开 ",worker_name);
+                                log::error!("矿池主动断开了 Code: 000604");
+                                bail!("矿工：{}  读取到字节0.主动断开 ",worker_name);
                             }
                         }
                     },
-                    Err(e) => bail!("矿机下线了: {}",e),
+                    Err(e) => {
+                        log::error!("矿池主动断开了 Code: 000604");
+                        bail!("矿工：{}  读取到字节0.主动断开 ",worker_name);
+                    },
                 };
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -793,11 +816,6 @@ where
                 }
             },
             () = &mut sleep  => {
-                
-                // tokio::join!(
-                //     write_to_socket_byte(&mut proxy_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
-                //     write_to_socket_byte(&mut develop_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
-                // );
 
                 tokio::join!(
                     write_to_socket_byte(&mut proxy_w, eth_submit_hash.clone().to_vec()?, &worker_name),
@@ -812,7 +830,7 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                info!("提交常规任务");
+                //info!("提交常规任务");
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
             },
         }

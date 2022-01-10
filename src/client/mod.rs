@@ -1757,20 +1757,20 @@ where
                 )
                 .await
             } else {
-                if config.share_alg == 2 {
-                    handle_stream_timer::handle_stream(
-                        worker,
-                        worker_queue,
-                        worker_r,
-                        worker_w,
-                        pool_r,
-                        pool_w,
-                        &config,
-                        state,
-                        is_encrypted,
-                    )
-                    .await
-                } else if config.share_alg == 1 {
+                // if config.share_alg == 2 {
+                //     handle_stream_timer::handle_stream(
+                //         worker,
+                //         worker_queue,
+                //         worker_r,
+                //         worker_w,
+                //         pool_r,
+                //         pool_w,
+                //         &config,
+                //         state,
+                //         is_encrypted,
+                //     )
+                //     .await
+                // } else if config.share_alg == 1 {
                     handle_stream_new::handle_stream(
                         worker,
                         worker_queue,
@@ -1783,20 +1783,20 @@ where
                         is_encrypted,
                     )
                     .await
-                } else {
-                    handle_stream::handle_stream(
-                        worker,
-                        worker_queue,
-                        worker_r,
-                        worker_w,
-                        pool_r,
-                        pool_w,
-                        &config,
-                        state,
-                        is_encrypted,
-                    )
-                    .await
-                }
+                // } else {
+                //     handle_stream::handle_stream(
+                //         worker,
+                //         worker_queue,
+                //         worker_r,
+                //         worker_w,
+                //         pool_r,
+                //         pool_w,
+                //         &config,
+                //         state,
+                //         is_encrypted,
+                //     )
+                //     .await
+                // }
             }
         }
     }

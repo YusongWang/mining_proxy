@@ -70,16 +70,15 @@ pub async fn accept_tcp_with_tls(
                         worker.offline();
                         workers.send(worker);
                     } else {
-                        info!("连接中断 未知协议 可能受到攻击 IP:{}", addr);
+                        info!("IP: {} 断开", addr);
                     }
                 }
                 Err(e) => {
-                    info!("IP: {} 断开: {}", addr, e);
                     if worker.is_online() {
                         worker.offline();
                         workers.send(worker);
                     } else {
-                        //info!("连接中断 未知协议 可能受到攻击 {}", e);
+                        info!("IP: {} 恶意链接断开: {}", addr, e);
                     }
 
                     state

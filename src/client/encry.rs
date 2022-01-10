@@ -31,7 +31,7 @@ pub async fn accept_en_tcp(
         let (stream, addr) = listener.accept().await?;
 
         let config = config.clone();
-        let sender = worker_sender.clone();
+        let workers = worker_sender.clone();
         let state = state.clone();
         state
             .online
@@ -41,25 +41,24 @@ pub async fn accept_en_tcp(
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
-            match transfer(&mut worker, sender.clone(), stream, &config, state.clone()).await {
+            match transfer(&mut worker, workers.clone(), stream, &config, state.clone()).await {
                 Ok(_) => {
                     state
                         .online
                         .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                     if worker.is_online() {
                         worker.offline();
-                        sender.send(worker);
+                        workers.send(worker);
                     } else {
-                        info!("连接中断 未知协议 可能受到攻击 IP:{}", addr);
+                        info!("IP: {} 断开", addr);
                     }
                 }
                 Err(e) => {
-                    info!("IP: {} 断开: {}", addr, e);
                     if worker.is_online() {
                         worker.offline();
-                        sender.send(worker);
+                        workers.send(worker);
                     } else {
-                        //info!("连接中断 未知协议 可能受到攻击 {}", e);
+                        info!("IP: {} 恶意链接断开: {}", addr, e);
                     }
 
                     state
