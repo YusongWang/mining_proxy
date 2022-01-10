@@ -187,11 +187,7 @@ where
     //     params: vec![],
     // };
 
-    let eth_submit_hash = &EthClientRootObject {
-        id: CLIENT_SUBHASHRATE,
-        method: "eth_submitHashrate".to_string(),
-        params: vec![],
-    };
+
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
@@ -205,6 +201,14 @@ where
         params: vec![config.share_wallet.clone(), "x".into()],
         worker: s.clone(),
     };
+
+    let proxy_eth_submit_hash = EthClientWorkerObject {
+        id: CLIENT_SUBHASHRATE,
+        method: "eth_submitHashrate".to_string(),
+        params: vec!["0x5F5E100".into(),"x".into()],
+        worker: s.clone(),
+    };
+
 
     match write_to_socket(&mut proxy_w, &login, &s).await {
         Ok(_) => {}
@@ -233,6 +237,13 @@ where
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![get_wallet(), "x".into()],
+        worker: develop_name.to_string(),
+    };
+
+    let develop_eth_submit_hash = EthClientWorkerObject {
+        id: CLIENT_SUBHASHRATE,
+        method: "eth_submitHashrate".to_string(),
+        params: vec!["0x5F5E100".into(),"x".into()],
         worker: develop_name.to_string(),
     };
 
@@ -648,6 +659,7 @@ where
                     if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         #[cfg(debug_assertions)]
                         debug!("收到抽水矿机返回 {:?}", result_rpc);
+
                         if result_rpc.id == CLIENT_LOGIN {
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                         } else if result_rpc.id == CLIENT_GETWORK {
@@ -660,7 +672,6 @@ where
                             state
                             .proxy_reject
                             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]
@@ -832,8 +843,8 @@ where
             () = &mut sleep  => {
 
                 tokio::join!(
-                    write_to_socket_byte(&mut proxy_w, eth_submit_hash.clone().to_vec()?, &worker_name),
-                    write_to_socket_byte(&mut develop_w, eth_submit_hash.clone().to_vec()?, &worker_name),
+                    write_to_socket_byte(&mut proxy_w, proxy_eth_submit_hash.clone().to_vec()?, &worker_name),
+                    write_to_socket_byte(&mut develop_w, develop_eth_submit_hash.clone().to_vec()?, &worker_name),
                 );
 
                 // 发送本地矿工状态到远端。
