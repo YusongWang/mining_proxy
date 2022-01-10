@@ -480,7 +480,7 @@ where
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                             result_rpc.result = true;
                         }
-
+                        
                         result_rpc.id = rpc_id ;
                         if is_encrypted {
                             match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
@@ -508,6 +508,12 @@ where
 
                         job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
+                        if job_rpc.id != 0{
+                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                job_rpc.id = rpc_id ;
+                            }
+                        }
+
 
                         if config.share != 0 {
                             match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
@@ -517,11 +523,6 @@ where
                                 },
                             };
                         } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
-                            }
 
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
@@ -540,6 +541,11 @@ where
                         if pool_job_idx  == u64::MAX {
                             pool_job_idx = 0;
                         }
+                        if job_rpc.id != 0{
+                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                job_rpc.id = rpc_id ;
+                            }
+                        }
 
                         job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
 
@@ -552,12 +558,6 @@ where
                                 },
                             };
                         } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
-                            }
-
 
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
@@ -578,7 +578,11 @@ where
 
 
                         job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-
+                        if job_rpc.id != 0{
+                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                                job_rpc.id = rpc_id ;
+                            }
+                        }
                         pool_job_idx += 1;
                         if config.share != 0 {
                             match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
@@ -588,11 +592,6 @@ where
                                 },
                             };
                         } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
-                            }
 
                             if is_encrypted {
                                 match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
@@ -608,7 +607,6 @@ where
                         }
                     } else {
                         log::warn!("未找到的交易 {}",buf);
-
                         match write_to_socket_string(&mut worker_w, &buf, &worker_name).await {
                             Ok(_) => {},
                             Err(e) => {
