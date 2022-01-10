@@ -60,14 +60,15 @@ where
     }
 
     let mut is_submithashrate = false;
-
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
+    let mut loop_timer = std::time::Instant::now();
+    
     loop {
         select! {
             res = worker_lines.next_segment() => {
-                //let start = std::time::Instant::now();
+                let start = std::time::Instant::now();
                 let buf_bytes = match res {
                     Ok(buf) => match buf {
                             Some(buf) => buf,
@@ -247,8 +248,12 @@ where
                         log::warn!("未知 {}",buf);
                     }
                 }
+
+                info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
+                let start = std::time::Instant::now();
+
                 let buffer = match res{
                     Ok(res) => {
                         match res {
@@ -260,7 +265,7 @@ where
                                         log::error!("Error Worker Shutdown Socket {:?}",e);
                                     },
                                 };
-
+                                info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
@@ -353,6 +358,8 @@ where
 
                     }
                 }
+                info!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
+                info!("接受矿工: {} 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
             },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
