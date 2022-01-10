@@ -709,29 +709,27 @@ where
                         cfg_if::cfg_if! {
                             if #[cfg(feature = "agent")] {
                                 if agent_send_jobs.contains(&job.0) {
-                                    continue;
+                                    务本次结果
                                 }
                             }
                         }
 
                         if normal_send_jobs.contains(&job.0) {
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            send_jobs.push(job.0.clone());
-                            return None;
+                            continue;
+                            // send_jobs.push(job.0.clone());
+                            // return None;
                         }
                         break Some(job);
                     }
                     None => break None,
                 }
             };
+
             #[cfg(debug_assertions)]
             debug!("抽水任务本次结果 {:?}", job);
 
-            if job.is_none() {
-                return None;
-            }
-
-            let job = job.unwrap();
+            let job = job?;
             job_rpc.set_result(job.1);
             job_rpc.set_diff(diff);
             send_jobs.push(job.0);
@@ -924,7 +922,7 @@ where
                         }
 
                         if normal_send_jobs.contains(&job.0) {
-                            // 拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
+                            // 拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务 保证开发者权益。
                             send_jobs.push(job.0.clone());
                             return None;
                             // if let None = send_jobs.push(job.0) {
