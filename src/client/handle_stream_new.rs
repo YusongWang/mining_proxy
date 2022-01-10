@@ -35,10 +35,21 @@ where
     if let Some(wallet) = rpc.get_wallet() {
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
-        temp_worker.push_str(".");
-        temp_worker = temp_worker + rpc.get_worker_name().as_str();
-        worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
-        *worker_name = temp_worker;
+        let mut split = wallet.split(".").collect::<Vec<&str>>();
+        if split.len() > 1 {
+            worker.login(
+                temp_worker.clone(),
+                split.get(1).unwrap().to_string(),
+                wallet.clone(),
+            );
+            *worker_name = temp_worker;
+        } else {
+            temp_worker.push_str(".");
+            temp_worker = temp_worker + rpc.get_worker_name().as_str();
+            worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
+            *worker_name = temp_worker;
+        }
+
         write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
     } else {
         bail!("请求登录出错。可能收到暴力攻击");
@@ -292,7 +303,7 @@ where
                                     },
                                 }
 
-                                info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
+                                //info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             },
                         },

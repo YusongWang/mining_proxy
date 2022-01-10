@@ -79,7 +79,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 }
-                                info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
+                                //info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             },
                         },
@@ -90,7 +90,7 @@ where
                                 log::error!("Error Shutdown Socket {:?}",e);
                             },
                         }
-                        info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
+                        //info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
                         bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                     },
                 };
@@ -272,7 +272,7 @@ where
                                         log::error!("Error Worker Shutdown Socket {:?}",e);
                                     },
                                 };
-                                info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
+                                //info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
