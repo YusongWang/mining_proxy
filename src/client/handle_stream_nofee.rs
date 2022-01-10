@@ -64,7 +64,7 @@ where
     tokio::pin!(sleep);
 
     let mut loop_timer = std::time::Instant::now();
-    
+
     loop {
         select! {
             res = worker_lines.next_segment() => {
@@ -79,6 +79,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 }
+                                info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             },
                         },
@@ -89,9 +90,13 @@ where
                                 log::error!("Error Shutdown Socket {:?}",e);
                             },
                         }
+                        info!("矿工: {} 断开时---------- 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
                         bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                     },
                 };
+
+                loop_timer = std::time::Instant::now();
+
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');

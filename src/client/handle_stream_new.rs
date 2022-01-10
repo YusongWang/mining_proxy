@@ -305,7 +305,7 @@ where
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
-    info!("旷工初始化用时{:?}",worker.login_time.elapsed());
+    info!("旷工初始化用时{:?}", worker.login_time.elapsed());
     let mut loop_timer = std::time::Instant::now();
 
     loop {
