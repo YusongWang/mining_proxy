@@ -106,12 +106,12 @@ where
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);
-            write_to_socket_byte(proxy_w, rpc.to_vec()?, &worker_name).await
+            write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
         }
     } else {
         worker.share_index_add();
         rpc.set_id(worker.share_index);
-        write_to_socket_byte(proxy_w, rpc.to_vec()?, &worker_name).await
+        write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
     }
 }
 
