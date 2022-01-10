@@ -190,6 +190,14 @@ pub struct EthServerRootObjectError {
     pub error: String,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EthServerRoot {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: bool,
+}
+
 // #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 // #[serde(rename_all = "camelCase")]
 // pub struct Server {

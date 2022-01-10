@@ -13,7 +13,7 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
-        ethjson::{EthServerRootObjectBool, EthServerRootObjectError},
+        ethjson::{EthServerRoot, EthServerRootObjectBool, EthServerRootObjectError},
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
@@ -89,13 +89,13 @@ where
             );
 
             if proxy.is_err() {
-                #[cfg(debug_assertions)]
+                //#[cfg(debug_assertions)]
                 debug!("给矿工返回成功写入失败了。");
                 proxy?;
             }
 
             if worker.is_err() {
-                #[cfg(debug_assertions)]
+                //#[cfg(debug_assertions)]
                 debug!("给矿工返回成功写入失败了。");
                 worker?;
             }
@@ -307,6 +307,7 @@ where
 
     info!("旷工初始化用时{:?}", worker.login_time.elapsed());
     let mut loop_timer = std::time::Instant::now();
+    let temp_worker = "Default".to_string();
 
     loop {
         select! {
@@ -354,41 +355,39 @@ where
                         rpc_id = json_rpc.get_id();
                         let res = match json_rpc.get_method().as_str() {
                             "eth_submitLogin" => {
-                                let res = match new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await {
-                                    Ok(a) => Ok(a),
-                                    Err(e) => {
-                                        //info!("错误 {} ",e);
-                                        bail!(e);
-                                    },
-                                };
-                                res
+                                let result_rpc = &EthServerRoot{ id: rpc_id, jsonrpc: "2.0".into(), result: true};
+                                new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                write_to_socket(&mut worker_w, &result_rpc, &worker_name).await?;
+                                Ok(())
                             },
                             "eth_submitWork" => {
-                                new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
+                                let result_rpc = &EthServerRoot{ id: rpc_id, jsonrpc: "2.0".into(), result: true};
+
+                                new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await?;
+                                write_to_socket(&mut worker_w, &result_rpc, &worker_name).await?;
+
+                                Ok(())
                             },
                             "eth_submitHashrate" => {
-                                new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await
+                                let result_rpc = &EthServerRoot{ id: rpc_id, jsonrpc: "2.0".into(), result: true};
+                                new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                write_to_socket(&mut worker_w, &result_rpc, &worker_name).await?;
+                                Ok(())
                             },
                             "eth_getWork" => {
-                                //new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await
                                 let result_rpc = &EthServerRootObjectError{ id: rpc_id, jsonrpc: "2.0".into(), result: true, error: String::from("")};
-                                // if is_encrypted {
-                                //     match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
-                                //         Ok(_) => {},
-                                //         Err(e) => {
-                                //             log::error!("Error Worker Write Socket {:?}",e);
-                                //         },
-                                //     };
-                                // } else {
-                                write_to_socket(&mut worker_w, &result_rpc, &worker_name).await
-                                //}
+                                new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                write_to_socket(&mut worker_w, &result_rpc, &worker_name).await?;
+                                Ok(())
                             },
                             "mining.subscribe" => {
-                                new_subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await
+                                new_subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                Ok(())
                             },
                             _ => {
                                 log::warn!("Not found method {:?}",json_rpc);
-                                write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await
+                                write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
+                                Ok(())
                             },
                         };
 
@@ -492,22 +491,22 @@ where
                             result_rpc.result = true;
                         }
 
-                        result_rpc.id = rpc_id ;
-                        if is_encrypted {
-                            match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    log::error!("Error Worker Write Socket {:?}",e);
-                                },
-                            };
-                        } else {
-                            match write_to_socket(&mut worker_w, &result_rpc, &worker_name).await {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    log::error!("Error Worker Write Socket {:?}",e);
-                                },
-                            };
-                        }
+                        result_rpc.id = rpc_id;
+                        // if is_encrypted {
+                        //     match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
+                        //         Ok(_) => {},
+                        //         Err(e) => {
+                        //             log::error!("Error Worker Write Socket {:?}",e);
+                        //         },
+                        //     };
+                        // } else {
+                        //     match write_to_socket(&mut worker_w, &result_rpc, &worker_name).await {
+                        //         Ok(_) => {},
+                        //         Err(e) => {
+                        //             log::error!("Error Worker Write Socket {:?}",e);
+                        //         },
+                        //     };
+                        // }
 
                     } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         pool_job_idx += 1;
@@ -553,7 +552,7 @@ where
                             pool_job_idx = 0;
                         }
                         if job_rpc.id != 0{
-                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
+                            if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index {
                                 job_rpc.id = rpc_id ;
                             }
                         }
@@ -835,7 +834,7 @@ where
                 }
             },
             () = &mut sleep  => {
-                let eth_get_work_rpc = &EthClientRootObject{ id: 0, method: "eth_getWork".to_string(), params: vec![] };
+                let eth_get_work_rpc = &EthClientRootObject{ id: CLIENT_GETWORK, method: "eth_getWork".to_string(), params: vec![] };
                 tokio::join!(
                     write_to_socket_byte(&mut pool_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
                     write_to_socket_byte(&mut proxy_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
