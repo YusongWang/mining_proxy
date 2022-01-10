@@ -272,7 +272,8 @@ where
     let sleep = time::sleep(tokio::time::Duration::from_secs(15));
     tokio::pin!(sleep);
 
-    info!("旷工初始化用时{:?}", worker.login_time.elapsed());
+    //info!("旷工初始化用时{:?}", worker.login_time.elapsed());
+
     let mut loop_timer = std::time::Instant::now();
     let temp_worker = "Default".to_string();
 
@@ -349,6 +350,8 @@ where
                                 Ok(())
                             },
                             "mining.subscribe" => {
+                                let result_rpc = &EthServerRoot{ id: rpc_id, jsonrpc: "2.0".into(), result: true};
+                                write_to_socket(&mut worker_w, &result_rpc, &worker_name).await?;
                                 new_subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                 Ok(())
                             },
