@@ -126,6 +126,14 @@ impl Worker {
         self.hash = rpc.get_submit_hashrate();
         true
     }
+
+    pub fn new_submit_hashrate(
+        &mut self,
+        rpc: &mut Box<dyn crate::protocol::ethjson::EthClientObject + Send + Sync>,
+    ) -> bool {
+        self.hash = rpc.get_submit_hashrate();
+        true
+    }
 }
 
 pub type State = Arc<GlobalState>;

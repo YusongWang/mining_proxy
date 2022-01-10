@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-
 use crate::util::hex_to_int;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 
 pub trait EthClientObject {
     fn set_id(&mut self, id: u64) -> bool;
-    fn get_id(&mut self) -> u64;
+    fn get_id(&self) -> u64;
 
     fn get_job_id(&mut self) -> Option<String>;
     fn get_wallet(&mut self) -> Option<String>;
@@ -13,6 +13,16 @@ pub trait EthClientObject {
     fn set_worker_name(&mut self, worker_name: &str) -> bool;
 
     fn get_submit_hashrate(&self) -> u64;
+
+    fn get_method(&self) -> String;
+
+    fn to_vec(&mut self) -> Result<Vec<u8>>;
+}
+
+impl std::fmt::Debug for dyn EthClientObject + Send + Sync {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "rpc_id: {} method: {}", self.get_id(), self.get_method())
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -38,7 +48,7 @@ impl EthClientObject for EthClientRootObject {
         true
     }
 
-    fn get_id(&mut self) -> u64 {
+    fn get_id(&self) -> u64 {
         self.id
     }
 
@@ -78,6 +88,15 @@ impl EthClientObject for EthClientRootObject {
     fn set_worker_name(&mut self, _worker_name: &str) -> bool {
         true
     }
+
+    fn get_method(&self) -> String {
+        self.method.clone()
+    }
+
+    fn to_vec(&mut self) -> Result<Vec<u8>> {
+        let rpc = serde_json::to_vec(&self)?;
+        Ok(rpc)
+    }
 }
 
 impl EthClientObject for EthClientWorkerObject {
@@ -86,7 +105,7 @@ impl EthClientObject for EthClientWorkerObject {
         true
     }
 
-    fn get_id(&mut self) -> u64 {
+    fn get_id(&self) -> u64 {
         self.id
     }
 
@@ -126,6 +145,15 @@ impl EthClientObject for EthClientWorkerObject {
     fn set_worker_name(&mut self, worker_name: &str) -> bool {
         self.worker = worker_name.to_string();
         true
+    }
+
+    fn get_method(&self) -> String {
+        self.method.clone()
+    }
+
+    fn to_vec(&mut self) -> Result<Vec<u8>> {
+        let rpc = serde_json::to_vec(&self)?;
+        Ok(rpc)
     }
 }
 

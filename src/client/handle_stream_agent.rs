@@ -175,7 +175,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 }
-                                bail!("矿机下线了 : {}",worker_name)
+                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             },
                         },
                     _ => {
@@ -185,7 +185,7 @@ where
                                 log::error!("Error Shutdown Socket {:?}",e);
                             },
                         }
-                        bail!("矿机下线了 : {}",worker_name);
+                        bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                     },
                 };
                 #[cfg(debug_assertions)]
@@ -423,7 +423,7 @@ where
                                     Err(_) => {},
                                 }
 
-                                bail!("矿机下线了 : {}",worker_name)
+                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
                     },
@@ -625,7 +625,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                bail!("矿机下线了 : {}",worker_name);
+                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
                     },
@@ -715,7 +715,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                bail!("矿机下线了 : {}",worker_name);
+                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
                     },
@@ -808,7 +808,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                bail!("矿机下线了 : {}",worker_name);
+                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
                     },

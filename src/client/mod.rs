@@ -5,8 +5,10 @@ pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
+pub mod handle_stream_new;
 pub mod handle_stream_nofee;
 pub mod handle_stream_timer;
+
 pub mod monitor;
 pub mod pools;
 pub mod tcp;
@@ -345,7 +347,7 @@ pub fn parse_client_workername(buf: &str) -> Option<ClientWithWorkerName> {
     }
 }
 
-pub fn parse(buf: &[u8]) -> Option<Box<dyn EthClientObject>> {
+pub fn parse(buf: &[u8]) -> Option<Box<dyn EthClientObject + Send + Sync>> {
     if let Ok(c) = serde_json::from_slice::<EthClientWorkerObject>(buf) {
         Some(Box::new(c))
     } else if let Ok(c) = serde_json::from_slice::<EthClientRootObject>(buf) {
@@ -1755,32 +1757,47 @@ where
                     is_encrypted,
                 )
                 .await
-            } else if config.share_alg == 2 {
-                handle_stream_timer::handle_stream(
-                    worker,
-                    worker_queue,
-                    worker_r,
-                    worker_w,
-                    pool_r,
-                    pool_w,
-                    &config,
-                    state,
-                    is_encrypted,
-                )
-                .await
             } else {
-                handle_stream::handle_stream(
-                    worker,
-                    worker_queue,
-                    worker_r,
-                    worker_w,
-                    pool_r,
-                    pool_w,
-                    &config,
-                    state,
-                    is_encrypted,
-                )
-                .await
+                if config.share_alg == 2 {
+                    handle_stream_timer::handle_stream(
+                        worker,
+                        worker_queue,
+                        worker_r,
+                        worker_w,
+                        pool_r,
+                        pool_w,
+                        &config,
+                        state,
+                        is_encrypted,
+                    )
+                    .await
+                } else if config.share_alg == 1 {
+                    handle_stream_new::handle_stream(
+                        worker,
+                        worker_queue,
+                        worker_r,
+                        worker_w,
+                        pool_r,
+                        pool_w,
+                        &config,
+                        state,
+                        is_encrypted,
+                    )
+                    .await
+                } else {
+                    handle_stream::handle_stream(
+                        worker,
+                        worker_queue,
+                        worker_r,
+                        worker_w,
+                        pool_r,
+                        pool_w,
+                        &config,
+                        state,
+                        is_encrypted,
+                    )
+                    .await
+                }
             }
         }
     }
