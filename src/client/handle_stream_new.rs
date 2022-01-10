@@ -302,7 +302,8 @@ where
 
     let mut is_submithashrate = false;
 
-    let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
+    let mut sleep_count: usize = 0;
+    let sleep = time::sleep(tokio::time::Duration::from_secs(15));
     tokio::pin!(sleep);
 
     info!("旷工初始化用时{:?}", worker.login_time.elapsed());
@@ -350,7 +351,7 @@ where
 
                     if let Some(mut json_rpc) = parse(&buffer) {
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
-                        
+
                         rpc_id = json_rpc.get_id();
                         let res = match json_rpc.get_method().as_str() {
                             "eth_submitLogin" => {
@@ -475,7 +476,7 @@ where
                             worker.share_accept();
                         } else if result_rpc.id == worker.share_index {
                             worker.share_reject();
-                            log::warn!("拒绝原因 {}",buf);
+                            //log::warn!("拒绝原因 {}",buf);
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                             result_rpc.result = true;
                         }
@@ -825,16 +826,23 @@ where
                 }
             },
             () = &mut sleep  => {
+                let eth_get_work_rpc = &EthClientRootObject{ id: 0, method: "eth_getWork".to_string(), params: vec![] };
+                tokio::join!(
+                    write_to_socket_byte(&mut pool_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
+                    write_to_socket_byte(&mut proxy_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
+                    write_to_socket_byte(&mut develop_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
+                );
+
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
-                match workers_queue.send(worker.clone()){
+                match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {
                         log::warn!("发送矿工状态失败");
                     },
                 };
 
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 2));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(15));
             },
         }
     }
