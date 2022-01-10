@@ -85,8 +85,8 @@ where
             };
 
             let (proxy, worker) = tokio::join!(
+                write_to_socket(worker_w, &s, &worker_name),
                 write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name),
-                write_to_socket(worker_w, &s, &worker_name)
             );
 
             if proxy.is_err() {
@@ -305,6 +305,9 @@ where
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
 
+    info!("旷工初始化用时{:?}",worker.login_time.elapsed());
+    let mut loop_timer = std::time::Instant::now();
+
     loop {
         select! {
             res = worker_lines.next_segment() => {
@@ -333,12 +336,14 @@ where
                     },
                 };
 
+                loop_timer = std::time::Instant::now();
+
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');
                 for buffer in buf_bytes {
                     if buffer.is_empty() {
-                        break;
+                        continue;
                     }
 
                     if let Some(mut json_rpc) = parse(&buffer) {
@@ -434,6 +439,7 @@ where
                         worker_name,
                         buf
                     );
+
                     if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
@@ -608,6 +614,7 @@ where
                     }
                 }
                 info!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
+                info!("接受矿工: {} 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
             },
             res = proxy_lines.next_line() => {
                 let buffer = match res{

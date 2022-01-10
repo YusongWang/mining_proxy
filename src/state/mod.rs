@@ -97,6 +97,7 @@ impl Worker {
         self.share_index = 0;
         self.accept_index = 0;
         self.invalid_index = 0;
+        self.login_time = Instant::now();
     }
 
     // 总份额增加
