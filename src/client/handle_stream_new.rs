@@ -349,7 +349,8 @@ where
                     }
 
                     if let Some(mut json_rpc) = parse(&buffer) {
-                        //info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
+                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
+                        
                         rpc_id = json_rpc.get_id();
                         let res = match json_rpc.get_method().as_str() {
                             "eth_submitLogin" => {

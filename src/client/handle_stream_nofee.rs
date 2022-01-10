@@ -180,6 +180,7 @@ where
                     #[cfg(debug_assertions)]
                     debug!("0:  矿机 -> 矿池 {} 发送 {}", worker_name, buf);
                     if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
+                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_submitLogin" => {
