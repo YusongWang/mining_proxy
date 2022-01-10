@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use anyhow::{bail, Result};
 
 use hex::FromHex;
@@ -15,6 +13,7 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
+        ethjson::{EthServerRootObjectBool, EthServerRootObjectError},
         rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
@@ -371,7 +370,18 @@ where
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
-                                new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await
+                                //new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await
+                                let result_rpc = &EthServerRootObjectError{ id: rpc_id, jsonrpc: "2.0".into(), result: true, error: String::from("")};
+                                // if is_encrypted {
+                                //     match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
+                                //         Ok(_) => {},
+                                //         Err(e) => {
+                                //             log::error!("Error Worker Write Socket {:?}",e);
+                                //         },
+                                //     };
+                                // } else {
+                                write_to_socket(&mut worker_w, &result_rpc, &worker_name).await
+                                //}
                             },
                             "mining.subscribe" => {
                                 new_subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await
@@ -466,6 +476,7 @@ where
                             }
                         } else if result_rpc.id == CLIENT_GETWORK {
                             //info!("矿工请求任务");
+                            continue;
                         } else if result_rpc.id == SUBSCRIBE {
                             //info!("矿工请求任务");
                         } else if result_rpc.id == worker.share_index && result_rpc.result {
@@ -480,7 +491,7 @@ where
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                             result_rpc.result = true;
                         }
-                        
+
                         result_rpc.id = rpc_id ;
                         if is_encrypted {
                             match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
