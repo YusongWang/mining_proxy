@@ -169,7 +169,8 @@ where
             bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
-
+    let eth_get_work_rpc = &EthClientRootObject{ id: CLIENT_GETWORK, method: "eth_getWork".to_string(), params: vec![] };
+    let eth_submit_hash = &EthClientRootObject{ id: CLIENT_SUBHASHRATE, method: "eth_submitHashrate".to_string(), params: vec![] };
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
@@ -446,10 +447,10 @@ where
                             worker.share_reject();
                             //log::warn!("拒绝原因 {}",buf);
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
-                            result_rpc.result = true;
+                            //result_rpc.result = true;
                         }
 
-                        result_rpc.id = rpc_id;
+                        //result_rpc.id = rpc_id;
                         // if is_encrypted {
                         //     match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
                         //         Ok(_) => {},
@@ -598,7 +599,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
+                                bail!("矿工：{}  读取到字节0.抽水矿工主动断开 ",worker_name);
                             }
                         }
                     },
@@ -702,7 +703,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
+                                bail!("矿工：{}  读取到字节 开发者抽水旷工主动断开 ",worker_name);
                             }
                         }
                     },
@@ -792,11 +793,15 @@ where
                 }
             },
             () = &mut sleep  => {
-                let eth_get_work_rpc = &EthClientRootObject{ id: CLIENT_GETWORK, method: "eth_getWork".to_string(), params: vec![] };
+                
+                // tokio::join!(
+                //     write_to_socket_byte(&mut proxy_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
+                //     write_to_socket_byte(&mut develop_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
+                // );
+
                 tokio::join!(
-                    write_to_socket_byte(&mut pool_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
-                    write_to_socket_byte(&mut proxy_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
-                    write_to_socket_byte(&mut develop_w, eth_get_work_rpc.clone().to_vec()?, &worker_name),
+                    write_to_socket_byte(&mut proxy_w, eth_submit_hash.clone().to_vec()?, &worker_name),
+                    write_to_socket_byte(&mut develop_w, eth_submit_hash.clone().to_vec()?, &worker_name),
                 );
 
                 // 发送本地矿工状态到远端。
@@ -807,8 +812,8 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(15));
+                info!("提交常规任务");
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
             },
         }
     }
