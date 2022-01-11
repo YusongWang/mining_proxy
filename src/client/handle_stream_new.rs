@@ -330,11 +330,15 @@ where
         params: vec![config.share_wallet.clone(), "x".into()],
         worker: s.clone(),
     };
+    let rand_string = thread_rng()
+    .sample_iter(&Alphanumeric)
+    .take(30)
+    .collect::<Vec<u8>>();
 
     let proxy_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), "".into()],
+        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
         worker: s.clone(),
     };
 
@@ -367,11 +371,14 @@ where
         params: vec![get_wallet(), "x".into()],
         worker: develop_name.to_string(),
     };
-
+    let rand_string = thread_rng()
+    .sample_iter(&Alphanumeric)
+    .take(30)
+    .collect::<Vec<u8>>();
     let develop_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), "".into()],
+        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
         worker: develop_name.to_string(),
     };
 
