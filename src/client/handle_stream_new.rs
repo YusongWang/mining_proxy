@@ -531,8 +531,10 @@ where
                                 send_proxy_jobs.put(job_id,job_res);
                             }
                         } else {
+                            info!("普通回合");
                             send_normal_jobs.put(job_id,job_res);
                         }
+                        
                         write_to_socket(&mut worker_w,&eth_socket_jobs_rpc,&worker_name).await?;
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
@@ -603,12 +605,12 @@ where
 
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
-                // match workers_queue.send(worker.clone()) {
-                //     Ok(_) => {},
-                //     Err(_) => {
-                //         log::warn!("发送矿工状态失败");
-                //     },
-                // };
+                match workers_queue.send(worker.clone()) {
+                    Ok(_) => {},
+                    Err(_) => {
+                        log::warn!("发送矿工状态失败");
+                    },
+                };
 
                 //info!("提交常规任务");
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
