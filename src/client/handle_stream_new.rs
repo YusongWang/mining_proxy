@@ -110,6 +110,7 @@ where
     W1: AsyncWrite,
     W2: AsyncWrite,
 {
+    rpc.set_id(CLIENT_SUBMITWORK);
     if let Some(job_id) = rpc.get_job_id() {
         #[cfg(debug_assertions)]
         debug!("提交的JobID {}", job_id);
@@ -141,12 +142,12 @@ where
             return Ok(());
         } else {
             worker.share_index_add();
-            rpc.set_id(worker.share_index);
+            //rpc.set_id(worker.share_index);
             write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
         }
     } else {
         worker.share_index_add();
-        rpc.set_id(worker.share_index);
+        //rpc.set_id(worker.share_index);
         write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
     }
 }
@@ -506,25 +507,30 @@ where
                         let mut eth_socket_jobs_rpc = EthServerRootObjectJsonRpc{ id: 0, jsonrpc: "2.0".into(), result:job_res.clone()};
                         // TODO 先用job_id 去重。如果有重复了本回合直接跳过并执行ETh_GET_WORK
                         if send_proxy_jobs.contains(&job_id){
+                            //#[cfg(debug_assertions)]
                             info!("已存在的开发者任务。本轮跳过分配任务");
                             continue;
                         }
                         if send_develop_jobs.contains(&job_id){
+                            //#[cfg(debug_assertions)]
                             info!("已存在的抽水任务。本轮跳过分配任务");
                             continue;
                         }
                         if send_normal_jobs.contains(&job_id){
+                            //#[cfg(debug_assertions)]
                             info!("已存在的常规任务。本轮跳过分配任务");
                             continue;
                         }
 
                         if is_fee_random(get_develop_fee(config.share_rate.into(), false)) {
+                            #[cfg(debug_assertions)]
                             info!("-----=------------------开发者抽水回合");
                             if let Some((job_id,job_res)) = unsend_develop_jobs.pop_lru() {
                                 eth_socket_jobs_rpc.result = job_res.clone();
                                 send_develop_jobs.put(job_id,job_res);
                             }
                         } else if is_fee_random(config.share_rate.into()) {
+                            #[cfg(debug_assertions)]
                             info!("_-----=------------------中转抽水回合");
                             if let Some((job_id,job_res)) = unsend_proxy_jobs.pop_lru() {
                                 eth_socket_jobs_rpc.result = job_res.clone();
