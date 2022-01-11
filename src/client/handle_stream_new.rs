@@ -100,8 +100,8 @@ async fn new_eth_submit_work<W, W1, W2>(
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut Box<dyn EthClientObject + Send + Sync>,
     worker_name: &String,
-    mine_send_jobs: &mut Vec<String>,
-    develop_send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut LruCache<std::string::String, Vec<std::string::String>>,
+    develop_send_jobs: &mut LruCache<std::string::String, Vec<std::string::String>>,
     config: &Settings,
     state: &mut State,
 ) -> Result<()>
@@ -437,7 +437,7 @@ where
                             },
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
-                                //new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await?;
+                                new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_proxy_jobs,&mut send_develop_jobs,&config,&mut state).await?;
                                 write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
                                 Ok(())
                             },
@@ -534,7 +534,7 @@ where
                             info!("普通回合");
                             send_normal_jobs.put(job_id,job_res);
                         }
-                        
+
                         write_to_socket(&mut worker_w,&eth_socket_jobs_rpc,&worker_name).await?;
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
