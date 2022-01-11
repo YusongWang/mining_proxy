@@ -7,7 +7,10 @@ use log::{debug, info};
 
 use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+extern crate rand;
+
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
@@ -328,10 +331,16 @@ where
         worker: s.clone(),
     };
 
-    let rand_string: String = thread_rng()
-        .sample_iter::<char, _>(&rand::distributions::Standard)
+    // let rand_string: String = thread_rng()
+    //     .sample_iter::<char, _>(&Alphanumeric)
+    //     .take(32)
+    //     .collect>();
+    let rand_string_a = thread_rng()
+        .sample_iter(&Alphanumeric)
         .take(32)
-        .collect();
+        .collect::<Vec<u8>>();
+
+    let rand_string = String::from_utf8(rand_string_a)?;
 
     let proxy_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
@@ -369,16 +378,11 @@ where
         params: vec![get_wallet(), "x".into()],
         worker: develop_name.to_string(),
     };
-    
-    let rand_string: String = thread_rng()
-        .sample_iter::<char, _>(&rand::distributions::Standard)
-        .take(32)
-        .collect();
 
     let develop_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), rand_string],
+        params: vec!["0x0".into(), "x".into()],
         worker: develop_name.to_string(),
     };
 
