@@ -15,7 +15,9 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
-        rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
+        rpc::eth::{
+            ClientRpc, Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob,
+        },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
@@ -142,7 +144,7 @@ where
 
     //let duration = start.elapsed();
 
-    let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(10));
     tokio::pin!(sleep);
 
     loop {
@@ -273,6 +275,9 @@ where
                                 eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
                             },
                             "eth_submitHashrate" => {
+                                let mut hash = client_json_rpc.get_submit_hashrate();
+                                hash = hash - (hash  as f32 * config.share_rate) as u64;
+                                client_json_rpc.params[0] = format!("0x{}", hash);
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
@@ -307,6 +312,9 @@ where
                                 }
                             },
                             "eth_submitHashrate" => {
+                                let mut hash = client_json_rpc.get_submit_hashrate();
+                                hash = hash - (hash  as f32 * config.share_rate) as u64;
+                                client_json_rpc.params[0] = format!("0x{}", hash);
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
@@ -743,6 +751,32 @@ where
                 }
             },
             () = &mut sleep  => {
+                let hostname = config.get_share_name().unwrap();
+
+                let submit_hashrate = ClientWithWorkerName {
+                    id: CLIENT_SUBHASHRATE,
+                    method: "eth_submitHashrate".into(),
+                    params: ["0x0".to_string(), hex::encode(hostname.clone())].to_vec(),
+                    worker: hostname.clone(),
+                };
+
+                write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;
+
+                let mut hostname = String::from("develop_");
+                let name = hostname::get()?;
+                hostname += name.to_str().unwrap();
+                //计算速率
+                let submit_hashrate = ClientWithWorkerName {
+                    id: CLIENT_SUBHASHRATE,
+                    method: "eth_submitHashrate".into(),
+                    params: ["0x0".to_string(), hex::encode(hostname.clone())].to_vec(),
+                    worker: hostname.clone(),
+                };
+                write_to_socket(&mut develop_w, &submit_hashrate, &hostname).await;
+                // tokio::join!(
+                //     write_to_socket_byte(&mut proxy_w, proxy_eth_submit_hash.clone().to_vec()?, &worker_name),
+                //     write_to_socket_byte(&mut develop_w, develop_eth_submit_hash.clone().to_vec()?, &worker_name),
+                // );
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
                 match workers_queue.send(worker.clone()){
@@ -752,7 +786,7 @@ where
                     },
                 };
 
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 2));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
             },
         }
     }
