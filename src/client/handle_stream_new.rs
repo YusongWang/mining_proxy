@@ -537,7 +537,6 @@ where
                                 send_proxy_jobs.put(job_id,job_res);
                             }
                         } else {
-                            info!("普通回合");
                             send_normal_jobs.put(job_id,job_res);
                         }
 
@@ -573,9 +572,9 @@ where
                         unsend_proxy_jobs.put(job_id,job_res);
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
-                            //worker.share_accept();
+                            state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         } else if result_rpc.id == CLIENT_SUBMITWORK {
-                            //worker.share_reject();
+                            state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         }
                     }
                 }
@@ -595,9 +594,9 @@ where
                         unsend_develop_jobs.put(job_id,job_res);
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
-                            //worker.share_accept();
+                            state.develop_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         } else if result_rpc.id == CLIENT_SUBMITWORK {
-                            //worker.share_reject();
+                            state.develop_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         }
                     }
                 }
