@@ -132,27 +132,6 @@ fn test_clac_phread_num() {
     assert_eq!(clac_phread_num(0.08), 80);
 }
 
-// 根据抽水率计算启动多少个线程
-pub fn clac_phread_num_for_real(rate: f64) -> u64 {
-    //let mut num = 5;
-
-    //if rate <= 0.01 {
-    //        num = 5;
-    // } else if rate <= 0.05 {
-    //     num = 2;
-    // } else if rate <= 0.1 {
-    //     num = 1;
-    // }
-
-    let mut phread_num = clac_phread_num(rate);
-    if phread_num <= 0 {
-        phread_num = 1;
-    }
-
-    // *CPU核心数。
-    phread_num
-}
-
 pub fn is_fee(idx: u64, fee: f64) -> bool {
     let rate = clac_phread_num(fee);
 

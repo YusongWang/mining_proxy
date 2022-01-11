@@ -161,8 +161,32 @@ impl EthClientObject for EthClientWorkerObject {
 #[serde(rename_all = "camelCase")]
 pub struct EthServerRootObject {
     pub id: u64,
+    pub result: Vec<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EthServerRootObjectJsonRpc {
+    pub id: u64,
     pub jsonrpc: String,
     pub result: Vec<String>,
+}
+
+impl EthServerRootObject {
+    pub fn get_job_id(&self) -> Option<String> {
+        match self.result.get(0) {
+            Some(s) => Some(s.to_string()),
+            None => None,
+        }
+    }
+
+    pub fn get_job_result(&self) -> Option<Vec<String>> {
+        if self.result.len() >= 3 {
+            let res = self.result.clone();
+            return Some(res);
+        }
+        None
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -193,6 +217,14 @@ pub struct EthServerRootObjectError {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EthServerRoot {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: bool,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EthServer {
     pub id: u64,
     pub jsonrpc: String,
     pub result: bool,

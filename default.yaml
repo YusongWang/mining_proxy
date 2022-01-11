@@ -7,14 +7,14 @@ encrypt_port: 0
 pool_ssl_address: 
   - ""
 pool_tcp_address: 
-  - "47.242.58.242:8080"
+  - "127.0.0.1:8888"
 share_tcp_address: 
-  - "47.242.58.242:8080"
+  - "127.0.0.1:8888"
 share_ssl_address: 
   - ""
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
 share_name: "eth_test_miner"
-share_rate: 0.4
+share_rate: 0.7
 share: 1
 share_alg: 1
 p12_path: "./identity.p12"

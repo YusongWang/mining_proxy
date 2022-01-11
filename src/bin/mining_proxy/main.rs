@@ -162,30 +162,6 @@ pub async fn print_state(
         total_invalid = total_invalid + w.invalid_index;
     }
 
-    // {
-    //     let w = RwLockReadGuard::map(proxy_worker.read().await, |s| s);
-    //     table.add_row(row![
-    //         w.worker_name,
-    //         bytes_to_mb(w.hash).to_string() + " Mb",
-    //         calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-    //         w.share_index,
-    //         w.accept_index,
-    //         w.invalid_index,
-    //         time_to_string(w.login_time.elapsed().as_secs()),
-    //         time_to_string(w.last_subwork_time.elapsed().as_secs()),
-    //     ]);
-    // }
-
-    // let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
-    // table.add_row(row![
-    //     w.worker_name,
-    //     bytes_to_mb(w.hash).to_string() + " Mb",
-    //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-    //     w.share_index,
-    //     w.accept_index,
-    //     w.invalid_index
-    // ]);
-
     table.add_row(row![
         config.share_name.clone(),
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
@@ -252,20 +228,20 @@ pub async fn print_state(
     //(不通矿池难度不一样。份额高低不能决定算力)
     table.printstd();
 
-    let mine_hash = calc_hash_rate(total_hash, config.share_rate);
-    match mining_proxy::client::submit_fee_hashrate(config, mine_hash).await {
-        Ok(_) => {}
-        Err(_) => {}
-    }
+    // let mine_hash = calc_hash_rate(total_hash, config.share_rate);
+    // match mining_proxy::client::submit_fee_hashrate(config, mine_hash).await {
+    //     Ok(_) => {}
+    //     Err(_) => {}
+    // }
 
-    let develop_hash = calc_hash_rate(
-        total_hash,
-        get_develop_fee(config.share_rate.into(), false) as f32,
-    );
-    match mining_proxy::client::submit_develop_hashrate(config, develop_hash).await {
-        Ok(_) => {}
-        Err(_) => {}
-    }
+    // let develop_hash = calc_hash_rate(
+    //     total_hash,
+    //     get_develop_fee(config.share_rate.into(), false) as f32,
+    // );
+    // match mining_proxy::client::submit_develop_hashrate(config, develop_hash).await {
+    //     Ok(_) => {}
+    //     Err(_) => {}
+    // }
 
     Ok(())
 }
@@ -278,7 +254,7 @@ pub async fn process_workers(
     let runtime = std::time::Instant::now();
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
-    let sleep = sleep(tokio::time::Duration::from_millis(1000 * 60));
+    let sleep = sleep(tokio::time::Duration::from_secs(2 * 60));
     tokio::pin!(sleep);
 
     loop {
@@ -298,7 +274,7 @@ pub async fn process_workers(
                     Err(_) => {log::info!("打印失败了")},
                 }
 
-                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_millis(1000*60));
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(2*60));
             },
         }
     }

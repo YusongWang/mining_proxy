@@ -709,7 +709,7 @@ where
                         cfg_if::cfg_if! {
                             if #[cfg(feature = "agent")] {
                                 if agent_send_jobs.contains(&job.0) {
-                                    务本次结果
+                                    continue;
                                 }
                             }
                         }
