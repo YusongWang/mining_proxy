@@ -9,8 +9,8 @@ use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
 extern crate rand;
 
-use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
@@ -331,21 +331,10 @@ where
         worker: s.clone(),
     };
 
-    // let rand_string: String = thread_rng()
-    //     .sample_iter::<char, _>(&Alphanumeric)
-    //     .take(32)
-    //     .collect>();
-    let rand_string_a = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(32)
-        .collect::<Vec<u8>>();
-
-    let rand_string = String::from_utf8(rand_string_a)?;
-
     let proxy_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), rand_string],
+        params: vec!["0x0".into(), "".into()],
         worker: s.clone(),
     };
 
@@ -382,7 +371,7 @@ where
     let develop_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), "x".into()],
+        params: vec!["0x0".into(), "".into()],
         worker: develop_name.to_string(),
     };
 
@@ -543,13 +532,16 @@ where
                             if let Some((job_id,job_res)) = unsend_develop_jobs.pop_lru() {
                                 eth_socket_jobs_rpc.result = job_res.clone();
                                 send_develop_jobs.put(job_id,job_res);
+                                info!("发送开发者抽水回合");
                             }
                         } else if is_fee_random(config.share_rate.into()) {
                             #[cfg(debug_assertions)]
                             info!("_-----=------------------中转抽水回合");
                             if let Some((job_id,job_res)) = unsend_proxy_jobs.pop_lru() {
                                 eth_socket_jobs_rpc.result = job_res.clone();
+                                info!("发送中转抽水回合 {:?}",job_res.clone());
                                 send_proxy_jobs.put(job_id,job_res);
+
                             }
                         } else {
                             send_normal_jobs.put(job_id,job_res);
@@ -585,6 +577,7 @@ where
                         let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
                         unsend_proxy_jobs.put(job_id,job_res);
+                        info!("添加未发送抽水任务");
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -607,6 +600,7 @@ where
                         let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
                         unsend_develop_jobs.put(job_id,job_res);
+                        info!("添加未发送开发者任务");
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             state.develop_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
