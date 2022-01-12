@@ -17,6 +17,7 @@ use tokio::{
     select, time,
 };
 
+use crate::protocol::ethjson::EthServer;
 use crate::{
     client::*,
     protocol::{
@@ -579,7 +580,7 @@ where
                         //let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
                         unsend_proxy_jobs.push_back(job_res);
-                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
+                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         } else if result_rpc.id == CLIENT_SUBMITWORK {
@@ -602,7 +603,7 @@ where
                         let job_res = job_rpc.get_job_result().unwrap();
                         unsend_develop_jobs.push_back(job_res);
 
-                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
+                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             state.develop_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                         } else if result_rpc.id == CLIENT_SUBMITWORK {

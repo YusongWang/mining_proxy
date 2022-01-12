@@ -237,7 +237,6 @@ pub struct EthServerRoot {
 #[serde(rename_all = "camelCase")]
 pub struct EthServer {
     pub id: u64,
-    pub jsonrpc: String,
     pub result: bool,
 }
 
