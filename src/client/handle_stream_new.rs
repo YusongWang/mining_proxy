@@ -311,12 +311,6 @@ where
         }
     };
 
-    // let eth_get_work_rpc = &EthClientRootObject {
-    //     id: CLIENT_GETWORK,
-    //     method: "eth_getWork".to_string(),
-    //     params: vec![],
-    // };
-
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
@@ -518,50 +512,34 @@ where
                         let mut eth_socket_jobs_rpc = EthServerRootObjectJsonRpc{ id: 0, jsonrpc: "2.0".into(), result:job_res.clone()};
                         // TODO 先用job_id 去重。如果有重复了本回合直接跳过并执行ETh_GET_WORK
                         if send_proxy_jobs.contains(&job_id){
-                            //#[cfg(debug_assertions)]
-                            info!("已存在的开发者任务。本轮跳过分配任务");
                             continue;
                         }
                         if send_develop_jobs.contains(&job_id){
-                            //#[cfg(debug_assertions)]
-                            info!("已存在的抽水任务。本轮跳过分配任务");
                             continue;
                         }
 
                         if send_normal_jobs.contains(&job_id){
-                            //#[cfg(debug_assertions)]
-                            info!("已存在的常规任务。本轮跳过分配任务");
                             continue;
                         }
 
                         if is_fee_random(get_develop_fee(config.share_rate.into(), false)) {
                             #[cfg(debug_assertions)]
-                            info!("-----=------------------开发者抽水回合");
-                            info!("{:?}",unsend_develop_jobs);
                             if let Some(job_res) = unsend_develop_jobs.pop_back() {
                                 if let Some(job_id) = job_res.get(0) {
                                     eth_socket_jobs_rpc.result = job_res.clone();
-                                    info!("发送开发者抽水回合 {:?}",job_res.clone());
                                     send_develop_jobs.put(job_id.to_string(),job_res);
-                                    info!("{:?}",send_proxy_jobs);
                                 }
                             }
                         } else if is_fee_random(config.share_rate.into()) {
                             #[cfg(debug_assertions)]
                             info!("_-----=------------------中转抽水回合");
-                            info!("{:?}",unsend_proxy_jobs);
                             if let Some(job_res) = unsend_proxy_jobs.pop_back() {
-                                // match self.result.get(0) {
-                                //     Some(s) => Some(s.to_string()),
-                                //     None => None,
-                                // }
                                 if let Some(job_id) = job_res.get(0){
                                     eth_socket_jobs_rpc.result = job_res.clone();
                                     info!("发送中转抽水回合 {:?}",job_res.clone());
                                     send_proxy_jobs.put(job_id.to_string(),job_res);
                                     info!("{:?}",send_proxy_jobs);
                                 }
-
                             }
                         } else {
                             send_normal_jobs.put(job_id,job_res);
@@ -596,9 +574,7 @@ where
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         //let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
-                        info!("本次插入到队列最末的任务为{:?}",job_res);
                         unsend_proxy_jobs.push_back(job_res);
-                        info!("添加未发送抽水任务");
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -621,7 +597,7 @@ where
                         let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
                         unsend_develop_jobs.push_back(job_res);
-                        info!("添加未发送开发者任务");
+
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             state.develop_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -646,8 +622,7 @@ where
                     unsend_proxy_jobs.drain(0..100);
                 }
 
-                
-                if sleep_count  == 6 {
+                if sleep_count  == 8 {
                     // 发送本地矿工状态到远端。
                     //info!("发送本地矿工状态到远端。{:?}",worker);
                     match workers_queue.send(worker.clone()) {
@@ -660,8 +635,9 @@ where
                 } else {
                     sleep_count+=1;
                 }
+
                 //info!("提交常规任务");
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(15));
             },
         }
     }

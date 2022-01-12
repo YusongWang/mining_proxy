@@ -117,8 +117,6 @@ pub async fn print_state(
     state: mining_proxy::state::State,
     runtime: std::time::Instant,
 ) -> Result<()> {
-
-
     // 创建表格
     let mut table = Table::new();
     table.add_row(row![
