@@ -23,7 +23,7 @@ use std::{
     collections::VecDeque,
     fmt::Debug,
     net::{SocketAddr, ToSocketAddrs},
-    time::Duration,
+    time::Duration, io::{Read, Write},
 };
 
 use anyhow::Result;
@@ -1709,12 +1709,12 @@ where
     Some(())
 }
 
-pub async fn handle<R, W>(
+pub async fn handle<R, W, T>(
     worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
-    stream: TcpStream,
+    stream: T,
     config: &Settings,
     state: State,
     is_encrypted: bool,
@@ -1722,6 +1722,7 @@ pub async fn handle<R, W>(
 where
     R: AsyncRead,
     W: AsyncWrite,
+    T: AsyncRead + AsyncWrite,
 {
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
@@ -1814,6 +1815,7 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    log::info!("{:?}", pools);
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -1857,17 +1859,17 @@ where
         }
     };
 
-    // handle(
-    //     worker,
-    //     worker_queue,
-    //     worker_r,
-    //     worker_w,
-    //     outbound,
-    //     &config,
-    //     state,
-    //     is_encrypted,
-    // )
-    // .await
+    handle(
+        worker,
+        worker_queue,
+        worker_r,
+        worker_w,
+        outbound,
+        &config,
+        state,
+        is_encrypted,
+    )
+    .await;
 
     Ok(())
 }

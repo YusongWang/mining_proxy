@@ -8,3 +8,18 @@
 
 {"id":1,"method":"eth_submitLogin","worker":"eth1.0","params":["0x46a0c59f5376b9017F6403A8A68658BC47cB56D5.2080s","x"],"jsonrpc":"2.0"}
 {"id":6,"method":"eth_submitHashrate","params":["0x5F5E100","x"],"worker":"2080s"}
+
+
+
+
+
+{"id":1,"method":"mining.subscribe","params":["MinerName/1.0.0","EthereumStratum/1.0.0"]}
+{"id":1,"result":[["mining.notify","9724","EthereumStratum/1.0.0"],"9724"],"error": null}
+{"id":2,"method":"mining.authorize","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD","x"]}
+
+
+
+{"id":3,"method":"mining.set_difficulty","params":"1"}
+{"id":6,"method":"mining.notify","params":["ddd755","26ef49397f21634395c2acda2bc8c130c2912a8636fa750016dc0039dc432f93","ddd7554156c25bfed297dc600e0094c1f253af5bb27a8bd35b1c462e184393b3",false]}
+
+{"id":244,"method":"mining.submit","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD","bf0488aa","6a909d9bbc0f"]}
