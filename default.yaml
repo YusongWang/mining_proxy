@@ -1,15 +1,15 @@
 name: "proxy"
 log_level: 0
 log_path: "logs"
-ssl_port: 0
-tcp_port: 3333
+ssl_port: 3333
+tcp_port: 3332
 encrypt_port: 0
 pool_ssl_address: 
   - ""
 pool_tcp_address: 
-  - "127.0.0.1:8899"
+  - "127.0.0.1:8081"
 share_tcp_address: 
-  - "127.0.0.1:8899"
+  - "127.0.0.1:8081"
 share_ssl_address: 
   - ""
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"

@@ -1815,7 +1815,6 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    log::info!("{:?}", pools);
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
