@@ -532,8 +532,8 @@ where
                         }
 
                         if is_fee_random(get_develop_fee(config.share_rate.into(), false)) {
+                            //#[cfg(debug_assertions)]
                             info!("_-----=------------------开发者中转抽水回合");
-                            #[cfg(debug_assertions)]
                             if let Some(job_res) = unsend_develop_jobs.pop_back() {
                                 info!("_-----=------------------发送开发者抽水");
                                 if let Some(job_id) = job_res.get(0) {
