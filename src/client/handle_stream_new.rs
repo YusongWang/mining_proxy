@@ -450,11 +450,11 @@ where
                             "eth_submitHashrate" => {
                                 eth_server_result.id = rpc_id;
                                 // FIX ME
-                                if true {
-                                    let mut hash = json_rpc.get_submit_hashrate();
-                                    hash = hash - (hash  as f32 * config.share_rate) as u64;
-                                    json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
-                                }
+                                // if true {
+                                //     let mut hash = json_rpc.get_submit_hashrate();
+                                //     hash = hash - (hash  as f32 * config.share_rate) as u64;
+                                //     json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
+                                // }
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                 write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
                                 if first_submit_hashrate {
