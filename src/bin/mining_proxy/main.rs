@@ -117,10 +117,7 @@ pub async fn print_state(
     state: mining_proxy::state::State,
     runtime: std::time::Instant,
 ) -> Result<()> {
-    // info!(
-    //     "当前在线矿机 {} 台",
-    //     state.online.load(std::sync::atomic::Ordering::SeqCst)
-    // );
+
 
     // 创建表格
     let mut table = Table::new();
@@ -165,7 +162,7 @@ pub async fn print_state(
     table.add_row(row![
         config.share_name.clone(),
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-        "TODO",
+        "",
         state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
@@ -181,7 +178,7 @@ pub async fn print_state(
         )
         .to_string()
             + " Mb",
-        "TODO",
+        "",
         state
             .develop_share
             .load(std::sync::atomic::Ordering::SeqCst),

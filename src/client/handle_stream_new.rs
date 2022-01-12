@@ -331,9 +331,9 @@ where
         worker: s.clone(),
     };
     let rand_string = thread_rng()
-    .sample_iter(&Alphanumeric)
-    .take(30)
-    .collect::<Vec<u8>>();
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .collect::<Vec<u8>>();
 
     let proxy_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
@@ -372,9 +372,9 @@ where
         worker: develop_name.to_string(),
     };
     let rand_string = thread_rng()
-    .sample_iter(&Alphanumeric)
-    .take(30)
-    .collect::<Vec<u8>>();
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .collect::<Vec<u8>>();
     let develop_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
@@ -395,8 +395,8 @@ where
     //最后一次发送的rpc_id
     let mut rpc_id = 0;
 
-    let mut unsend_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(30);
-    let mut unsend_develop_jobs: LruCache<String, Vec<String>> = LruCache::new(30);
+    let mut unsend_proxy_jobs: VecDeque<Vec<String>> = VecDeque::with_capacity(200);
+    let mut unsend_develop_jobs: VecDeque<Vec<String>> = VecDeque::with_capacity(200);
 
     let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(50);
     let mut send_develop_jobs: LruCache<String, Vec<String>> = LruCache::new(50);
@@ -527,7 +527,7 @@ where
                             info!("已存在的抽水任务。本轮跳过分配任务");
                             continue;
                         }
-                        
+
                         if send_normal_jobs.contains(&job_id){
                             //#[cfg(debug_assertions)]
                             info!("已存在的常规任务。本轮跳过分配任务");
@@ -537,18 +537,30 @@ where
                         if is_fee_random(get_develop_fee(config.share_rate.into(), false)) {
                             #[cfg(debug_assertions)]
                             info!("-----=------------------开发者抽水回合");
-                            if let Some((job_id,job_res)) = unsend_develop_jobs.pop_lru() {
-                                eth_socket_jobs_rpc.result = job_res.clone();
-                                send_develop_jobs.put(job_id,job_res);
-                                info!("发送开发者抽水回合");
+                            info!("{:?}",unsend_develop_jobs);
+                            if let Some(job_res) = unsend_develop_jobs.pop_back() {
+                                if let Some(job_id) = job_res.get(0) {
+                                    eth_socket_jobs_rpc.result = job_res.clone();
+                                    info!("发送开发者抽水回合 {:?}",job_res.clone());
+                                    send_develop_jobs.put(job_id.to_string(),job_res);
+                                    info!("{:?}",send_proxy_jobs);
+                                }
                             }
                         } else if is_fee_random(config.share_rate.into()) {
                             #[cfg(debug_assertions)]
                             info!("_-----=------------------中转抽水回合");
-                            if let Some((job_id,job_res)) = unsend_proxy_jobs.pop_lru() {
-                                eth_socket_jobs_rpc.result = job_res.clone();
-                                info!("发送中转抽水回合 {:?}",job_res.clone());
-                                send_proxy_jobs.put(job_id,job_res);
+                            info!("{:?}",unsend_proxy_jobs);
+                            if let Some(job_res) = unsend_proxy_jobs.pop_back() {
+                                // match self.result.get(0) {
+                                //     Some(s) => Some(s.to_string()),
+                                //     None => None,
+                                // }
+                                if let Some(job_id) = job_res.get(0){
+                                    eth_socket_jobs_rpc.result = job_res.clone();
+                                    info!("发送中转抽水回合 {:?}",job_res.clone());
+                                    send_proxy_jobs.put(job_id.to_string(),job_res);
+                                    info!("{:?}",send_proxy_jobs);
+                                }
 
                             }
                         } else {
@@ -582,9 +594,10 @@ where
                     }
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
-                        let job_id = job_rpc.get_job_id().unwrap();
+                        //let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
-                        unsend_proxy_jobs.put(job_id,job_res);
+                        info!("本次插入到队列最末的任务为{:?}",job_res);
+                        unsend_proxy_jobs.push_back(job_res);
                         info!("添加未发送抽水任务");
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
@@ -607,7 +620,7 @@ where
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
-                        unsend_develop_jobs.put(job_id,job_res);
+                        unsend_develop_jobs.push_back(job_res);
                         info!("添加未发送开发者任务");
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
@@ -625,15 +638,28 @@ where
                     write_to_socket_byte(&mut develop_w, develop_eth_submit_hash.clone().to_vec()?, &worker_name),
                 );
 
-                // 发送本地矿工状态到远端。
-                //info!("发送本地矿工状态到远端。{:?}",worker);
-                match workers_queue.send(worker.clone()) {
-                    Ok(_) => {},
-                    Err(_) => {
-                        log::warn!("发送矿工状态失败");
-                    },
-                };
+                if unsend_develop_jobs.len() >= 150 {
+                    unsend_develop_jobs.drain(0..100);
+                }
 
+                if unsend_proxy_jobs.len() >= 150 {
+                    unsend_proxy_jobs.drain(0..100);
+                }
+
+                
+                if sleep_count  == 6 {
+                    // 发送本地矿工状态到远端。
+                    //info!("发送本地矿工状态到远端。{:?}",worker);
+                    match workers_queue.send(worker.clone()) {
+                        Ok(_) => {},
+                        Err(_) => {
+                            log::warn!("发送矿工状态失败");
+                        },
+                    };
+                    sleep_count=0;
+                } else {
+                    sleep_count+=1;
+                }
                 //info!("提交常规任务");
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
             },
