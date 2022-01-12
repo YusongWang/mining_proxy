@@ -13,7 +13,7 @@ pub trait EthClientObject {
     fn set_worker_name(&mut self, worker_name: &str) -> bool;
 
     fn get_submit_hashrate(&self) -> u64;
-    fn set_submit_hashrate(&mut self,hash:String) -> bool;
+    fn set_submit_hashrate(&mut self, hash: String) -> bool;
 
     fn get_method(&self) -> String;
 
@@ -99,7 +99,7 @@ impl EthClientObject for EthClientRootObject {
         Ok(rpc)
     }
 
-    fn set_submit_hashrate(&mut self,hash:String) -> bool {
+    fn set_submit_hashrate(&mut self, hash: String) -> bool {
         self.params[0] = hash;
         true
     }
@@ -162,7 +162,7 @@ impl EthClientObject for EthClientWorkerObject {
         Ok(rpc)
     }
 
-    fn set_submit_hashrate(&mut self,hash:String) -> bool {
+    fn set_submit_hashrate(&mut self, hash: String) -> bool {
         self.params[0] = hash;
         true
     }

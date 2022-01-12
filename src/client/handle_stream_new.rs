@@ -120,7 +120,6 @@ where
         #[cfg(debug_assertions)]
         debug!("提交的JobID {}", job_id);
         if mine_send_jobs.contains(&job_id) {
-            //if let Some(_thread_id) = mine_send_jobs.get(&job_id) {
             let hostname = config.get_share_name().unwrap();
             state
                 .proxy_share
@@ -132,8 +131,6 @@ where
             write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name).await?;
             return Ok(());
         } else if develop_send_jobs.contains(&job_id) {
-            info!("_-----=------------------开发者抽水任务 {}",job_id);
-            //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
             let mut hostname = String::from("develop_");
             state
                 .develop_share
@@ -142,7 +139,7 @@ where
             let name = hostname::get()?;
             hostname += name.to_str().unwrap();
             rpc.set_worker_name(&hostname);
-            //#[cfg(debug_assertions)]
+            #[cfg(debug_assertions)]
             debug!("得到开发者抽水任务。{:?}", rpc);
             write_to_socket_byte(develop_w, rpc.to_vec()?, &config.share_name).await?;
             return Ok(());
@@ -451,7 +448,7 @@ where
                             },
                             "eth_submitHashrate" => {
                                 eth_server_result.id = rpc_id;
-                                // FIX ME 
+                                // FIX ME
                                 if true {
                                     let mut hash = json_rpc.get_submit_hashrate();
                                     hash = hash - (hash  as f32 * config.share_rate) as u64;
@@ -532,14 +529,12 @@ where
                         }
 
                         if is_fee_random(get_develop_fee(config.share_rate.into(), false)) {
-                            //#[cfg(debug_assertions)]
+                            #[cfg(debug_assertions)]
                             info!("_-----=------------------开发者中转抽水回合");
                             if let Some(job_res) = unsend_develop_jobs.pop_back() {
-                                info!("_-----=------------------发送开发者抽水");
                                 if let Some(job_id) = job_res.get(0) {
                                     eth_socket_jobs_rpc.result = job_res.clone();
                                     send_develop_jobs.put(job_id.to_string(),job_res);
-                                    info!("_-----=------------------发送成功");
                                 }
                             }
                         } else if is_fee_random(config.share_rate.into()) {
