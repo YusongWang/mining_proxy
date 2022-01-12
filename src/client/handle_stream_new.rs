@@ -527,6 +527,7 @@ where
                             info!("已存在的抽水任务。本轮跳过分配任务");
                             continue;
                         }
+                        
                         if send_normal_jobs.contains(&job_id){
                             //#[cfg(debug_assertions)]
                             info!("已存在的常规任务。本轮跳过分配任务");
