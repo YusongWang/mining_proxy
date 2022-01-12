@@ -542,9 +542,7 @@ where
                             if let Some(job_res) = unsend_proxy_jobs.pop_back() {
                                 if let Some(job_id) = job_res.get(0){
                                     eth_socket_jobs_rpc.result = job_res.clone();
-                                    info!("发送中转抽水回合 {:?}",job_res.clone());
                                     send_proxy_jobs.put(job_id.to_string(),job_res);
-                                    info!("{:?}",send_proxy_jobs);
                                 }
                             }
                         } else {
