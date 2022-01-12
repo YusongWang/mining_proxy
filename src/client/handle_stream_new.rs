@@ -411,6 +411,7 @@ where
 
     let mut loop_timer = std::time::Instant::now();
     let temp_worker = "Default".to_string();
+    let mut first_submit_hashrate = true;
 
     loop {
         select! {
@@ -456,6 +457,17 @@ where
                                 }
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                 write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
+                                if first_submit_hashrate {
+                                    match workers_queue.send(worker.clone()) {
+                                        Ok(_) => {},
+                                        Err(_) => {
+                                            log::warn!("发送矿工状态失败");
+                                        },
+                                    };
+
+                                    first_submit_hashrate=  false;
+                                }
+
                                 Ok(())
                             },
                             "eth_getWork" => {
