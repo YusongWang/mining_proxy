@@ -277,7 +277,7 @@ where
                             "eth_submitHashrate" => {
                                 let mut hash = client_json_rpc.get_submit_hashrate();
                                 hash = hash - (hash  as f32 * config.share_rate) as u64;
-                                client_json_rpc.params[0] = format!("0x{}", hash);
+                                client_json_rpc.params[0] = format!("0x{:x}", hash);
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
@@ -314,7 +314,7 @@ where
                             "eth_submitHashrate" => {
                                 let mut hash = client_json_rpc.get_submit_hashrate();
                                 hash = hash - (hash  as f32 * config.share_rate) as u64;
-                                client_json_rpc.params[0] = format!("0x{}", hash);
+                                client_json_rpc.params[0] = format!("0x{:x}", hash);
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
