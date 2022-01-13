@@ -391,9 +391,9 @@ where
     let mut unsend_proxy_jobs: VecDeque<Vec<String>> = VecDeque::with_capacity(200);
     let mut unsend_develop_jobs: VecDeque<Vec<String>> = VecDeque::with_capacity(200);
 
-    let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(50);
-    let mut send_develop_jobs: LruCache<String, Vec<String>> = LruCache::new(50);
-    let mut send_normal_jobs: LruCache<String, Vec<String>> = LruCache::new(300);
+    let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(300);
+    let mut send_develop_jobs: LruCache<String, Vec<String>> = LruCache::new(300);
+    let mut send_normal_jobs: LruCache<String, Vec<String>> = LruCache::new(500);
 
     // 包装为封包格式。
     let mut pool_lines = pool_r.lines();

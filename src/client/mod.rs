@@ -22,8 +22,9 @@ use serde::Serialize;
 use std::{
     collections::VecDeque,
     fmt::Debug,
+    io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs},
-    time::Duration, io::{Read, Write},
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -1757,18 +1758,18 @@ where
                 .await
             } else {
                 // if config.share_alg == 2 {
-                //     handle_stream_timer::handle_stream(
-                //         worker,
-                //         worker_queue,
-                //         worker_r,
-                //         worker_w,
-                //         pool_r,
-                //         pool_w,
-                //         &config,
-                //         state,
-                //         is_encrypted,
-                //     )
-                //     .await
+                    // handle_stream_timer::handle_stream(
+                    //     worker,
+                    //     worker_queue,
+                    //     worker_r,
+                    //     worker_w,
+                    //     pool_r,
+                    //     pool_w,
+                    //     &config,
+                    //     state,
+                    //     is_encrypted,
+                    // )
+                    // .await
                 // } else if config.share_alg == 1 {
                     handle_stream_new::handle_stream(
                         worker,
