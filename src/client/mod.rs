@@ -252,7 +252,7 @@ where
 
     let rpc = serde_json::to_vec(&rpc)?;
     let cipher = openssl::symm::Cipher::aes_256_cbc();
-    //let data = b"Some Crypto String";
+
     let rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
     let base64 = base64::encode(&rpc[..]);

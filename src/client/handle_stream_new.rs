@@ -646,8 +646,9 @@ where
                         } else {
                             send_normal_jobs.put(job_id,job_res);
                         }
-
-                        write_to_socket(&mut worker_w,&eth_socket_jobs_rpc,&worker_name).await?;
+                        
+                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        //write_to_socket(&mut worker_w,&eth_socket_jobs_rpc,&worker_name).await?;
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
