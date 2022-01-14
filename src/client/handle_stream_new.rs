@@ -49,12 +49,12 @@ where
         Ok(res) => match res {
             Some(buf) => Ok(buf),
             None => {
-                match w.shutdown().await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        log::error!("Error Worker Shutdown Socket {:?}", e);
-                    }
-                };
+                // match w.shutdown().await {
+                //     Ok(_) => {}
+                //     Err(e) => {
+                //         log::error!("Error Worker Shutdown Socket {:?}", e);
+                //     }
+                // };
                 bail!("{}：{}  读取到字节0. 矿池主动断开 ", form_name, worker_name);
             }
         },
@@ -548,12 +548,12 @@ where
                                 //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
-                            "mining.subscribe" => {
-                                eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                new_subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                Ok(())
-                            },
+                            // "mining.subscribe" => {
+                            //     eth_server_result.id = rpc_id;
+                            //     write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                            //     new_subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                            //     Ok(())
+                            // },
                             _ => {
                                 log::warn!("Not found method {:?}",json_rpc);
                                 eth_server_result.id = rpc_id;
@@ -579,7 +579,7 @@ where
                 let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
                     Ok(buf) => buf,
                     Err(e) => {
-                        
+
                         info!("{}", e);
                         let (reproxy_lines, reproxy_w) = proxy_pool_login(&config, s.clone()).await?;
                         proxy_w = reproxy_w;
