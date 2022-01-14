@@ -1,3 +1,4 @@
+use std::f32::consts::E;
 use std::io::Error;
 
 use anyhow::{bail, Result};
@@ -11,6 +12,7 @@ extern crate rand;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use tokio::io::{BufReader, Lines, ReadHalf};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     net::TcpStream,
@@ -297,6 +299,74 @@ where
     }
 }
 
+async fn develop_pool_login(
+    hostname: String,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    let stream = match pools::get_develop_pool_stream().await {
+        Ok(s) => s,
+        Err(e) => {
+            debug!("无法链接到矿池{}", e);
+            return Err(e);
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+
+    let (develop_r, mut develop_w) = tokio::io::split(outbound);
+    let develop_r = tokio::io::BufReader::new(develop_r);
+    let mut develop_lines = develop_r.lines();
+
+    let develop_name = hostname + "_develop";
+    let login_develop = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![get_wallet(), "x".into()],
+        worker: develop_name.to_string(),
+    };
+
+    write_to_socket(&mut develop_w, &login_develop, &develop_name).await?;
+
+    Ok((develop_lines, develop_w))
+}
+
+async fn proxy_pool_login(
+    config: &Settings,
+    hostname: String,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    //TODO 这里要兼容SSL矿池
+    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            log::error!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+    let proxy_r = tokio::io::BufReader::new(proxy_r);
+    let mut proxy_lines = proxy_r.lines();
+
+    let s = config.get_share_name().unwrap();
+
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![config.share_wallet.clone(), "x".into()],
+        worker: s.clone(),
+    };
+
+    match write_to_socket(&mut proxy_w, &login, &s).await {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Error writing Socket {:?}", login);
+            return Err(e);
+        }
+    }
+
+    Ok((proxy_lines, proxy_w))
+}
+
 pub async fn handle_stream<R, W, R1, W1>(
     worker: &mut Worker,
     workers_queue: UnboundedSender<Worker>,
@@ -321,28 +391,8 @@ where
         result: true,
     };
 
-    //TODO 这里要兼容SSL矿池
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            log::error!("所有TCP矿池均不可链接。请修改后重试");
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
-
-    let outbound = TcpStream::from_std(stream)?;
-    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
-    let proxy_r = tokio::io::BufReader::new(proxy_r);
-    let mut proxy_lines = proxy_r.lines();
-
     let s = config.get_share_name().unwrap();
-
-    let login = ClientWithWorkerName {
-        id: CLIENT_LOGIN,
-        method: "eth_submitLogin".into(),
-        params: vec![config.share_wallet.clone(), "x".into()],
-        worker: s.clone(),
-    };
+    let develop_name = s.clone() + "_develop";
     let rand_string = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)
@@ -355,39 +405,11 @@ where
         worker: s.clone(),
     };
 
-    match write_to_socket(&mut proxy_w, &login, &s).await {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("Error writing Socket {:?}", login);
-            return Err(e);
-        }
-    }
-
-    let stream = match pools::get_develop_pool_stream().await {
-        Ok(s) => s,
-        Err(e) => {
-            debug!("无法链接到矿池{}", e);
-            return Err(e);
-        }
-    };
-
-    let outbound = TcpStream::from_std(stream)?;
-
-    let (develop_r, mut develop_w) = tokio::io::split(outbound);
-    let develop_r = tokio::io::BufReader::new(develop_r);
-    let mut develop_lines = develop_r.lines();
-
-    let develop_name = s.clone() + "_develop";
-    let login_develop = ClientWithWorkerName {
-        id: CLIENT_LOGIN,
-        method: "eth_submitLogin".into(),
-        params: vec![get_wallet(), "x".into()],
-        worker: develop_name.to_string(),
-    };
     let rand_string = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)
         .collect::<Vec<u8>>();
+
     let develop_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
@@ -395,13 +417,8 @@ where
         worker: develop_name.to_string(),
     };
 
-    match write_to_socket(&mut develop_w, &login_develop, &develop_name).await {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("Error writing Socket {:?}", login);
-            return Err(e);
-        }
-    }
+    let (mut proxy_lines, mut proxy_w) = proxy_pool_login(&config, s.clone()).await?;
+    let (mut develop_lines, mut develop_w) = develop_pool_login(s.clone()).await?;
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -559,7 +576,19 @@ where
             },
             res = pool_lines.next_line() => {
                 //let start = std::time::Instant::now();
-                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await?;
+                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
+                    Ok(buf) => buf,
+                    Err(e) => {
+                        
+                        info!("{}", e);
+                        let (reproxy_lines, reproxy_w) = proxy_pool_login(&config, s.clone()).await?;
+                        proxy_w = reproxy_w;
+                        proxy_lines = reproxy_lines;
+
+                        continue;
+                        //let (mut develop_lines, mut develop_w) = develop_pool_login(s.clone()).await?;
+                    },
+                };
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -637,7 +666,17 @@ where
 
             },
             res = proxy_lines.next_line() => {
-                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"抽水池").await?;
+                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"抽水池").await{
+                    Ok(buf) => buf,
+                    Err(e) => {
+                        info!("{}", e);
+                        let (redevelop_lines, redevelop_w) = develop_pool_login(s.clone()).await?;
+                        proxy_w = redevelop_w;
+                        proxy_lines = redevelop_lines;
+
+                        continue;
+                    },
+                };
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {

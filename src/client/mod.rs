@@ -18,6 +18,7 @@ use anyhow::bail;
 use hex::FromHex;
 use log::debug;
 use native_tls::TlsConnector;
+use rand::prelude::SliceRandom;
 use serde::Serialize;
 use std::{
     collections::VecDeque,
@@ -71,7 +72,46 @@ pub fn get_pool_ip_and_type_for_proxyer(
         None
     }
 }
+//vs.choose(&mut rand::thread_rng())
+pub fn get_pool_random_stream(
+    pool_tcp_address: &Vec<String>,
+) -> Option<(std::net::TcpStream, SocketAddr)> {
 
+    for _ in 0..pool_tcp_address.len() {
+        let address = match pool_tcp_address.choose(&mut rand::thread_rng()) {
+            Some(s) => s,
+            None => continue,
+        };
+
+        let mut tcp = match address.to_socket_addrs() {
+            Ok(t) => t,
+            Err(_) => {
+                log::error!("矿池地址格式化失败");
+                continue
+            }
+        };
+
+        let addr = match tcp.next() {
+            Some(address) => address,
+            None => {
+                //debug!("{} 访问不通。切换备用矿池！！！！", address);
+                continue
+            }
+        };
+
+        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
+            Ok(stream) => stream,
+            Err(_) => {
+                //debug!("{} 访问不通。切换备用矿池！！！！", address);
+                continue
+            }
+        };
+        std_stream.set_nonblocking(true).unwrap();
+        return Some((std_stream, addr));
+    }
+    
+    None
+}
 pub fn get_pool_stream(
     pool_tcp_address: &Vec<String>,
 ) -> Option<(std::net::TcpStream, SocketAddr)> {
