@@ -466,7 +466,7 @@ where
                             worker.share_accept();
                         } else {
                             worker.share_reject();
-                            log::warn!("拒绝原因 {:?}",result_rpc);
+                            //log::warn!("拒绝原因 {:?}",result_rpc);
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                         }
 

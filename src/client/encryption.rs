@@ -46,7 +46,6 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
     let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
         Ok(stream) => stream,
         Err(_) => {
-            info!("{} 远程地址不通！", addr);
             bail!("{} 远程地址不通！", addr);
         }
     };
@@ -63,31 +62,17 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
 
     loop {
         select! {
-            res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_r.next_line()) => {
-                let _start = std::time::Instant::now();
+            res = worker_r.next_line() => {
                 let buffer = match res{
-                    Ok(res) => {
-                        match res {
-                            Ok(buf) => match buf{
-                                    Some(buf) => buf,
-                                    None =>       {
-                                    pool_w.shutdown().await;
-                                    info!("矿机下线了");
-                                    bail!("矿机下线了")},
-                                },
-                            _ => {
-                                pool_w.shutdown().await;
-                                info!("矿机下线了");
-                                bail!("矿机下线了")
-                            },
+                    Ok(res) => match res{
+                        Some(buf) => buf,
+                        None => {
+                            pool_w.shutdown().await;
+                            bail!("矿机下线了")
                         }
                     },
                     Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
                 };
-
-                if client_timeout_sec == 1 {
-                    client_timeout_sec = 60;
-                }
 
                 #[cfg(debug_assertions)]
                 debug!("------> :  矿机 -> 矿池  {:?}", buffer);
@@ -96,13 +81,6 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                     if buf.is_empty() {
                         continue;
                     }
-                    // let key = Vec::from_hex(key).unwrap();
-                    // let mut iv = Vec::from_hex(iv).unwrap();
-                    // 加密
-                    //let key = AesKey::new_encrypt(&key).unwrap();
-                    //let plain_text = buf.to_string().as_bytes();
-                    //let mut output = buf.as_bytes().to_vec().clone();
-
                     let cipher = Cipher::aes_256_cbc();
                     //let data = b"Some Crypto String";
                     let ciphertext = encrypt(
@@ -111,10 +89,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                         Some(&iv),
                         buf.as_bytes()).unwrap();
 
-                    info!("{:?}",ciphertext);
-
                     let base64 = base64::encode(&ciphertext[..]);
-                    // let write_len = w.write(&base64.as_bytes()).await?;
 
                     match self_write_socket_byte(&mut pool_w,base64.as_bytes().to_vec(),&"加密".to_string()).await{
                         Ok(_) => {},
@@ -130,12 +105,12 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                             Some(buf) => buf,
                             None => {
                                 worker_w.shutdown().await;
-                                info!("矿机下线了");
+
                                 bail!("矿机下线了")
                             }
                         }
                     },
-                    Err(e) => {info!("矿机下线了");bail!("矿机下线了: {}",e)},
+                    Err(e) => {bail!("矿机下线了: {}",e)},
                 };
 
 
@@ -148,7 +123,6 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                         continue;
                     }
 
-
                     let buf = match base64::decode(&buf[..]) {
                         Ok(buf) => buf,
                         Err(e) => {
@@ -157,7 +131,6 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                             return Ok(());
                         },
                     };
-
 
                     let cipher = Cipher::aes_256_cbc();
                     // 解密

@@ -323,7 +323,7 @@ where
                             worker.share_accept();
                         } else if result_rpc.id == worker.share_index {
                             worker.share_reject();
-                            log::warn!("拒绝原因 {}",buf);
+                            //log::warn!("拒绝原因 {}",buf);
                             //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
                             result_rpc.result = true;
                         }

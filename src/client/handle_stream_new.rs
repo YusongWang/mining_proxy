@@ -430,8 +430,6 @@ where
                         continue;
                     }
 
-                    let print_rpc = String::from_utf8(buffer.to_vec())?;
-                    info!("{} print_rpc : {}",worker_name,print_rpc);
 
                     if let Some(mut json_rpc) = parse(&buffer) {
                         #[cfg(debug_assertions)]
@@ -570,9 +568,9 @@ where
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                            info!("{} 算力提交成功",worker_name);
+                            //info!("{} 算力提交成功",worker_name);
                         } else if result_rpc.id == CLIENT_GETWORK {
-                            info!("{} 获取任务成功",worker_name);
+                            //info!("{} 获取任务成功",worker_name);
                         } else if result_rpc.id == SUBSCRIBE{
                         } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             worker.share_accept();
@@ -660,7 +658,7 @@ where
                 }
 
                 //info!("提交常规任务");
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(15));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
             },
         }
     }
