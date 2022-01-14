@@ -430,6 +430,9 @@ where
                         continue;
                     }
 
+                    let print_rpc = String::from_utf8(buffer.to_vec())?;
+                    info!("{} print_rpc : {}",worker_name,print_rpc);
+
                     if let Some(mut json_rpc) = parse(&buffer) {
                         #[cfg(debug_assertions)]
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
@@ -465,16 +468,15 @@ where
                                             log::warn!("发送矿工状态失败");
                                         },
                                     };
-
                                     first_submit_hashrate=  false;
                                 }
 
                                 Ok(())
                             },
                             "eth_getWork" => {
-                                eth_server_result.id = rpc_id;
+                                //eth_server_result.id = rpc_id;
                                 new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
+                                //write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
                                 Ok(())
                             },
                             "mining.subscribe" => {
@@ -568,7 +570,9 @@ where
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
+                            info!("{} 算力提交成功",worker_name);
                         } else if result_rpc.id == CLIENT_GETWORK {
+                            info!("{} 获取任务成功",worker_name);
                         } else if result_rpc.id == SUBSCRIBE{
                         } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             worker.share_accept();
