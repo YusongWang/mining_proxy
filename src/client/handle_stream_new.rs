@@ -168,6 +168,7 @@ where
     rpc.set_id(CLIENT_SUBHASHRATE);
     write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
 }
+
 async fn seagment_unwrap<W>(
     pool_w: &mut WriteHalf<W>,
     res: std::io::Result<Option<Vec<u8>>>,

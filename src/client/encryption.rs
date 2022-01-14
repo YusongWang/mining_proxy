@@ -47,7 +47,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
         Ok(stream) => stream,
         Err(_) => {
             info!("{} 远程地址不通！", addr);
-            std::process::exit(1);
+            bail!("{} 远程地址不通！", addr);
         }
     };
 

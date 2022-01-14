@@ -76,6 +76,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "061a7acccaa286c011ddc30970520b98fa40e00c9d644633fb26b5fc63a265e3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -792,6 +803,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-channel",
+ "async-trait",
  "base64",
  "bytes",
  "cfg-if",
@@ -803,6 +815,7 @@ dependencies = [
  "futures",
  "hex",
  "hostname",
+ "lazy_static",
  "log",
  "lru",
  "native-tls",
