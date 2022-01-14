@@ -222,22 +222,68 @@ pub async fn print_state(
 
     //(不通矿池难度不一样。份额高低不能决定算力)
     table.printstd();
+    Ok(())
+}
 
-    // let mine_hash = calc_hash_rate(total_hash, config.share_rate);
-    // match mining_proxy::client::submit_fee_hashrate(config, mine_hash).await {
-    //     Ok(_) => {}
-    //     Err(_) => {}
-    // }
+pub async fn print_state_nofee(
+    workers: &HashMap<String, Worker>,
+    config: &Settings,
+    state: mining_proxy::state::State,
+    runtime: std::time::Instant,
+) -> Result<()> {
+    // 创建表格
+    let mut table = Table::new();
+    table.add_row(row![
+        "矿工",
+        "报告算力",
+        "总工作量(份额)",
+        "有效份额",
+        "无效份额",
+        "在线时长(小时)",
+        "最后提交(分钟)",
+    ]);
 
-    // let develop_hash = calc_hash_rate(
-    //     total_hash,
-    //     get_develop_fee(config.share_rate.into(), false) as f32,
-    // );
-    // match mining_proxy::client::submit_develop_hashrate(config, develop_hash).await {
-    //     Ok(_) => {}
-    //     Err(_) => {}
-    // }
+    let mut total_hash: u64 = 0;
+    let mut total_share: u64 = 0;
+    let mut total_accept: u64 = 0;
+    let mut total_invalid: u64 = 0;
+    for (_name, w) in workers {
+        if !w.is_online() {
+            continue;
+        }
+        // 添加行
+        table.add_row(row![
+            w.worker_name,
+            bytes_to_mb(w.hash).to_string() + " Mb",
+            w.share_index,
+            w.accept_index,
+            w.invalid_index,
+            time_to_string(w.login_time.elapsed().as_secs()),
+            time_to_string(w.last_subwork_time.elapsed().as_secs()),
+        ]);
 
+        total_hash += w.hash;
+        total_share = total_share + w.share_index;
+        total_accept = total_accept + w.accept_index;
+        total_invalid = total_invalid + w.invalid_index;
+    }
+
+    table.add_row(row![
+        "汇总",
+        bytes_to_mb(total_hash).to_string() + " Mb",
+        total_share,
+        total_accept,
+        total_invalid,
+        format!(
+            "版本号:{} 在线矿工: {}台",
+            crate_version!(),
+            state.online.load(std::sync::atomic::Ordering::SeqCst)
+        ),
+        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
+    ]);
+
+    //(不通矿池难度不一样。份额高低不能决定算力)
+    table.printstd();
     Ok(())
 }
 
@@ -249,7 +295,7 @@ pub async fn process_workers(
     let runtime = std::time::Instant::now();
     let mut workers: HashMap<String, Worker> = HashMap::new();
 
-    let sleep = sleep(tokio::time::Duration::from_secs(2 * 60));
+    let sleep = sleep(tokio::time::Duration::from_secs(5 * 60));
     tokio::pin!(sleep);
 
     loop {
@@ -264,12 +310,20 @@ pub async fn process_workers(
                 }
             },
             () = &mut sleep => {
-                match print_state(&workers,config,state.clone(),runtime).await{
-                    Ok(_) => {},
-                    Err(_) => {log::info!("打印失败了")},
+
+                if config.share == 0 {
+                    match print_state_nofee(&workers,config,state.clone(),runtime).await{
+                        Ok(_) => {},
+                        Err(_) => {log::info!("打印失败了")},
+                    }
+                } else {
+                    match print_state(&workers,config,state.clone(),runtime).await{
+                        Ok(_) => {},
+                        Err(_) => {log::info!("打印失败了")},
+                    }
                 }
 
-                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(2*60));
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(5*60));
             },
         }
     }

@@ -278,6 +278,25 @@ where
     // bail!("端口可能被恶意扫描。");
 }
 
+pub async fn write_rpc<W, T>(
+    encrypt: bool,
+    w: &mut WriteHalf<W>,
+    rpc: &T,
+    worker: &String,
+    key: String,
+    iv: String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+    T: Serialize,
+{
+    if encrypt {
+        write_encrypt_socket(w, &rpc, &worker, key, iv).await
+    } else {
+        write_to_socket(w, &rpc, &worker).await
+    }
+}
+
 pub async fn handle_stream<R, W, R1, W1>(
     worker: &mut Worker,
     workers_queue: UnboundedSender<Worker>,
@@ -410,17 +429,52 @@ where
     let sleep = time::sleep(tokio::time::Duration::from_secs(15));
     tokio::pin!(sleep);
 
-    let mut loop_timer = std::time::Instant::now();
-    let temp_worker = "Default".to_string();
     let mut first_submit_hashrate = true;
 
     loop {
         select! {
             res = worker_lines.next_segment() => {
                 let start = std::time::Instant::now();
-                let buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
+                let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
 
-                loop_timer = std::time::Instant::now();
+
+                if is_encrypted {
+                    let key = Vec::from_hex(config.key.clone()).unwrap();
+                    let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                    let cipher = Cipher::aes_256_cbc();
+
+                    buf_bytes = match base64::decode(&buf_bytes[..]) {
+                        Ok(buffer) => buffer,
+                        Err(e) => {
+                            log::error!("{}",e);
+                            match pool_w.shutdown().await  {
+                                Ok(_) => {},
+                                Err(_) => {
+                                    log::error!("Error Shutdown Socket {:?}",e);
+                                },
+                            };
+                            return Ok(());
+                        },
+                    };
+
+                    buf_bytes = match decrypt(
+                        cipher,
+                        &key,
+                        Some(&iv),
+                        &buf_bytes[..]) {
+                            Ok(s) => s,
+                            Err(_) => {
+                                log::warn!("加密报文解密失败");
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+                                return Ok(());
+                        },
+                    };
+                }
 
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
@@ -440,13 +494,13 @@ where
                             "eth_submitLogin" => {
                                 eth_server_result.id = rpc_id;
                                 new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
                                 new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_proxy_jobs,&mut send_develop_jobs,&config,&mut state).await?;
-                                write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
                             "eth_submitHashrate" => {
@@ -458,7 +512,7 @@ where
                                 //     json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
                                 // }
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 if first_submit_hashrate {
                                     match workers_queue.send(worker.clone()) {
                                         Ok(_) => {},
@@ -474,17 +528,18 @@ where
                             "eth_getWork" => {
                                 //eth_server_result.id = rpc_id;
                                 new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                //write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
+                                //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
                             "mining.subscribe" => {
                                 eth_server_result.id = rpc_id;
-                                write_to_socket(&mut worker_w, &eth_server_result, &worker_name).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 new_subscribe(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                 Ok(())
                             },
                             _ => {
-                                log::warn!("Not found method {:?}",json_rpc);eth_server_result.id = rpc_id;
+                                log::warn!("Not found method {:?}",json_rpc);
+                                eth_server_result.id = rpc_id;
                                 write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
                                 Ok(())
                             },
@@ -579,8 +634,7 @@ where
                         }
                     }
                 }
-                #[cfg(debug_assertions)]
-                info!("接受矿工: {} 接受任务并返回时间 {:?}",worker.worker_name,loop_timer.elapsed());
+
             },
             res = proxy_lines.next_line() => {
                 let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"抽水池").await?;
