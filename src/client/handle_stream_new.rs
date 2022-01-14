@@ -712,7 +712,7 @@ where
                 }
 
                 //info!("提交常规任务");
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(20));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(15));
             },
         }
     }
