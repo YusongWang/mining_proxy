@@ -83,9 +83,6 @@ where
                 },
                 Err(e) => {
                     panic!("读取超时 {}", e);
-                    std::process::exit(1);
-
-                    bail!("{}", e);
                 }
             };
         //let len = r.read(&mut buf).await?;
@@ -107,8 +104,6 @@ where
             }
         }
     }
-
-    Ok(())
 }
 
 pub async fn command_matches() -> Result<ArgMatches<'static>> {
@@ -159,8 +154,8 @@ async fn main() -> Result<()> {
     let mut v = vec![];
     while i <= phread_int {
         let client = TcpSocket::new_v4()?;
-        let mut stream = client.connect(server.parse()?).await?;
-        let (r, mut w) = split(stream);
+        let stream = client.connect(server.parse()?).await?;
+        let (r, w) = split(stream);
         let a =
             tokio::spawn(
                 async move { tokio::try_join!(client_to_server(w, i), server_to_client(r)) },

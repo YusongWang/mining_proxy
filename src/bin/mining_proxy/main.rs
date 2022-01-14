@@ -227,7 +227,7 @@ pub async fn print_state(
 
 pub async fn print_state_nofee(
     workers: &HashMap<String, Worker>,
-    config: &Settings,
+    _: &Settings,
     state: mining_proxy::state::State,
     runtime: std::time::Instant,
 ) -> Result<()> {

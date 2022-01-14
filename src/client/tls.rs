@@ -77,6 +77,7 @@ pub async fn accept_tcp_with_tls(
                     if worker.is_online() {
                         worker.offline();
                         workers.send(worker);
+                        info!("IP: {} 断开原因 {}", addr, e);
                     } else {
                         info!("IP: {} 恶意链接断开: {}", addr, e);
                     }

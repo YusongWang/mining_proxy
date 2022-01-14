@@ -53,11 +53,11 @@ where
                         log::error!("Error Worker Shutdown Socket {:?}", e);
                     }
                 };
-                return bail!("{}：{}  读取到字节0. 矿池主动断开 ", form_name, worker_name);
+                bail!("{}：{}  读取到字节0. 矿池主动断开 ", form_name, worker_name);
             }
         },
         Err(e) => {
-            return bail!("{}：{} 读取错误:", form_name, worker_name);
+            bail!("{}：{} 读取错误:", form_name, worker_name);
         }
     };
 
@@ -453,7 +453,7 @@ where
                                     log::error!("Error Shutdown Socket {:?}",e);
                                 },
                             };
-                            return Ok(());
+                            bail!("解密矿机请求失败{}",e);
                         },
                     };
 
@@ -463,7 +463,7 @@ where
                         Some(&iv),
                         &buf_bytes[..]) {
                             Ok(s) => s,
-                            Err(_) => {
+                            Err(e) => {
                                 log::warn!("加密报文解密失败");
                                 match pool_w.shutdown().await  {
                                     Ok(_) => {},
@@ -471,7 +471,7 @@ where
                                         log::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
-                                return Ok(());
+                                bail!("解密矿机请求失败{}",e);
                         },
                     };
                 }
