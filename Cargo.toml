@@ -50,6 +50,9 @@ panic = 'abort'
 agent = []
 
 
+[build]
+xargo = true
+
 # [target.armv7-unknown-linux-musleabihf]
 # linker = "armv7l-linux-musleabihf-gcc"
 
