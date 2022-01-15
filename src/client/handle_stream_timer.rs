@@ -492,7 +492,45 @@ where
 
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
+                if is_encrypted {
+                    let key = Vec::from_hex(config.key.clone()).unwrap();
+                    let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                    let cipher = Cipher::aes_256_cbc();
 
+                    buf_bytes = match base64::decode(&buf_bytes[..]) {
+                        Ok(buffer) => buffer,
+                        Err(e) => {
+                            log::error!("{}",e);
+                            match pool_w.shutdown().await  {
+                                Ok(_) => {},
+                                Err(_) => {
+                                    log::error!("Error Shutdown Socket {:?}",e);
+                                },
+                            };
+                            bail!("解密矿机请求失败{}",e);
+                        },
+                    };
+
+                    buf_bytes = match decrypt(
+                        cipher,
+                        &key,
+                        Some(&iv),
+                        &buf_bytes[..]) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                log::warn!("加密报文解密失败");
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+                                bail!("解密矿机请求失败{}",e);
+                        },
+                    };
+                }
+
+                
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');
                 for buffer in buf_bytes {
                     if buffer.is_empty() {
