@@ -220,10 +220,6 @@ pub async fn get_pool_stream_with_tls(
             }
         };
 
-
-        #[cfg(openssl111)]
-        cx.set_ciphersuites("TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256").unwrap();
-
         let cx = tokio_native_tls::TlsConnector::from(cx);
 
         let domain: Vec<&str> = address.split(":").collect();

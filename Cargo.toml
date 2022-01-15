@@ -28,7 +28,8 @@ sentry-log = "0.23.0"
 fern = "0.5"
 async-channel = "1.6.1"
 lru = "0.7.2"
-openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = "0.9"
+openssl = { version = "0.10"}
 base64 = "0.13.0"
 cfg-if = "1.0.0"
 short-crypt = "1.0.25"
