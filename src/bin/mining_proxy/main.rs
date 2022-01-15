@@ -14,7 +14,7 @@ use bytes::BytesMut;
 use clap::crate_version;
 
 use native_tls::Identity;
-use prettytable::{cell, row, Table};
+
 use tokio::{
     fs::File,
     io::AsyncReadExt,
