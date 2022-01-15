@@ -118,95 +118,87 @@ pub async fn print_state(
     runtime: std::time::Instant,
 ) -> Result<()> {
     // 创建表格
-    let mut table = Table::new();
-    table.add_row(row![
-        "矿工",
-        "报告算力",
-        "抽水算力",
-        "总工作量(份额)",
-        "有效份额",
-        "无效份额",
-        "在线时长(小时)",
-        "最后提交(分钟)",
-    ]);
 
     let mut total_hash: u64 = 0;
     let mut total_share: u64 = 0;
     let mut total_accept: u64 = 0;
     let mut total_invalid: u64 = 0;
+
     for (_name, w) in workers {
         if !w.is_online() {
             continue;
         }
-
-        // 添加行
-        table.add_row(row![
-            w.worker_name,
-            bytes_to_mb(w.hash).to_string() + " Mb",
-            calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-            w.share_index,
-            w.accept_index,
-            w.invalid_index,
-            time_to_string(w.login_time.elapsed().as_secs()),
-            time_to_string(w.last_subwork_time.elapsed().as_secs()),
-        ]);
-
         total_hash += w.hash;
         total_share = total_share + w.share_index;
         total_accept = total_accept + w.accept_index;
         total_invalid = total_invalid + w.invalid_index;
     }
 
-    table.add_row(row![
-        config.share_name.clone(),
-        calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-        "",
-        state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
-        state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
-        state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
-        time_to_string(runtime.elapsed().as_secs()),
-        "",
-    ]);
+    // table.add_row(row![
+    //     config.share_name.clone(),
+    //     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+    //     "",
+    //     state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
+    //     state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
+    //     state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
+    //     time_to_string(runtime.elapsed().as_secs()),
+    //     "",
+    // ]);
 
-    table.add_row(row![
-        "开发者抽水账户",
-        calc_hash_rate(
-            bytes_to_mb(total_hash),
-            get_develop_fee(config.share_rate.into(), true) as f32
-        )
-        .to_string()
-            + " Mb",
-        "",
-        state
-            .develop_share
-            .load(std::sync::atomic::Ordering::SeqCst),
-        state
-            .develop_accept
-            .load(std::sync::atomic::Ordering::SeqCst),
-        state
-            .develop_reject
-            .load(std::sync::atomic::Ordering::SeqCst),
-        time_to_string(runtime.elapsed().as_secs()),
-        "",
-    ]);
+    // table.add_row(row![
+    //     "开发者抽水账户",
+    //     calc_hash_rate(
+    //         bytes_to_mb(total_hash),
+    //         get_develop_fee(config.share_rate.into(), true) as f32
+    //     )
+    //     .to_string()
+    //         + " Mb",
+    //     "",
+    //     state
+    //         .develop_share
+    //         .load(std::sync::atomic::Ordering::SeqCst),
+    //     state
+    //         .develop_accept
+    //         .load(std::sync::atomic::Ordering::SeqCst),
+    //     state
+    //         .develop_reject
+    //         .load(std::sync::atomic::Ordering::SeqCst),
+    //     time_to_string(runtime.elapsed().as_secs()),
+    //     "",
+    // ]);
 
-    // // 添加行
-    table.add_row(row![
-        "说明",
-        "不同矿池难度不一样",
-        "份额高低不能决定算力!!!",
-        "只能提供参考!!!",
-        "",
-        "",
-        format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
-        format!(
-            "开发者抽水率: {:.1}%",
-            get_develop_fee(config.share_rate.into(), true) * 100.0
-        ),
-    ]);
+    // // // 添加行
+    // table.add_row(row![
+    //     "说明",
+    //     "不同矿池难度不一样",
+    //     "份额高低不能决定算力!!!",
+    //     "只能提供参考!!!",
+    //     "",
+    //     "",
+    //     format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
+    //     format!(
+    //         "开发者抽水率: {:.1}%",
+    //         get_develop_fee(config.share_rate.into(), true) * 100.0
+    //     ),
+    // ]);
 
-    table.add_row(row![
-        "汇总",
+    // table.add_row(row![
+    //     "汇总",
+    //     bytes_to_mb(total_hash).to_string() + " Mb",
+    //     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+    //     total_share,
+    //     total_accept,
+    //     total_invalid,
+    //     format!(
+    //         "版本号:{} 在线矿工: {}台",
+    //         crate_version!(),
+    //         state.online.load(std::sync::atomic::Ordering::SeqCst)
+    //     ),
+    //     format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
+    // ]);
+
+    println!(
+        "当前总算力: {} 当前抽水算力: {} 总份额: {} 接受份额: {} 拒绝份额: {} \n {} {}",
         bytes_to_mb(total_hash).to_string() + " Mb",
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
         total_share,
@@ -217,11 +209,22 @@ pub async fn print_state(
             crate_version!(),
             state.online.load(std::sync::atomic::Ordering::SeqCst)
         ),
-        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
-    ]);
+        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs()))
+    );
+    //     bytes_to_mb(total_hash).to_string() + " Mb",
+    //     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+    //     total_share,
+    //     total_accept,
+    //     total_invalid,
+    //     format!(
+    //         "版本号:{} 在线矿工: {}台",
+    //         crate_version!(),
+    //         state.online.load(std::sync::atomic::Ordering::SeqCst)
+    //     ),
+    //     format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
 
     //(不通矿池难度不一样。份额高低不能决定算力)
-    table.printstd();
+    //table.printstd();
     Ok(())
 }
 
@@ -232,16 +235,16 @@ pub async fn print_state_nofee(
     runtime: std::time::Instant,
 ) -> Result<()> {
     // 创建表格
-    let mut table = Table::new();
-    table.add_row(row![
-        "矿工",
-        "报告算力",
-        "总工作量(份额)",
-        "有效份额",
-        "无效份额",
-        "在线时长(小时)",
-        "最后提交(分钟)",
-    ]);
+    // let mut table = Table::new();
+    // table.add_row(row![
+    //     "矿工",
+    //     "报告算力",
+    //     "总工作量(份额)",
+    //     "有效份额",
+    //     "无效份额",
+    //     "在线时长(小时)",
+    //     "最后提交(分钟)",
+    // ]);
 
     let mut total_hash: u64 = 0;
     let mut total_share: u64 = 0;
@@ -251,16 +254,16 @@ pub async fn print_state_nofee(
         if !w.is_online() {
             continue;
         }
-        // 添加行
-        table.add_row(row![
-            w.worker_name,
-            bytes_to_mb(w.hash).to_string() + " Mb",
-            w.share_index,
-            w.accept_index,
-            w.invalid_index,
-            time_to_string(w.login_time.elapsed().as_secs()),
-            time_to_string(w.last_subwork_time.elapsed().as_secs()),
-        ]);
+        // // 添加行
+        // table.add_row(row![
+        //     w.worker_name,
+        //     bytes_to_mb(w.hash).to_string() + " Mb",
+        //     w.share_index,
+        //     w.accept_index,
+        //     w.invalid_index,
+        //     time_to_string(w.login_time.elapsed().as_secs()),
+        //     time_to_string(w.last_subwork_time.elapsed().as_secs()),
+        // ]);
 
         total_hash += w.hash;
         total_share = total_share + w.share_index;
@@ -268,8 +271,8 @@ pub async fn print_state_nofee(
         total_invalid = total_invalid + w.invalid_index;
     }
 
-    table.add_row(row![
-        "汇总",
+    println!(
+        "当前总算力: {} 总份额: {} 接受份额: {} 拒绝份额: {} \n {} {}",
         bytes_to_mb(total_hash).to_string() + " Mb",
         total_share,
         total_accept,
@@ -279,11 +282,24 @@ pub async fn print_state_nofee(
             crate_version!(),
             state.online.load(std::sync::atomic::Ordering::SeqCst)
         ),
-        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
-    ]);
+        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs()))
+    );
+    // table.add_row(row![
+    //     "汇总",
+    //     bytes_to_mb(total_hash).to_string() + " Mb",
+    //     total_share,
+    //     total_accept,
+    //     total_invalid,
+    //     format!(
+    //         "版本号:{} 在线矿工: {}台",
+    //         crate_version!(),
+    //         state.online.load(std::sync::atomic::Ordering::SeqCst)
+    //     ),
+    //     format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
+    // ]);
 
-    //(不通矿池难度不一样。份额高低不能决定算力)
-    table.printstd();
+    // //(不通矿池难度不一样。份额高低不能决定算力)
+    // table.printstd();
     Ok(())
 }
 

@@ -557,15 +557,6 @@ where
                                 // }
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                if first_submit_hashrate {
-                                    match workers_queue.send(worker.clone()) {
-                                        Ok(_) => {},
-                                        Err(_) => {
-                                            log::warn!("发送矿工状态失败");
-                                        },
-                                    };
-                                    first_submit_hashrate=  false;
-                                }
 
                                 Ok(())
                             },
