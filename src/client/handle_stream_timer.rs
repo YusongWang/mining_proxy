@@ -66,10 +66,25 @@ where
         WAIT,
         RUN,
     };
-    let mut dev_fee_state = WaitStatus::WAIT;
 
-    let dev_sleep = time::sleep(tokio::time::Duration::from_secs(30));
+
+
+    let mut dev_fee_state = WaitStatus::WAIT;
+    let mut proxy_fee_state = WaitStatus::WAIT;
+
+    // 抽水率10%
+
+    // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
+    // 记录原矿工信息。重新登录的时候还要使用。
+    
+    // 开发者抽水线程. 1 - 10 分钟内循环 60 - 600
+    let dev_sleep = time::sleep(tokio::time::Duration::from_secs(60));
     tokio::pin!(dev_sleep);
+
+    // 抽水线程.10 - 20 分钟内循环 600 - 1200
+    let proxy_sleep = time::sleep(tokio::time::Duration::from_secs(60 *3));
+    tokio::pin!(proxy_sleep);
+
 
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
     tokio::pin!(sleep);
@@ -270,7 +285,6 @@ where
                                         log::error!("Error Worker Shutdown Socket {:?}",e);
                                     },
                                 };
-
                                 bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
                             }
                         }
@@ -364,6 +378,93 @@ where
                     }
                 }
             },
+            () = &mut proxy_sleep  => {
+                info!("中转抽水时间片");
+                if proxy_fee_state == WaitStatus::WAIT {
+                    info!("中转获得主动权");
+                    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
+                        Some(s) => s,
+                        None => {
+                            bail!("无法链接到矿池");
+                            //return Err(e);
+                        }
+                    };
+                    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+                        Some((stream, addr)) => (stream, addr),
+                        None => {
+                            bail!("所有TCP矿池均不可链接。请修改后重试");
+                        }
+                    };
+                
+                    let outbound = TcpStream::from_std(outbound)?;
+
+                    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+                    let proxy_r = tokio::io::BufReader::new(proxy_r);
+                    let mut proxy_lines = proxy_r.lines();
+
+                    let proxy_name = config.share_name.clone();
+                    let login = ClientWithWorkerName {
+                        id: CLIENT_LOGIN,
+                        method: "eth_submitLogin".into(),
+                        params: vec![config.share_wallet.clone(), "x".into()],
+                        worker: proxy_name.clone(),
+                    };
+
+                    match write_to_socket(&mut proxy_w, &login, &proxy_name).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log::error!("Error writing Socket {:?}", login);
+                            return Err(e);
+                        }
+                    }
+
+                    pool_lines = proxy_lines;
+                    pool_w = proxy_w;
+
+                    proxy_fee_state = WaitStatus::RUN;
+
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(180));
+                } else if dev_fee_state == WaitStatus::RUN {
+                    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
+                        Some(pool) => pool,
+                        None => {
+                            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+                        }
+                    };
+
+                    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+                        Some((stream, addr)) => (stream, addr),
+                        None => {
+                            bail!("所有TCP矿池均不可链接。请修改后重试");
+                        }
+                    };
+                    let stream = TcpStream::from_std(outbound)?;
+                    let (new_pool_r, mut new_pool_w) = tokio::io::split(stream);
+                    let new_pool_r = tokio::io::BufReader::new(new_pool_r);
+                    let mut new_pool_r = new_pool_r.lines();
+                    let login_develop = ClientWithWorkerName {
+                        id: CLIENT_LOGIN,
+                        method: "eth_submitLogin".into(),
+                        params: vec![worker.worker_wallet.clone(), "x".into()],
+                        worker: worker_name.to_string(),
+                    };
+
+                    match write_to_socket(&mut new_pool_w, &login_develop, &worker_name).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            log::error!("Error writing Socket {:?}", login_develop);
+                            return Err(e);
+                        }
+                    }
+
+                    pool_lines = new_pool_r;
+                    pool_w = new_pool_w;
+
+                    proxy_fee_state = WaitStatus::WAIT;
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(1800));
+                }
+
+            },
             () = &mut dev_sleep  => {
                 info!("开发者抽水时间片");
                 if dev_fee_state == WaitStatus::WAIT {
@@ -402,6 +503,7 @@ where
                     pool_w = develop_w;
 
                     dev_fee_state = WaitStatus::RUN;
+
                     dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(90));
                 } else if dev_fee_state == WaitStatus::RUN {
                     info!("开发者还回主动权");
