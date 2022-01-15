@@ -567,7 +567,6 @@ where
                         continue;
                     }
 
-
                     if let Some(mut json_rpc) = parse(&buffer) {
                         #[cfg(debug_assertions)]
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);

@@ -769,8 +769,7 @@ where
                 }
 
                 if sleep_count  == 8 {
-                    // 发送本地矿工状态到远端。
-                    //info!("发送本地矿工状态到远端。{:?}",worker);
+
                     match workers_queue.send(worker.clone()) {
                         Ok(_) => {},
                         Err(_) => {

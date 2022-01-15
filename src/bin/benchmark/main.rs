@@ -35,7 +35,6 @@ where
             w.write(&login_msg).await.unwrap();
             is_login = true;
             sleep(std::time::Duration::new(10, 0)).await;
-        } else {
             let eth_get_work = ClientGetWork {
                 id: 5,
                 method: "eth_getWork".into(),
@@ -45,20 +44,23 @@ where
             let mut eth_get_work_msg = serde_json::to_vec(&eth_get_work).unwrap();
             sleep(std::time::Duration::new(5, 0)).await;
             eth_get_work_msg.push(b'\n');
-            w.write(&eth_get_work_msg).await.unwrap();
+            w.write(&eth_get_work_msg).await;
+
+        } else {
 
             //计算速率
-            // let submit_hashrate = Client {
-            //     id: 6,
-            //     method: "eth_submitHashrate".into(),
-            //     params: ["0x1111111".into(), "0x1111111".into()].to_vec(),
-            //     worker: "test_91".into(),
-            // };
+            let submit_hashrate = Client {
+                id: 6,
+                method: "eth_submitHashrate".into(),
+                params: ["0x1111111".into(), "x".into()].to_vec(),
+                worker:  "test_".to_string() + &i.to_string(),
+            };
 
-            // let mut submit_hashrate_msg = serde_json::to_vec(&submit_hashrate).unwrap();
 
-            // submit_hashrate_msg.push(b'\n');
-            // w.write(&submit_hashrate_msg).await;
+            let mut submit_hashrate_msg = serde_json::to_vec(&submit_hashrate).unwrap();
+
+            submit_hashrate_msg.push(b'\n');
+            w.write(&submit_hashrate_msg).await;
 
             sleep(std::time::Duration::new(20, 0)).await;
         }
