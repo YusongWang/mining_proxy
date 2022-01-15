@@ -6,6 +6,7 @@ pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
 pub mod handle_stream_new;
+pub mod handle_stream_new_ssl;
 pub mod handle_stream_nofee;
 pub mod handle_stream_timer;
 
@@ -27,6 +28,7 @@ use std::{
     net::{SocketAddr, ToSocketAddrs},
     time::Duration,
 };
+use tokio_native_tls::TlsStream;
 
 use anyhow::Result;
 use tokio::{
@@ -1749,12 +1751,12 @@ where
     Some(())
 }
 
-pub async fn handle<R, W, T>(
+pub async fn handle_tcp<R, W>(
     worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
-    stream: T,
+    stream: TcpStream,
     config: &Settings,
     state: State,
     is_encrypted: bool,
@@ -1762,7 +1764,6 @@ pub async fn handle<R, W, T>(
 where
     R: AsyncRead,
     W: AsyncWrite,
-    T: AsyncRead + AsyncWrite,
 {
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
@@ -1841,6 +1842,97 @@ where
     }
 }
 
+pub async fn handle_ssl<R, W>(
+    worker: &mut Worker,
+    worker_queue: UnboundedSender<Worker>,
+    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    worker_w: WriteHalf<W>,
+    stream: TlsStream<TcpStream>,
+    config: &Settings,
+    state: State,
+    is_encrypted: bool,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let (pool_r, pool_w) = tokio::io::split(stream);
+    let pool_r = tokio::io::BufReader::new(pool_r);
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "agent")] {
+            handle_stream_agent::handle_stream(
+                worker,
+                worker_queue,
+                worker_r,
+                worker_w,
+                pool_r,
+                pool_w,
+                &config,
+                state,
+                is_encrypted,
+            )
+            .await
+        } else {
+            if config.share == 0 {
+                handle_stream_nofee::handle_stream(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    pool_r,
+                    pool_w,
+                    &config,
+                    state,
+                    is_encrypted,
+                )
+                .await
+            } else {
+                // if config.share_alg == 2 {
+                    // handle_stream_timer::handle_stream(
+                    //     worker,
+                    //     worker_queue,
+                    //     worker_r,
+                    //     worker_w,
+                    //     pool_r,
+                    //     pool_w,
+                    //     &config,
+                    //     state,
+                    //     is_encrypted,
+                    // )
+                    // .await
+                // } else if config.share_alg == 1 {
+                    handle_stream_new_ssl::handle_stream(
+                        worker,
+                        worker_queue,
+                        worker_r,
+                        worker_w,
+                        pool_r,
+                        pool_w,
+                        &config,
+                        state,
+                        is_encrypted,
+                    )
+                    .await
+                // } else {
+                //     handle_stream::handle_stream(
+                //         worker,
+                //         worker_queue,
+                //         worker_r,
+                //         worker_w,
+                //         pool_r,
+                //         pool_w,
+                //         &config,
+                //         state,
+                //         is_encrypted,
+                //     )
+                //     .await
+                // }
+            }
+        }
+    }
+}
+
 pub async fn handle_tcp_pool<R, W>(
     worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
@@ -1863,7 +1955,7 @@ where
     };
 
     let stream = TcpStream::from_std(outbound)?;
-    handle(
+    handle_tcp(
         worker,
         worker_queue,
         worker_r,
@@ -1898,7 +1990,7 @@ where
         }
     };
 
-    handle(
+    handle_ssl(
         worker,
         worker_queue,
         worker_r,

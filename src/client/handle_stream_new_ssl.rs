@@ -367,69 +367,30 @@ async fn proxy_pool_login(
     Ok((proxy_lines, proxy_w))
 }
 
-pub async fn pool_with_tcp_reconnect(
-    config: &Settings,
-) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
-        Some(pool) => pool,
-        None => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
-    // if stream_type == crate::client::TCP {
-    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
-
-    let stream = TcpStream::from_std(outbound)?;
-
-    let (pool_r, pool_w) = tokio::io::split(stream);
-    let pool_r = tokio::io::BufReader::new(pool_r);
-    let mut pool_lines = pool_r.lines();
-    Ok((pool_lines, pool_w))
-    // } else if stream_type == crate::client::SSL {
-    // let (stream, _) =
-    //     match crate::client::get_pool_stream_with_tls(&pools, "proxy".into()).await {
-    //         Some((stream, addr)) => (stream, addr),
-    //         None => {
-    //             bail!("所有SSL矿池均不可链接。请修改后重试");
-    //         }
-    //     };
-
-    // let (pool_r, pool_w) = tokio::io::split(stream);
-    // let pool_r = tokio::io::BufReader::new(pool_r);
-
-    // Ok((pool_r, pool_w))
-    // } else {
-    //     log::error!("致命错误：未找到支持的矿池BUG 请上报");
-    //     bail!("致命错误：未找到支持的矿池BUG 请上报");
-    // }
-}
-
 pub async fn pool_with_ssl_reconnect(
     config: &Settings,
-) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+) -> Result<(
+    Lines<BufReader<ReadHalf<TlsStream<TcpStream>>>>,
+    WriteHalf<TlsStream<TcpStream>>,
+)> {
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
         Some(pool) => pool,
         None => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
-    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+
+    let (stream, _) = match crate::client::get_pool_stream_with_tls(&pools, "proxy".into()).await {
         Some((stream, addr)) => (stream, addr),
         None => {
-            bail!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有SSL矿池均不可链接。请修改后重试");
         }
     };
-
-    let stream = TcpStream::from_std(outbound)?;
 
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
     let mut pool_lines = pool_r.lines();
+
     Ok((pool_lines, pool_w))
 }
 
@@ -438,8 +399,8 @@ pub async fn handle_stream<R, W>(
     workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
-    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
-    mut pool_w: WriteHalf<TcpStream>,
+    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TlsStream<TcpStream>>>,
+    mut pool_w: WriteHalf<TlsStream<TcpStream>>,
     config: &Settings,
     mut state: State,
     is_encrypted: bool,
@@ -646,12 +607,17 @@ where
                     Ok(buf) => buf,
                     Err(e) => {
                         info!("{}", e);
-                        
-                        let (relogin_pool_lines,relogin_pool_w) = pool_with_tcp_reconnect(&config).await?;
+
+                        let (relogin_pool_lines,relogin_pool_w) = pool_with_ssl_reconnect(&config).await?;
                         pool_lines = relogin_pool_lines;
                         pool_w = relogin_pool_w;
-                        
+
+
+
                         continue;
+                        //worker_w.shutdown().await;
+                        //bail!("{}",e);
+                        //let (mut develop_lines, mut develop_w) = develop_pool_login(s.clone()).await?;
                     },
                 };
                 #[cfg(debug_assertions)]
