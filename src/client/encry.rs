@@ -91,7 +91,7 @@ async fn transfer(
         if config.share_alg == 1 {
             handle_tcp_pool_timer(
                 worker,
-                worker_queue,
+                worker_sender,
                 worker_r,
                 worker_w,
                 &pools,
@@ -103,7 +103,7 @@ async fn transfer(
         } else {
             handle_tcp_pool(
                 worker,
-                worker_queue,
+                worker_sender,
                 worker_r,
                 worker_w,
                 &pools,
