@@ -114,7 +114,6 @@ async fn transfer(
             )
             .await
         }
-        
     } else if stream_type == crate::client::SSL {
         handle_tls_pool(
             worker,

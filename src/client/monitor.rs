@@ -33,8 +33,9 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
         Ok(stream) => stream,
         Err(_) => {
-            info!("{} 远程地址不通！", addr);
-            std::process::exit(1);
+            //info!("{} 远程地址不通！", addr);
+            //std::process::exit(1);
+            bail!("{} 远程地址不通！", addr);
         }
     };
 

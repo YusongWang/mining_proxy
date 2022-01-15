@@ -2,7 +2,7 @@ name: "proxy"
 log_level: 0
 log_path: "logs"
 ssl_port: 3333
-tcp_port: 3335
+tcp_port: 3331
 encrypt_port: 3332
 pool_ssl_address: 
   - ""

@@ -45,17 +45,14 @@ where
             sleep(std::time::Duration::new(5, 0)).await;
             eth_get_work_msg.push(b'\n');
             w.write(&eth_get_work_msg).await;
-
         } else {
-
             //计算速率
             let submit_hashrate = Client {
                 id: 6,
                 method: "eth_submitHashrate".into(),
                 params: ["0x1111111".into(), "x".into()].to_vec(),
-                worker:  "test_".to_string() + &i.to_string(),
+                worker: "test_".to_string() + &i.to_string(),
             };
-
 
             let mut submit_hashrate_msg = serde_json::to_vec(&submit_hashrate).unwrap();
 

@@ -603,82 +603,32 @@ where
                     if buf.is_empty() {
                         continue;
                     }
+                    if buf.is_empty() {
+                        continue;
+                    }
+
                     #[cfg(debug_assertions)]
                     log::info!(
                         "1    ---- Worker : {}  Send Rpc {}",
                         worker_name,
                         buf
                     );
-                    if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+
+                    if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
+                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
-                            match workers_queue.send(worker.clone()){
-                                Ok(_) => {},
-                                Err(_) => {
-                                    log::warn!("发送矿工状态失败");
-                                },
-                            };
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                            //info!("矿工提交算力");
-                            if !is_submithashrate {
-                                match workers_queue.send(worker.clone()){
-                                    Ok(_) => {},
-                                    Err(_) => {
-                                        log::warn!("发送矿工状态失败");
-                                    },
-                                };
-                                is_submithashrate = true;
-                            }
+                            //info!("{} 算力提交成功",worker_name);
                         } else if result_rpc.id == CLIENT_GETWORK {
-                            //info!("矿工请求任务");
-                        } else if result_rpc.id == SUBSCRIBE {
-                            //info!("矿工请求任务");
-                        } else if result_rpc.id == worker.share_index && result_rpc.result {
-                            //info!("份额被接受.");
+                            //info!("{} 获取任务成功",worker_name);
+                        } else if result_rpc.id == SUBSCRIBE{
+                        } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             worker.share_accept();
-                        } else if result_rpc.result {
-                            //log::warn!("份额被接受，但是索引乱了.要上报给开发者 {:?}",result_rpc);
-                            worker.share_accept();
-                        } else if result_rpc.id == worker.share_index {
+                        } else if result_rpc.id == CLIENT_SUBMITWORK {
                             worker.share_reject();
-                            //log::warn!("拒绝原因 {}",buf);
-                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
-                            result_rpc.result = true;
                         }
-
-                        result_rpc.id = rpc_id ;
-                        if is_encrypted {
-                            match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    log::error!("Error Worker Write Socket {:?}",e);
-                                },
-                            };
-                        } else {
-                            match write_to_socket(&mut worker_w, &result_rpc, &worker_name).await {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    log::error!("Error Worker Write Socket {:?}",e);
-                                },
-                            };
-                        }
-                    } else {
-                        if is_encrypted {
-                            match write_encrypt_socket_string(&mut worker_w, buf, &worker_name,config.key.clone(),config.iv.clone()).await {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    log::error!("Error Worker Write Socket {:?}",e);
-                                },
-                            };
-                        } else {
-                            match write_to_socket_string(&mut worker_w, &buf, &worker_name).await {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    log::error!("Error Worker Write Socket {:?}",e);
-                                },
-                            }
-                        }
-
                     }
                 }
             },
