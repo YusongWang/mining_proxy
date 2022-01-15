@@ -724,17 +724,17 @@ where
                     let (new_pool_r, mut new_pool_w) = tokio::io::split(stream);
                     let new_pool_r = tokio::io::BufReader::new(new_pool_r);
                     let mut new_pool_r = new_pool_r.lines();
-                    let login_develop = ClientWithWorkerName {
+                    let login = ClientWithWorkerName {
                         id: CLIENT_LOGIN,
                         method: "eth_submitLogin".into(),
                         params: vec![worker.worker_wallet.clone(), "x".into()],
-                        worker: worker_name.to_string(),
+                        worker: worker.worker_name.clone(),
                     };
 
-                    match write_to_socket(&mut new_pool_w, &login_develop, &worker_name).await {
+                    match write_to_socket(&mut new_pool_w, &login, &worker_name).await {
                         Ok(_) => {}
                         Err(e) => {
-                            log::error!("Error writing Socket {:?}", login_develop);
+                            log::error!("Error writing Socket {:?}", login);
                             return Err(e);
                         }
                     }
