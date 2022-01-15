@@ -198,7 +198,7 @@ pub async fn print_state(
     // ]);
 
     println!(
-        "当前总算力: {} 当前抽水算力: {} 总份额: {} 接受份额: {} 拒绝份额: {} \n {} {}",
+        "当前总算力: {} 当前抽水算力: {} 总份额: {} 接受份额: {} 拒绝份额: {}\n{} {}",
         bytes_to_mb(total_hash).to_string() + " Mb",
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
         total_share,
@@ -272,7 +272,7 @@ pub async fn print_state_nofee(
     }
 
     println!(
-        "当前总算力: {} 总份额: {} 接受份额: {} 拒绝份额: {} \n {} {}",
+        "当前总算力: {} 总份额: {} 接受份额: {} 拒绝份额: {}\n{} {}",
         bytes_to_mb(total_hash).to_string() + " Mb",
         total_share,
         total_accept,
