@@ -530,7 +530,7 @@ where
                     };
                 }
 
-                
+
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');
                 for buffer in buf_bytes {
                     if buffer.is_empty() {
@@ -594,23 +594,7 @@ where
                 }
             },
             res = pool_lines.next_line() => {
-                let buffer = match res{
-                    Ok(res) => {
-                        match res {
-                            Some(buf) => buf,
-                            None => {
-                                match worker_w.shutdown().await {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Worker Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
-                            }
-                        }
-                    },
-                    Err(e) => {bail!("矿机下线了: {}",e)},
-                };
+                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await?;
 
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
