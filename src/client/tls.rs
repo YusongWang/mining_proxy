@@ -121,7 +121,7 @@ async fn transfer_ssl(
                     &pools,
                     &config,
                     state,
-                    true,
+                    false,
                 )
                 .await
             } else {
@@ -133,7 +133,7 @@ async fn transfer_ssl(
                     &pools,
                     &config,
                     state,
-                    true,
+                    false,
                 )
                 .await
             }
@@ -146,7 +146,7 @@ async fn transfer_ssl(
                 &pools,
                 &config,
                 state,
-                true,
+                false,
             )
             .await
         }
