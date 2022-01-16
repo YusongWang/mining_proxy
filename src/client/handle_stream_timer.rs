@@ -114,7 +114,7 @@ where
     W2: AsyncWrite,
 {
     worker.share_index_add();
-    //rpc.set_id(worker.share_index);
+    rpc.set_id(CLIENT_SUBMITWORK);
     write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
 }
 
