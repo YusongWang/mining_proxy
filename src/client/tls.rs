@@ -111,22 +111,36 @@ async fn transfer_ssl(
     };
 
     if stream_type == crate::client::TCP {
-        if config.share_alg == 1 {
-            handle_tcp_pool_timer(
-                worker,
-                worker_sender,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                true,
-            )
-            .await
+        if config.share != 0 {
+            if config.share_alg == 1 {
+                handle_tcp_pool_timer(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    &pools,
+                    &config,
+                    state,
+                    true,
+                )
+                .await
+            } else {
+                handle_tcp_pool(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    &pools,
+                    &config,
+                    state,
+                    true,
+                )
+                .await
+            }
         } else {
             handle_tcp_pool(
                 worker,
-                worker_sender,
+                worker_queue,
                 worker_r,
                 worker_w,
                 &pools,
@@ -136,19 +150,6 @@ async fn transfer_ssl(
             )
             .await
         }
-    } else {
-        handle_tcp_pool(
-            worker,
-            worker_sender,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            state,
-            true,
-        )
-        .await
-    }
     } else if stream_type == crate::client::SSL {
         handle_tls_pool(
             worker,
