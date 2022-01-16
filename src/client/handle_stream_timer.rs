@@ -615,7 +615,8 @@ where
                     );
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
-                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        job_rpc.id = 0;
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
