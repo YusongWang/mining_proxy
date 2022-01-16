@@ -470,15 +470,22 @@ where
 
     // 抽水率10%
 
+    let mut fee_lefttime: u64 = 10800;
+
     // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
     // 记录原矿工信息。重新登录的时候还要使用。
+    use rand::SeedableRng;
+    let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+    let dev_number = rand::Rng::gen_range(&mut rng, 60..600) as i32;
 
+    let mut dev_lefttime: u64 = 0;
     // 开发者抽水线程. 1 - 10 分钟内循环 60 - 600
-    let dev_sleep = time::sleep(tokio::time::Duration::from_secs(60));
+    let dev_sleep = time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(dev_sleep);
 
     // 抽水线程.10 - 20 分钟内循环 600 - 1200
-    let proxy_sleep = time::sleep(tokio::time::Duration::from_secs(60 * 3));
+    let mut proxy_lefttime: u64 = 0;
+    let proxy_sleep = time::sleep(tokio::time::Duration::from_secs(100000000000000));
     tokio::pin!(proxy_sleep);
 
     let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
@@ -552,6 +559,15 @@ where
                             },
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
+
+                                if proxy_fee_state == WaitStatus::RUN {
+                                    json_rpc.set_worker_name(&s);
+                                }
+
+                                if dev_fee_state == WaitStatus::RUN {
+                                    json_rpc.set_worker_name(&develop_name);
+                                }
+
                                 new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
@@ -677,8 +693,10 @@ where
                     pool_w = proxy_w;
 
                     proxy_fee_state = WaitStatus::RUN;
+                    let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
 
-                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(180));
+                    info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
                 } else if proxy_fee_state == WaitStatus::RUN {
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
                         Some(pool) => pool,
@@ -716,7 +734,7 @@ where
                     pool_w = new_pool_w;
 
                     proxy_fee_state = WaitStatus::WAIT;
-                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(1800));
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime));
                 }
 
             },
@@ -758,8 +776,17 @@ where
                     pool_w = develop_w;
 
                     dev_fee_state = WaitStatus::RUN;
+                    dev_lefttime = (fee_lefttime  as f64 * get_develop_fee(config.share_rate.into(),false)) as u64;
+                    //(fee_lefttime as f32 * config.share_rate) as u64;
+                    let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+                    let mut inner_fee_lefttime:u64 = rand::Rng::gen_range(&mut rng, 600..2400) as u64;
+                    inner_fee_lefttime += dev_lefttime;
+                    proxy_lefttime = inner_fee_lefttime;
 
-                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(90));
+                    // 计算中转抽水时间
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(inner_fee_lefttime));
+                    info!("{} 本次开发者抽水时间为 {} 秒",worker.worker_name,dev_lefttime);
+                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(dev_lefttime));
                 } else if dev_fee_state == WaitStatus::RUN {
                     info!("开发者还回主动权");
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
@@ -798,7 +825,7 @@ where
                     pool_w = new_pool_w;
 
                     dev_fee_state = WaitStatus::WAIT;
-                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(1800));
+                    dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime));
                 }
 
             },
