@@ -11,6 +11,7 @@ use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
 extern crate rand;
 
+
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use tokio::io::{BufReader, Lines, ReadHalf};
@@ -684,9 +685,9 @@ where
                 }
             },
             () = &mut proxy_sleep  => {
-                info!("中转抽水时间片");
+                //info!("中转抽水时间片");
                 if proxy_fee_state == WaitStatus::WAIT {
-                    info!("中转获得主动权");
+                    //info!("中转获得主动权");
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
                         Some(s) => s,
                         None => {
@@ -773,9 +774,9 @@ where
 
             },
             () = &mut dev_sleep  => {
-                info!("开发者抽水时间片");
+                //info!("开发者抽水时间片");
                 if dev_fee_state == WaitStatus::WAIT {
-                    info!("开发者获得主动权");
+                    //info!("开发者获得主动权");
                     let stream = match pools::get_develop_pool_stream().await {
                         Ok(s) => s,
                         Err(e) => {
@@ -822,7 +823,7 @@ where
                     info!("{} 本次开发者抽水时间为 {} 秒",worker.worker_name,dev_lefttime);
                     dev_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(dev_lefttime));
                 } else if dev_fee_state == WaitStatus::RUN {
-                    info!("开发者还回主动权");
+                    //info!("开发者还回主动权");
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
                         Some(pool) => pool,
                         None => {
