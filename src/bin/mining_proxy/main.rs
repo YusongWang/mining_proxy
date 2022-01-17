@@ -405,10 +405,7 @@ pub async fn print_state(
                 "",
                 "",
                 format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
-                format!(
-                    "开发者抽水率: {:.1}%",
-                    get_develop_fee(config.share_rate.into(), true) * 100.0
-                ),
+                "",
             ]);
 
             table.add_row(row![
@@ -419,7 +416,7 @@ pub async fn print_state(
                 )
                 .to_string()
                     + " Mb",
-                "TODO",
+                "",
                 state
                     .develop_share
                     .load(std::sync::atomic::Ordering::SeqCst),
