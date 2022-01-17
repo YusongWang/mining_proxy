@@ -21,6 +21,8 @@ use tokio::{
 };
 
 use crate::protocol::ethjson::EthServer;
+use crate::protocol::stratum::StraumResult;
+use crate::protocol::PROTOCOL;
 use crate::{
     client::*,
     protocol::{
@@ -407,11 +409,20 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let mut protocol = PROTOCOL::KNOWN;
+    let mut first = true;
+
     let mut worker_name: String = String::new();
     let mut eth_server_result = EthServerRoot {
         id: 0,
         jsonrpc: "2.0".into(),
         result: true,
+    };
+
+    let mut stratum_result = StraumResult {
+        id: 0,
+        jsonrpc: "2.0".into(),
+        result: vec![true],
     };
 
     let s = config.get_share_name().unwrap();
@@ -559,66 +570,127 @@ where
                                 info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
 
 
-                                rpc_id = json_rpc.get_id();
-                                let res = match json_rpc.get_method().as_str() {
-                                    "eth_submitLogin" => {
-                                        eth_server_result.id = rpc_id;
-                                        new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                        Ok(())
-                                    },
-                                    "eth_submitWork" => {
-                                        eth_server_result.id = rpc_id;
-
-                                        if proxy_fee_state == WaitStatus::RUN {
-                                            state
-                                            .proxy_share
-                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                            json_rpc.set_worker_name(&s);
-                                        }else if dev_fee_state == WaitStatus::RUN {
-                                            state
-                                            .develop_share
-                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                            json_rpc.set_worker_name(&develop_name);
-                                        } else {
-                                            worker.share_index_add();
-                                        }
-
-                                        new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
-                                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                        Ok(())
-                                    },
-                                    "eth_submitHashrate" => {
-                                        eth_server_result.id = rpc_id;
-                                        // FIX ME
-                                        // if true {
-                                        //     let mut hash = json_rpc.get_submit_hashrate();
-                                        //     hash = hash - (hash  as f32 * config.share_rate) as u64;
-                                        //     json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
-                                        // }
-                                        new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-
-                                        Ok(())
-                                    },
-                                    "eth_getWork" => {
-                                        //eth_server_result.id = rpc_id;
-                                        new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                        //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                        Ok(())
-                                    },
-                                    _ => {
-                                        log::warn!("Not found method {:?}",json_rpc);
-                                        eth_server_result.id = rpc_id;
-                                        write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
-                                        Ok(())
-                                    },
-                                };
-
-                                if res.is_err() {
-                                    log::warn!("写入任务错误: {:?}",res);
-                                    return res;
+                                if first {
+                                    first = false;
+                                    let res = match json_rpc.get_method().as_str() {
+                                        "eth_submitLogin" => {
+                                            protocol = PROTOCOL::ETH;
+                                        },
+                                        "mining.subscribe" => {
+                                            protocol = PROTOCOL::STRATUM;
+                                        },
+                                        _ => {
+                                            log::warn!("Not found method {:?}",json_rpc);
+                                            // eth_server_result.id = rpc_id;
+                                            // write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
+                                            // Ok(())
+                                        },
+                                    }
                                 }
+
+
+                                rpc_id = json_rpc.get_id();
+                                if protocol == PROTOCOL::ETH {
+                                    let res = match json_rpc.get_method().as_str() {
+                                        "eth_submitLogin" => {
+                                            eth_server_result.id = rpc_id;
+                                            new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                            write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                            Ok(())
+                                        },
+                                        "eth_submitWork" => {
+                                            eth_server_result.id = rpc_id;
+
+                                            if proxy_fee_state == WaitStatus::RUN {
+                                                state
+                                                .proxy_share
+                                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                                json_rpc.set_worker_name(&s);
+                                            }else if dev_fee_state == WaitStatus::RUN {
+                                                state
+                                                .develop_share
+                                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                                json_rpc.set_worker_name(&develop_name);
+                                            } else {
+                                                worker.share_index_add();
+                                            }
+
+                                            new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
+                                            write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                            Ok(())
+                                        },
+                                        "eth_submitHashrate" => {
+                                            eth_server_result.id = rpc_id;
+                                            // FIX ME
+                                            // if true {
+                                            //     let mut hash = json_rpc.get_submit_hashrate();
+                                            //     hash = hash - (hash  as f32 * config.share_rate) as u64;
+                                            //     json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
+                                            // }
+                                            new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                            write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+
+                                            Ok(())
+                                        },
+                                        "eth_getWork" => {
+                                            //eth_server_result.id = rpc_id;
+                                            new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                            //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                            Ok(())
+                                        },
+                                        _ => {
+                                            log::warn!("Not found ETH method {:?}",json_rpc);
+                                            eth_server_result.id = rpc_id;
+                                            write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
+                                            Ok(())
+                                        },
+                                    };
+
+                                    if res.is_err() {
+                                        log::warn!("写入任务错误: {:?}",res);
+                                        return res;
+                                    }
+                                } else if protocol == PROTOCOL::STRATUM {
+                                    let res = match json_rpc.get_method().as_str() {
+                                        "mining.subscribe" => {
+                                            stratum_result.id = rpc_id;
+                                            new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                            write_rpc(is_encrypted,&mut worker_w,&stratum_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                            Ok(())
+                                        },
+                                        "mining.submit" => {
+                                            stratum_result.id = rpc_id;
+                                            if proxy_fee_state == WaitStatus::RUN {
+                                                state
+                                                .proxy_share
+                                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                                json_rpc.set_worker_name(&s);
+                                            }else if dev_fee_state == WaitStatus::RUN {
+                                                state
+                                                .develop_share
+                                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                                json_rpc.set_worker_name(&develop_name);
+                                            } else {
+                                                worker.share_index_add();
+                                            }
+                                            new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                            write_rpc(is_encrypted,&mut worker_w,&stratum_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                            Ok(())
+                                        },
+                                        _ => {
+                                            log::warn!("Not found ETH method {:?}",json_rpc);
+                                            eth_server_result.id = rpc_id;
+                                            write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
+                                            Ok(())
+                                        },
+                                    };
+
+                                    if res.is_err() {
+                                        log::warn!("写入任务错误: {:?}",res);
+                                        return res;
+                                    }
+                                }
+
                             } else {
                                 log::warn!("协议解析错误: {:?}",buffer);
                                 bail!("未知的协议{}",buf_parse_to_string(&mut worker_w,&buffer).await?);
@@ -646,50 +718,88 @@ where
                                 worker_name,
                                 buf
                             );
+                            if protocol == PROTOCOL::ETH {
+                                if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
+                                    if job_rpc.id == CLIENT_GETWORK{
+                                        job_rpc.id = rpc_id;
+                                    } else {
+                                        job_rpc.id = 0;
+                                    }
 
-                            if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
-                                if job_rpc.id == CLIENT_GETWORK{
-                                    job_rpc.id = rpc_id;
-                                } else {
-                                    job_rpc.id = 0;
+                                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
+                                    if result_rpc.id == CLIENT_LOGIN {
+                                        if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                                            worker.logind();
+                                        }
+                                    } else if result_rpc.id == CLIENT_SUBHASHRATE {
+                                        //info!("{} 算力提交成功",worker_name);
+                                    } else if result_rpc.id == CLIENT_GETWORK {
+                                        //info!("{} 获取任务成功",worker_name);
+                                    } else if result_rpc.id == SUBSCRIBE{
+                                    } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
+                                        if proxy_fee_state == WaitStatus::RUN{
+                                            state
+                                            .proxy_accept
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else if dev_fee_state == WaitStatus::RUN {
+                                            state
+                                            .develop_accept
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else {
+                                            worker.share_accept();
+                                        }
+
+                                    } else if result_rpc.id == CLIENT_SUBMITWORK {
+                                        if proxy_fee_state == WaitStatus::RUN{
+                                            state
+                                            .proxy_reject
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else if dev_fee_state == WaitStatus::RUN {
+                                            state
+                                            .develop_reject
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else {
+                                            worker.share_reject();
+                                        }
+                                    }
                                 }
+                            } else if protocol == PROTOCOL::STRATUM {
+                                if let Ok(mut job_rpc) = serde_json::from_str::<StraumMiningNotify>(&buf) {
+                                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
+                                    if result_rpc.id == CLIENT_LOGIN {
+                                        if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                                            worker.logind();
+                                        }
+                                    } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result[0] == true {
+                                        if proxy_fee_state == WaitStatus::RUN{
+                                            state
+                                            .proxy_accept
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else if dev_fee_state == WaitStatus::RUN {
+                                            state
+                                            .develop_accept
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else {
+                                            worker.share_accept();
+                                        }
 
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                            } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
-                                if result_rpc.id == CLIENT_LOGIN {
-                                    if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
-                                        worker.logind();
+                                    } else if result_rpc.id == CLIENT_SUBMITWORK {
+                                        if proxy_fee_state == WaitStatus::RUN{
+                                            state
+                                            .proxy_reject
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else if dev_fee_state == WaitStatus::RUN {
+                                            state
+                                            .develop_reject
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        } else {
+                                            worker.share_reject();
+                                        }
                                     }
-                                } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                                    //info!("{} 算力提交成功",worker_name);
-                                } else if result_rpc.id == CLIENT_GETWORK {
-                                    //info!("{} 获取任务成功",worker_name);
-                                } else if result_rpc.id == SUBSCRIBE{
-                                } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
-                                    if proxy_fee_state == WaitStatus::RUN{
-                                        state
-                                        .proxy_accept
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                    } else if dev_fee_state == WaitStatus::RUN {
-                                        state
-                                        .develop_accept
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                    } else {
-                                        worker.share_accept();
-                                    }
-
-                                } else if result_rpc.id == CLIENT_SUBMITWORK {
-                                    if proxy_fee_state == WaitStatus::RUN{
-                                        state
-                                        .proxy_reject
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                    } else if dev_fee_state == WaitStatus::RUN {
-                                        state
-                                        .develop_reject
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                    } else {
-                                        worker.share_reject();
-                                    }
+                                } else {
+                                    log::error!("致命错误。未找到的协议{:?}",buf);
                                 }
                             }
                         }
