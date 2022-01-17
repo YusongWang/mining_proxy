@@ -1,7 +1,7 @@
-use crate::{client::write_to_socket_byte, state::Worker, util::hex_to_int};
+use crate::{client::write_to_socket_byte, state::Worker};
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
 use tokio::io::{AsyncWrite, WriteHalf};
 
 use super::{ethjson::EthClientObject, CLIENT_LOGIN};
@@ -9,7 +9,7 @@ use super::{ethjson::EthClientObject, CLIENT_LOGIN};
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StraumRoot {
-    pub id: i64,
+    pub id: u64,
     pub method: String,
     pub params: Vec<String>,
 }
@@ -17,7 +17,7 @@ pub struct StraumRoot {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StraumResult {
-    pub id: i64,
+    pub id: u64,
     pub jsonrpc: String,
     pub result: Vec<bool>,
 }
@@ -25,13 +25,15 @@ pub struct StraumResult {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StraumResultWorkNotify {
-    pub id: i64,
+    pub id: u64,
     pub method: String,
     pub params: (String, String, String, bool),
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StraumMiningNotify {
-    pub id: i64,
+    pub id: u64,
     pub method: String,
     pub params: Vec<String>,
 }

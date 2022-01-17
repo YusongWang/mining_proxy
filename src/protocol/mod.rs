@@ -8,6 +8,7 @@ pub const CLIENT_SUBHASHRATE: u64 = 1006;
 pub const CLIENT_SUBMITWORK: u64 = 1000;
 pub const SUBSCRIBE: u64 = 10002;
 
+#[derive(PartialEq)]
 pub enum PROTOCOL {
     STRATUM,
     ETH,
