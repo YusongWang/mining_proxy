@@ -1,6 +1,10 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
+
+extern crate openssl_probe;
+
+
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
@@ -24,6 +28,7 @@ use tokio::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    openssl_probe::init_ssl_cert_env_vars();
     let matches = mining_proxy::util::get_app_command_matches().await?;
     let _guard = sentry::init((
         "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
