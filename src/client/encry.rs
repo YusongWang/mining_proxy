@@ -153,7 +153,7 @@ async fn transfer(
                 &pools,
                 &config,
                 state,
-                false,
+                true,
             )
             .await
         } else {
@@ -165,7 +165,7 @@ async fn transfer(
                 &pools,
                 &config,
                 state,
-                false,
+                true,
             )
             .await
         }
@@ -178,7 +178,7 @@ async fn transfer(
             &pools,
             &config,
             state,
-            false,
+            true,
         )
         .await
     }
