@@ -385,34 +385,13 @@ pub async fn print_state(
     table.add_row(row![
         config.share_name.clone(),
         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-        "TODO",
+        "",
         state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
         time_to_string(runtime.elapsed().as_secs()),
         "",
     ]);
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "nofee")] {
-        } else {
-            // // 添加行
-            table.add_row(row![
-                "说明",
-                "不同矿池难度不一样",
-                "份额高低不能决定算力!!!",
-                "只能提供参考!!!",
-                "",
-                "",
-                format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
-                format!(
-                    "开发者抽水率: {:.1}%",
-                    get_develop_fee(config.share_rate.into(), true) * 100.0
-                ),
-            ]);
-        }
-    }
-
-
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "nofee")] {
@@ -455,8 +434,6 @@ pub async fn print_state(
             ]);
         }
     }
-
-
 
     table.add_row(row![
         "汇总",
