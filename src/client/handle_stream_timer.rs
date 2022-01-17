@@ -113,7 +113,6 @@ where
     W: AsyncWrite,
     W2: AsyncWrite,
 {
-    worker.share_index_add();
     rpc.set_id(CLIENT_SUBMITWORK);
     write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
 }
@@ -476,7 +475,7 @@ where
     // 记录原矿工信息。重新登录的时候还要使用。
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let dev_number = rand::Rng::gen_range(&mut rng, 60..600) as i32;
+    let dev_number = rand::Rng::gen_range(&mut rng, 60..3600) as i32;
 
     let mut dev_lefttime: u64 = 0;
     // 开发者抽水线程. 1 - 10 分钟内循环 60 - 600
@@ -561,13 +560,19 @@ where
                                 eth_server_result.id = rpc_id;
 
                                 if proxy_fee_state == WaitStatus::RUN {
+                                    state
+                                    .proxy_share
+                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                     json_rpc.set_worker_name(&s);
-                                }
-
-                                if dev_fee_state == WaitStatus::RUN {
+                                }else if dev_fee_state == WaitStatus::RUN {
+                                    state
+                                    .develop_share
+                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                     json_rpc.set_worker_name(&develop_name);
+                                } else {
+                                    worker.share_index_add();
                                 }
-
+                                
                                 new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
@@ -619,6 +624,7 @@ where
                     if buf.is_empty() {
                         continue;
                     }
+
                     if buf.is_empty() {
                         continue;
                     }
@@ -631,20 +637,48 @@ where
                     );
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
-                        job_rpc.id = 0;
+                        if job_rpc.id == CLIENT_GETWORK{
+                            job_rpc.id = rpc_id;
+                        } else {
+                            job_rpc.id = 0;
+                        }
+
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
-                            worker.logind();
+                            if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                                worker.logind();
+                            }
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                             //info!("{} 算力提交成功",worker_name);
                         } else if result_rpc.id == CLIENT_GETWORK {
                             //info!("{} 获取任务成功",worker_name);
                         } else if result_rpc.id == SUBSCRIBE{
                         } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
-                            worker.share_accept();
+                            if proxy_fee_state == WaitStatus::RUN{
+                                state
+                                .proxy_accept
+                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            } else if dev_fee_state == WaitStatus::RUN {
+                                state
+                                .develop_accept
+                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            } else {
+                                worker.share_accept();
+                            }
+                            
                         } else if result_rpc.id == CLIENT_SUBMITWORK {
-                            worker.share_reject();
+                            if proxy_fee_state == WaitStatus::RUN{
+                                state
+                                .proxy_reject
+                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            } else if dev_fee_state == WaitStatus::RUN {
+                                state
+                                .develop_reject
+                                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            } else {
+                                worker.share_reject();
+                            }
                         }
                     }
                 }
