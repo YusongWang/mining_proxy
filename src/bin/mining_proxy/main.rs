@@ -4,18 +4,17 @@ mod version {
 
 extern crate openssl_probe;
 
-
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
     util::{config::Settings, logger, *},
 };
 
-use std::collections::HashMap;
-use prettytable::{cell, row, Table};
 use anyhow::Result;
 use bytes::BytesMut;
 use clap::crate_version;
+use prettytable::{cell, row, Table};
+use std::collections::HashMap;
 
 use native_tls::Identity;
 
@@ -29,7 +28,6 @@ use tokio::{
 #[tokio::main]
 async fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
-    let matches = mining_proxy::util::get_app_command_matches().await?;
     let _guard = sentry::init((
         "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
         sentry::ClientOptions {
@@ -37,6 +35,8 @@ async fn main() -> Result<()> {
             ..Default::default()
         },
     ));
+
+    let matches = mining_proxy::util::get_app_command_matches().await?;
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = Settings::new(config_file_name, true)?;
@@ -56,13 +56,13 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     };
 
-    if config.pool_ssl_address.is_empty() && config.pool_tcp_address.is_empty() {
-        println!("代理池地址不能全部为空");
+    if config.pool_address.is_empty() {
+        println!("代理池地址为空");
         std::process::exit(1);
     };
 
-    if config.share_tcp_address.is_empty() && config.share_ssl_address.is_empty() {
-        println!("抽水矿池地址未填写正确");
+    if config.share_address.is_empty() {
+        println!("抽水矿池代理池地址为空");
         std::process::exit(1);
     };
 
@@ -139,68 +139,68 @@ async fn main() -> Result<()> {
 //         total_invalid = total_invalid + w.invalid_index;
 //     }
 
-    // table.add_row(row![
-    //     config.share_name.clone(),
-    //     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-    //     "",
-    //     state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
-    //     state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
-    //     state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
-    //     time_to_string(runtime.elapsed().as_secs()),
-    //     "",
-    // ]);
+// table.add_row(row![
+//     config.share_name.clone(),
+//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+//     "",
+//     state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
+//     state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
+//     state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
+//     time_to_string(runtime.elapsed().as_secs()),
+//     "",
+// ]);
 
-    // table.add_row(row![
-    //     "开发者抽水账户",
-    //     calc_hash_rate(
-    //         bytes_to_mb(total_hash),
-    //         get_develop_fee(config.share_rate.into(), true) as f32
-    //     )
-    //     .to_string()
-    //         + " Mb",
-    //     "",
-    //     state
-    //         .develop_share
-    //         .load(std::sync::atomic::Ordering::SeqCst),
-    //     state
-    //         .develop_accept
-    //         .load(std::sync::atomic::Ordering::SeqCst),
-    //     state
-    //         .develop_reject
-    //         .load(std::sync::atomic::Ordering::SeqCst),
-    //     time_to_string(runtime.elapsed().as_secs()),
-    //     "",
-    // ]);
+// table.add_row(row![
+//     "开发者抽水账户",
+//     calc_hash_rate(
+//         bytes_to_mb(total_hash),
+//         get_develop_fee(config.share_rate.into(), true) as f32
+//     )
+//     .to_string()
+//         + " Mb",
+//     "",
+//     state
+//         .develop_share
+//         .load(std::sync::atomic::Ordering::SeqCst),
+//     state
+//         .develop_accept
+//         .load(std::sync::atomic::Ordering::SeqCst),
+//     state
+//         .develop_reject
+//         .load(std::sync::atomic::Ordering::SeqCst),
+//     time_to_string(runtime.elapsed().as_secs()),
+//     "",
+// ]);
 
-    // // // 添加行
-    // table.add_row(row![
-    //     "说明",
-    //     "不同矿池难度不一样",
-    //     "份额高低不能决定算力!!!",
-    //     "只能提供参考!!!",
-    //     "",
-    //     "",
-    //     format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
-    //     format!(
-    //         "开发者抽水率: {:.1}%",
-    //         get_develop_fee(config.share_rate.into(), true) * 100.0
-    //     ),
-    // ]);
+// // // 添加行
+// table.add_row(row![
+//     "说明",
+//     "不同矿池难度不一样",
+//     "份额高低不能决定算力!!!",
+//     "只能提供参考!!!",
+//     "",
+//     "",
+//     format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
+//     format!(
+//         "开发者抽水率: {:.1}%",
+//         get_develop_fee(config.share_rate.into(), true) * 100.0
+//     ),
+// ]);
 
-    // table.add_row(row![
-    //     "汇总",
-    //     bytes_to_mb(total_hash).to_string() + " Mb",
-    //     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-    //     total_share,
-    //     total_accept,
-    //     total_invalid,
-    //     format!(
-    //         "版本号:{} 在线矿工: {}台",
-    //         crate_version!(),
-    //         state.online.load(std::sync::atomic::Ordering::SeqCst)
-    //     ),
-    //     format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
-    // ]);
+// table.add_row(row![
+//     "汇总",
+//     bytes_to_mb(total_hash).to_string() + " Mb",
+//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+//     total_share,
+//     total_accept,
+//     total_invalid,
+//     format!(
+//         "版本号:{} 在线矿工: {}台",
+//         crate_version!(),
+//         state.online.load(std::sync::atomic::Ordering::SeqCst)
+//     ),
+//     format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
+// ]);
 
 //     println!(
 //         "当前总算力: {} 当前抽水算力: {} 总份额: {} 接受份额: {} 拒绝份额: {}\n{} {}",

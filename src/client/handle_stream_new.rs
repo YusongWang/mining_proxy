@@ -334,7 +334,7 @@ async fn proxy_pool_login(
     hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
+    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
             log::error!("所有TCP矿池均不可链接。请修改后重试");

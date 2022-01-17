@@ -4,14 +4,10 @@ log_path: "logs"
 ssl_port: 3333
 tcp_port: 3331
 encrypt_port: 3332
-pool_ssl_address: 
-  - ""
-pool_tcp_address: 
-  - "47.242.58.242:8080"
-share_tcp_address: 
-  - "47.242.58.242:8080"
-share_ssl_address: 
-  - ""
+pool_address: 
+  - "tcp://47.242.58.242:8080"
+share_address: 
+  - "tcp://47.242.58.242:8080"
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
 share_name: "eth_test_miner"
 share_rate: 0.7

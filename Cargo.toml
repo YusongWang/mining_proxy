@@ -49,6 +49,7 @@ vergen = "0.1"
 panic = 'abort'
 
 [features]
+nofee = []
 agent = []
 
 

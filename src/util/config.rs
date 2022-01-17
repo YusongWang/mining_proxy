@@ -13,10 +13,10 @@ pub struct Settings {
     pub ssl_port: u32,
     pub tcp_port: u32,
     pub encrypt_port: u32,
-    pub pool_ssl_address: Vec<String>,
-    pub pool_tcp_address: Vec<String>,
-    pub share_tcp_address: Vec<String>,
-    pub share_ssl_address: Vec<String>,
+    //pub pool_ssl_address: Vec<String>,
+    pub pool_address: Vec<String>,
+    pub share_address: Vec<String>,
+    //pub share_ssl_address: Vec<String>,
     pub share_wallet: String,
     pub share_name: String,
     pub share_rate: f32,
@@ -33,10 +33,10 @@ impl Default for Settings {
         Self {
             log_level: 6,
             log_path: "".into(),
-            pool_ssl_address: Vec::new(),
-            pool_tcp_address: Vec::new(),
-            share_tcp_address: Vec::new(),
-            share_ssl_address: Vec::new(),
+            // pool_ssl_address: Vec::new(),
+            // pool_tcp_address: Vec::new(),
+            // share_tcp_address: Vec::new(),
+            // share_ssl_address: Vec::new(),
             share_wallet: "".into(),
             share_rate: 0.0,
             ssl_port: 8443,
@@ -50,6 +50,8 @@ impl Default for Settings {
             share_alg: 0,
             key: "0000000000000000000000".into(),
             iv: "123456".into(),
+            pool_address: Vec::new(),
+            share_address: Vec::new(),
         }
     }
 }
@@ -74,38 +76,47 @@ impl Settings {
         // Add in settings from the environment (with a prefix of APP)
         // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
         s.merge(Environment::with_prefix("PROXY"))?;
-
-        match env::var("PROXY_POOL_TCP_ADDRESS") {
-            Ok(tcp_address) => {
-                let arr: Vec<&str> = tcp_address.split(',').collect();
-                s.set("pool_tcp_address", arr)?;
-            }
-            Err(_) => {}
+        if let Ok(address) = env::var("PROXY_POOL_ADDRESS") {
+            let arr: Vec<&str> = address.split(',').collect();
+            s.set("pool_address", arr)?;
         }
 
-        match env::var("PROXY_POOL_SSL_ADDRESS") {
-            Ok(tcp_address) => {
-                let arr: Vec<&str> = tcp_address.split(',').collect();
-                s.set("pool_ssl_address", arr)?;
-            }
-            Err(_) => {}
+        if let Ok(address) = env::var("PROXY_SHARE_ADDRESS") {
+            let arr: Vec<&str> = address.split(',').collect();
+            s.set("share_address", arr)?;
         }
 
-        match env::var("PROXY_SHARE_TCP_ADDRESS") {
-            Ok(tcp_address) => {
-                let arr: Vec<&str> = tcp_address.split(',').collect();
-                s.set("share_tcp_address", arr)?;
-            }
-            Err(_) => {}
-        }
+        // match env::var("PROXY_POOL_TCP_ADDRESS") {
+        //     Ok(tcp_address) => {
+        //         let arr: Vec<&str> = tcp_address.split(',').collect();
+        //         s.set("pool_tcp_address", arr)?;
+        //     }
+        //     Err(_) => {}
+        // }
 
-        match env::var("PROXY_SHARE_SSL_ADDRESS") {
-            Ok(tcp_address) => {
-                let arr: Vec<&str> = tcp_address.split(',').collect();
-                s.set("share_ssl_address", arr)?;
-            }
-            Err(_) => {}
-        }
+        // match env::var("PROXY_POOL_SSL_ADDRESS") {
+        //     Ok(tcp_address) => {
+        //         let arr: Vec<&str> = tcp_address.split(',').collect();
+        //         s.set("pool_ssl_address", arr)?;
+        //     }
+        //     Err(_) => {}
+        // }
+
+        // match env::var("PROXY_SHARE_TCP_ADDRESS") {
+        //     Ok(tcp_address) => {
+        //         let arr: Vec<&str> = tcp_address.split(',').collect();
+        //         s.set("share_tcp_address", arr)?;
+        //     }
+        //     Err(_) => {}
+        // }
+
+        // match env::var("PROXY_SHARE_SSL_ADDRESS") {
+        //     Ok(tcp_address) => {
+        //         let arr: Vec<&str> = tcp_address.split(',').collect();
+        //         s.set("share_ssl_address", arr)?;
+        //     }
+        //     Err(_) => {}
+        // }
         s.try_into()
     }
 

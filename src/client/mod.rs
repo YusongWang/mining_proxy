@@ -53,10 +53,17 @@ pub const SSL: i32 = 2;
 
 // 从配置文件返回 连接矿池类型及连接地址
 pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i32, Vec<String>)> {
-    if !config.pool_tcp_address.is_empty() && config.pool_tcp_address[0] != "" {
-        Some((TCP, config.pool_tcp_address.clone()))
-    } else if !config.pool_ssl_address.is_empty() && config.pool_ssl_address[0] != "" {
-        Some((SSL, config.pool_ssl_address.clone()))
+    //FIX 兼容SSL
+    if !config.pool_address.is_empty() {
+        let address = config.pool_address.clone();
+        let mut pools = vec![];
+        for addr in address.iter() {
+            let new_pool_url: Vec<&str> = addr.split("//").collect();
+            if let Some(url) = new_pool_url.get(1) {
+                pools.push(url.to_string());
+            };
+        }
+        Some((TCP, pools))
     } else {
         None
     }
@@ -66,10 +73,17 @@ pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i
 pub fn get_pool_ip_and_type_for_proxyer(
     config: &crate::util::config::Settings,
 ) -> Option<(i32, Vec<String>)> {
-    if !config.share_tcp_address.is_empty() && config.share_tcp_address[0] != "" {
-        Some((TCP, config.share_tcp_address.clone()))
-    } else if !config.share_ssl_address.is_empty() && config.share_ssl_address[0] != "" {
-        Some((SSL, config.share_ssl_address.clone()))
+    //FIX 兼容ssl
+    if !config.share_address.is_empty() {
+        let address = config.share_address.clone();
+        let mut pools = vec![];
+        for addr in address.iter() {
+            let new_pool_url: Vec<&str> = addr.split("//").collect();
+            if let Some(url) = new_pool_url.get(1) {
+                pools.push(url.to_string());
+            };
+        }
+        Some((TCP, pools))
     } else {
         None
     }
@@ -2105,7 +2119,7 @@ where
 }
 
 pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()> {
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
+    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
             log::error!("所有TCP矿池均不可链接。请修改后重试");

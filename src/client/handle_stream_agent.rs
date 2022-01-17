@@ -46,7 +46,7 @@ where
 
     let mut worker_name: String = String::new();
 
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
+    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
             log::error!("所有TCP矿池均不可链接。请修改后重试");
@@ -107,7 +107,7 @@ where
     }
 
     // 代理分润
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_tcp_address) {
+    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
         Some((stream, addr)) => (stream, addr),
         None => {
             bail!("所有TCP矿池均不可链接。请修改后重试");
@@ -534,7 +534,7 @@ where
 
                         pool_job_idx += 1;
                         if config.share != 0 {
-                                cfg_if::cfg_if! {
+                            cfg_if::cfg_if! {
                                 if #[cfg(feature = "agent")] {
                                     share_job_process_agent_fee(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,agent_fee,format!("0x{:x}",job_diff),is_encrypted).await;
 
