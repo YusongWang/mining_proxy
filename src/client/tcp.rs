@@ -88,19 +88,33 @@ async fn transfer(
         }
     };
 
-    if stream_type == crate::client::TCP {
-        if config.share_alg == 1 {
-            handle_tcp_pool_timer(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                false,
-            )
-            .await
+    //if stream_type == crate::client::TCP {
+        if config.share != 0 {
+            if config.share_alg == 99 {
+                handle_tcp_pool(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    &pools,
+                    &config,
+                    state,
+                    false,
+                )
+                .await
+            } else {
+                handle_tcp_pool_timer(
+                    worker,
+                    worker_queue,
+                    worker_r,
+                    worker_w,
+                    &pools,
+                    &config,
+                    state,
+                    false,
+                )
+                .await
+            }
         } else {
             handle_tcp_pool(
                 worker,
@@ -114,20 +128,20 @@ async fn transfer(
             )
             .await
         }
-    } else if stream_type == crate::client::SSL {
-        handle_tls_pool(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            state,
-            false,
-        )
-        .await
-    } else {
-        log::error!("致命错误：未找到支持的矿池BUG 请上报");
-        bail!("致命错误：未找到支持的矿池BUG 请上报");
-    }
+    // } else if stream_type == crate::client::SSL {
+    //     handle_tls_pool(
+    //         worker,
+    //         worker_queue,
+    //         worker_r,
+    //         worker_w,
+    //         &pools,
+    //         &config,
+    //         state,
+    //         false,
+    //     )
+    //     .await
+    // } else {
+    //     log::error!("致命错误：未找到支持的矿池BUG 请上报");
+    //     bail!("致命错误：未找到支持的矿池BUG 请上报");
+    // }
 }
