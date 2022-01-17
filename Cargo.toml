@@ -52,10 +52,8 @@ panic = 'abort'
 nofee = []
 agent = []
 
-
-[build]
-xargo = true
-
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
 # [target.armv7-unknown-linux-musleabihf]
 # linker = "armv7l-linux-musleabihf-gcc"
 
