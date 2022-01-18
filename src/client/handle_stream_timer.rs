@@ -2,7 +2,8 @@
 
 use std::io::Error;
 
-use crate::protocol::stratum::StraumMiningNotify;
+use crate::protocol::eth_stratum::EthLoginNotify;
+use crate::protocol::stratum::{StraumMiningNotify, StraumMiningSet, StraumResultBool};
 use anyhow::{bail, Result};
 use hex::FromHex;
 use log::{debug, info};
@@ -480,13 +481,13 @@ where
 
     // 抽水率10%
 
-    let mut fee_lefttime: u64 = 10800;
+    let mut fee_lefttime: u64 = 7200;
 
     // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
     // 记录原矿工信息。重新登录的时候还要使用。
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let dev_number = rand::Rng::gen_range(&mut rng, 60..3600) as i32;
+    let dev_number = rand::Rng::gen_range(&mut rng, 60..fee_lefttime) as i32;
 
     // 抽水线程.10 - 20 分钟内循环 600 - 1200
     let mut proxy_lefttime: u64 = 0;
@@ -637,9 +638,9 @@ where
                         } else if protocol == PROTOCOL::STRATUM {
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
-                                    stratum_result.id = rpc_id;
+                                    //stratum_result.id = rpc_id;
                                     new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                    write_rpc(is_encrypted,&mut worker_w,&stratum_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    //write_rpc(is_encrypted,&mut worker_w,&stratum_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     Ok(())
                                 },
                                 "mining.submit" => {
@@ -751,7 +752,12 @@ where
                     } else if protocol == PROTOCOL::STRATUM {
                         if let Ok(mut job_rpc) = serde_json::from_str::<StraumMiningNotify>(&buf) {
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
+                        } else if let Ok(mut job_rpc) = serde_json::from_str::<EthLoginNotify>(&buf) {
+                            if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                                worker.logind();
+                            }
+                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        }else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
                             if result_rpc.id == CLIENT_LOGIN {
                                 if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
                                     worker.logind();
@@ -782,6 +788,14 @@ where
                                     worker.share_reject();
                                 }
                             }
+                        } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
+                            if result_rpc.id == CLIENT_LOGIN {
+                                if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                                    worker.logind();
+                                }
+                            }
+                        }else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
+                            write_rpc(is_encrypted,&mut worker_w,&set_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else {
                             log::error!("致命错误。未找到的协议{:?}",buf);
                         }

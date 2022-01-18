@@ -1,6 +1,9 @@
 use crate::{client::write_to_socket_byte, state::Worker};
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+
 
 use tokio::io::{AsyncWrite, WriteHalf};
 
@@ -24,6 +27,15 @@ pub struct StraumResult {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct StraumResultBool {
+    pub id: u64,
+    pub error: Value,
+    pub result: bool,
+}
+
+//{\"id\":1001,\"error\":null,\"result\":true}
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StraumResultWorkNotify {
     pub id: u64,
     pub method: String,
@@ -37,6 +49,16 @@ pub struct StraumMiningNotify {
     pub method: String,
     pub params: Vec<String>,
 }
+
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StraumMiningSet {
+    pub id: Value,
+    pub method: String,
+    pub params: Vec<String>,
+}
+
 
 async fn login<W>(
     worker: &mut Worker,
