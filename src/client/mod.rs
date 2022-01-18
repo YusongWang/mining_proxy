@@ -147,7 +147,7 @@ pub fn get_pool_stream(
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(10, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(20, 0)) {
             Ok(stream) => stream,
             Err(_) => {
                 //debug!("{} 访问不通。切换备用矿池！！！！", address);
