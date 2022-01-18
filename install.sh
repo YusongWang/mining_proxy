@@ -8,11 +8,11 @@ echo -n "输入SSL端口(填写0不开启):"
 read ssl_port
 echo -n "输入加密协议端口(填写0不开启):"
 read encrypt_port
-echo -n "输入代理池TCP地址(无需前缀TCP或SSL直如： asia2.ethermine.org:4444):"
+echo -n "输入代理池TCP地址(如：tcp://asia2.ethermine.org:4444):"
 read pool_address
 echo -n "是否抽水? 0不抽水 1抽水:"
 read share
-echo -n "输入抽水池TCP地址(无需前缀TCP或SSL直如： asia2.ethermine.org:4444):"
+echo -n "输入抽水池TCP地址(如：tcp://asia2.ethermine.org:4444):"
 read share_address
 echo -n "输入抽水钱包地址(0x开头):"
 read share_wallet
@@ -43,8 +43,8 @@ PROXY_LOG_PATH=""
 PROXY_TCP_PORT=$tcp_port
 PROXY_SSL_PORT=$ssl_port
 PROXY_ENCRYPT_PORT=$encrypt_port
-PROXY_POOL_ADDRESS="$pool_ssl_address"
-PROXY_SHARE_ADDRESS="$share_tcp_address"
+PROXY_POOL_ADDRESS="$pool_address"
+PROXY_SHARE_ADDRESS="$share_address"
 PROXY_SHARE_WALLET="$share_wallet"
 PROXY_SHARE_RATE=$share_rate
 PROXY_SHARE_NAME="$workname"

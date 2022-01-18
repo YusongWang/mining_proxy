@@ -3,8 +3,6 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-
-
 use tokio::io::{AsyncWrite, WriteHalf};
 
 use super::{ethjson::EthClientObject, CLIENT_LOGIN};
@@ -50,7 +48,6 @@ pub struct StraumMiningNotify {
     pub params: Vec<String>,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StraumMiningSet {
@@ -58,7 +55,6 @@ pub struct StraumMiningSet {
     pub method: String,
     pub params: Vec<String>,
 }
-
 
 async fn login<W>(
     worker: &mut Worker,

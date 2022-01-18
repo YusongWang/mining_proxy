@@ -28,13 +28,13 @@ use tokio::{
 #[tokio::main]
 async fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
-    let _guard = sentry::init((
-        "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            ..Default::default()
-        },
-    ));
+    // let _guard = sentry::init((
+    //     "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+    //     sentry::ClientOptions {
+    //         release: sentry::release_name!(),
+    //         ..Default::default()
+    //     },
+    // ));
 
     let matches = mining_proxy::util::get_app_command_matches().await?;
 

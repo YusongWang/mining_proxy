@@ -1,5 +1,5 @@
-pub mod ethjson;
 pub mod eth_stratum;
+pub mod ethjson;
 pub mod rpc;
 pub mod stratum;
 
