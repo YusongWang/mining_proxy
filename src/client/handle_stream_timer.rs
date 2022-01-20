@@ -280,8 +280,6 @@ where
     }
 }
 
-
-
 async fn develop_pool_login(
     hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
@@ -679,7 +677,6 @@ where
                                 },
                                 _ => {
                                     log::warn!("Not found ETH method {:?}",json_rpc);
-                                    eth_server_result.id = rpc_id;
                                     write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
                                     Ok(())
                                 },
@@ -711,16 +708,6 @@ where
                         continue;
                     }
 
-                    if buf.is_empty() {
-                        continue;
-                    }
-
-                    #[cfg(debug_assertions)]
-                    log::info!(
-                        "1    ---- Worker : {}  Send Rpc {}",
-                        worker_name,
-                        buf
-                    );
                     if protocol == PROTOCOL::ETH {
                         if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                             if job_rpc.id == CLIENT_GETWORK{
@@ -772,55 +759,55 @@ where
                         //write_rpc(is_encrypted,&mut worker_w,&)
                         write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
 
-                        if let Ok(mut job_rpc) = serde_json::from_str::<StraumMiningNotify>(&buf) {
-                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        } else if let Ok(mut job_rpc) = serde_json::from_str::<EthLoginNotify>(&buf) {
-                            if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
-                                worker.logind();
-                            }
-                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        }else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
-                            if result_rpc.id == CLIENT_LOGIN {
-                                if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
-                                    worker.logind();
-                                }
-                            } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result[0] == true {
-                                if proxy_fee_state == WaitStatus::RUN{
-                                    state
-                                    .proxy_accept
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                } else if dev_fee_state == WaitStatus::RUN {
-                                    state
-                                    .develop_accept
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                } else {
-                                    worker.share_accept();
-                                }
+                        // if let Ok(mut job_rpc) = serde_json::from_str::<StraumMiningNotify>(&buf) {
+                        //     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        // } else if let Ok(mut job_rpc) = serde_json::from_str::<EthLoginNotify>(&buf) {
+                        //     if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                        //         worker.logind();
+                        //     }
+                        //     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        // }else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
+                        //     if result_rpc.id == CLIENT_LOGIN {
+                        //         if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                        //             worker.logind();
+                        //         }
+                        //     } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result[0] == true {
+                        //         if proxy_fee_state == WaitStatus::RUN{
+                        //             state
+                        //             .proxy_accept
+                        //             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        //         } else if dev_fee_state == WaitStatus::RUN {
+                        //             state
+                        //             .develop_accept
+                        //             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        //         } else {
+                        //             worker.share_accept();
+                        //         }
 
-                            } else if result_rpc.id == CLIENT_SUBMITWORK {
-                                if proxy_fee_state == WaitStatus::RUN{
-                                    state
-                                    .proxy_reject
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                } else if dev_fee_state == WaitStatus::RUN {
-                                    state
-                                    .develop_reject
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                } else {
-                                    worker.share_reject();
-                                }
-                            }
-                        } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
-                            if result_rpc.id == CLIENT_LOGIN {
-                                if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
-                                    worker.logind();
-                                }
-                            }
-                        }else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
-                            write_rpc(is_encrypted,&mut worker_w,&set_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        } else {
-                            log::error!("致命错误。未找到的协议{:?}",buf);
-                        }
+                        //     } else if result_rpc.id == CLIENT_SUBMITWORK {
+                        //         if proxy_fee_state == WaitStatus::RUN{
+                        //             state
+                        //             .proxy_reject
+                        //             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        //         } else if dev_fee_state == WaitStatus::RUN {
+                        //             state
+                        //             .develop_reject
+                        //             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        //         } else {
+                        //             worker.share_reject();
+                        //         }
+                        //     }
+                        // } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
+                        //     if result_rpc.id == CLIENT_LOGIN {
+                        //         if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                        //             worker.logind();
+                        //         }
+                        //     }
+                        // }else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
+                        //     write_rpc(is_encrypted,&mut worker_w,&set_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        // } else {
+                        //     log::error!("致命错误。未找到的协议{:?}",buf);
+                        // }
                     }
                 }
             },
