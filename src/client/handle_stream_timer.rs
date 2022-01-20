@@ -649,6 +649,7 @@ where
                                 return res;
                             }
                         } else if protocol == PROTOCOL::STRATUM {
+                            info!("Stratum protocol 矿机");
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
                                     //stratum_result.id = rpc_id;
@@ -663,7 +664,7 @@ where
                                         .proxy_share
                                         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                         json_rpc.set_worker_name(&s);
-                                    }else if dev_fee_state == WaitStatus::RUN {
+                                    } else if dev_fee_state == WaitStatus::RUN {
                                         state
                                         .develop_share
                                         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -755,7 +756,7 @@ where
                             }
                         }
                     } else if protocol == PROTOCOL::STRATUM {
-
+                        info!("Stratum protocol 收到矿池");
                         //write_rpc(is_encrypted,&mut worker_w,&)
                         write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
 
