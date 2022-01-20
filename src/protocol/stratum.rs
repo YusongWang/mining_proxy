@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use tokio::io::{AsyncWrite, WriteHalf};
 
-use super::{ethjson::EthClientObject, CLIENT_LOGIN};
+use super::ethjson::EthClientObject;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

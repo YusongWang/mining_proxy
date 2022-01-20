@@ -792,7 +792,10 @@ where
                             info!("StraumResultBool");
                             if proxy_fee_state == WaitStatus::WAIT{
                                 worker.logind();
+                                write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             }
+
+                            continue;
                             //write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
                             info!("StraumMiningSet");
@@ -908,7 +911,7 @@ where
                         }
                     } else if protocol == PROTOCOL::STRATUM {
                         let login = StraumRoot {
-                            id: CLIENT_LOGIN,
+                            id: 1,
                             method: "mining.subscribe".into(),
                             params: vec![worker.worker.clone(), "x".into()],
                         };
