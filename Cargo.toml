@@ -48,6 +48,9 @@ vergen = "0.1"
 
 [profile.release]
 panic = 'abort'
+opt-level = "s"
+lto = true
+#incremental = false
 
 [features]
 nofee = []
