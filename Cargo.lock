@@ -486,6 +486,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "human_bytes"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc178557b4a227ff4d9c51fbbf17f29607c32a96be106c97bb8499e075db0de2"
+
+[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -587,6 +593,7 @@ dependencies = [
  "futures",
  "hex",
  "hostname",
+ "human_bytes",
  "log",
  "lru",
  "native-tls",

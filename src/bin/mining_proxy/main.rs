@@ -10,6 +10,7 @@ use mining_proxy::{
     util::{config::Settings, logger, *},
 };
 
+use human_bytes::human_bytes;
 use anyhow::Result;
 use bytes::BytesMut;
 use clap::crate_version;
@@ -262,7 +263,8 @@ pub async fn print_state_nofee(
         // // 添加行
         table.add_row(row![
             w.worker_name,
-            bytes_to_mb(w.hash).to_string() + " Mb",
+            //bytes_to_mb(w.hash).to_string() + " Mb",
+            human_bytes(w.hash as f64),
             w.share_index,
             w.accept_index,
             w.invalid_index,
@@ -291,7 +293,8 @@ pub async fn print_state_nofee(
     // );
     table.add_row(row![
         "汇总",
-        bytes_to_mb(total_hash).to_string() + " Mb",
+        //bytes_to_mb(total_hash).to_string() + " Mb",
+        human_bytes(total_hash as f64),
         total_share,
         total_accept,
         total_invalid,
@@ -343,7 +346,8 @@ pub async fn print_state(
         // 添加行
         table.add_row(row![
             w.worker_name,
-            bytes_to_mb(w.hash).to_string() + " Mb",
+            //bytes_to_mb(w.hash).to_string() + " Mb",
+            human_bytes(w.hash as f64),
             calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
             w.share_index,
             w.accept_index,
@@ -384,7 +388,7 @@ pub async fn print_state(
 
     table.add_row(row![
         config.share_name.clone(),
-        calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+        human_bytes(calc_hash_rate(total_hash, config.share_rate) as f64),
         "",
         state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
         state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
