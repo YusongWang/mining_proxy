@@ -59,11 +59,11 @@ pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i
         let mut pools = vec![];
         for addr in address.iter() {
             let new_pool_url: Vec<&str> = addr.split("//").collect();
-            if let Some(protocol) = new_pool_url.get(0){
+            if let Some(protocol) = new_pool_url.get(0) {
                 let p = protocol.to_string().to_lowercase();
                 if p != "tcp:" {
                     //println!("不支持的服务类型 {}",*protocol);
-                    println!("代理矿池{} 不支持的服务类型 {}",addr,*protocol);
+                    println!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
                     std::process::exit(1);
                 }
             }
@@ -87,10 +87,10 @@ pub fn get_pool_ip_and_type_for_proxyer(
         let mut pools = vec![];
         for addr in address.iter() {
             let new_pool_url: Vec<&str> = addr.split("//").collect();
-            if let Some(protocol) = new_pool_url.get(0){
+            if let Some(protocol) = new_pool_url.get(0) {
                 let p = protocol.to_string().to_lowercase();
                 if p != "tcp:" {
-                    println!("抽水矿池{} 不支持的服务类型 {}",addr,*protocol);
+                    println!("抽水矿池{} 不支持的服务类型 {}", addr, *protocol);
                     std::process::exit(1);
                 }
             }

@@ -85,7 +85,6 @@ async fn main() -> Result<()> {
         }
     };
 
-
     let (_, _) = match mining_proxy::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -93,7 +92,6 @@ async fn main() -> Result<()> {
             std::process::exit(1);
         }
     };
-
 
     let (_, pools) = match mining_proxy::client::get_pool_ip_and_type_for_proxyer(&config) {
         Some(s) => s,

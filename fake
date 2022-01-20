@@ -33,3 +33,10 @@ cfx:
 {"id":1,"error":null,"result":true}
 or 
 {"id":1,"error":(-1,"error",null)}
+
+
+
+
+{"id":2,"method":"mining.submit","params":["0x10898FD8a20C28A2F2Ea46428cAfBD2B58c1E363.default","f1","0x54fea48a5fd0b93","0x84b6f727b091a55f6cd41f5b069e2cf98af6fa0c32b04ccbf442a7c3570d87f6"]}
+
+{"id":2,"jsonrpc":"2.0","error":null,"result":[true]}

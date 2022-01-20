@@ -55,14 +55,12 @@ pub struct StraumMiningSet {
     pub params: Vec<String>,
 }
 
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StraumErrorResult {
     pub id: i64,
     pub error: (i64, String, Value),
 }
-
 
 pub async fn login<W>(
     worker: &mut Worker,

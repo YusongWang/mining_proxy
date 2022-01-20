@@ -3,7 +3,9 @@
 use std::io::Error;
 
 use crate::protocol::eth_stratum::EthLoginNotify;
-use crate::protocol::stratum::{StraumMiningNotify, StraumMiningSet, StraumResultBool, login, StraumErrorResult};
+use crate::protocol::stratum::{
+    login, StraumErrorResult, StraumMiningNotify, StraumMiningSet, StraumResultBool, StraumRoot,
+};
 use anyhow::{bail, Result};
 use hex::FromHex;
 use log::{debug, info};
@@ -428,6 +430,8 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let proxy_wallet_and_worker_name = config.share_wallet.clone() + "." + &config.share_name;
+
     let mut protocol = PROTOCOL::KNOWN;
     let mut first = true;
 
@@ -499,13 +503,13 @@ where
 
     // 抽水率10%
 
-    let mut fee_lefttime: u64 = 7200;
+    let mut fee_lefttime: u64 = 500;
 
     // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
     // 记录原矿工信息。重新登录的时候还要使用。
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let dev_number = rand::Rng::gen_range(&mut rng, 60..fee_lefttime) as i32;
+    let dev_number = rand::Rng::gen_range(&mut rng, 60..100) as i32;
 
     // 抽水线程.10 - 20 分钟内循环 600 - 1200
     let mut proxy_lefttime: u64 = 0;
@@ -757,49 +761,35 @@ where
                     } else if protocol == PROTOCOL::STRATUM {
                         info!("Stratum protocol 收到矿池 {}",buf);
                         //write_rpc(is_encrypted,&mut worker_w,&)
-                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+
 
                         if let Ok(mut job_rpc) = serde_json::from_str::<StraumMiningNotify>(&buf) {
                             info!("StraumMiningNotify");
-                            //write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else if let Ok(mut job_rpc) = serde_json::from_str::<EthLoginNotify>(&buf) {
                             info!("EthLoginNotify");
                             if proxy_fee_state == WaitStatus::WAIT{
                                 worker.logind();
+                                write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             }
-                            //write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                            continue;
                         }else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
                             info!("StraumResult");
-                            // if result_rpc.id == CLIENT_LOGIN {
-                            //     if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
-                            //         worker.logind();
-                            //     }
-                            // } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result[0] == true {
-                            //     if proxy_fee_state == WaitStatus::RUN{
-                            //         state
-                            //         .proxy_accept
-                            //         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            //     } else if dev_fee_state == WaitStatus::RUN {
-                            //         state
-                            //         .develop_accept
-                            //         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            //     } else {
-                            //         worker.share_accept();
-                            //     }
+                            if let Some(res) = result_rpc.result.get(0) {
+                                if *res == true {
+                                    if proxy_fee_state == WaitStatus::WAIT{
+                                        worker.share_accept();
+                                    } else {
+                                        state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                } else {
+                                    if proxy_fee_state == WaitStatus::WAIT{
+                                        worker.share_reject();
+                                    } else {
+                                        state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                }
+                            }
 
-                            // } else if result_rpc.id == CLIENT_SUBMITWORK {
-                            //     if proxy_fee_state == WaitStatus::RUN{
-                            //         state
-                            //         .proxy_reject
-                            //         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            //     } else if dev_fee_state == WaitStatus::RUN {
-                            //         state
-                            //         .develop_reject
-                            //         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            //     } else {
-                            //         worker.share_reject();
-                            //     }
-                            // }
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
                             info!("StraumResultBool");
                             if proxy_fee_state == WaitStatus::WAIT{
@@ -810,18 +800,20 @@ where
                             info!("StraumMiningSet");
                             //write_rpc(is_encrypted,&mut worker_w,&set_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumErrorResult>(&buf) {
-                            worker_w.shutdown().await?;
-                            bail!("登录出错 {:?}",set_rpc);
+                            //worker_w.shutdown().await?;
+                            debug!("得到错误{:?}",set_rpc);
                         } else {
                             log::error!("致命错误。未找到的协议{:?}",buf);
                         }
+
+                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
                 }
             },
             () = &mut proxy_sleep  => {
                 //info!("中转抽水时间片");
                 if proxy_fee_state == WaitStatus::WAIT {
-                    //info!("中转获得主动权");
+
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
                         Some(s) => s,
                         None => {
@@ -829,6 +821,7 @@ where
                             //return Err(e);
                         }
                     };
+
                     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
                         Some((stream, addr)) => (stream, addr),
                         None => {
@@ -843,20 +836,36 @@ where
                     let mut proxy_lines = proxy_r.lines();
 
                     let proxy_name = config.share_name.clone();
-                    let login = ClientWithWorkerName {
-                        id: CLIENT_LOGIN,
-                        method: "eth_submitLogin".into(),
-                        params: vec![config.share_wallet.clone(), "x".into()],
-                        worker: proxy_name.clone(),
-                    };
+                    if protocol == PROTOCOL::ETH {
+                        let login = ClientWithWorkerName {
+                            id: CLIENT_LOGIN,
+                            method: "eth_submitLogin".into(),
+                            params: vec![config.share_wallet.clone(), "x".into()],
+                            worker: proxy_name.clone(),
+                        };
+                        match write_to_socket(&mut proxy_w, &login, &proxy_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+                    } else if protocol == PROTOCOL::STRATUM {
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.subscribe".into(),
+                            params: vec![proxy_wallet_and_worker_name.clone(), "x".into()],
+                        };
 
-                    match write_to_socket(&mut proxy_w, &login, &proxy_name).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            log::error!("Error writing Socket {:?}", login);
-                            return Err(e);
+                        match write_to_socket(&mut proxy_w, &login, &proxy_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
                         }
                     }
+
 
                     pool_lines = proxy_lines;
                     pool_w = proxy_w;
@@ -884,20 +893,37 @@ where
                     let (new_pool_r, mut new_pool_w) = tokio::io::split(stream);
                     let new_pool_r = tokio::io::BufReader::new(new_pool_r);
                     let mut new_pool_r = new_pool_r.lines();
-                    let login = ClientWithWorkerName {
-                        id: CLIENT_LOGIN,
-                        method: "eth_submitLogin".into(),
-                        params: vec![worker.worker_wallet.clone(), "x".into()],
-                        worker: worker.worker_name.clone(),
-                    };
+                    if protocol == PROTOCOL::ETH {
+                        let login = ClientWithWorkerName {
+                            id: CLIENT_LOGIN,
+                            method: "eth_submitLogin".into(),
+                            params: vec![worker.worker_wallet.clone(), "x".into()],
+                            worker: worker.worker_name.clone(),
+                        };
 
-                    match write_to_socket(&mut new_pool_w, &login, &worker_name).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            log::error!("Error writing Socket {:?}", login);
-                            return Err(e);
+                        match write_to_socket(&mut new_pool_w, &login, &worker_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+                    } else if protocol == PROTOCOL::STRATUM {
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.subscribe".into(),
+                            params: vec![worker.worker.clone(), "x".into()],
+                        };
+
+                        match write_to_socket(&mut new_pool_w, &login, &worker_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
                         }
                     }
+
 
                     pool_lines = new_pool_r;
                     pool_w = new_pool_w;
