@@ -27,7 +27,6 @@ pub struct StraumResult {
 #[serde(rename_all = "camelCase")]
 pub struct StraumResultBool {
     pub id: u64,
-    pub error: Value,
     pub result: bool,
 }
 
@@ -55,6 +54,15 @@ pub struct StraumMiningSet {
     pub method: String,
     pub params: Vec<String>,
 }
+
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StraumErrorResult {
+    pub id: i64,
+    pub error: (i64, String, Value),
+}
+
 
 pub async fn login<W>(
     worker: &mut Worker,
