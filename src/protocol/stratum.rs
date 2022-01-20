@@ -68,7 +68,7 @@ where
     if let Some(wallet) = rpc.get_wallet() {
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
-        let mut split = wallet.split(".").collect::<Vec<&str>>();
+        let split = wallet.split(".").collect::<Vec<&str>>();
         if split.len() > 1 {
             worker.login(
                 temp_worker.clone(),

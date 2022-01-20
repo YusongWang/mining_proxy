@@ -44,7 +44,7 @@ where
             let mut eth_get_work_msg = serde_json::to_vec(&eth_get_work).unwrap();
             sleep(std::time::Duration::new(5, 0)).await;
             eth_get_work_msg.push(b'\n');
-            w.write(&eth_get_work_msg).await;
+            w.write(&eth_get_work_msg).await?;
         } else {
             //计算速率
             let submit_hashrate = Client {
@@ -57,7 +57,7 @@ where
             let mut submit_hashrate_msg = serde_json::to_vec(&submit_hashrate).unwrap();
 
             submit_hashrate_msg.push(b'\n');
-            w.write(&submit_hashrate_msg).await;
+            w.write(&submit_hashrate_msg).await?;
 
             sleep(std::time::Duration::new(20, 0)).await;
         }
