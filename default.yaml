@@ -5,9 +5,9 @@ ssl_port: 3333
 tcp_port: 3331
 encrypt_port: 3332
 pool_address: 
-  - "tcp://47.242.58.242:8080"
+  - "tcp://127.0.0.1:8888"
 share_address: 
-  - "tcp://47.242.58.242:8080"
+  - "tcp://127.0.0.1:8888"
 share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
 share_name: "eth_test_miner"
 share_rate: 0.7

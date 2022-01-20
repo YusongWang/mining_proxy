@@ -262,6 +262,26 @@ where
     }
 }
 
+pub async fn write_string<W>(
+    encrypt: bool,
+    w: &mut WriteHalf<W>,
+    rpc: &str,
+    worker: &String,
+    key: String,
+    iv: String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    if encrypt {
+        write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
+    } else {
+        write_to_socket_string(w, &rpc, &worker).await
+    }
+}
+
+
+
 async fn develop_pool_login(
     hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
@@ -503,8 +523,6 @@ where
                 //let start = std::time::Instant::now();
                 let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
 
-                #[cfg(debug_assertions)]
-                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
                 if is_encrypted {
                     let key = Vec::from_hex(config.key.clone()).unwrap();
                     let iv = Vec::from_hex(config.iv.clone()).unwrap();
@@ -549,12 +567,9 @@ where
                     if buffer.is_empty() {
                         continue;
                     }
+                    debug!(">-------------------->  矿机 {} #{:?}",worker_name, String::from_utf8(buffer.to_vec())?);
 
                     if let Some(mut json_rpc) = parse(&buffer) {
-                        #[cfg(debug_assertions)]
-                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
-
-
                         if first {
                             first = false;
                             let res = match json_rpc.get_method().as_str() {
@@ -686,7 +701,10 @@ where
                 let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await?;
 
                 #[cfg(debug_assertions)]
-                debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
+                debug!("<--------------------<  矿池 {} #{:?}",worker_name, buffer);
+
+
+
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
@@ -750,6 +768,10 @@ where
                             }
                         }
                     } else if protocol == PROTOCOL::STRATUM {
+
+                        //write_rpc(is_encrypted,&mut worker_w,&)
+                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+
                         if let Ok(mut job_rpc) = serde_json::from_str::<StraumMiningNotify>(&buf) {
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else if let Ok(mut job_rpc) = serde_json::from_str::<EthLoginNotify>(&buf) {
