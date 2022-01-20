@@ -719,7 +719,7 @@ where
                             }
 
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
+                        } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                             if result_rpc.id == CLIENT_LOGIN {
                                 if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
                                     worker.logind();
