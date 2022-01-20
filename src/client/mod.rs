@@ -59,6 +59,12 @@ pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i
         let mut pools = vec![];
         for addr in address.iter() {
             let new_pool_url: Vec<&str> = addr.split("//").collect();
+            if let Some(protocol) = new_pool_url.get(0){
+                if *protocol != "tcp:" || *protocol != "TCP:"{
+                    println!("不支持的服务类型 {}",*protocol);
+                    std::process::exit(1);
+                }
+            }
             if let Some(url) = new_pool_url.get(1) {
                 pools.push(url.to_string());
             };
@@ -79,6 +85,12 @@ pub fn get_pool_ip_and_type_for_proxyer(
         let mut pools = vec![];
         for addr in address.iter() {
             let new_pool_url: Vec<&str> = addr.split("//").collect();
+            if let Some(protocol) = new_pool_url.get(0){
+                if *protocol != "tcp:" || *protocol != "TCP:"{
+                    println!("不支持的服务类型 {}",*protocol);
+                    std::process::exit(1);
+                }
+            }
             if let Some(url) = new_pool_url.get(1) {
                 pools.push(url.to_string());
             };

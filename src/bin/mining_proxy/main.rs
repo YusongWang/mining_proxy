@@ -10,10 +10,10 @@ use mining_proxy::{
     util::{config::Settings, logger, *},
 };
 
-use human_bytes::human_bytes;
 use anyhow::Result;
 use bytes::BytesMut;
 use clap::crate_version;
+use human_bytes::human_bytes;
 use prettytable::{cell, row, Table};
 use std::collections::HashMap;
 
@@ -73,9 +73,43 @@ async fn main() -> Result<()> {
     };
 
     if config.share != 0 && config.share_wallet.is_empty() {
-        println!("抽水模式钱包为空。");
+        println!("抽水模式或统一钱包功能，收款钱包不能为空。");
         std::process::exit(1);
     }
+
+    let (_, pools) = match mining_proxy::client::get_pool_ip_and_type(&config) {
+        Some(s) => s,
+        None => {
+            println!("解析代理矿池协议错误");
+            std::process::exit(1);
+        }
+    };
+
+
+    let (_, _) = match mining_proxy::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            println!("无法链接到代理矿池");
+            std::process::exit(1);
+        }
+    };
+
+
+    let (_, pools) = match mining_proxy::client::get_pool_ip_and_type_for_proxyer(&config) {
+        Some(s) => s,
+        None => {
+            println!("解析抽水矿池协议错误");
+            std::process::exit(1);
+        }
+    };
+
+    let (_, _) = match mining_proxy::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            println!("无法链接到抽水矿池");
+            std::process::exit(1);
+        }
+    };
 
     let mut p12 = match File::open(config.p12_path.clone()).await {
         Ok(f) => f,

@@ -806,7 +806,7 @@ where
                 //info!("中转抽水时间片");
                 if proxy_fee_state == WaitStatus::WAIT {
                     //info!("中转获得主动权");
-                    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
+                    let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
                         Some(s) => s,
                         None => {
                             bail!("无法链接到矿池");
