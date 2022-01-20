@@ -3,7 +3,7 @@
 use std::io::Error;
 
 use crate::protocol::eth_stratum::EthLoginNotify;
-use crate::protocol::stratum::{StraumMiningNotify, StraumMiningSet, StraumResultBool};
+use crate::protocol::stratum::{StraumMiningNotify, StraumMiningSet, StraumResultBool, login};
 use anyhow::{bail, Result};
 use hex::FromHex;
 use log::{debug, info};
@@ -652,7 +652,7 @@ where
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
                                     //stratum_result.id = rpc_id;
-                                    new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                    login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     //write_rpc(is_encrypted,&mut worker_w,&stratum_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     Ok(())
                                 },

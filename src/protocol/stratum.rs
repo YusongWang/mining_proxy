@@ -56,7 +56,7 @@ pub struct StraumMiningSet {
     pub params: Vec<String>,
 }
 
-async fn login<W>(
+pub async fn login<W>(
     worker: &mut Worker,
     w: &mut WriteHalf<W>,
     rpc: &mut Box<dyn EthClientObject + Send + Sync>,
@@ -66,7 +66,7 @@ where
     W: AsyncWrite,
 {
     if let Some(wallet) = rpc.get_wallet() {
-        rpc.set_id(CLIENT_LOGIN);
+        //rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
         let split = wallet.split(".").collect::<Vec<&str>>();
         if split.len() > 1 {
