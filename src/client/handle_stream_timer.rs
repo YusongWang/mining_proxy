@@ -665,15 +665,13 @@ where
                                         state
                                         .proxy_share
                                         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                        json_rpc.set_worker_name(&s);
-                                    } else if dev_fee_state == WaitStatus::RUN {
-                                        state
-                                        .develop_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                        json_rpc.set_worker_name(&develop_name);
+                                        //钱包加矿工名
+                                        json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
                                     } else {
                                         worker.share_index_add();
                                     }
+
+
 
                                     write_to_socket_byte(&mut pool_w, buffer.to_vec(), &worker_name).await?;
                                     //write_string(is_encrypted,&mut worker_w,&rpc_str,&worker_name,config.key.clone(),config.iv.clone()).await?;

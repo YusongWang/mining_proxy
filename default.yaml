@@ -8,7 +8,7 @@ pool_address:
   - "tcp://127.0.0.1:8888"
 share_address: 
   - "tcp://127.0.0.1:8888"
-share_wallet: "0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD"
+share_wallet: "0x10898FD8a20C28A2F2Ea46428cAfBD2B58c1E363"
 share_name: "eth_test_miner"
 share_rate: 0.7
 share: 1
