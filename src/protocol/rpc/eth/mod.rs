@@ -21,6 +21,8 @@ pub trait ClientRpc {
     fn get_worker_name(&mut self) -> String;
     fn set_worker_name(&mut self, worker_name: &str) -> bool;
 
+    fn if_parse_protocol_eth_statum(&self) -> bool;
+
     fn get_submit_hashrate(&self) -> u64;
 }
 
@@ -38,6 +40,7 @@ impl ClientRpc for Client {
         self.id = id;
         true
     }
+
     fn get_id(&mut self) -> u64 {
         self.id
     }
@@ -45,14 +48,14 @@ impl ClientRpc for Client {
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
     fn get_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
@@ -79,6 +82,18 @@ impl ClientRpc for Client {
     fn set_worker_name(&mut self, _worker_name: &str) -> bool {
         true
     }
+
+    fn if_parse_protocol_eth_statum(&self) -> bool {
+        if let Some(statum) = self.params.get(1) {
+            if *statum == "EthereumStratum/1.0.0" {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        false
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -103,14 +118,14 @@ impl ClientRpc for ClientWithWorkerName {
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
     fn get_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
@@ -131,6 +146,18 @@ impl ClientRpc for ClientWithWorkerName {
         } else {
             0
         }
+    }
+
+    fn if_parse_protocol_eth_statum(&self) -> bool {
+        if let Some(statum) = self.params.get(1) {
+            if *statum == "EthereumStratum/1.0.0" {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        false
     }
 
     fn set_worker_name(&mut self, worker_name: &str) -> bool {
@@ -271,7 +298,7 @@ impl ServerRpc for Server {
     fn get_job_id(&self) -> Option<String> {
         match self.result.get(0) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
@@ -339,7 +366,7 @@ impl ServerRpc for ServerJobsWithHeight {
     fn get_job_id(&self) -> Option<String> {
         match self.result.get(0) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 

@@ -16,6 +16,7 @@ pub trait EthClientObject {
     fn set_submit_hashrate(&mut self, hash: String) -> bool;
 
     fn get_method(&self) -> String;
+    fn is_protocol_eth_statum(&self) -> bool;
 
     fn to_vec(&mut self) -> Result<Vec<u8>>;
 }
@@ -56,16 +57,17 @@ impl EthClientObject for EthClientRootObject {
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
     fn get_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
+
     fn get_worker_name(&mut self) -> String {
         "Default".to_string()
     }
@@ -104,6 +106,18 @@ impl EthClientObject for EthClientRootObject {
         self.params[0] = hash;
         true
     }
+
+    fn is_protocol_eth_statum(&self) -> bool {
+        if let Some(statum) = self.params.get(1) {
+            if *statum == "EthereumStratum/1.0.0" {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        false
+    }
 }
 
 impl EthClientObject for EthClientWorkerObject {
@@ -119,14 +133,14 @@ impl EthClientObject for EthClientWorkerObject {
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
     fn get_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
-            None => todo!(),
+            None => None,
         }
     }
 
@@ -166,6 +180,18 @@ impl EthClientObject for EthClientWorkerObject {
     fn set_submit_hashrate(&mut self, hash: String) -> bool {
         self.params[0] = hash;
         true
+    }
+
+    fn is_protocol_eth_statum(&self) -> bool {
+        if let Some(statum) = self.params.get(1) {
+            if *statum == "EthereumStratum/1.0.0" {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        false
     }
 }
 

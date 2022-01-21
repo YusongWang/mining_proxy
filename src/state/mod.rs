@@ -117,7 +117,7 @@ impl Worker {
     // 拒绝的份额
     pub fn share_reject(&mut self) {
         self.invalid_index += 1;
-        debug!("矿工: {} Reject! {}", self.worker, self.accept_index);
+        debug!("矿工: {} Share Reject #{}", self.worker, self.share_index);
     }
 
     pub fn submit_hashrate<T>(&mut self, rpc: &T) -> bool

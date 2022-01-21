@@ -2,7 +2,7 @@
 
 use std::io::Error;
 
-use crate::protocol::eth_stratum::EthLoginNotify;
+use crate::protocol::eth_stratum::{EthLoginNotify, EthSubscriptionNotify};
 use crate::protocol::stratum::{
     login, StraumErrorResult, StraumMiningNotify, StraumMiningSet, StraumResultBool, StraumRoot,
 };
@@ -579,7 +579,11 @@ where
                                     protocol = PROTOCOL::ETH;
                                 },
                                 "mining.subscribe" => {
-                                    protocol = PROTOCOL::STRATUM;
+                                    if json_rpc.is_protocol_eth_statum() {
+                                        protocol = PROTOCOL::NICEHASHSTRATUM;
+                                    } else {
+                                        protocol = PROTOCOL::STRATUM;
+                                    }
                                 },
                                 _ => {
                                     log::warn!("Not found method {:?}",json_rpc);
@@ -670,11 +674,44 @@ where
                                     } else {
                                         worker.share_index_add();
                                     }
+                                    write_to_socket_byte(&mut pool_w, json_rpc.to_vec()?, &worker_name).await?;
+                                    Ok(())
+                                },
+                                _ => {
+                                    log::warn!("Not found ETH method {:?}",json_rpc);
+                                    write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
+                                    Ok(())
+                                },
+                            };
 
-
-
+                            if res.is_err() {
+                                log::warn!("写入任务错误: {:?}",res);
+                                return res;
+                            }
+                        } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
+                            info!("Niacehash Stratum protocol 矿机");
+                            let res = match json_rpc.get_method().as_str() {
+                                "mining.subscribe" => {
+                                    //login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     write_to_socket_byte(&mut pool_w, buffer.to_vec(), &worker_name).await?;
-                                    //write_string(is_encrypted,&mut worker_w,&rpc_str,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    Ok(())
+                                },
+                                "mining.authorize" => {
+                                    login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                    Ok(())
+                                },
+                                "mining.submit" => {
+                                    json_rpc.set_id(CLIENT_SUBMITWORK);
+                                    if proxy_fee_state == WaitStatus::RUN {
+                                        state
+                                        .proxy_share
+                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        //钱包加矿工名
+                                        json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
+                                    } else {
+                                        worker.share_index_add();
+                                    }
+                                    write_to_socket_byte(&mut pool_w, json_rpc.to_vec()?, &worker_name).await?;
                                     Ok(())
                                 },
                                 _ => {
@@ -761,16 +798,9 @@ where
                         //write_rpc(is_encrypted,&mut worker_w,&)
 
 
-                        if let Ok(mut job_rpc) = serde_json::from_str::<StraumMiningNotify>(&buf) {
-                            info!("StraumMiningNotify");
-                        } else if let Ok(mut job_rpc) = serde_json::from_str::<EthLoginNotify>(&buf) {
-                            info!("EthLoginNotify");
-                            if proxy_fee_state == WaitStatus::WAIT{
-                                worker.logind();
-                                write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                            }
-                            continue;
-                        }else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
+                        if let Ok(mut job_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
+                            info!("EthSubscriptionNotify");
+                        } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
                             info!("StraumResult");
                             if let Some(res) = result_rpc.result.get(0) {
                                 if *res == true {
@@ -797,16 +827,48 @@ where
 
                             continue;
                             //write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
-                            info!("StraumMiningSet");
-                            //write_rpc(is_encrypted,&mut worker_w,&set_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumErrorResult>(&buf) {
-                            //worker_w.shutdown().await?;
-                            debug!("得到错误{:?}",set_rpc);
                         } else {
                             log::error!("致命错误。未找到的协议{:?}",buf);
                         }
 
+                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
+                        info!("Nicehash Stratum 收到矿池 {}",buf);
+                        if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
+                            info!("StraumResult");
+                        } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
+                            info!("StraumResultBool");
+                            if result_rpc.id == CLIENT_SUBMITWORK {
+                                result_rpc.id = rpc_id;
+                                if result_rpc.result == true {
+                                    if proxy_fee_state == WaitStatus::WAIT{
+                                        worker.share_accept();
+                                    } else {
+                                        state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                } else {
+                                    if proxy_fee_state == WaitStatus::WAIT{
+                                        worker.share_reject();
+                                    } else {
+                                        state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                }
+
+                                write_rpc(is_encrypted,&mut worker_w,&result_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                            } else if result_rpc.id == CLIENT_LOGIN {
+
+                            } else {
+                                if proxy_fee_state == WaitStatus::WAIT{
+                                    worker.logind();
+                                    write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                }
+                            }
+
+                            continue;
+                        } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
+                            info!("StraumMiningSet");
+                        } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumErrorResult>(&buf) {
+                        }
                         write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
                 }
@@ -855,6 +917,34 @@ where
                         let login = StraumRoot {
                             id: CLIENT_LOGIN,
                             method: "mining.subscribe".into(),
+                            params: vec![proxy_wallet_and_worker_name.clone(), "x".into()],
+                        };
+
+                        match write_to_socket(&mut proxy_w, &login, &proxy_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+                    } else if protocol == PROTOCOL::NICEHASHSTRATUM {
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.subscribe".into(),
+                            params: vec!["mining_proxy/1.0.0".into(), "EthereumStratum/1.0.0".into()],
+                        };
+
+                        match write_to_socket(&mut proxy_w, &login, &proxy_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.authorize".into(),
                             params: vec![proxy_wallet_and_worker_name.clone(), "x".into()],
                         };
 
@@ -923,7 +1013,36 @@ where
                                 return Err(e);
                             }
                         }
+                    } else if protocol == PROTOCOL::NICEHASHSTRATUM {
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.subscribe".into(),
+                            params: vec!["mining_proxy/1.0.0".into(), "EthereumStratum/1.0.0".into()],
+                        };
+
+                        match write_to_socket(&mut new_pool_w, &login, &worker_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.authorize".into(),
+                            params: vec![worker.worker.clone(), "x".into()],
+                        };
+
+                        match write_to_socket(&mut new_pool_w, &login, &worker_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
                     }
+
 
 
                     pool_lines = new_pool_r;

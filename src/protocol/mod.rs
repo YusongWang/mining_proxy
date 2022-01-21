@@ -13,6 +13,6 @@ pub const SUBSCRIBE: u64 = 10002;
 pub enum PROTOCOL {
     STRATUM,
     ETH,
-    NICEHASH,
+    NICEHASHSTRATUM,
     KNOWN,
 }
