@@ -856,7 +856,7 @@ where
 
                                 write_rpc(is_encrypted,&mut worker_w,&result_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             } else if result_rpc.id == CLIENT_LOGIN {
-
+                                continue;
                             } else {
                                 if proxy_fee_state == WaitStatus::WAIT{
                                     worker.logind();
@@ -1001,7 +1001,7 @@ where
                         }
                     } else if protocol == PROTOCOL::STRATUM {
                         let login = StraumRoot {
-                            id: 1,
+                            id: CLIENT_LOGIN,
                             method: "mining.subscribe".into(),
                             params: vec![worker.worker.clone(), "x".into()],
                         };
