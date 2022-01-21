@@ -5,6 +5,7 @@ pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
+pub mod handle_stream_all;
 pub mod handle_stream_new;
 pub mod handle_stream_new_ssl;
 pub mod handle_stream_nofee;
@@ -1901,6 +1902,37 @@ where
     .await
 }
 
+pub async fn handle_tcp_all<R, W>(
+    worker: &mut Worker,
+    worker_queue: UnboundedSender<Worker>,
+    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    worker_w: WriteHalf<W>,
+    stream: TcpStream,
+    config: &Settings,
+    state: State,
+    is_encrypted: bool,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let (pool_r, pool_w) = tokio::io::split(stream);
+    let pool_r = tokio::io::BufReader::new(pool_r);
+
+    handle_stream_all::handle_stream(
+        worker,
+        worker_queue,
+        worker_r,
+        worker_w,
+        pool_r,
+        pool_w,
+        &config,
+        state,
+        is_encrypted,
+    )
+    .await
+}
+
 pub async fn handle_ssl<R, W>(
     worker: &mut Worker,
     worker_queue: UnboundedSender<Worker>,
@@ -2050,6 +2082,42 @@ where
 
     let stream = TcpStream::from_std(outbound)?;
     handle_tcp_timer(
+        worker,
+        worker_queue,
+        worker_r,
+        worker_w,
+        stream,
+        &config,
+        state,
+        is_encrypted,
+    )
+    .await
+}
+
+pub async fn handle_tcp_pool_all<R, W>(
+    worker: &mut Worker,
+    worker_queue: UnboundedSender<Worker>,
+    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    worker_w: WriteHalf<W>,
+    pools: &Vec<String>,
+    config: &Settings,
+    state: State,
+    is_encrypted: bool,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let stream = TcpStream::from_std(outbound)?;
+
+    handle_tcp_all(
         worker,
         worker_queue,
         worker_r,

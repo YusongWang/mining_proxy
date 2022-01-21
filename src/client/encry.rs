@@ -143,7 +143,19 @@ async fn transfer(
     //     bail!("致命错误：未找到支持的矿池BUG 请上报");
     // }
 
-    if config.share != 0 {
+    if config.share != 1 {
+        handle_tcp_pool(
+            worker,
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            state,
+            false,
+        )
+        .await
+    } else if config.share == 1 {
         if config.share_alg == 99 {
             handle_tcp_pool(
                 worker,
@@ -153,7 +165,7 @@ async fn transfer(
                 &pools,
                 &config,
                 state,
-                true,
+                false,
             )
             .await
         } else {
@@ -165,20 +177,20 @@ async fn transfer(
                 &pools,
                 &config,
                 state,
-                true,
+                false,
             )
             .await
         }
     } else {
-        handle_tcp_pool(
+        handle_tcp_pool_all(
             worker,
             worker_queue,
             worker_r,
             worker_w,
-            &pools,
+            &config.share_address,
             &config,
             state,
-            true,
+            false,
         )
         .await
     }

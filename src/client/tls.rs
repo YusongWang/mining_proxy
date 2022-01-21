@@ -110,8 +110,19 @@ async fn transfer_ssl(
         }
     };
 
-    //if stream_type == crate::client::TCP {
-    if config.share != 0 {
+    if config.share != 1 {
+        handle_tcp_pool(
+            worker,
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            state,
+            false,
+        )
+        .await
+    } else if config.share == 1 {
         if config.share_alg == 99 {
             handle_tcp_pool(
                 worker,
@@ -138,32 +149,16 @@ async fn transfer_ssl(
             .await
         }
     } else {
-        handle_tcp_pool(
+        handle_tcp_pool_all(
             worker,
             worker_queue,
             worker_r,
             worker_w,
-            &pools,
+            &config.share_address,
             &config,
             state,
             false,
         )
         .await
     }
-    //     } else if stream_type == crate::client::SSL {
-    //         handle_tls_pool(
-    //             worker,
-    //             worker_queue,
-    //             worker_r,
-    //             worker_w,
-    //             &pools,
-    //             &config,
-    //             state,
-    //             false,
-    //         )
-    //         .await
-    //     } else {
-    //         log::error!("致命错误：未找到支持的矿池BUG 请上报");
-    //         bail!("致命错误：未找到支持的矿池BUG 请上报");
-    //     }
 }
