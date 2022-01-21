@@ -503,20 +503,21 @@ where
 
     // 抽水率10%
 
-    let mut fee_lefttime: u64 = 500;
+    //let mut fee_lefttime: u64 = 500;
+    let mut fee_lefttime: u64 = 5400;
 
     // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
     // 记录原矿工信息。重新登录的时候还要使用。
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let dev_number = rand::Rng::gen_range(&mut rng, 60..100) as i32;
+    let dev_number = rand::Rng::gen_range(&mut rng, 60..fee_lefttime) as i32;
 
     // 抽水线程.10 - 20 分钟内循环 600 - 1200
     let mut proxy_lefttime: u64 = 0;
     let proxy_sleep = time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(proxy_sleep);
 
-    let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(2 * 60));
     tokio::pin!(sleep);
 
     loop {
@@ -796,14 +797,14 @@ where
                             }
                         }
                     } else if protocol == PROTOCOL::STRATUM {
-                        
+
                         //write_rpc(is_encrypted,&mut worker_w,&)
 
 
                         if let Ok(mut job_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
 
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
-                            
+
                             if let Some(res) = result_rpc.result.get(0) {
                                 if *res == true {
                                     if proxy_fee_state == WaitStatus::WAIT{
@@ -966,7 +967,7 @@ where
                     proxy_fee_state = WaitStatus::RUN;
                     let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
 
-                    info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
+                    //info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
                 } else if proxy_fee_state == WaitStatus::RUN {
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
@@ -1053,7 +1054,6 @@ where
                     proxy_fee_state = WaitStatus::WAIT;
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime));
                 }
-
             },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
@@ -1064,7 +1064,7 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 2));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 3));
             },
         }
     }

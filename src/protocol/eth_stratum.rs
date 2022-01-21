@@ -16,4 +16,3 @@ pub struct EthSubscriptionNotify {
     pub result: (Vec<String>, String),
     pub error: Value,
 }
-
