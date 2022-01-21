@@ -27,7 +27,7 @@
 {"id":244,"method":"mining.submit","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD","bf0488aa","6a909d9bbc0f"]}
 
 
-// TODO 待编写
+// 理论上没问题了
 ETH:
 {"id":1,"method":"mining.subscribe","params":["MinerName/1.0.0","EthereumStratum/1.0.0"]}
 {"id":2,"method":"mining.authorize","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD.TEST","x"]}

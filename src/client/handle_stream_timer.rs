@@ -569,6 +569,8 @@ where
                     if buffer.is_empty() {
                         continue;
                     }
+
+                    #[cfg(debug_assertions)]
                     debug!(">-------------------->  矿机 {} #{:?}",worker_name, String::from_utf8(buffer.to_vec())?);
 
                     if let Some(mut json_rpc) = parse(&buffer) {
@@ -658,7 +660,6 @@ where
                             }
                         } else if protocol == PROTOCOL::STRATUM {
 
-                            info!("Stratum protocol 矿机");
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
                                     login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
@@ -689,7 +690,8 @@ where
                                 return res;
                             }
                         } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
-                            info!("Niacehash Stratum protocol 矿机");
+
+
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
                                     //login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
@@ -794,14 +796,14 @@ where
                             }
                         }
                     } else if protocol == PROTOCOL::STRATUM {
-                        info!("Stratum protocol 收到矿池 {}",buf);
+                        
                         //write_rpc(is_encrypted,&mut worker_w,&)
 
 
                         if let Ok(mut job_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
-                            info!("EthSubscriptionNotify");
+
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
-                            info!("StraumResult");
+                            
                             if let Some(res) = result_rpc.result.get(0) {
                                 if *res == true {
                                     if proxy_fee_state == WaitStatus::WAIT{
@@ -819,12 +821,10 @@ where
                             }
 
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
-                            info!("StraumResultBool");
                             if proxy_fee_state == WaitStatus::WAIT{
                                 worker.logind();
                                 write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             }
-
                             continue;
                             //write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else {
@@ -833,11 +833,10 @@ where
 
                         write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
-                        info!("Nicehash Stratum 收到矿池 {}",buf);
                         if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
-                            info!("StraumResult");
+
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
-                            info!("StraumResultBool");
+
                             if result_rpc.id == CLIENT_SUBMITWORK {
                                 result_rpc.id = rpc_id;
                                 if result_rpc.result == true {
@@ -866,9 +865,7 @@ where
 
                             continue;
                         } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
-                            info!("StraumMiningSet");
                         } else if let Ok(mut set_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
-                            info!("EthSubscriptionNotify");
                             if proxy_fee_state == WaitStatus::WAIT && set_rpc.id == CLIENT_LOGIN {
                                 write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             }
