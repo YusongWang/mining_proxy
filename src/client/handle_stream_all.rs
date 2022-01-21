@@ -5,13 +5,12 @@ use std::io::Error;
 
 use crate::protocol::eth_stratum::{EthLoginNotify, EthSubscriptionNotify};
 use crate::protocol::stratum::{
-    login, StraumErrorResult, StraumMiningNotify, StraumMiningSet, StraumResultBool, StraumRoot,
+    StraumErrorResult, StraumMiningNotify, StraumMiningSet, StraumResultBool, StraumRoot,
 };
 use anyhow::{bail, Result};
 use hex::FromHex;
 use log::{debug, info};
 
-use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
 extern crate rand;
 
@@ -73,6 +72,44 @@ where
     buffer
 }
 
+pub async fn login<W>(
+    worker: &mut Worker,
+    w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    worker_name: &mut String,
+    config: &Settings,
+) -> Result<String>
+where
+    W: AsyncWrite,
+{
+    if let Some(wallet) = rpc.get_wallet() {
+        //rpc.set_id(CLIENT_LOGIN);
+        let mut temp_worker = wallet.clone();
+        let split = wallet.split(".").collect::<Vec<&str>>();
+        if split.len() > 1 {
+            worker.login(
+                temp_worker.clone(),
+                split.get(1).unwrap().to_string(),
+                wallet.clone(),
+            );
+            let temp_full_wallet = config.share_wallet.clone() + "." + split[1].clone();
+            // 抽取全部替换钱包
+            rpc.set_wallet(&temp_full_wallet);
+            *worker_name = temp_worker;
+            write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await?;
+            Ok(temp_full_wallet)
+        } else {
+            temp_worker.push_str(".");
+            temp_worker = temp_worker + rpc.get_worker_name().as_str();
+            worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
+            *worker_name = temp_worker.clone();
+            Ok(temp_worker)
+        }
+    } else {
+        bail!("请求登录出错。可能收到暴力攻击");
+    }
+}
+
 async fn new_eth_submit_login<W>(
     worker: &mut Worker,
     w: &mut WriteHalf<W>,
@@ -93,16 +130,18 @@ where
                 split.get(1).unwrap().to_string(),
                 wallet.clone(),
             );
+            let temp_full_wallet = config.share_wallet.clone() + "." + split[1].clone();
+            // 抽取全部替换钱包
+            rpc.set_wallet(&temp_full_wallet);
             *worker_name = temp_worker;
         } else {
             temp_worker.push_str(".");
             temp_worker = temp_worker + rpc.get_worker_name().as_str();
             worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
             *worker_name = temp_worker;
+            // 抽取全部替换钱包
+            rpc.set_wallet(&config.share_wallet);
         }
-
-        // 抽取全部替换钱包
-        rpc.set_wallet(&config.share_wallet);
 
         write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
     } else {
@@ -437,7 +476,7 @@ where
     W: AsyncWrite,
 {
     let proxy_wallet_and_worker_name = config.share_wallet.clone() + "." + &config.share_name;
-
+    let mut all_walllet_name = String::new();
     let mut protocol = PROTOCOL::KNOWN;
     let mut first = true;
 
@@ -624,11 +663,12 @@ where
 
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
-                                    login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                    all_walllet_name = login(worker,&mut pool_w,&mut json_rpc,&mut worker_name,&config).await?;
                                     Ok(())
                                 },
                                 "mining.submit" => {
                                     worker.share_index_add();
+                                    json_rpc.set_wallet(&all_walllet_name);
                                     write_to_socket_byte(&mut pool_w, json_rpc.to_vec()?, &worker_name).await?;
                                     Ok(())
                                 },
@@ -651,11 +691,12 @@ where
                                     Ok(())
                                 },
                                 "mining.authorize" => {
-                                    login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                    all_walllet_name = login(worker,&mut pool_w,&mut json_rpc,&mut worker_name,&config).await?;
                                     Ok(())
                                 },
                                 "mining.submit" => {
                                     json_rpc.set_id(CLIENT_SUBMITWORK);
+                                    json_rpc.set_wallet(&all_walllet_name);
                                     worker.share_index_add();
                                     write_to_socket_byte(&mut pool_w, json_rpc.to_vec()?, &worker_name).await?;
                                     Ok(())

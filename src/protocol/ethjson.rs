@@ -8,7 +8,7 @@ pub trait EthClientObject {
 
     fn get_job_id(&mut self) -> Option<String>;
     fn get_wallet(&mut self) -> Option<String>;
-    fn set_wallet(&mut self,wallet: &str) -> bool;
+    fn set_wallet(&mut self, wallet: &str) -> bool;
 
     fn get_worker_name(&mut self) -> String;
     fn set_worker_name(&mut self, worker_name: &str) -> bool;
@@ -120,8 +120,9 @@ impl EthClientObject for EthClientRootObject {
         false
     }
 
-    fn set_wallet(&mut self,wallet: &str) -> bool {
-        todo!()
+    fn set_wallet(&mut self, wallet: &str) -> bool {
+        self.params[0] = wallet.to_string();
+        true
     }
 }
 
@@ -195,12 +196,12 @@ impl EthClientObject for EthClientWorkerObject {
                 return false;
             }
         }
-
         false
     }
 
-    fn set_wallet(&mut self,wallet: &str) -> bool {
-        todo!()
+    fn set_wallet(&mut self, wallet: &str) -> bool {
+        self.params[0] = wallet.to_string();
+        true
     }
 }
 
