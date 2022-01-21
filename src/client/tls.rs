@@ -139,7 +139,6 @@ async fn transfer_ssl(
             worker_queue,
             worker_r,
             worker_w,
-            &config.share_address,
             &config,
             state,
             false,

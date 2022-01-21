@@ -2100,7 +2100,6 @@ pub async fn handle_tcp_pool_all<R, W>(
     worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>,
-    pools: &Vec<String>,
     config: &Settings,
     state: State,
     is_encrypted: bool,
@@ -2109,6 +2108,13 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
+        Some(pool) => pool,
+        None => {
+            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+        }
+    };
+
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
