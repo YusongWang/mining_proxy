@@ -867,7 +867,12 @@ where
                             continue;
                         } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
                             info!("StraumMiningSet");
-                        } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumErrorResult>(&buf) {
+                        } else if let Ok(mut set_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
+                            info!("EthSubscriptionNotify");
+                            if proxy_fee_state == WaitStatus::WAIT && set_rpc.id == CLIENT_LOGIN {
+                                write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                            }
+                            continue;
                         }
                         write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }

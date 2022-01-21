@@ -4,7 +4,7 @@ use serde_json::Value;
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EthLoginNotify {
-    pub id: i64,
+    pub id: u64,
     pub jsonrpc: String,
     pub result: (Vec<String>, String),
 }
@@ -12,7 +12,8 @@ pub struct EthLoginNotify {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EthSubscriptionNotify {
-    pub id: i64,
+    pub id: u64,
     pub result: (Vec<String>, String),
     pub error: Value,
 }
+
