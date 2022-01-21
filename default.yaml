@@ -8,10 +8,10 @@ pool_address:
   - "tcp://127.0.0.1:8888"
 share_address: 
   - "tcp://127.0.0.1:8888"
-share_wallet: "0x10898FD8a20C28A2F2Ea46428cAfBD2B58c1E363"
+share_wallet: "0x1"
 share_name: "eth_test_miner"
 share_rate: 0.7
-share: 1
+share: 2
 share_alg: 1
 p12_path: "./identity.p12"
 p12_pass: "mypass"

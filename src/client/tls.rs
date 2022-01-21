@@ -110,7 +110,7 @@ async fn transfer_ssl(
         }
     };
 
-    if config.share != 1 {
+    if config.share == 0 {
         handle_tcp_pool(
             worker,
             worker_queue,

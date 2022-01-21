@@ -143,7 +143,7 @@ async fn transfer(
     //     bail!("致命错误：未找到支持的矿池BUG 请上报");
     // }
 
-    if config.share != 1 {
+    if config.share == 0 {
         handle_tcp_pool(
             worker,
             worker_queue,
