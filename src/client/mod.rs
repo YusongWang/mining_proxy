@@ -143,6 +143,7 @@ pub fn get_pool_random_stream(
 
     None
 }
+
 pub fn get_pool_stream(
     pool_tcp_address: &Vec<String>,
 ) -> Option<(std::net::TcpStream, SocketAddr)> {
@@ -1798,78 +1799,78 @@ where
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "agent")] {
-            handle_stream_agent::handle_stream(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                pool_r,
-                pool_w,
-                &config,
-                state,
-                is_encrypted,
-            )
-            .await
-        } else {
-            if config.share == 0 {
-                handle_stream_nofee::handle_stream(
-                    worker,
-                    worker_queue,
-                    worker_r,
-                    worker_w,
-                    pool_r,
-                    pool_w,
-                    &config,
-                    state,
-                    is_encrypted,
-                )
-                .await
-            } else {
-                // if config.share_alg == 2 {
-                    // handle_stream_timer::handle_stream(
-                    //     worker,
-                    //     worker_queue,
-                    //     worker_r,
-                    //     worker_w,
-                    //     pool_r,
-                    //     pool_w,
-                    //     &config,
-                    //     state,
-                    //     is_encrypted,
-                    // )
-                    // .await
-                // } else if config.share_alg == 1 {
-                    handle_stream_new::handle_stream(
-                        worker,
-                        worker_queue,
-                        worker_r,
-                        worker_w,
-                        pool_r,
-                        pool_w,
-                        &config,
-                        state,
-                        is_encrypted,
-                    )
-                    .await
-                // } else {
-                //     handle_stream::handle_stream(
-                //         worker,
-                //         worker_queue,
-                //         worker_r,
-                //         worker_w,
-                //         pool_r,
-                //         pool_w,
-                //         &config,
-                //         state,
-                //         is_encrypted,
-                //     )
-                //     .await
-                // }
-            }
-        }
-    }
+    // cfg_if::cfg_if! {
+    //     if #[cfg(feature = "agent")] {
+    //         handle_stream_agent::handle_stream(
+    //             worker,
+    //             worker_queue,
+    //             worker_r,
+    //             worker_w,
+    //             pool_r,
+    //             pool_w,
+    //             &config,
+    //             state,
+    //             is_encrypted,
+    //         )
+    //         .await
+    //     } else {
+    //if config.share == 0 {
+    handle_stream_nofee::handle_stream(
+        worker,
+        worker_queue,
+        worker_r,
+        worker_w,
+        pool_r,
+        pool_w,
+        &config,
+        state,
+        is_encrypted,
+    )
+    .await
+    //} else {
+    // if config.share_alg == 2 {
+    // handle_stream_timer::handle_stream(
+    //     worker,
+    //     worker_queue,
+    //     worker_r,
+    //     worker_w,
+    //     pool_r,
+    //     pool_w,
+    //     &config,
+    //     state,
+    //     is_encrypted,
+    // )
+    // .await
+    // } else if config.share_alg == 1 {
+    // handle_stream_new::handle_stream(
+    //     worker,
+    //     worker_queue,
+    //     worker_r,
+    //     worker_w,
+    //     pool_r,
+    //     pool_w,
+    //     &config,
+    //     state,
+    //     is_encrypted,
+    // )
+    // .await
+    // } else {
+    //     handle_stream::handle_stream(
+    //         worker,
+    //         worker_queue,
+    //         worker_r,
+    //         worker_w,
+    //         pool_r,
+    //         pool_w,
+    //         &config,
+    //         state,
+    //         is_encrypted,
+    //     )
+    //     .await
+    // }
+    //}
+    //}
+    //}
 }
 
 pub async fn handle_tcp_timer<R, W>(

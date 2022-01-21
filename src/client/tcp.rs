@@ -101,31 +101,17 @@ async fn transfer(
         )
         .await
     } else if config.share == 1 {
-        if config.share_alg == 99 {
-            handle_tcp_pool(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                false,
-            )
-            .await
-        } else {
-            handle_tcp_pool_timer(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                false,
-            )
-            .await
-        }
+        handle_tcp_pool_timer(
+            worker,
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            state,
+            false,
+        )
+        .await
     } else {
         handle_tcp_pool_all(
             worker,
