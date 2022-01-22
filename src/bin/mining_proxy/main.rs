@@ -1,6 +1,11 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
+use std::net::SocketAddr;
+
+use axum::{Router};
+use axum::routing::{get, post};
+
 
 extern crate openssl_probe;
 
@@ -10,7 +15,7 @@ use mining_proxy::{
     util::{config::Settings, logger, *},
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bytes::BytesMut;
 use clap::crate_version;
 use human_bytes::human_bytes;
@@ -116,7 +121,6 @@ async fn main() -> Result<()> {
         version::short_sha()
     );
 
-    
     let mode = if config.share == 0 {
         "纯代理模式"
     } else if config.share == 1 {
@@ -152,12 +156,24 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-
 pub async fn web() -> Result<()> {
+    let app = Router::new().nest(
+        "/user",
+        Router::new().route("/login", post(mining_proxy::web::handles::user::login)),
+    );
 
-    Ok(())
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let res = match axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e) => bail!(e),
+    };
+
+
+    res
 }
-
 
 // pub async fn print_state(
 //     workers: &HashMap<String, Worker>,

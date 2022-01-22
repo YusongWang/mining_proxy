@@ -37,8 +37,9 @@ short-crypt = "1.0.25"
 ethereum-hexutil = "0.2.3"
 openssl-probe = "0.1.5"
 human_bytes = "0.3"
+jsonwebtoken = "7"
 axum = { version = "0.4", features = ["headers"] }
-sea-orm = { version = "0.4", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros", "with-chrono"], default-features = false }
+sea-orm = { version = "0.5", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros", "with-chrono"], default-features = false }
 # async-trait = "0.1.52"
 # actix-web = "3"
 # actix-rt = "*"
