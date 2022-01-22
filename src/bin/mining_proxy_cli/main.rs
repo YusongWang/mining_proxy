@@ -29,6 +29,14 @@ use tokio::{
 #[tokio::main]
 async fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
+    // let _guard = sentry::init((
+    //     "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
+    //     sentry::ClientOptions {
+    //         release: sentry::release_name!(),
+    //         ..Default::default()
+    //     },
+    // ));
+
     let matches = mining_proxy::util::get_app_command_matches().await?;
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
@@ -129,7 +137,7 @@ async fn main() -> Result<()> {
 
     let mut buffer = BytesMut::with_capacity(10240);
     let read_key_len = p12.read_buf(&mut buffer).await?;
-
+    //info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
 
     // 当前中转总报告算力。Arc<> Or atom 变量
@@ -142,7 +150,6 @@ async fn main() -> Result<()> {
         accept_en_tcp(worker_tx.clone(), config.clone(), state.clone()),
         accept_tcp_with_tls(worker_tx.clone(), config.clone(), cert, state.clone()),
         process_workers(&config, worker_rx, state),
-        web(),
     );
 
     if let Err(err) = res {
@@ -151,13 +158,6 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-
-pub async fn web() -> Result<()> {
-
-    Ok(())
-}
-
 
 // pub async fn print_state(
 //     workers: &HashMap<String, Worker>,
