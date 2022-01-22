@@ -117,13 +117,23 @@ async fn main() -> Result<()> {
         }
     };
 
-    //TODO 用函数检验矿池连通性
     println!(
         "版本: {} commit: {} {}",
         crate_version!(),
         version::commit_date(),
         version::short_sha()
     );
+
+    
+    let mode = if config.share == 0 {
+        "纯代理模式"
+    } else if config.share == 1 {
+        "抽水模式"
+    } else {
+        "统一钱包模式"
+    };
+
+    log::info!("当前启动模式为: {}", mode);
 
     let mut buffer = BytesMut::with_capacity(10240);
     let read_key_len = p12.read_buf(&mut buffer).await?;
