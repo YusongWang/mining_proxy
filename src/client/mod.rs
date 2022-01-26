@@ -53,7 +53,7 @@ pub const TCP: i32 = 1;
 pub const SSL: i32 = 2;
 
 // 从配置文件返回 连接矿池类型及连接地址
-pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i32, Vec<String>)> {
+pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Result<(i32, Vec<String>)> {
     //FIX 兼容SSL
     if !config.pool_address.is_empty() {
         let address = config.pool_address.clone();
@@ -64,24 +64,23 @@ pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Option<(i
                 let p = protocol.to_string().to_lowercase();
                 if p != "tcp:" {
                     //println!("不支持的服务类型 {}",*protocol);
-                    println!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
-                    std::process::exit(1);
+                    bail!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
                 }
             }
             if let Some(url) = new_pool_url.get(1) {
                 pools.push(url.to_string());
             };
         }
-        Some((TCP, pools))
+        Ok((TCP, pools))
     } else {
-        None
+        bail!("中转池地址设置存在错误请检查");
     }
 }
 
 // 从配置文件返回 连接矿池类型及连接地址
 pub fn get_pool_ip_and_type_for_proxyer(
     config: &crate::util::config::Settings,
-) -> Option<(i32, Vec<String>)> {
+) -> Result<(i32, Vec<String>)> {
     //FIX 兼容ssl
     if !config.share_address.is_empty() {
         let address = config.share_address.clone();
@@ -91,17 +90,17 @@ pub fn get_pool_ip_and_type_for_proxyer(
             if let Some(protocol) = new_pool_url.get(0) {
                 let p = protocol.to_string().to_lowercase();
                 if p != "tcp:" {
-                    println!("抽水矿池{} 不支持的服务类型 {}", addr, *protocol);
-                    std::process::exit(1);
+                    bail!("抽水矿池{} 不支持的服务类型 {}", addr, *protocol);
+                    //std::process::exit(1);
                 }
             }
             if let Some(url) = new_pool_url.get(1) {
                 pools.push(url.to_string());
             };
         }
-        Some((TCP, pools))
+        Ok((TCP, pools))
     } else {
-        None
+        bail!("抽水矿池地址设置存在错误请检查");
     }
 }
 //vs.choose(&mut rand::thread_rng())
@@ -2109,8 +2108,8 @@ where
     W: AsyncWrite,
 {
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
-        Some(pool) => pool,
-        None => {
+        Ok(pool) => pool,
+        Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };

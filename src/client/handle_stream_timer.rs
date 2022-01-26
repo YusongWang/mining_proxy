@@ -354,11 +354,12 @@ pub async fn pool_with_tcp_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
-        Some(pool) => pool,
-        None => {
+        Ok(pool) => pool,
+        Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
+
     // if stream_type == crate::client::TCP {
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -396,8 +397,8 @@ pub async fn pool_with_ssl_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
-        Some(pool) => pool,
-        None => {
+        Ok(pool) => pool,
+        Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
@@ -881,8 +882,8 @@ where
                 if proxy_fee_state == WaitStatus::WAIT {
 
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
-                        Some(s) => s,
-                        None => {
+                        Ok(s) => s,
+                        Err(_) => {
                             bail!("无法链接到矿池");
                             //return Err(e);
                         }
@@ -971,8 +972,8 @@ where
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
                 } else if proxy_fee_state == WaitStatus::RUN {
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
-                        Some(pool) => pool,
-                        None => {
+                        Ok(pool) => pool,
+                        Err(_) => {
                             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
                         }
                     };

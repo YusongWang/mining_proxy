@@ -374,8 +374,8 @@ pub async fn pool_with_ssl_reconnect(
     WriteHalf<TlsStream<TcpStream>>,
 )> {
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
-        Some(pool) => pool,
-        None => {
+        Ok(pool) => pool,
+        Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };

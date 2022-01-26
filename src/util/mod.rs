@@ -14,7 +14,7 @@ use crate::WALLET;
 
 use self::config::Settings;
 
-pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
+pub fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(format!(
         "{}, 版本: {} commit: {} {}",
         crate_name!(),
@@ -25,6 +25,12 @@ pub async fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     .version(crate_version!())
     //.author(crate_authors!("\n"))
     .about(crate_description!())
+    .arg(
+        Arg::with_name("server")
+            .short("s")
+            .long("server")
+            .help("指定为server(代理)模式运行"),
+    )
     .arg(
         Arg::with_name("config")
             .short("c")

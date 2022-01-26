@@ -371,11 +371,12 @@ pub async fn pool_with_tcp_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
-        Some(pool) => pool,
-        None => {
+        Ok(pool) => pool,
+        Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
+
     // if stream_type == crate::client::TCP {
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -413,8 +414,8 @@ pub async fn pool_with_ssl_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
-        Some(pool) => pool,
-        None => {
+        Ok(pool) => pool,
+        Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };

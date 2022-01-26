@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
     //     },
     // ));
 
-    let matches = mining_proxy::util::get_app_command_matches().await?;
+    let matches = mining_proxy::util::get_app_command_matches()?;
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = Settings::new(config_file_name, true)?;
@@ -78,8 +78,8 @@ async fn main() -> Result<()> {
     }
 
     let (_, pools) = match mining_proxy::client::get_pool_ip_and_type(&config) {
-        Some(s) => s,
-        None => {
+        Ok(s) => s,
+        Err(_) => {
             println!("解析代理矿池协议错误");
             std::process::exit(1);
         }
@@ -94,8 +94,8 @@ async fn main() -> Result<()> {
     };
 
     let (_, pools) = match mining_proxy::client::get_pool_ip_and_type_for_proxyer(&config) {
-        Some(s) => s,
-        None => {
+        Ok(s) => s,
+        Err(_) => {
             println!("解析抽水矿池协议错误");
             std::process::exit(1);
         }
@@ -124,7 +124,6 @@ async fn main() -> Result<()> {
         version::short_sha()
     );
 
-    
     let mode = if config.share == 0 {
         "纯代理模式"
     } else if config.share == 1 {

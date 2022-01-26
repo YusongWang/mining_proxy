@@ -1,7 +1,7 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
-use std::env;
+use std::{env, net::TcpListener};
 
 use super::get_develop_fee;
 
@@ -139,5 +139,91 @@ impl Settings {
             }
         }
         Ok(hostname)
+    }
+
+    pub fn check(&self) -> Result<()> {
+        if self.share_rate > 1.0 && self.share_rate < 0.001 {
+            bail!("抽水费率不正确不能大于1.或小于0.001")
+        };
+
+        if self.share_name.is_empty() {
+            bail!("抽水旷工名称未设置")
+        };
+
+        if self.pool_address.is_empty() {
+            bail!("代理池地址为空")
+        };
+
+        if self.share_address.is_empty() {
+            bail!("抽水矿池代理池地址为空")
+        };
+
+        if self.tcp_port == 0 && self.ssl_port == 0 && self.encrypt_port == 0 {
+            bail!("本地监听端口必须启动一个。目前全部为0")
+        };
+
+        if self.share != 0 && self.share_wallet.is_empty() {
+            bail!("抽水模式或统一钱包功能，收款钱包不能为空。")
+        }
+
+        let (_, pools) = match crate::client::get_pool_ip_and_type(&self) {
+            Ok(s) => s,
+            Err(e) => {
+                bail!("{}", e);
+            }
+        };
+
+        let (_, _) = match crate::client::get_pool_stream(&pools) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                bail!("无法链接到代理矿池");
+            }
+        };
+
+        let (_, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&self) {
+            Ok(s) => s,
+            Err(e) => {
+                bail!("{}", e);
+            }
+        };
+
+        let (_, _) = match crate::client::get_pool_stream(&pools) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                bail!("无法链接到抽水矿池");
+            }
+        };
+
+        //尝试监听本地端口
+        if self.tcp_port != 0 {
+            let address = format!("0.0.0.0:{}", self.tcp_port);
+            let listener = match TcpListener::bind(address.clone()) {
+                Ok(listener) => listener,
+                Err(_) => {
+                    bail!("TCP端口被占用 {}", self.tcp_port);
+                }
+            };
+        }
+
+        if self.ssl_port != 0 {
+            let address = format!("0.0.0.0:{}", self.ssl_port);
+            let listener = match TcpListener::bind(address.clone()) {
+                Ok(listener) => listener,
+                Err(_) => {
+                    bail!("SSL端口被占用 {}", self.ssl_port);
+                }
+            };
+        }
+
+        if self.encrypt_port != 0 {
+            let address = format!("0.0.0.0:{}", self.encrypt_port);
+            let listener = match TcpListener::bind(address.clone()) {
+                Ok(listener) => listener,
+                Err(_) => {
+                    bail!("加密端口被占用 {}", self.encrypt_port);
+                }
+            };
+        }
+        Ok(())
     }
 }

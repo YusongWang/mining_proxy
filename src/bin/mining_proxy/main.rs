@@ -1,14 +1,10 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
-use std::net::SocketAddr;
-
-use axum::{Router};
-use axum::routing::{get, post};
-
 
 extern crate openssl_probe;
 
+use actix_web::{web, App, HttpServer, Responder};
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
@@ -17,91 +13,75 @@ use mining_proxy::{
 
 use anyhow::{bail, Result};
 use bytes::BytesMut;
-use clap::crate_version;
-use human_bytes::human_bytes;
-use prettytable::{cell, row, Table};
-use std::collections::HashMap;
-
+use clap::{crate_version, ArgMatches};
+use human_panic::setup_panic;
 use native_tls::Identity;
 
 use tokio::{
     fs::File,
     io::AsyncReadExt,
     sync::mpsc::{self},
-    time::sleep,
 };
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    openssl_probe::init_ssl_cert_env_vars();
-    let matches = mining_proxy::util::get_app_command_matches().await?;
+async fn hello_world() -> impl Responder {
+    "Hello World!"
+}
 
+fn main() -> Result<()> {
+    setup_panic!();
+    openssl_probe::init_ssl_cert_env_vars();
+    actix_web::rt::System::with_tokio_rt(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            //.worker_threads(8)
+            .thread_name("main-tokio")
+            .build()
+            .unwrap()
+    })
+    .block_on(async_main())?;
+
+    Ok(())
+}
+
+async fn async_main() -> Result<()> {
+    println!(
+        "版本: {} commit: {} {}",
+        crate_version!(),
+        version::commit_date(),
+        version::short_sha()
+    );
+
+    let matches = mining_proxy::util::get_app_command_matches()?;
+    if !matches.is_present("server") {
+        logger::init_client(0)?;
+        let server_res = HttpServer::new(|| App::new().route("/", web::get().to(hello_world)))
+            .bind("0.0.0.0:8000")?
+            .run()
+            .await?;
+        Ok(())
+    } else {
+        tokio_run(&matches).await
+    }
+}
+
+pub async fn web() -> Result<()> {
+    Ok(())
+}
+
+async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = Settings::new(config_file_name, true)?;
+
     logger::init(
         config.name.as_str(),
         config.log_path.clone(),
         config.log_level,
     )?;
 
-    if config.share_rate > 1.0 && config.share_rate < 0.001 {
-        println!("抽水费率不正确不能大于1.或小于0.001");
-        std::process::exit(1);
-    };
-
-    if config.share_name.is_empty() {
-        println!("抽水旷工名称未设置");
-        std::process::exit(1);
-    };
-
-    if config.pool_address.is_empty() {
-        println!("代理池地址为空");
-        std::process::exit(1);
-    };
-
-    if config.share_address.is_empty() {
-        println!("抽水矿池代理池地址为空");
-        std::process::exit(1);
-    };
-
-    if config.tcp_port == 0 && config.ssl_port == 0 && config.encrypt_port == 0 {
-        println!("本地监听端口必须启动一个。目前全部为0");
-        std::process::exit(1);
-    };
-
-    if config.share != 0 && config.share_wallet.is_empty() {
-        println!("抽水模式或统一钱包功能，收款钱包不能为空。");
-        std::process::exit(1);
-    }
-
-    let (_, pools) = match mining_proxy::client::get_pool_ip_and_type(&config) {
-        Some(s) => s,
-        None => {
-            println!("解析代理矿池协议错误");
-            std::process::exit(1);
-        }
-    };
-
-    let (_, _) = match mining_proxy::client::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            println!("无法链接到代理矿池");
-            std::process::exit(1);
-        }
-    };
-
-    let (_, pools) = match mining_proxy::client::get_pool_ip_and_type_for_proxyer(&config) {
-        Some(s) => s,
-        None => {
-            println!("解析抽水矿池协议错误");
-            std::process::exit(1);
-        }
-    };
-
-    let (_, _) = match mining_proxy::client::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            println!("无法链接到抽水矿池");
+    match config.check() {
+        Ok(_) => {}
+        Err(err) => {
+            log::error!("config配置错误 {}", err);
             std::process::exit(1);
         }
     };
@@ -113,13 +93,6 @@ async fn main() -> Result<()> {
             std::process::exit(1);
         }
     };
-
-    println!(
-        "版本: {} commit: {} {}",
-        crate_version!(),
-        version::commit_date(),
-        version::short_sha()
-    );
 
     let mode = if config.share == 0 {
         "纯代理模式"
@@ -133,20 +106,16 @@ async fn main() -> Result<()> {
 
     let mut buffer = BytesMut::with_capacity(10240);
     let read_key_len = p12.read_buf(&mut buffer).await?;
-
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
 
-    // 当前中转总报告算力。Arc<> Or atom 变量
-    let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-    // 当前全局状态管理.
+    let (worker_tx, _) = mpsc::unbounded_channel::<Worker>();
+
     let state = std::sync::Arc::new(mining_proxy::state::GlobalState::default());
 
     let res = tokio::try_join!(
         accept_tcp(worker_tx.clone(), config.clone(), state.clone()),
         accept_en_tcp(worker_tx.clone(), config.clone(), state.clone()),
         accept_tcp_with_tls(worker_tx.clone(), config.clone(), cert, state.clone()),
-        process_workers(&config, worker_rx, state),
-        web(),
     );
 
     if let Err(err) = res {
@@ -154,399 +123,4 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-pub async fn web() -> Result<()> {
-    let app = Router::new().nest(
-        "/user",
-        Router::new().route("/login", post(mining_proxy::web::handles::user::login)),
-    );
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let res = match axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(e) => bail!(e),
-    };
-
-
-    res
-}
-
-// pub async fn print_state(
-//     workers: &HashMap<String, Worker>,
-//     config: &Settings,
-//     state: mining_proxy::state::State,
-//     runtime: std::time::Instant,
-// ) -> Result<()> {
-//     // 创建表格
-
-//     let mut total_hash: u64 = 0;
-//     let mut total_share: u64 = 0;
-//     let mut total_accept: u64 = 0;
-//     let mut total_invalid: u64 = 0;
-
-//     for (_name, w) in workers {
-//         if !w.is_online() {
-//             continue;
-//         }
-//         total_hash += w.hash;
-//         total_share = total_share + w.share_index;
-//         total_accept = total_accept + w.accept_index;
-//         total_invalid = total_invalid + w.invalid_index;
-//     }
-
-// table.add_row(row![
-//     config.share_name.clone(),
-//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//     "",
-//     state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
-//     state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
-//     state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
-//     time_to_string(runtime.elapsed().as_secs()),
-//     "",
-// ]);
-
-// table.add_row(row![
-//     "开发者抽水账户",
-//     calc_hash_rate(
-//         bytes_to_mb(total_hash),
-//         get_develop_fee(config.share_rate.into(), true) as f32
-//     )
-//     .to_string()
-//         + " Mb",
-//     "",
-//     state
-//         .develop_share
-//         .load(std::sync::atomic::Ordering::SeqCst),
-//     state
-//         .develop_accept
-//         .load(std::sync::atomic::Ordering::SeqCst),
-//     state
-//         .develop_reject
-//         .load(std::sync::atomic::Ordering::SeqCst),
-//     time_to_string(runtime.elapsed().as_secs()),
-//     "",
-// ]);
-
-// // // 添加行
-// table.add_row(row![
-//     "说明",
-//     "不同矿池难度不一样",
-//     "份额高低不能决定算力!!!",
-//     "只能提供参考!!!",
-//     "",
-//     "",
-//     format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
-//     format!(
-//         "开发者抽水率: {:.1}%",
-//         get_develop_fee(config.share_rate.into(), true) * 100.0
-//     ),
-// ]);
-
-// table.add_row(row![
-//     "汇总",
-//     bytes_to_mb(total_hash).to_string() + " Mb",
-//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//     total_share,
-//     total_accept,
-//     total_invalid,
-//     format!(
-//         "版本号:{} 在线矿工: {}台",
-//         crate_version!(),
-//         state.online.load(std::sync::atomic::Ordering::SeqCst)
-//     ),
-//     format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
-// ]);
-
-//     println!(
-//         "当前总算力: {} 当前抽水算力: {} 总份额: {} 接受份额: {} 拒绝份额: {}\n{} {}",
-//         bytes_to_mb(total_hash).to_string() + " Mb",
-//         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//         total_share,
-//         total_accept,
-//         total_invalid,
-//         format!(
-//             "版本号:{} 在线矿工: {}台",
-//             crate_version!(),
-//             state.online.load(std::sync::atomic::Ordering::SeqCst)
-//         ),
-//         format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs()))
-//     );
-//         // bytes_to_mb(total_hash).to_string() + " Mb",
-//         // calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//         // total_share,
-//         // total_accept,
-//         // total_invalid,
-//         // format!(
-//         //     "版本号:{} 在线矿工: {}台",
-//         //     crate_version!(),
-//         //     state.online.load(std::sync::atomic::Ordering::SeqCst)
-//         // ),
-//         // format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
-
-//     //(不通矿池难度不一样。份额高低不能决定算力)
-//     //table.printstd();
-//     Ok(())
-// }
-
-pub async fn print_state_nofee(
-    workers: &HashMap<String, Worker>,
-    _: &Settings,
-    state: mining_proxy::state::State,
-    runtime: std::time::Instant,
-) -> Result<()> {
-    // 创建表格
-    let mut table = Table::new();
-    table.add_row(row![
-        "矿工",
-        "报告算力",
-        "总工作量(份额)",
-        "有效份额",
-        "无效份额",
-        "在线时长(小时)",
-        "最后提交(分钟)",
-    ]);
-
-    let mut total_hash: u64 = 0;
-    let mut total_share: u64 = 0;
-    let mut total_accept: u64 = 0;
-    let mut total_invalid: u64 = 0;
-    for (_name, w) in workers {
-        if !w.is_online() {
-            continue;
-        }
-        // // 添加行
-        table.add_row(row![
-            w.worker_name,
-            //bytes_to_mb(w.hash).to_string() + " Mb",
-            human_bytes(w.hash as f64),
-            w.share_index,
-            w.accept_index,
-            w.invalid_index,
-            time_to_string(w.login_time.elapsed().as_secs()),
-            time_to_string(w.last_subwork_time.elapsed().as_secs()),
-        ]);
-
-        total_hash += w.hash;
-        total_share = total_share + w.share_index;
-        total_accept = total_accept + w.accept_index;
-        total_invalid = total_invalid + w.invalid_index;
-    }
-
-    // println!(
-    //     "当前总算力: {} 总份额: {} 接受份额: {} 拒绝份额: {}\n{} {}",
-    //     bytes_to_mb(total_hash).to_string() + " Mb",
-    //     total_share,
-    //     total_accept,
-    //     total_invalid,
-    //     format!(
-    //         "版本号:{} 在线矿工: {}台",
-    //         crate_version!(),
-    //         state.online.load(std::sync::atomic::Ordering::SeqCst)
-    //     ),
-    //     format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs()))
-    // );
-    table.add_row(row![
-        "汇总",
-        //bytes_to_mb(total_hash).to_string() + " Mb",
-        human_bytes(total_hash as f64),
-        total_share,
-        total_accept,
-        total_invalid,
-        format!(
-            "版本号:{} 在线矿工: {}台",
-            crate_version!(),
-            state.online.load(std::sync::atomic::Ordering::SeqCst)
-        ),
-        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
-    ]);
-
-    // //(不通矿池难度不一样。份额高低不能决定算力)
-    table.printstd();
-    Ok(())
-}
-pub async fn print_state(
-    workers: &HashMap<String, Worker>,
-    config: &Settings,
-    state: mining_proxy::state::State,
-    runtime: std::time::Instant,
-) -> Result<()> {
-    // 创建表格
-    let mut table = Table::new();
-    table.add_row(row![
-        "矿工",
-        "报告算力",
-        "抽水算力",
-        "总工作量(份额)",
-        "有效份额",
-        "无效份额",
-        "在线时长(小时)",
-        "最后提交(分钟)",
-    ]);
-
-    let mut total_hash: u64 = 0;
-    let mut total_share: u64 = 0;
-    let mut total_accept: u64 = 0;
-    let mut total_invalid: u64 = 0;
-    for (_name, w) in workers {
-        if !w.is_online() {
-            continue;
-        }
-
-        // 添加行
-        table.add_row(row![
-            w.worker_name,
-            human_bytes(w.hash as f64),
-            human_bytes(calc_hash_rate(w.hash, config.share_rate) as f64),
-            w.share_index,
-            w.accept_index,
-            w.invalid_index,
-            time_to_string(w.login_time.elapsed().as_secs()),
-            time_to_string(w.last_subwork_time.elapsed().as_secs()),
-        ]);
-
-        total_hash += w.hash;
-        total_share = total_share + w.share_index;
-        total_accept = total_accept + w.accept_index;
-        total_invalid = total_invalid + w.invalid_index;
-    }
-
-    // {
-    //     let w = RwLockReadGuard::map(proxy_worker.read().await, |s| s);
-    //     table.add_row(row![
-    //         w.worker_name,
-    //         bytes_to_mb(w.hash).to_string() + " Mb",
-    //         calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-    //         w.share_index,
-    //         w.accept_index,
-    //         w.invalid_index,
-    //         time_to_string(w.login_time.elapsed().as_secs()),
-    //         time_to_string(w.last_subwork_time.elapsed().as_secs()),
-    //     ]);
-    // }
-
-    // let w = RwLockReadGuard::map(develop_worker.read().await, |s| s);
-    // table.add_row(row![
-    //     w.worker_name,
-    //     bytes_to_mb(w.hash).to_string() + " Mb",
-    //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-    //     w.share_index,
-    //     w.accept_index,
-    //     w.invalid_index
-    // ]);
-
-    table.add_row(row![
-        config.share_name.clone(),
-        human_bytes(calc_hash_rate(total_hash, config.share_rate) as f64),
-        "",
-        state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
-        state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
-        state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
-        time_to_string(runtime.elapsed().as_secs()),
-        "",
-    ]);
-
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "nofee")] {
-        } else {
-            // // 添加行
-            table.add_row(row![
-                "说明",
-                "不同矿池难度不一样",
-                "份额高低不能决定算力!!!",
-                "只能提供参考!!!",
-                "",
-                "",
-                format!("你的抽水率: {:.1}%", config.share_rate * 100.0),
-                "",
-            ]);
-
-            table.add_row(row![
-                "开发者抽水账户",
-                calc_hash_rate(
-                    bytes_to_mb(total_hash),
-                    get_develop_fee(config.share_rate.into(), true) as f32
-                )
-                .to_string()
-                    + " Mb",
-                "",
-                state
-                    .develop_share
-                    .load(std::sync::atomic::Ordering::SeqCst),
-                state
-                    .develop_accept
-                    .load(std::sync::atomic::Ordering::SeqCst),
-                state
-                    .develop_reject
-                    .load(std::sync::atomic::Ordering::SeqCst),
-                time_to_string(runtime.elapsed().as_secs()),
-                "",
-            ]);
-        }
-    }
-
-    table.add_row(row![
-        "汇总",
-        //bytes_to_mb(total_hash).to_string() + " Mb",
-        human_bytes(total_hash as f64),
-        //calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-        human_bytes(calc_hash_rate(total_hash, config.share_rate) as f64),
-        total_share,
-        total_accept,
-        total_invalid,
-        format!(
-            "版本号:{} 在线矿工: {}台",
-            crate_version!(),
-            state.online.load(std::sync::atomic::Ordering::SeqCst)
-        ),
-        format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
-    ]);
-
-    //(不通矿池难度不一样。份额高低不能决定算力)
-    table.printstd();
-    Ok(())
-}
-pub async fn process_workers(
-    config: &Settings,
-    mut worker_rx: mpsc::UnboundedReceiver<Worker>,
-    state: mining_proxy::state::State,
-) -> Result<()> {
-    let runtime = std::time::Instant::now();
-    let mut workers: HashMap<String, Worker> = HashMap::new();
-
-    let sleep = sleep(tokio::time::Duration::from_secs(5 * 60));
-    tokio::pin!(sleep);
-
-    loop {
-        tokio::select! {
-            Some(w) = worker_rx.recv() => {
-                if workers.contains_key(&w.worker) {
-                    if let Some(mine) = workers.get_mut(&w.worker) {
-                        *mine = w;
-                    }
-                } else {
-                    workers.insert(w.worker.clone(),w);
-                }
-            },
-            () = &mut sleep => {
-
-                if config.share == 0 {
-                    match print_state_nofee(&workers,config,state.clone(),runtime).await{
-                        Ok(_) => {},
-                        Err(_) => {log::info!("打印失败了")},
-                    }
-                } else {
-                    match print_state(&workers,config,state.clone(),runtime).await{
-                        Ok(_) => {},
-                        Err(_) => {log::info!("打印失败了")},
-                    }
-                }
-
-                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(5*60));
-            },
-        }
-    }
 }
