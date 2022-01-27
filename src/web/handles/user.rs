@@ -1,4 +1,12 @@
+use std::{
+    fs::OpenOptions,
+    io::{Read, Write},
+};
+
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
+
+use crate::util::config::Settings;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
@@ -12,6 +20,7 @@ pub struct RegisterRequest {
 pub struct TokenDataResponse {
     pub token: String,
 }
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct InfoResponse {
@@ -38,7 +47,6 @@ pub struct RegisterResponse {
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct LoginRequest {
-    pub username: String,
     pub password: String,
 }
 
@@ -104,8 +112,6 @@ pub struct DeleteBookResponse {
     pub success: bool,
 }
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-
 #[get("/")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
@@ -120,7 +126,7 @@ async fn manual_hello() -> impl Responder {
     HttpResponse::Ok().body("Hey there!")
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct CreateRequest {
     pub name: String,
@@ -172,143 +178,256 @@ pub struct CreateRequest {
 //     }))
 // }
 
-// pub async fn crate_app(
-//     extract::Json(req): extract::Json<CreateRequest>,
-// ) -> Result<Json<Response<InfoResponse>>, StatusCode> {
-//     dbg!(req.clone());
-//     let mut config = Settings::default();
-//     if req.name == "" {
-//         return Ok(Json(Response::<InfoResponse> {
-//             code: 40000,
-//             message:"中转名称必须填写".into(),
-//             data: InfoResponse::default()
-//         }))
-//     }
+#[post("/user/login")]
+async fn login(req: web::Json<LoginRequest>) -> actix_web::Result<impl Responder> {
+    dbg!(req);
 
-//     if req.tcp_port == 0  && req.ssl_port == 0  && req.encrypt_port == 0{
-//         return Ok(Json(Response::<InfoResponse> {
-//             code: 40000,
-//             message:"未开启端口。请至少开启一个端口".into(),
-//             data: InfoResponse::default()
-//         }))
-//     }
+    Ok(web::Json(LoginResponse {
+        code: 20000,
+        data: TokenDataResponse {
+            token: "123".to_string(),
+        },
+    }))
+}
 
-//     if req.pool_address.is_empty() {
-//         //println!("中转矿池必须填写");
-//         return Ok(Json(Response::<InfoResponse> {
-//             code: 40000,
-//             message:"中转矿池必须填写".into(),
-//             data: InfoResponse::default()
-//         }))
-//     }
+#[get("/user/info")]
+async fn info() -> actix_web::Result<impl Responder> {
+    Ok(web::Json(Response::<InfoResponse> {
+        code: 20000,
+        message: "".into(),
+        data: InfoResponse {
+            roles: vec!["admin".into()],
+            introduction: "".into(),
+            avatar: "".into(),
+            name: "admin".into(),
+        },
+    }))
+}
 
-//     if req.share != 0 {
-//         if req.share_address.is_empty() {
-//             //println!("抽水矿池必须填写");
-//             return Ok(Json(Response::<InfoResponse> {
-//                 code: 40000,
-//                 message:"抽水矿池必须填写".into(),
-//                 data: InfoResponse::default()
-//             }))
-//         }
+#[post("/crate/app")]
+pub async fn crate_app(req: web::Json<CreateRequest>) -> actix_web::Result<impl Responder> {
+    //dbg!(req);
+    let mut config = Settings::default();
+    if req.name == "" {
+        return Ok(web::Json(Response::<String> {
+            code: 40000,
+            message: "中转名称必须填写".into(),
+            data: String::default(),
+        }));
+    }
 
-//         if req.share_wallet.is_empty() {
-//             //println!("抽水钱包必须填写");
-//             return Ok(Json(Response::<InfoResponse> {
-//                 code: 40000,
-//                 message:"抽水钱包必须填写".into(),
-//                 data: InfoResponse::default()
-//             }))
-//         }
+    if req.tcp_port == 0 && req.ssl_port == 0 && req.encrypt_port == 0 {
+        return Ok(web::Json(Response::<String> {
+            code: 40000,
+            message: "未开启端口。请至少开启一个端口".into(),
+            data: String::default(),
+        }));
+    }
 
-//         if req.share_rate == 0 {
-//             //println!("抽水比例必须填写");
-//             return Ok(Json(Response::<InfoResponse> {
-//                 code: 40000,
-//                 message:"抽水比例必须填写".into(),
-//                 data: InfoResponse::default()
-//             }))
-//         }
-//     }
+    if req.pool_address.is_empty() {
+        //println!("中转矿池必须填写");
+        return Ok(web::Json(Response::<String> {
+            code: 40000,
+            message: "中转矿池必须填写".into(),
+            data: String::default(),
+        }));
+    }
 
-//     config.share_name = req.name.clone();
-//     config.name = req.name;
-//     config.pool_address = vec![req.pool_address];
-//     config.share_address = vec![req.share_address];
-//     config.tcp_port = req.tcp_port;
-//     config.ssl_port = req.ssl_port;
-//     config.encrypt_port = req.encrypt_port;
-//     config.share = req.share;
-//     config.share_rate = req.share_rate as f32 / 100.0;
-//     config.share_wallet = req.share_wallet;
-//     config.key = req.key;
-//     config.iv = req.iv;
+    if req.share != 0 {
+        if req.share_address.is_empty() {
+            //println!("抽水矿池必须填写");
+            return Ok(web::Json(Response::<String> {
+                code: 40000,
+                message: "抽水矿池必须填写".into(),
+                data: String::default(),
+            }));
+        }
 
-//     match config.check() {
-//         Ok(_) => {},
-//         Err(err) => {
-//             log::error!("config配置错误 {}",err);
-//             return Ok(Json(Response::<InfoResponse> {
-//                 code: 40000,
-//                 message: format!("config配置错误 {}",err),
-//                 data: InfoResponse::default()
-//             }))
-//             //std::process::exit(1);
-//         },
-//     };
+        if req.share_wallet.is_empty() {
+            //println!("抽水钱包必须填写");
+            return Ok(web::Json(Response::<String> {
+                code: 40000,
+                message: "抽水钱包必须填写".into(),
+                data: String::default(),
+            }));
+        }
 
-//     //tokio::process::Command::new(program)
-//     let exe = std::env::current_exe().expect("无法获取当前可执行程序路径");
-//     let exe_path = std::env::current_dir().expect("获取当前可执行程序路径错误");
+        if req.share_rate == 0 {
+            //println!("抽水比例必须填写");
+            return Ok(web::Json(Response::<String> {
+                code: 40000,
+                message: "抽水比例必须填写".into(),
+                data: String::default(),
+            }));
+        }
+    }
 
-//     let mut handle = tokio::process::Command::new(exe);
+    config.share_name = req.name.clone();
+    config.log_level = 1;
+    config.log_path = "".into();
+    config.name = req.name.clone();
+    config.pool_address = vec![req.pool_address.clone()];
+    config.share_address = vec![req.share_address.clone()];
+    config.tcp_port = req.tcp_port;
+    config.ssl_port = req.ssl_port;
+    config.encrypt_port = req.encrypt_port;
+    config.share = req.share;
+    config.share_rate = req.share_rate as f32 / 100.0;
+    config.share_wallet = req.share_wallet.clone();
+    config.key = req.key.clone();
+    config.iv = req.iv.clone();
 
-//     let mut handle = handle.arg("--server")
-//     .env("PROXY_NAME", config.name)
-//     .env("PROXY_LOG_LEVEL", "1".to_string())
-//     .env("PROXY_LOG_PATH", "./logs/")
-//     .env("PROXY_TCP_PORT", config.tcp_port.to_string())
-//     .env("PROXY_SSL_PORT", config.ssl_port.to_string())
-//     .env("PROXY_ENCRYPT_PORT", config.encrypt_port.to_string())
-//     .env("PROXY_TCP_ADDRESS", config.pool_address[0].clone())
-//     .env("PROXY_SHARE_ADDRESS", config.share_address[0].clone())
-//     .env("PROXY_SHARE_RATE", config.share_rate.to_string())
-//     .env("PROXY_SHARE_NAME", config.share_name.to_string())
-//     .env("PROXY_SHARE", config.share.to_string())
-//     .env("PROXY_P12_PATH", exe_path.to_str().expect("无法转换路径为字符串").to_string()+"/identity.p12")
-//     .env("PROXY_P12_PASS", "mypass".to_string())
-//     .env("PROXY_KEY", config.key.to_string())
-//     .env("PROXY_IV", config.iv.to_string());
+    match config.check() {
+        Ok(_) => {}
+        Err(err) => {
+            log::error!("配置错误 {}", err);
+            return Ok(web::Json(Response::<String> {
+                code: 40000,
+                message: format!("配置错误 {}", err),
+                data: String::default(),
+            }));
+            //std::process::exit(1);
+        }
+    };
 
-//     let Child = match handle.spawn() {
-//         Ok(t) => t,
-//         Err(e) => {
-//             return Ok(Json(Response::<InfoResponse> {
-//                 code: 40000,
-//                 message: "".into(),
-//                 data: InfoResponse::default()
-//             }))
-//         }
-//     };
+    use std::fs::File;
 
-//     // let code = Child
-//     //     .wait()
-//     //     .await
-//     //     .expect("无法获得状态码")
-//     //     .code()
-//     //     .expect("无法获取返回码");
-//     // if code != 0 {
-//     //     println!("{}", code);
-//     // }
+    // let exe_path = std::env::current_dir().expect("获取当前可执行程序路径错误");
+    // let exe_path = exe_path.join("configs.yaml");
+    let mut cfgs = match OpenOptions::new()
+        //.append(false)
+        .write(true)
+        .read(true)
+        //.create(true)
+        //.truncate(true)
+        .open("configs.yaml")
+    {
+        Ok(f) => f,
+        Err(_) => match File::create("configs.yaml") {
+            Ok(t) => t,
+            Err(e) => panic!(e),
+        },
+    };
 
-//     Ok(Json(Response::<InfoResponse> {
-//         code: 20000,
-//         message: "".into(),
-//         data: InfoResponse {
-//             roles: vec!["admin".into()],
-//             introduction: "".into(),
-//             avatar: "".into(),
-//             name: "admin".into(),
-//         },
-//     }))
-// }
+    let mut configs = String::new();
+    match cfgs.read_to_string(&mut configs) {
+        Ok(_) => {
+            let mut configs: Vec<Settings> = match serde_yaml::from_str(&configs) {
+                Ok(s) => s,
+                Err(e) => {
+                    log::error!("{}", e);
+                    vec![]
+                }
+            };
+
+            dbg!(configs.clone());
+            configs.push(config.clone());
+
+            dbg!(configs.clone());
+            match serde_yaml::to_string(&configs) {
+                Ok(mut c_str) => {
+                    dbg!(c_str.clone());
+                    c_str = c_str[4..c_str.len()].to_string();
+                    drop(cfgs);
+                    std::fs::remove_file("configs.yaml");
+                    let mut cfgs = match OpenOptions::new()
+                        //.append(false)
+                        .write(true)
+                        .read(true)
+                        //.create(true)
+                        //.truncate(true)
+                        .open("configs.yaml")
+                    {
+                        Ok(f) => f,
+                        Err(_) => match File::create("configs.yaml") {
+                            Ok(t) => t,
+                            Err(e) => panic!(e),
+                        },
+                    };
+
+                    match cfgs.write_all(c_str.as_bytes()) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            return Ok(web::Json(Response::<String> {
+                                code: 40000,
+                                message: e.to_string(),
+                                data: String::default(),
+                            }))
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Ok(web::Json(Response::<String> {
+                        code: 40000,
+                        message: e.to_string(),
+                        data: String::default(),
+                    }))
+                }
+            };
+
+            match crate::util::run_server(&config) {
+                Ok(_) => {}
+                Err(e) => {
+                    return Ok(web::Json(Response::<String> {
+                        code: 40000,
+                        message: e.to_string(),
+                        data: String::default(),
+                    }))
+                }
+            }
+
+            return Ok(web::Json(Response::<String> {
+                code: 20000,
+                message: "".into(),
+                data: String::default(),
+            }));
+        }
+        Err(_) => {
+            let mut configs: Vec<Settings> = vec![];
+            dbg!(configs.clone());
+            configs.push(config.clone());
+
+            dbg!(configs.clone());
+            match serde_yaml::to_string(&configs) {
+                Ok(mut c_str) => {
+                    dbg!(c_str.clone());
+                    c_str = c_str[4..c_str.len()].to_string();
+                    match cfgs.write_all(c_str.as_bytes()) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            return Ok(web::Json(Response::<String> {
+                                code: 40000,
+                                message: e.to_string(),
+                                data: String::default(),
+                            }))
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Ok(web::Json(Response::<String> {
+                        code: 40000,
+                        message: e.to_string(),
+                        data: String::default(),
+                    }))
+                }
+            };
+
+            match crate::util::run_server(&config) {
+                Ok(_) => {}
+                Err(e) => {
+                    return Ok(web::Json(Response::<String> {
+                        code: 40000,
+                        message: e.to_string(),
+                        data: String::default(),
+                    }))
+                }
+            }
+
+            return Ok(web::Json(Response::<String> {
+                code: 20000,
+                message: "".into(),
+                data: String::default(),
+            }));
+        }
+    };
+}

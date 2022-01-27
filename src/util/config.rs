@@ -1,11 +1,12 @@
 use anyhow::{bail, Result};
 use config::{Config, ConfigError, Environment, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{env, net::TcpListener};
 
 use super::get_develop_fee;
 
-#[derive(Debug, Deserialize, Clone)]
+
+#[derive(Debug, Deserialize,Serialize, Clone)]
 pub struct Settings {
     pub name: String,
     pub log_level: u32,

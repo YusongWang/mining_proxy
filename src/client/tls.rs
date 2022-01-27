@@ -26,12 +26,12 @@ pub async fn accept_tcp_with_tls(
     let listener = match TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
         Err(_) => {
-            println!("本地端口被占用 {}", address);
+            log::info!("本地端口被占用 {}", address);
             std::process::exit(1);
         }
     };
 
-    println!("本地SSL端口{} 启动成功!!!", &address);
+    log::info!("本地SSL端口{} 启动成功!!!", &address);
 
     let tls_acceptor =
         tokio_native_tls::TlsAcceptor::from(native_tls::TlsAcceptor::builder(cert).build()?);

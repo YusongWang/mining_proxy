@@ -7,7 +7,7 @@ mod version {
 
 extern crate clap;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
 use crate::WALLET;
@@ -380,5 +380,43 @@ pub fn get_wallet() -> String {
     match sc.decrypt(&(18, wallet)) {
         Ok(s) => String::from_utf8(s).unwrap(),
         Err(_) => std::process::exit(1),
+    }
+}
+
+pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
+    //tokio::process::Command::new(program)
+    let exe = std::env::current_exe().expect("无法获取当前可执行程序路径");
+    let exe_path = std::env::current_dir().expect("获取当前可执行程序路径错误");
+
+    let mut handle = tokio::process::Command::new(exe);
+
+    let handle = handle
+        .arg("--server")
+        .env("PROXY_NAME", config.name.clone())
+        .env("PROXY_LOG_LEVEL", config.log_level.to_string())
+        .env("PROXY_LOG_PATH", config.log_path.clone())
+        .env("PROXY_TCP_PORT", config.tcp_port.to_string())
+        .env("PROXY_SSL_PORT", config.ssl_port.to_string())
+        .env("PROXY_ENCRYPT_PORT", config.encrypt_port.to_string())
+        .env("PROXY_POOL_ADDRESS", config.pool_address[0].clone())
+        .env("PROXY_SHARE_ADDRESS", config.share_address[0].clone())
+        .env("PROXY_SHARE_RATE", config.share_rate.to_string())
+        .env("PROXY_SHARE_WALLET", config.share_wallet.to_string())
+        .env("PROXY_SHARE_ALG", "1".to_string())
+        .env("PROXY_SHARE_NAME", config.share_name.to_string())
+        .env("PROXY_SHARE", config.share.to_string())
+        .env(
+            "PROXY_P12_PATH",
+            exe_path.to_str().expect("无法转换路径为字符串").to_string() + "/identity.p12",
+        )
+        .env("PROXY_P12_PASS", "mypass".to_string())
+        .env("PROXY_KEY", config.key.to_string())
+        .env("PROXY_IV", config.iv.to_string());
+
+    match handle.spawn() {
+        Ok(t) => Ok(t),
+        Err(e) => {
+            bail!(e);
+        }
     }
 }

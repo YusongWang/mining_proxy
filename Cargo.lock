@@ -1130,6 +1130,7 @@ dependencies = [
  "rand_chacha",
  "serde 1.0.130",
  "serde_json",
+ "serde_yaml",
  "short-crypt",
  "tokio",
  "tokio-native-tls",
@@ -1657,6 +1658,18 @@ dependencies = [
  "itoa 1.0.1",
  "ryu",
  "serde 1.0.130",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4a521f2940385c165a24ee286aa8599633d162077a54bdcae2a6fd5a7bfa7a0"
+dependencies = [
+ "indexmap",
+ "ryu",
+ "serde 1.0.130",
+ "yaml-rust",
 ]
 
 [[package]]

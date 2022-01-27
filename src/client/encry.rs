@@ -21,12 +21,12 @@ pub async fn accept_en_tcp(
     let listener = match TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
         Err(_) => {
-            println!("本地端口被占用 {}", address);
+            log::info!("本地端口被占用 {}", address);
             std::process::exit(1);
         }
     };
 
-    println!("本地TCP加密协议端口{}启动成功!!!", &address);
+    log::info!("本地TCP加密协议端口{}启动成功!!!", &address);
     loop {
         let (stream, addr) = listener.accept().await?;
 

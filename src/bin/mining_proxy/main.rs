@@ -1,14 +1,17 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
+use std::{fs::OpenOptions, io::Read};
 
+use serde::{Deserialize, Serialize};
 extern crate openssl_probe;
 
-use actix_web::{web, App, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpServer, Responder};
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
     util::{config::Settings, logger, *},
+    web::handles::user::{InfoResponse, Response},
 };
 
 use anyhow::{bail, Result};
@@ -44,20 +47,65 @@ fn main() -> Result<()> {
 }
 
 async fn async_main() -> Result<()> {
-    println!(
-        "版本: {} commit: {} {}",
-        crate_version!(),
-        version::commit_date(),
-        version::short_sha()
-    );
+    // println!(
+    //     "版本: {} commit: {} {}",
+    //     crate_version!(),
+    //     version::commit_date(),
+    //     version::short_sha()
+    // );
 
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         logger::init_client(0)?;
-        let server_res = HttpServer::new(|| App::new().route("/", web::get().to(hello_world)))
-            .bind("0.0.0.0:8000")?
-            .run()
-            .await?;
+        let mut childs:Vec<tokio::process::Child> = vec![];
+
+        match OpenOptions::new()
+            .write(true)
+            .read(true)
+            //.create(true)
+            //.truncate(true)
+            .open("configs.yaml")
+        {
+            Ok(mut f) => {
+                //let configs:Vec<Settings> = vec![];
+                let mut configs = String::new();
+                if let Ok(len) = f.read_to_string(&mut configs) {
+                    if len > 0 {
+                        let configs: Vec<Settings> = match serde_yaml::from_str(&configs) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                log::error!("{}", e);
+                                vec![]
+                            }
+                        };
+                        for config in configs {
+                            match mining_proxy::util::run_server(&config) {
+                                Ok(child) => {
+                                    childs.push(child);
+                                }
+                                Err(e) => {
+                                    log::error!("{}",e);
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            Err(_) => {},
+        };
+
+        HttpServer::new(|| {
+            App::new().route("/", web::get().to(hello_world)).service(
+                web::scope("/api")
+                    .service(mining_proxy::web::handles::user::login)
+                    .service(mining_proxy::web::handles::user::crate_app)
+                    .service(mining_proxy::web::handles::user::info),
+            )
+        })
+        .bind("0.0.0.0:8000")?
+        .run()
+        .await?;
+
         Ok(())
     } else {
         tokio_run(&matches).await
