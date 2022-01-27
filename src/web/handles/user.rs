@@ -6,7 +6,7 @@ use std::{
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 
-use crate::util::config::Settings;
+use crate::{util::config::Settings, web::AppState};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
@@ -430,4 +430,44 @@ pub async fn crate_app(req: web::Json<CreateRequest>) -> actix_web::Result<impl 
             }));
         }
     };
+}
+
+#[get("/user/server_list")]
+async fn server_list(app: web::Data<AppState>) -> actix_web::Result<impl Responder> {
+    let mut v = vec![];
+    {
+        let proxy_server = app.global_count.lock().unwrap();
+        for (s, _) in &*proxy_server {
+            log::info!("server {} ", s);
+            v.push(s.to_string());
+        }
+    }
+    Ok(web::Json(Response::<Vec<String>> {
+        code: 20000,
+        message: "".into(),
+        data: v,
+    }))
+}
+
+// 展示选中的数据信息。以json格式返回
+#[get("/user/server")]
+async fn server(app: web::Data<AppState>) -> actix_web::Result<impl Responder> {
+    let mut v = vec![];
+    {
+        let proxy_server = app.global_count.lock().unwrap();
+        for (s, _) in &*proxy_server {
+            log::info!("server {} ", s);
+            v.push(s.to_string());
+        }
+    }
+    
+    //1. 基本配置文件信息 .
+    //2. 抽水旷工信息     .
+    //3. 当前在线矿机总数 .
+
+    Ok(web::Json(Response::<Vec<String>> {
+        code: 20000,
+        message: "".into(),
+        data: v,
+    }))
 }

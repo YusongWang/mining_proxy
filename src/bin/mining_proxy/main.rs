@@ -1,7 +1,7 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
-use std::{fs::OpenOptions, io::Read};
+use std::{fs::OpenOptions, io::Read, collections::{HashSet, HashMap}, cell::Cell, sync::{atomic::AtomicUsize, Mutex}};
 
 use serde::{Deserialize, Serialize};
 extern crate openssl_probe;
@@ -11,7 +11,7 @@ use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
     util::{config::Settings, logger, *},
-    web::handles::user::{InfoResponse, Response},
+    web::{handles::user::{InfoResponse, Response}, AppState},
 };
 
 use anyhow::{bail, Result};
@@ -57,7 +57,14 @@ async fn async_main() -> Result<()> {
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         logger::init_client(0)?;
-        let mut childs:Vec<tokio::process::Child> = vec![];
+
+
+        //let mut childs:HashMap<String,tokio::process::Child> = HashMap::new();
+
+
+        let mut data = AppState {
+            global_count: std::sync::Arc::new(Mutex::new(HashMap::new())),
+        };
 
         match OpenOptions::new()
             .write(true)
@@ -81,7 +88,18 @@ async fn async_main() -> Result<()> {
                         for config in configs {
                             match mining_proxy::util::run_server(&config) {
                                 Ok(child) => {
-                                    childs.push(child);
+                                    //TODO 
+                                    // struct {
+                                    // child,
+                                    // workers,
+                                    // config,
+                                    // online
+
+                                    //}
+                                    //data.global_count.insert(k, v)
+                                    //let mut d = data.clone();
+                                    //let mut a = data.global_count.clone();
+                                    data.global_count.lock().unwrap().insert(config.name,child);
                                 }
                                 Err(e) => {
                                     log::error!("{}",e);
@@ -94,11 +112,12 @@ async fn async_main() -> Result<()> {
             Err(_) => {},
         };
 
-        HttpServer::new(|| {
-            App::new().route("/", web::get().to(hello_world)).service(
+        HttpServer::new(move || {
+            App::new().app_data(web::Data::new(data.clone())).route("/", web::get().to(hello_world)).service(
                 web::scope("/api")
                     .service(mining_proxy::web::handles::user::login)
                     .service(mining_proxy::web::handles::user::crate_app)
+                    .service(mining_proxy::web::handles::user::server_list)
                     .service(mining_proxy::web::handles::user::info),
             )
         })
