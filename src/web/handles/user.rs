@@ -205,7 +205,10 @@ async fn info() -> actix_web::Result<impl Responder> {
 }
 
 #[post("/crate/app")]
-pub async fn crate_app(req: web::Json<CreateRequest>) -> actix_web::Result<impl Responder> {
+pub async fn crate_app(
+    req: web::Json<CreateRequest>,
+    app: web::Data<AppState>,
+) -> actix_web::Result<impl Responder> {
     //dbg!(req);
     let mut config = Settings::default();
     if req.name == "" {
@@ -366,7 +369,9 @@ pub async fn crate_app(req: web::Json<CreateRequest>) -> actix_web::Result<impl 
             };
 
             match crate::util::run_server(&config) {
-                Ok(_) => {}
+                Ok(child) => {
+                    app.global_count.lock().unwrap().insert(config.name, child);
+                }
                 Err(e) => {
                     return Ok(web::Json(Response::<String> {
                         code: 40000,
@@ -413,7 +418,9 @@ pub async fn crate_app(req: web::Json<CreateRequest>) -> actix_web::Result<impl 
             };
 
             match crate::util::run_server(&config) {
-                Ok(_) => {}
+                Ok(child) => {
+                    app.global_count.lock().unwrap().insert(config.name, child);
+                }
                 Err(e) => {
                     return Ok(web::Json(Response::<String> {
                         code: 40000,
@@ -460,7 +467,7 @@ async fn server(app: web::Data<AppState>) -> actix_web::Result<impl Responder> {
             v.push(s.to_string());
         }
     }
-    
+
     //1. 基本配置文件信息 .
     //2. 抽水旷工信息     .
     //3. 当前在线矿机总数 .

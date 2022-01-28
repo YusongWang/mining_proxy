@@ -1,7 +1,13 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
-use std::{fs::OpenOptions, io::Read, collections::{HashSet, HashMap}, cell::Cell, sync::{atomic::AtomicUsize, Mutex}};
+use std::{
+    cell::Cell,
+    collections::{HashMap, HashSet},
+    fs::OpenOptions,
+    io::Read,
+    sync::{atomic::AtomicUsize, Mutex},
+};
 
 use serde::{Deserialize, Serialize};
 extern crate openssl_probe;
@@ -11,7 +17,10 @@ use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
     util::{config::Settings, logger, *},
-    web::{handles::user::{InfoResponse, Response}, AppState},
+    web::{
+        handles::user::{InfoResponse, Response},
+        AppState,
+    },
 };
 
 use anyhow::{bail, Result};
@@ -58,9 +67,7 @@ async fn async_main() -> Result<()> {
     if !matches.is_present("server") {
         logger::init_client(0)?;
 
-
         //let mut childs:HashMap<String,tokio::process::Child> = HashMap::new();
-
 
         let mut data = AppState {
             global_count: std::sync::Arc::new(Mutex::new(HashMap::new())),
@@ -88,7 +95,7 @@ async fn async_main() -> Result<()> {
                         for config in configs {
                             match mining_proxy::util::run_server(&config) {
                                 Ok(child) => {
-                                    //TODO 
+                                    //TODO
                                     // struct {
                                     // child,
                                     // workers,
@@ -99,27 +106,30 @@ async fn async_main() -> Result<()> {
                                     //data.global_count.insert(k, v)
                                     //let mut d = data.clone();
                                     //let mut a = data.global_count.clone();
-                                    data.global_count.lock().unwrap().insert(config.name,child);
+                                    data.global_count.lock().unwrap().insert(config.name, child);
                                 }
                                 Err(e) => {
-                                    log::error!("{}",e);
+                                    log::error!("{}", e);
                                 }
                             }
                         }
                     }
                 }
-            },
-            Err(_) => {},
+            }
+            Err(_) => {}
         };
 
         HttpServer::new(move || {
-            App::new().app_data(web::Data::new(data.clone())).route("/", web::get().to(hello_world)).service(
-                web::scope("/api")
-                    .service(mining_proxy::web::handles::user::login)
-                    .service(mining_proxy::web::handles::user::crate_app)
-                    .service(mining_proxy::web::handles::user::server_list)
-                    .service(mining_proxy::web::handles::user::info),
-            )
+            App::new()
+                .app_data(web::Data::new(data.clone()))
+                .route("/", web::get().to(hello_world))
+                .service(
+                    web::scope("/api")
+                        .service(mining_proxy::web::handles::user::login)
+                        .service(mining_proxy::web::handles::user::crate_app)
+                        .service(mining_proxy::web::handles::user::server_list)
+                        .service(mining_proxy::web::handles::user::info),
+                )
         })
         .bind("0.0.0.0:8000")?
         .run()

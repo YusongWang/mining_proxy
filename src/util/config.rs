@@ -5,8 +5,7 @@ use std::{env, net::TcpListener};
 
 use super::get_develop_fee;
 
-
-#[derive(Debug, Deserialize,Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Settings {
     pub name: String,
     pub log_level: u32,

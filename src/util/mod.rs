@@ -7,7 +7,7 @@ mod version {
 
 extern crate clap;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use clap::{crate_description, crate_name, crate_version, App, Arg, ArgMatches};
 
 use crate::WALLET;
