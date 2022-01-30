@@ -457,14 +457,23 @@ async fn server_list(app: web::Data<AppState>) -> actix_web::Result<impl Respond
 }
 
 // 展示选中的数据信息。以json格式返回
-#[get("/user/server")]
-async fn server(app: web::Data<AppState>) -> actix_web::Result<impl Responder> {
+#[get("/user/server/{name}")]
+async fn server(
+    server: web::Path<String>,
+    app: web::Data<AppState>,
+) -> actix_web::Result<impl Responder> {
+    log::debug!("{}", server);
+
+    //let server = server.to_path().unwrap();
+
     let mut v = vec![];
     {
-        let proxy_server = app.global_count.lock().unwrap();
-        for (s, _) in &*proxy_server {
+        let mut proxy_server = app.global_count.lock().unwrap();
+        for (s, config) in &mut *proxy_server {
             log::info!("server {} ", s);
-            v.push(s.to_string());
+            if *s == server.to_string() {
+                config.kill().await;
+            }
         }
     }
 

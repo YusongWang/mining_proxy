@@ -24,15 +24,16 @@ use mining_proxy::{
 };
 
 use anyhow::{bail, Result};
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 use clap::{crate_version, ArgMatches};
 use human_panic::setup_panic;
 use native_tls::Identity;
 
 use tokio::{
     fs::File,
-    io::AsyncReadExt,
-    sync::mpsc::{self},
+    io::{AsyncReadExt, AsyncWriteExt},
+    select,
+    sync::mpsc::{self, UnboundedReceiver},
 };
 
 async fn hello_world() -> impl Responder {
@@ -56,13 +57,6 @@ fn main() -> Result<()> {
 }
 
 async fn async_main() -> Result<()> {
-    // println!(
-    //     "版本: {} commit: {} {}",
-    //     crate_version!(),
-    //     version::commit_date(),
-    //     version::short_sha()
-    // );
-
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         logger::init_client(0)?;
@@ -119,6 +113,9 @@ async fn async_main() -> Result<()> {
             Err(_) => {}
         };
 
+        let tcp_data = data.clone();
+        tokio::spawn(async move { recv_from_child(tcp_data).await });
+
         HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(data.clone()))
@@ -128,6 +125,7 @@ async fn async_main() -> Result<()> {
                         .service(mining_proxy::web::handles::user::login)
                         .service(mining_proxy::web::handles::user::crate_app)
                         .service(mining_proxy::web::handles::user::server_list)
+                        .service(mining_proxy::web::handles::user::server)
                         .service(mining_proxy::web::handles::user::info),
                 )
         })
@@ -139,10 +137,6 @@ async fn async_main() -> Result<()> {
     } else {
         tokio_run(&matches).await
     }
-}
-
-pub async fn web() -> Result<()> {
-    Ok(())
 }
 
 async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
@@ -185,7 +179,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let read_key_len = p12.read_buf(&mut buffer).await?;
     let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
 
-    let (worker_tx, _) = mpsc::unbounded_channel::<Worker>();
+    let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
     let state = std::sync::Arc::new(mining_proxy::state::GlobalState::default());
 
@@ -193,10 +187,80 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         accept_tcp(worker_tx.clone(), config.clone(), state.clone()),
         accept_en_tcp(worker_tx.clone(), config.clone(), state.clone()),
         accept_tcp_with_tls(worker_tx.clone(), config.clone(), cert, state.clone()),
+        send_to_parent(worker_rx),
     );
 
     if let Err(err) = res {
         log::error!("致命错误 : {}", err);
+    }
+
+    Ok(())
+}
+
+async fn send_to_parent(mut worker_rx: UnboundedReceiver<Worker>) -> Result<()> {
+    let runtime = std::time::Instant::now();
+
+    loop {
+        if let Ok(mut stream) = tokio::net::TcpStream::connect("127.0.0.1:65500").await {
+            let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
+            tokio::pin!(sleep);
+            //RPC impl
+            let a = "hello ".to_string();
+            let mut b = a.as_bytes().to_vec();
+            b.push(b'\n');
+            stream.write(&b).await.unwrap();
+
+            select! {
+                Some(w) = worker_rx.recv() => {
+
+                    let mut rpc = serde_json::to_vec(&w)?;
+                    rpc.push(b'\n');
+                    stream.write(&rpc).await.unwrap();
+                },
+                () = &mut sleep => {
+                    //RPC keep.alive
+                    //一分钟发送一次保持活动
+                    sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(60));
+                },
+            }
+        } else {
+            log::error!("无法链接到主控web端");
+            tokio::time::sleep(tokio::time::Duration::from_secs(60 * 2)).await;
+        }
+    }
+
+    Ok(())
+}
+
+async fn recv_from_child(app: AppState) -> Result<()> {
+    let address = "127.0.0.1:65500";
+    let listener = match tokio::net::TcpListener::bind(address.clone()).await {
+        Ok(listener) => listener,
+        Err(_) => {
+            log::info!("本地端口被占用 {}", address);
+            std::process::exit(1);
+        }
+    };
+
+    log::info!("本地TCP端口{} 启动成功!!!", &address);
+    println!("监听本机端口{}", 65500);
+    loop {
+        let (mut stream, addr) = listener.accept().await?;
+        //let split = stream.split("\n");
+
+        tokio::spawn(async move {
+            loop {
+                let mut buf: BytesMut = BytesMut::new();
+                tokio::select! {
+                    Ok(size) = stream.read_buf(&mut buf) => {
+                        if size > 0 {
+                            let s = String::from_utf8(buf.to_vec()).unwrap();
+                            println!("{}", s);
+                        }
+                    }
+                };
+            }
+        });
     }
 
     Ok(())

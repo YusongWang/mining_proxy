@@ -29,14 +29,6 @@ use tokio::{
 #[tokio::main]
 async fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
-    // let _guard = sentry::init((
-    //     "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-    //     sentry::ClientOptions {
-    //         release: sentry::release_name!(),
-    //         ..Default::default()
-    //     },
-    // ));
-
     let matches = mining_proxy::util::get_app_command_matches()?;
 
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
@@ -301,6 +293,7 @@ pub async fn print_state_nofee(
         if !w.is_online() {
             continue;
         }
+
         // // 添加行
         table.add_row(row![
             w.worker_name,
@@ -309,8 +302,10 @@ pub async fn print_state_nofee(
             w.share_index,
             w.accept_index,
             w.invalid_index,
-            time_to_string(w.login_time.elapsed().as_secs()),
-            time_to_string(w.last_subwork_time.elapsed().as_secs()),
+            // time_to_string(w.login_time.elapsed().as_secs()),
+            // time_to_string(w.last_subwork_time.elapsed().as_secs()),
+            "",
+            "",
         ]);
 
         total_hash += w.hash;
@@ -387,8 +382,10 @@ pub async fn print_state(
             w.share_index,
             w.accept_index,
             w.invalid_index,
-            time_to_string(w.login_time.elapsed().as_secs()),
-            time_to_string(w.last_subwork_time.elapsed().as_secs()),
+            // time_to_string(w.login_time.elapsed().as_secs()),
+            // time_to_string(w.last_subwork_time.elapsed().as_secs()),
+            "",
+            "",
         ]);
 
         total_hash += w.hash;

@@ -7,14 +7,16 @@ use std::{
 };
 
 use log::{debug, info};
-#[derive(Debug, Clone, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Worker {
     pub worker: String,
     pub online: bool,
     pub worker_name: String,
     pub worker_wallet: String,
-    pub login_time: Instant,
-    pub last_subwork_time: Instant,
+    // pub login_time: Instant,
+    // pub last_subwork_time: Instant,
     pub rpc_id: u64,
     pub hash: u64,
     pub share_index: u64,
@@ -29,8 +31,8 @@ impl Worker {
             online,
             worker_wallet,
             worker_name,
-            login_time: Instant::now(),
-            last_subwork_time: Instant::now(),
+            // login_time: Instant::now(),
+            // last_subwork_time: Instant::now(),
             hash: 0,
             share_index: 0,
             accept_index: 0,
@@ -45,8 +47,8 @@ impl Worker {
             online: false,
             worker_name: "".into(),
             worker_wallet: "".into(),
-            login_time: Instant::now(),
-            last_subwork_time: Instant::now(),
+            // login_time: Instant::now(),
+            // last_subwork_time: Instant::now(),
             hash: 0,
             share_index: 0,
             accept_index: 0,
@@ -72,11 +74,11 @@ impl Worker {
     pub fn offline(&mut self) -> bool {
         if self.is_online() {
             self.online = false;
-            info!(
-                "矿工: {} 下线 在线时长 {}",
-                self.worker,
-                crate::util::time_to_string(self.login_time.elapsed().as_secs())
-            );
+            // info!(
+            //     "矿工: {} 下线 在线时长 {}",
+            //     self.worker,
+            //     crate::util::time_to_string(self.login_time.elapsed().as_secs())
+            // );
         } else {
             info!("恶意攻击 协议不正确。没有正确提交协议。强制关闭掉了。");
         }
@@ -102,7 +104,7 @@ impl Worker {
 
     // 总份额增加
     pub fn share_index_add(&mut self) {
-        self.last_subwork_time = Instant::now();
+        //self.last_subwork_time = Instant::now();
 
         self.share_index += 1;
         debug!("矿工: {} Share #{}", self.worker, self.share_index);
