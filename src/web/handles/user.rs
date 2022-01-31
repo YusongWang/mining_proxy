@@ -464,15 +464,17 @@ async fn server(
 ) -> actix_web::Result<impl Responder> {
     log::debug!("{}", server);
 
+
     //let server = server.to_path().unwrap();
 
-    let mut v = vec![];
+    let v = vec![];
     {
         let mut proxy_server = app.global_count.lock().unwrap();
         for (s, config) in &mut *proxy_server {
             log::info!("server {} ", s);
             if *s == server.to_string() {
-                config.kill().await;
+                config.kill().await?;
+
             }
         }
     }
