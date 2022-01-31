@@ -140,42 +140,6 @@ pub struct CreateRequest {
     pub iv: String,
 }
 
-// pub async fn login() -> Result<Json<LoginResponse>, StatusCode> {
-//     let jwt_token = generate_jwt(&Claims {
-//         username: "mining_proxy".to_string(),
-//     })
-//     .map_err(|err| {
-//         log::error!("failed to generate jwt token: {}", err);
-//         StatusCode::INTERNAL_SERVER_ERROR
-//     })?;
-
-//     Ok(Json(LoginResponse {
-//         code: 20000,
-//         data: TokenDataResponse { token: jwt_token },
-//     }))
-// }
-
-// pub async fn info() -> Result<Json<Response<InfoResponse>>, StatusCode> {
-//     let jwt_token = generate_jwt(&Claims {
-//         username: "mining_proxy".to_string(),
-//     })
-//     .map_err(|err| {
-//         log::error!("failed to generate jwt token: {}", err);
-//         StatusCode::INTERNAL_SERVER_ERROR
-//     })?;
-
-//     Ok(Json(Response::<InfoResponse> {
-//         code: 20000,
-//         message: "".into(),
-//         data: InfoResponse {
-//             roles: vec!["admin".into()],
-//             introduction: "".into(),
-//             avatar: "".into(),
-//             name: "admin".into(),
-//         },
-//     }))
-// }
-
 #[post("/user/login")]
 async fn login(
     req: web::Json<LoginRequest>,
@@ -467,8 +431,6 @@ async fn server(
     server: web::Path<String>, app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
     log::debug!("{}", server);
-
-    //let server = server.to_path().unwrap();
 
     let v = vec![];
     {

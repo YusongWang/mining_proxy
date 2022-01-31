@@ -36,7 +36,12 @@ use tokio::{
     sync::mpsc::{self, UnboundedReceiver},
 };
 
-async fn hello_world() -> impl Responder { "Hello World!" }
+struct OnlineWorker {
+    chlid: tokio::process::Child,
+    workers: Vec<Worker>,
+    online: u32,
+    config: Settings,
+}
 
 fn main() -> Result<()> {
     setup_panic!();
@@ -122,7 +127,6 @@ async fn async_main() -> Result<()> {
         HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(data.clone()))
-                .route("/", web::get().to(hello_world))
                 .service(
                     web::scope("/api")
                         .service(mining_proxy::web::handles::user::login)
@@ -222,14 +226,12 @@ async fn send_to_parent(
                 tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
             tokio::pin!(sleep);
             //RPC impl
-            let a = "hello ".to_string();
-            let mut b = a.as_bytes().to_vec();
-            b.push(b'\n');
-            stream.write(&b).await.unwrap();
-
+            // let a = "hello ".to_string();
+            // let mut b = a.as_bytes().to_vec();
+            // b.push(b'\n');
+            // stream.write(&b).await.unwrap();
             select! {
                 Some(w) = worker_rx.recv() => {
-
                     let mut rpc = serde_json::to_vec(&w)?;
                     rpc.push(b'\n');
                     stream.write(&rpc).await.unwrap();
@@ -245,8 +247,6 @@ async fn send_to_parent(
             tokio::time::sleep(tokio::time::Duration::from_secs(60 * 2)).await;
         }
     }
-
-    Ok(())
 }
 
 async fn recv_from_child(app: AppState) -> Result<()> {
@@ -262,17 +262,18 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     log::info!("本地TCP端口{} 启动成功!!!", &address);
     println!("监听本机端口{}", 65500);
     loop {
-        let (mut stream, addr) = listener.accept().await?;
-        //let split = stream.split("\n");
-
+        let (mut stream, _) = listener.accept().await?;
         tokio::spawn(async move {
             loop {
                 let mut buf: BytesMut = BytesMut::new();
                 tokio::select! {
                     Ok(size) = stream.read_buf(&mut buf) => {
                         if size > 0 {
-                            let s = String::from_utf8(buf.to_vec()).unwrap();
-                            println!("{}", s);
+                            // let s = String::from_utf8(buf.to_vec()).unwrap();
+                            // println!("{}", s);
+                            if let Ok(online_work)  = serde_json::from_slice::<Worker>(&buf){
+                                 dbg!(online_work);
+                            }
                         }
                     }
                 };

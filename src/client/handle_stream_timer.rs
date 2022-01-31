@@ -514,7 +514,7 @@ where
         time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(proxy_sleep);
 
-    let sleep = time::sleep(tokio::time::Duration::from_secs(2 * 60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(5));
     tokio::pin!(sleep);
 
     loop {
@@ -1061,7 +1061,7 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 3));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(5));
             },
         }
     }
