@@ -30,7 +30,10 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let worker_r = tokio::io::BufReader::new(worker_r);
     let mut worker_r = worker_r.lines();
 
-    let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
+    let std_stream = match std::net::TcpStream::connect_timeout(
+        &addr,
+        Duration::new(5, 0),
+    ) {
         Ok(stream) => stream,
         Err(_) => {
             //info!("{} 远程地址不通！", addr);

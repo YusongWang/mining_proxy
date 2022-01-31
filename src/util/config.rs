@@ -67,7 +67,8 @@ impl Settings {
         // Default to 'development' env
         // Note that this file is _optional_
         // let env = env::var("RUN_MODE").unwrap_or_else(|_| "dev".into());
-        // s.merge(File::with_name(&format!("config/{}", env)).required(false))?;
+        // s.merge(File::with_name(&format!("config/{}",
+        // env)).required(false))?;
 
         // Add in a local configuration file
         // This file shouldn't be checked in to git
@@ -180,12 +181,13 @@ impl Settings {
             }
         };
 
-        let (_, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&self) {
-            Ok(s) => s,
-            Err(e) => {
-                bail!("{}", e);
-            }
-        };
+        let (_, pools) =
+            match crate::client::get_pool_ip_and_type_for_proxyer(&self) {
+                Ok(s) => s,
+                Err(e) => {
+                    bail!("{}", e);
+                }
+            };
 
         let (_, _) = match crate::client::get_pool_stream(&pools) {
             Some((stream, addr)) => (stream, addr),

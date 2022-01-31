@@ -63,10 +63,8 @@ pub struct StraumErrorResult {
 }
 
 pub async fn login<W>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &mut String,
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -85,7 +83,11 @@ where
         } else {
             temp_worker.push_str(".");
             temp_worker = temp_worker + rpc.get_worker_name().as_str();
-            worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
+            worker.login(
+                temp_worker.clone(),
+                rpc.get_worker_name(),
+                wallet.clone(),
+            );
             *worker_name = temp_worker;
         }
 

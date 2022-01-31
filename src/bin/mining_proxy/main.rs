@@ -36,9 +36,7 @@ use tokio::{
     sync::mpsc::{self, UnboundedReceiver},
 };
 
-async fn hello_world() -> impl Responder {
-    "Hello World!"
-}
+async fn hello_world() -> impl Responder { "Hello World!" }
 
 fn main() -> Result<()> {
     setup_panic!();
@@ -61,7 +59,8 @@ async fn async_main() -> Result<()> {
     if !matches.is_present("server") {
         logger::init_client(0)?;
 
-        //let mut childs:HashMap<String,tokio::process::Child> = HashMap::new();
+        //let mut childs:HashMap<String,tokio::process::Child> =
+        // HashMap::new();
 
         let mut data = AppState {
             global_count: std::sync::Arc::new(Mutex::new(HashMap::new())),
@@ -79,13 +78,14 @@ async fn async_main() -> Result<()> {
                 let mut configs = String::new();
                 if let Ok(len) = f.read_to_string(&mut configs) {
                     if len > 0 {
-                        let configs: Vec<Settings> = match serde_yaml::from_str(&configs) {
-                            Ok(s) => s,
-                            Err(e) => {
-                                log::error!("{}", e);
-                                vec![]
-                            }
-                        };
+                        let configs: Vec<Settings> =
+                            match serde_yaml::from_str(&configs) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    log::error!("{}", e);
+                                    vec![]
+                                }
+                            };
                         for config in configs {
                             match mining_proxy::util::run_server(&config) {
                                 Ok(child) => {
@@ -100,7 +100,10 @@ async fn async_main() -> Result<()> {
                                     //data.global_count.insert(k, v)
                                     //let mut d = data.clone();
                                     //let mut a = data.global_count.clone();
-                                    data.global_count.lock().unwrap().insert(config.name, child);
+                                    data.global_count
+                                        .lock()
+                                        .unwrap()
+                                        .insert(config.name, child);
                                 }
                                 Err(e) => {
                                     log::error!("{}", e);
@@ -177,16 +180,25 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let mut buffer = BytesMut::with_capacity(10240);
     let read_key_len = p12.read_buf(&mut buffer).await?;
-    let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
+    let cert = Identity::from_pkcs12(
+        &buffer[0..read_key_len],
+        config.p12_pass.clone().as_str(),
+    )?;
 
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
-    let state = std::sync::Arc::new(mining_proxy::state::GlobalState::default());
+    let state =
+        std::sync::Arc::new(mining_proxy::state::GlobalState::default());
 
     let res = tokio::try_join!(
         accept_tcp(worker_tx.clone(), config.clone(), state.clone()),
         accept_en_tcp(worker_tx.clone(), config.clone(), state.clone()),
-        accept_tcp_with_tls(worker_tx.clone(), config.clone(), cert, state.clone()),
+        accept_tcp_with_tls(
+            worker_tx.clone(),
+            config.clone(),
+            cert,
+            state.clone()
+        ),
         send_to_parent(worker_rx),
     );
 
@@ -197,12 +209,17 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     Ok(())
 }
 
-async fn send_to_parent(mut worker_rx: UnboundedReceiver<Worker>) -> Result<()> {
+async fn send_to_parent(
+    mut worker_rx: UnboundedReceiver<Worker>,
+) -> Result<()> {
     let runtime = std::time::Instant::now();
 
     loop {
-        if let Ok(mut stream) = tokio::net::TcpStream::connect("127.0.0.1:65500").await {
-            let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
+        if let Ok(mut stream) =
+            tokio::net::TcpStream::connect("127.0.0.1:65500").await
+        {
+            let sleep =
+                tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
             tokio::pin!(sleep);
             //RPC impl
             let a = "hello ".to_string();

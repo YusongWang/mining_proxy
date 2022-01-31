@@ -3,9 +3,12 @@
 
 use std::io::Error;
 
-use crate::protocol::eth_stratum::{EthLoginNotify, EthSubscriptionNotify};
-use crate::protocol::stratum::{
-    StraumErrorResult, StraumMiningNotify, StraumMiningSet, StraumResultBool, StraumRoot,
+use crate::protocol::{
+    eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
+    stratum::{
+        StraumErrorResult, StraumMiningNotify, StraumMiningSet,
+        StraumResultBool, StraumRoot,
+    },
 };
 use anyhow::{bail, Result};
 use hex::FromHex;
@@ -14,27 +17,31 @@ use log::{debug, info};
 use openssl::symm::{decrypt, Cipher};
 extern crate rand;
 
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use tokio::io::{BufReader, Lines, ReadHalf};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
+    io::{
+        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader,
+        Lines, ReadHalf, WriteHalf,
+    },
     net::TcpStream,
     select, time,
 };
 
-use crate::protocol::ethjson::EthServer;
-use crate::protocol::stratum::StraumResult;
-use crate::protocol::PROTOCOL;
 use crate::{
     client::*,
     protocol::{
         ethjson::{
-            EthServerRoot, EthServerRootObject, EthServerRootObjectBool, EthServerRootObjectError,
+            EthServer, EthServerRoot, EthServerRootObject,
+            EthServerRootObjectBool, EthServerRootObjectError,
             EthServerRootObjectJsonRpc,
         },
-        rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK, SUBSCRIBE,
+        rpc::eth::{
+            Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue,
+            ServerSideJob,
+        },
+        stratum::StraumResult,
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
+        PROTOCOL, SUBSCRIBE,
     },
     state::Worker,
     util::{config::Settings, get_wallet, is_fee_random},
@@ -43,10 +50,8 @@ use crate::{
 use super::write_to_socket;
 
 async fn lines_unwrap<W>(
-    w: &mut WriteHalf<W>,
-    res: Result<Option<String>, Error>,
-    worker_name: &String,
-    form_name: &str,
+    w: &mut WriteHalf<W>, res: Result<Option<String>, Error>,
+    worker_name: &String, form_name: &str,
 ) -> Result<String>
 where
     W: AsyncWrite,
@@ -61,7 +66,11 @@ where
                 //         log::error!("Error Worker Shutdown Socket {:?}", e);
                 //     }
                 // };
-                bail!("{}：{}  读取到字节0. 矿池主动断开 ", form_name, worker_name);
+                bail!(
+                    "{}：{}  读取到字节0. 矿池主动断开 ",
+                    form_name,
+                    worker_name
+                );
             }
         },
         Err(e) => {
@@ -73,10 +82,8 @@ where
 }
 
 pub async fn login<W>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &mut String,
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
     config: &Settings,
 ) -> Result<String>
 where
@@ -92,7 +99,8 @@ where
                 split.get(1).unwrap().to_string(),
                 wallet.clone(),
             );
-            let temp_full_wallet = config.share_wallet.clone() + "." + split[1].clone();
+            let temp_full_wallet =
+                config.share_wallet.clone() + "." + split[1].clone();
             // 抽取全部替换钱包
             rpc.set_wallet(&temp_full_wallet);
             *worker_name = temp_worker;
@@ -101,7 +109,11 @@ where
         } else {
             temp_worker.push_str(".");
             temp_worker = temp_worker + rpc.get_worker_name().as_str();
-            worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
+            worker.login(
+                temp_worker.clone(),
+                rpc.get_worker_name(),
+                wallet.clone(),
+            );
             *worker_name = temp_worker.clone();
             Ok(temp_worker)
         }
@@ -111,10 +123,8 @@ where
 }
 
 async fn new_eth_submit_login<W>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &mut String,
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
     config: &Settings,
 ) -> Result<()>
 where
@@ -130,14 +140,19 @@ where
                 split.get(1).unwrap().to_string(),
                 wallet.clone(),
             );
-            let temp_full_wallet = config.share_wallet.clone() + "." + split[1].clone();
+            let temp_full_wallet =
+                config.share_wallet.clone() + "." + split[1].clone();
             // 抽取全部替换钱包
             rpc.set_wallet(&temp_full_wallet);
             *worker_name = temp_worker;
         } else {
             temp_worker.push_str(".");
             temp_worker = temp_worker + rpc.get_worker_name().as_str();
-            worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
+            worker.login(
+                temp_worker.clone(),
+                rpc.get_worker_name(),
+                wallet.clone(),
+            );
             *worker_name = temp_worker;
             // 抽取全部替换钱包
             rpc.set_wallet(&config.share_wallet);
@@ -150,13 +165,10 @@ where
 }
 
 async fn new_eth_submit_work<W, W2>(
-    worker: &mut Worker,
-    pool_w: &mut WriteHalf<W>,
+    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
     worker_w: &mut WriteHalf<W2>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &String,
-    config: &Settings,
-    state: &mut State,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
+    config: &Settings, state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -167,10 +179,8 @@ where
 }
 
 async fn new_eth_submit_hashrate<W>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &String,
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -181,8 +191,7 @@ where
 }
 
 async fn seagment_unwrap<W>(
-    pool_w: &mut WriteHalf<W>,
-    res: std::io::Result<Option<Vec<u8>>>,
+    pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
     worker_name: &String,
 ) -> Result<Vec<u8>>
 where
@@ -216,8 +225,7 @@ where
 }
 
 async fn new_eth_get_work<W>(
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
     worker_name: &String,
 ) -> Result<()>
 where
@@ -228,8 +236,7 @@ where
 }
 
 async fn new_subscribe<W>(
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
     worker_name: &String,
 ) -> Result<()>
 where
@@ -264,10 +271,10 @@ where
 //     true
 // }
 
-async fn buf_parse_to_string<W>(w: &mut WriteHalf<W>, buffer: &[u8]) -> Result<String>
-where
-    W: AsyncWrite,
-{
+async fn buf_parse_to_string<W>(
+    w: &mut WriteHalf<W>, buffer: &[u8],
+) -> Result<String>
+where W: AsyncWrite {
     let buf = match String::from_utf8(buffer.to_vec()) {
         Ok(s) => Ok(s),
         Err(_) => {
@@ -290,11 +297,7 @@ where
 }
 
 pub async fn write_rpc<W, T>(
-    encrypt: bool,
-    w: &mut WriteHalf<W>,
-    rpc: &T,
-    worker: &String,
-    key: String,
+    encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String,
     iv: String,
 ) -> Result<()>
 where
@@ -309,12 +312,8 @@ where
 }
 
 pub async fn write_string<W>(
-    encrypt: bool,
-    w: &mut WriteHalf<W>,
-    rpc: &str,
-    worker: &String,
-    key: String,
-    iv: String,
+    encrypt: bool, w: &mut WriteHalf<W>, rpc: &str, worker: &String,
+    key: String, iv: String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -357,17 +356,17 @@ async fn develop_pool_login(
 }
 
 async fn proxy_pool_login(
-    config: &Settings,
-    hostname: String,
+    config: &Settings, hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            log::error!("所有TCP矿池均不可链接。请修改后重试");
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
+    let (stream, _) =
+        match crate::client::get_pool_stream(&config.share_address) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                log::error!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
@@ -397,7 +396,8 @@ async fn proxy_pool_login(
 pub async fn pool_with_tcp_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
+    {
         Ok(pool) => pool,
         Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
@@ -419,9 +419,9 @@ pub async fn pool_with_tcp_reconnect(
     Ok((pool_lines, pool_w))
     // } else if stream_type == crate::client::SSL {
     // let (stream, _) =
-    //     match crate::client::get_pool_stream_with_tls(&pools, "proxy".into()).await {
-    //         Some((stream, addr)) => (stream, addr),
-    //         None => {
+    //     match crate::client::get_pool_stream_with_tls(&pools,
+    // "proxy".into()).await {         Some((stream, addr)) => (stream,
+    // addr),         None => {
     //             bail!("所有SSL矿池均不可链接。请修改后重试");
     //         }
     //     };
@@ -439,7 +439,8 @@ pub async fn pool_with_tcp_reconnect(
 pub async fn pool_with_ssl_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
+    {
         Ok(pool) => pool,
         Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
@@ -461,21 +462,19 @@ pub async fn pool_with_ssl_reconnect(
 }
 
 pub async fn handle_stream<R, W>(
-    worker: &mut Worker,
-    workers_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
-    mut pool_w: WriteHalf<TcpStream>,
-    config: &Settings,
-    mut state: State,
+    mut pool_w: WriteHalf<TcpStream>, config: &Settings, mut state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let proxy_wallet_and_worker_name = config.share_wallet.clone() + "." + &config.share_name;
+    let proxy_wallet_and_worker_name =
+        config.share_wallet.clone() + "." + &config.share_name;
     let mut all_walllet_name = String::new();
     let mut protocol = PROTOCOL::KNOWN;
     let mut first = true;

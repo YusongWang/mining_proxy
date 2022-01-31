@@ -1,5 +1,4 @@
-use std::f32::consts::E;
-use std::io::Error;
+use std::{f32::consts::E, io::Error};
 
 use anyhow::{bail, Result};
 
@@ -10,25 +9,30 @@ use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
 extern crate rand;
 
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use tokio::io::{BufReader, Lines, ReadHalf};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
+    io::{
+        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader,
+        Lines, ReadHalf, WriteHalf,
+    },
     net::TcpStream,
     select, time,
 };
 
-use crate::protocol::ethjson::EthServer;
 use crate::{
     client::*,
     protocol::{
         ethjson::{
-            EthServerRoot, EthServerRootObject, EthServerRootObjectBool, EthServerRootObjectError,
+            EthServer, EthServerRoot, EthServerRootObject,
+            EthServerRootObjectBool, EthServerRootObjectError,
             EthServerRootObjectJsonRpc,
         },
-        rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK, SUBSCRIBE,
+        rpc::eth::{
+            Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue,
+            ServerSideJob,
+        },
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
+        SUBSCRIBE,
     },
     state::Worker,
     util::{config::Settings, get_wallet, is_fee_random},
@@ -37,10 +41,8 @@ use crate::{
 use super::write_to_socket;
 
 async fn lines_unwrap<W>(
-    w: &mut WriteHalf<W>,
-    res: Result<Option<String>, Error>,
-    worker_name: &String,
-    form_name: &str,
+    w: &mut WriteHalf<W>, res: Result<Option<String>, Error>,
+    worker_name: &String, form_name: &str,
 ) -> Result<String>
 where
     W: AsyncWrite,
@@ -55,7 +57,11 @@ where
                 //         log::error!("Error Worker Shutdown Socket {:?}", e);
                 //     }
                 // };
-                bail!("{}：{}  读取到字节0. 矿池主动断开 ", form_name, worker_name);
+                bail!(
+                    "{}：{}  读取到字节0. 矿池主动断开 ",
+                    form_name,
+                    worker_name
+                );
             }
         },
         Err(e) => {
@@ -67,10 +73,8 @@ where
 }
 
 async fn new_eth_submit_login<W>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &mut String,
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -89,7 +93,11 @@ where
         } else {
             temp_worker.push_str(".");
             temp_worker = temp_worker + rpc.get_worker_name().as_str();
-            worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
+            worker.login(
+                temp_worker.clone(),
+                rpc.get_worker_name(),
+                wallet.clone(),
+            );
             *worker_name = temp_worker;
         }
 
@@ -100,17 +108,19 @@ where
 }
 
 async fn new_eth_submit_work<W, W1, W2>(
-    worker: &mut Worker,
-    pool_w: &mut WriteHalf<W>,
-    proxy_w: &mut WriteHalf<W1>,
-    develop_w: &mut WriteHalf<W1>,
+    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
+    proxy_w: &mut WriteHalf<W1>, develop_w: &mut WriteHalf<W1>,
     worker_w: &mut WriteHalf<W2>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &String,
-    mine_send_jobs: &mut LruCache<std::string::String, Vec<std::string::String>>,
-    develop_send_jobs: &mut LruCache<std::string::String, Vec<std::string::String>>,
-    config: &Settings,
-    state: &mut State,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
+    mine_send_jobs: &mut LruCache<
+        std::string::String,
+        Vec<std::string::String>,
+    >,
+    develop_send_jobs: &mut LruCache<
+        std::string::String,
+        Vec<std::string::String>,
+    >,
+    config: &Settings, state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -130,7 +140,8 @@ where
             #[cfg(debug_assertions)]
             debug!("得到抽水任务。{:?}", rpc);
 
-            write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name).await?;
+            write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name)
+                .await?;
             return Ok(());
         } else if develop_send_jobs.contains(&job_id) {
             let mut hostname = String::from("develop_");
@@ -143,7 +154,8 @@ where
             rpc.set_worker_name(&hostname);
             #[cfg(debug_assertions)]
             debug!("得到开发者抽水任务。{:?}", rpc);
-            write_to_socket_byte(develop_w, rpc.to_vec()?, &config.share_name).await?;
+            write_to_socket_byte(develop_w, rpc.to_vec()?, &config.share_name)
+                .await?;
             return Ok(());
         } else {
             worker.share_index_add();
@@ -158,10 +170,8 @@ where
 }
 
 async fn new_eth_submit_hashrate<W>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &String,
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -172,8 +182,7 @@ where
 }
 
 async fn seagment_unwrap<W>(
-    pool_w: &mut WriteHalf<W>,
-    res: std::io::Result<Option<Vec<u8>>>,
+    pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
     worker_name: &String,
 ) -> Result<Vec<u8>>
 where
@@ -207,8 +216,7 @@ where
 }
 
 async fn new_eth_get_work<W>(
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
     worker_name: &String,
 ) -> Result<()>
 where
@@ -219,8 +227,7 @@ where
 }
 
 async fn new_subscribe<W>(
-    w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
     worker_name: &String,
 ) -> Result<()>
 where
@@ -255,10 +262,10 @@ where
 //     true
 // }
 
-async fn buf_parse_to_string<W>(w: &mut WriteHalf<W>, buffer: &[u8]) -> Result<String>
-where
-    W: AsyncWrite,
-{
+async fn buf_parse_to_string<W>(
+    w: &mut WriteHalf<W>, buffer: &[u8],
+) -> Result<String>
+where W: AsyncWrite {
     let buf = match String::from_utf8(buffer.to_vec()) {
         Ok(s) => Ok(s),
         Err(_) => {
@@ -281,11 +288,7 @@ where
 }
 
 pub async fn write_rpc<W, T>(
-    encrypt: bool,
-    w: &mut WriteHalf<W>,
-    rpc: &T,
-    worker: &String,
-    key: String,
+    encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String,
     iv: String,
 ) -> Result<()>
 where
@@ -330,17 +333,17 @@ async fn develop_pool_login(
 }
 
 async fn proxy_pool_login(
-    config: &Settings,
-    hostname: String,
+    config: &Settings, hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            log::error!("所有TCP矿池均不可链接。请修改后重试");
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
+    let (stream, _) =
+        match crate::client::get_pool_stream(&config.share_address) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                log::error!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
@@ -373,19 +376,23 @@ pub async fn pool_with_ssl_reconnect(
     Lines<BufReader<ReadHalf<TlsStream<TcpStream>>>>,
     WriteHalf<TlsStream<TcpStream>>,
 )> {
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config) {
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
+    {
         Ok(pool) => pool,
         Err(_) => {
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
 
-    let (stream, _) = match crate::client::get_pool_stream_with_tls(&pools, "proxy".into()).await {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            bail!("所有SSL矿池均不可链接。请修改后重试");
-        }
-    };
+    let (stream, _) =
+        match crate::client::get_pool_stream_with_tls(&pools, "proxy".into())
+            .await
+        {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                bail!("所有SSL矿池均不可链接。请修改后重试");
+            }
+        };
 
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
@@ -395,15 +402,12 @@ pub async fn pool_with_ssl_reconnect(
 }
 
 pub async fn handle_stream<R, W>(
-    worker: &mut Worker,
-    workers_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TlsStream<TcpStream>>>,
-    mut pool_w: WriteHalf<TlsStream<TcpStream>>,
-    config: &Settings,
-    mut state: State,
-    is_encrypted: bool,
+    mut pool_w: WriteHalf<TlsStream<TcpStream>>, config: &Settings,
+    mut state: State, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -442,20 +446,26 @@ where
         worker: develop_name.to_string(),
     };
 
-    let (mut proxy_lines, mut proxy_w) = proxy_pool_login(&config, s.clone()).await?;
-    let (mut develop_lines, mut develop_w) = develop_pool_login(s.clone()).await?;
+    let (mut proxy_lines, mut proxy_w) =
+        proxy_pool_login(&config, s.clone()).await?;
+    let (mut develop_lines, mut develop_w) =
+        develop_pool_login(s.clone()).await?;
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
     //最后一次发送的rpc_id
     let mut rpc_id = 0;
 
-    let mut unsend_proxy_jobs: VecDeque<Vec<String>> = VecDeque::with_capacity(200);
-    let mut unsend_develop_jobs: VecDeque<Vec<String>> = VecDeque::with_capacity(200);
+    let mut unsend_proxy_jobs: VecDeque<Vec<String>> =
+        VecDeque::with_capacity(200);
+    let mut unsend_develop_jobs: VecDeque<Vec<String>> =
+        VecDeque::with_capacity(200);
 
     let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(300);
-    let mut send_develop_jobs: LruCache<String, Vec<String>> = LruCache::new(300);
-    let mut send_normal_jobs: LruCache<String, Vec<String>> = LruCache::new(500);
+    let mut send_develop_jobs: LruCache<String, Vec<String>> =
+        LruCache::new(300);
+    let mut send_normal_jobs: LruCache<String, Vec<String>> =
+        LruCache::new(500);
 
     // 包装为封包格式。
     let mut pool_lines = pool_r.lines();

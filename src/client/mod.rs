@@ -40,7 +40,9 @@ use tokio::{
 
 use crate::{
     protocol::{
-        ethjson::{EthClientObject, EthClientRootObject, EthClientWorkerObject},
+        ethjson::{
+            EthClientObject, EthClientRootObject, EthClientWorkerObject,
+        },
         rpc::eth::{Client, ClientWithWorkerName, ServerId, ServerRpc},
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
@@ -53,7 +55,9 @@ pub const TCP: i32 = 1;
 pub const SSL: i32 = 2;
 
 // 从配置文件返回 连接矿池类型及连接地址
-pub fn get_pool_ip_and_type(config: &crate::util::config::Settings) -> Result<(i32, Vec<String>)> {
+pub fn get_pool_ip_and_type(
+    config: &crate::util::config::Settings,
+) -> Result<(i32, Vec<String>)> {
     //FIX 兼容SSL
     if !config.pool_address.is_empty() {
         let address = config.pool_address.clone();
@@ -129,7 +133,10 @@ pub fn get_pool_random_stream(
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(
+            &addr,
+            Duration::new(5, 0),
+        ) {
             Ok(stream) => stream,
             Err(_) => {
                 //debug!("{} 访问不通。切换备用矿池！！！！", address);
@@ -163,7 +170,10 @@ pub fn get_pool_stream(
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(20, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(
+            &addr,
+            Duration::new(20, 0),
+        ) {
             Ok(stream) => stream,
             Err(_) => {
                 //debug!("{} 访问不通。切换备用矿池！！！！", address);
@@ -189,8 +199,7 @@ pub fn get_pool_stream(
 }
 
 pub async fn get_pool_stream_with_tls(
-    pool_tcp_address: &Vec<String>,
-    _name: String,
+    pool_tcp_address: &Vec<String>, _name: String,
 ) -> Option<(
     tokio_native_tls::TlsStream<tokio::net::TcpStream>,
     SocketAddr,
@@ -207,15 +216,20 @@ pub async fn get_pool_stream_with_tls(
         let addr = match tcp.next() {
             Some(address) => address,
             None => {
-                //debug!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //debug!("{} {} 访问不通。切换备用矿池！！！！", name,
+                // address);
                 continue;
             }
         };
 
-        let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
+        let std_stream = match std::net::TcpStream::connect_timeout(
+            &addr,
+            Duration::new(5, 0),
+        ) {
             Ok(straem) => straem,
             Err(_) => {
-                //debug!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //debug!("{} {} 访问不通。切换备用矿池！！！！", name,
+                // address);
                 continue;
             }
         };
@@ -231,7 +245,8 @@ pub async fn get_pool_stream_with_tls(
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
             Err(_) => {
-                //debug!("{} {} 访问不通。切换备用矿池！！！！", name, address);
+                //debug!("{} {} 访问不通。切换备用矿池！！！！", name,
+                // address);
                 continue;
             }
         };
@@ -256,7 +271,8 @@ pub async fn get_pool_stream_with_tls(
         let server_stream = match cx.connect(domain[0], stream).await {
             Ok(stream) => stream,
             Err(_err) => {
-                //debug!("{} {} SSL 链接失败！！！！ {:?}", name, address, err);
+                //debug!("{} {} SSL 链接失败！！！！ {:?}", name, address,
+                // err);
                 continue;
             }
         };
@@ -269,11 +285,7 @@ pub async fn get_pool_stream_with_tls(
 }
 
 pub async fn write_encrypt_socket<W, T>(
-    w: &mut WriteHalf<W>,
-    rpc: &T,
-    worker: &String,
-    key: String,
-    iv: String,
+    w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String, iv: String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -285,7 +297,8 @@ where
     let rpc = serde_json::to_vec(&rpc)?;
     let cipher = openssl::symm::Cipher::aes_256_cbc();
 
-    let rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+    let rpc =
+        openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
     let base64 = base64::encode(&rpc[..]);
     let mut rpc = base64.as_bytes().to_vec();
@@ -299,22 +312,17 @@ where
 }
 
 pub async fn write_encrypt_socket_string<W>(
-    w: &mut WriteHalf<W>,
-    rpc: &str,
-    worker: &String,
-    key: String,
-    iv: String,
+    w: &mut WriteHalf<W>, rpc: &str, worker: &String, key: String, iv: String,
 ) -> Result<()>
-where
-    W: AsyncWrite,
-{
+where W: AsyncWrite {
     let key = Vec::from_hex(key).unwrap();
     let iv = Vec::from_hex(iv).unwrap();
 
     let rpc = rpc.as_bytes().to_vec();
     let cipher = openssl::symm::Cipher::aes_256_cbc();
     //let data = b"Some Crypto String";
-    let rpc = openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+    let rpc =
+        openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
     let base64 = base64::encode(&rpc[..]);
     let mut rpc = base64.as_bytes().to_vec();
@@ -327,7 +335,9 @@ where
     Ok(())
 }
 
-pub async fn write_to_socket<W, T>(w: &mut WriteHalf<W>, rpc: &T, worker: &String) -> Result<()>
+pub async fn write_to_socket<W, T>(
+    w: &mut WriteHalf<W>, rpc: &T, worker: &String,
+) -> Result<()>
 where
     W: AsyncWrite,
     T: Serialize,
@@ -349,13 +359,9 @@ where
 }
 
 pub async fn write_to_socket_string<W>(
-    w: &mut WriteHalf<W>,
-    rpc: &str,
-    worker: &String,
+    w: &mut WriteHalf<W>, rpc: &str, worker: &String,
 ) -> Result<()>
-where
-    W: AsyncWrite,
-{
+where W: AsyncWrite {
     let mut rpc = rpc.as_bytes().to_vec();
     rpc.push(b'\n');
 
@@ -373,13 +379,9 @@ where
 }
 
 pub async fn write_to_socket_byte<W>(
-    w: &mut WriteHalf<W>,
-    mut rpc: Vec<u8>,
-    worker: &String,
+    w: &mut WriteHalf<W>, mut rpc: Vec<u8>, worker: &String,
 ) -> Result<()>
-where
-    W: AsyncWrite,
-{
+where W: AsyncWrite {
     rpc.push(b'\n');
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
@@ -389,13 +391,9 @@ where
 }
 
 pub async fn self_write_socket_byte<W>(
-    w: &mut WriteHalf<W>,
-    mut rpc: Vec<u8>,
-    worker: &String,
+    w: &mut WriteHalf<W>, mut rpc: Vec<u8>, worker: &String,
 ) -> Result<()>
-where
-    W: AsyncWrite,
-{
+where W: AsyncWrite {
     rpc.push(SPLIT);
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
@@ -435,9 +433,7 @@ pub fn parse_workername(buf: &[u8]) -> Option<ClientWithWorkerName> {
     }
 }
 async fn eth_submit_login<W, T>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut T,
+    worker: &mut Worker, w: &mut WriteHalf<W>, rpc: &mut T,
     worker_name: &mut String,
 ) -> Result<()>
 where
@@ -450,7 +446,11 @@ where
         let mut temp_worker = wallet.clone();
         temp_worker.push_str(".");
         temp_worker = temp_worker + rpc.get_worker_name().as_str();
-        worker.login(temp_worker.clone(), rpc.get_worker_name(), wallet.clone());
+        worker.login(
+            temp_worker.clone(),
+            rpc.get_worker_name(),
+            wallet.clone(),
+        );
         *worker_name = temp_worker;
         write_to_socket(w, &rpc, &worker_name).await
     } else {
@@ -458,20 +458,12 @@ where
     }
 }
 async fn eth_submit_work_agent<W, W1, W2, T>(
-    worker: &mut Worker,
-    pool_w: &mut WriteHalf<W>,
-    proxy_w: &mut WriteHalf<W1>,
-    develop_w: &mut WriteHalf<W1>,
-    agent_w: &mut WriteHalf<W1>,
-    worker_w: &mut WriteHalf<W2>,
-    rpc: &mut T,
-    worker_name: &String,
-    mine_send_jobs: &mut Vec<String>,
-    develop_send_jobs: &mut Vec<String>,
-    agent_send_jobs: &mut Vec<String>,
-    config: &Settings,
-    agent_worker_name: &String,
-    state: &mut State,
+    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
+    proxy_w: &mut WriteHalf<W1>, develop_w: &mut WriteHalf<W1>,
+    agent_w: &mut WriteHalf<W1>, worker_w: &mut WriteHalf<W2>, rpc: &mut T,
+    worker_name: &String, mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>, agent_send_jobs: &mut Vec<String>,
+    config: &Settings, agent_worker_name: &String, state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -601,12 +593,8 @@ where
 }
 
 async fn eth_submit_work<W, T>(
-    worker: &mut Worker,
-    pool_w: &mut WriteHalf<W>,
-    rpc: &mut T,
-    worker_name: &String,
-    config: &Settings,
-    state: &mut State,
+    worker: &mut Worker, pool_w: &mut WriteHalf<W>, rpc: &mut T,
+    worker_name: &String, config: &Settings, state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -618,17 +606,11 @@ where
 }
 
 async fn eth_submit_work_develop<W, W1, W2, T>(
-    worker: &mut Worker,
-    pool_w: &mut WriteHalf<W>,
-    proxy_w: &mut WriteHalf<W1>,
-    develop_w: &mut WriteHalf<W1>,
-    worker_w: &mut WriteHalf<W2>,
-    rpc: &mut T,
-    worker_name: &String,
-    mine_send_jobs: &mut Vec<String>,
-    develop_send_jobs: &mut Vec<String>,
-    config: &Settings,
-    state: &mut State,
+    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
+    proxy_w: &mut WriteHalf<W1>, develop_w: &mut WriteHalf<W1>,
+    worker_w: &mut WriteHalf<W2>, rpc: &mut T, worker_name: &String,
+    mine_send_jobs: &mut Vec<String>, develop_send_jobs: &mut Vec<String>,
+    config: &Settings, state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -721,9 +703,7 @@ where
 }
 
 async fn eth_submit_hashrate<W, T>(
-    worker: &mut Worker,
-    w: &mut WriteHalf<W>,
-    rpc: &mut T,
+    worker: &mut Worker, w: &mut WriteHalf<W>, rpc: &mut T,
     worker_name: &String,
 ) -> Result<()>
 where
@@ -736,7 +716,9 @@ where
     write_to_socket(w, &rpc, &worker_name).await
 }
 
-async fn eth_get_work<W, T>(w: &mut WriteHalf<W>, rpc: &mut T, worker: &String) -> Result<()>
+async fn eth_get_work<W, T>(
+    w: &mut WriteHalf<W>, rpc: &mut T, worker: &String,
+) -> Result<()>
 where
     W: AsyncWrite,
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
@@ -745,7 +727,9 @@ where
     write_to_socket(w, &rpc, &worker).await
 }
 
-async fn subscribe<W, T>(w: &mut WriteHalf<W>, rpc: &mut T, worker: &String) -> Result<()>
+async fn subscribe<W, T>(
+    w: &mut WriteHalf<W>, rpc: &mut T, worker: &String,
+) -> Result<()>
 where
     W: AsyncWrite,
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
@@ -755,16 +739,11 @@ where
 }
 
 async fn fee_job_process<T>(
-    pool_job_idx: u64,
-    config: &Settings,
+    pool_job_idx: u64, config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    agent_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    _count: &mut i32,
-    diff: String,
+    send_jobs: &mut Vec<String>, mine_send_jobs: &mut Vec<String>,
+    agent_send_jobs: &mut Vec<String>, normal_send_jobs: &mut Vec<String>,
+    job_rpc: &mut T, _count: &mut i32, diff: String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -817,14 +796,10 @@ where
 }
 
 async fn fee_job_process_develop<T>(
-    pool_job_idx: u64,
-    config: &Settings,
+    pool_job_idx: u64, config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    _count: &mut i32,
+    send_jobs: &mut Vec<String>, mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>, job_rpc: &mut T, _count: &mut i32,
     diff: String,
 ) -> Option<()>
 where
@@ -843,16 +818,19 @@ where
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
                             send_jobs.push(job.0.clone());
                             return None;
-                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            // if let None = send_jobs.put(job.0, (0,
+                            // job_rpc.get_diff())) {
                             //     #[cfg(debug_assertions)]
                             //     debug!(
-                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert
+                            // Develop Hashset success"
                             //     );
                             //     //return Some(());
                             //     return None;
                             // } else {
                             //     #[cfg(debug_assertions)]
-                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            // 任务插入失败");
                             //     return None;
                             // }
                         }
@@ -878,8 +856,8 @@ where
             return Some(());
             // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
             //     #[cfg(debug_assertions)]
-            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset success");
-            //     return Some(());
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Hashset
+            // success");     return Some(());
             // } else {
             //     #[cfg(debug_assertions)]
             //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
@@ -895,20 +873,19 @@ where
     }
 }
 async fn develop_job_process_develop<T>(
-    _pool_job_idx: u64,
-    config: &Settings,
+    _pool_job_idx: u64, config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    _count: &mut i32,
+    send_jobs: &mut Vec<String>, mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>, job_rpc: &mut T, _count: &mut i32,
     diff: String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
 {
-    if crate::util::is_fee_random(get_develop_fee(config.share_rate.into(), false)) {
+    if crate::util::is_fee_random(get_develop_fee(
+        config.share_rate.into(),
+        false,
+    )) {
         if !unsend_jobs.is_empty() {
             let job = loop {
                 match unsend_jobs.pop_back() {
@@ -920,16 +897,19 @@ where
                             send_jobs.push(job.0.clone());
                             return None;
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
-                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            // if let None = send_jobs.put(job.0, (0,
+                            // job_rpc.get_diff())) {
                             //     #[cfg(debug_assertions)]
                             //     debug!(
-                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert
+                            // Develop Hashset success"
                             //     );
                             //     //return Some(());
                             //     return None;
                             // } else {
                             //     #[cfg(debug_assertions)]
-                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            // 任务插入失败");
                             //     return None;
                             // }
                         }
@@ -958,16 +938,11 @@ where
 }
 
 async fn develop_job_process<T>(
-    pool_job_idx: u64,
-    config: &Settings,
+    pool_job_idx: u64, config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    agent_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    _count: &mut i32,
-    diff: String,
+    send_jobs: &mut Vec<String>, mine_send_jobs: &mut Vec<String>,
+    agent_send_jobs: &mut Vec<String>, normal_send_jobs: &mut Vec<String>,
+    job_rpc: &mut T, _count: &mut i32, diff: String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -1000,13 +975,15 @@ where
                             // if let None = send_jobs.push(job.0) {
                             //     #[cfg(debug_assertions)]
                             //     debug!(
-                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert
+                            // Develop Hashset success"
                             //     );
                             //     //return Some(());
                             //     return None;
                             // } else {
                             //     #[cfg(debug_assertions)]
-                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            // 任务插入失败");
                             //     return None;
                             // }
                         }
@@ -1026,8 +1003,8 @@ where
             return Some(());
             // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
             //     #[cfg(debug_assertions)]
-            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
-            //     return Some(());
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset
+            // success");     return Some(());
             // } else {
             //     #[cfg(debug_assertions)]
             //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
@@ -1044,15 +1021,11 @@ where
 }
 
 async fn agnet_job_process<T>(
-    _pool_job_idx: u64,
-    config: &Settings,
+    _pool_job_idx: u64, config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    develop_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    diff: String,
+    send_jobs: &mut Vec<String>, mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>, normal_send_jobs: &mut Vec<String>,
+    job_rpc: &mut T, diff: String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -1073,16 +1046,19 @@ where
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
                             send_jobs.push(job.0.clone());
                             return None;
-                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            // if let None = send_jobs.put(job.0, (0,
+                            // job_rpc.get_diff())) {
                             //     #[cfg(debug_assertions)]
                             //     debug!(
-                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert
+                            // Develop Hashset success"
                             //     );
                             //     //return Some(());
                             //     return None;
                             // } else {
                             //     #[cfg(debug_assertions)]
-                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            // 任务插入失败");
                             //     return None;
                             // }
                         }
@@ -1100,8 +1076,8 @@ where
             job_rpc.set_diff(diff);
             // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
             //     #[cfg(debug_assertions)]
-            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success");
-            //     return Some(());
+            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset
+            // success");     return Some(());
             // } else {
             //     #[cfg(debug_assertions)]
             //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
@@ -1120,16 +1096,11 @@ where
 }
 
 async fn agnet_job_process_with_fee<T>(
-    _pool_job_idx: u64,
-    _config: &Settings,
+    _pool_job_idx: u64, _config: &Settings,
     unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    develop_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    fee: f64,
-    diff: String,
+    send_jobs: &mut Vec<String>, mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>, normal_send_jobs: &mut Vec<String>,
+    job_rpc: &mut T, fee: f64, diff: String,
 ) -> Option<()>
 where
     T: crate::protocol::rpc::eth::ServerRpc + Serialize,
@@ -1150,16 +1121,19 @@ where
                             //拿走这个任务的权限。矿机的常规任务已经接收到了这个任务了。直接给矿机指派新任务
                             send_jobs.push(job.0.clone());
                             return None;
-                            // if let None = send_jobs.put(job.0, (0, job_rpc.get_diff())) {
+                            // if let None = send_jobs.put(job.0, (0,
+                            // job_rpc.get_diff())) {
                             //     #[cfg(debug_assertions)]
                             //     debug!(
-                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert Develop Hashset success"
+                            //         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! insert
+                            // Develop Hashset success"
                             //     );
                             //     //return Some(());
                             //     return None;
                             // } else {
                             //     #[cfg(debug_assertions)]
-                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 任务插入失败");
+                            //     debug!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            // 任务插入失败");
                             //     return None;
                             // }
                         }
@@ -1188,24 +1162,15 @@ where
 }
 
 async fn share_job_process_agent_fee<T, W>(
-    pool_job_idx: u64,
-    config: &Settings,
+    pool_job_idx: u64, config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    develop_send_jobs: &mut Vec<String>,
-    agent_send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    count: &mut i32,
-    worker_w: &mut WriteHalf<W>,
-    worker_name: &String,
-    worker: &mut Worker,
-    rpc_id: u64,
-    agent_fee: f64,
-    diff: String,
-    is_encrypted: bool,
+    develop_send_jobs: &mut Vec<String>, agent_send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>, normal_send_jobs: &mut Vec<String>,
+    job_rpc: &mut T, count: &mut i32, worker_w: &mut WriteHalf<W>,
+    worker_name: &String, worker: &mut Worker, rpc_id: u64, agent_fee: f64,
+    diff: String, is_encrypted: bool,
 ) -> Option<()>
 where
     T: ServerRpc + Serialize + Clone + Debug,
@@ -1424,24 +1389,14 @@ where
     Some(())
 }
 async fn share_job_process<T, W>(
-    pool_job_idx: u64,
-    config: &Settings,
+    pool_job_idx: u64, config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     agent_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-
-    develop_send_jobs: &mut Vec<String>,
-    agent_send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-
-    job_rpc: &mut T,
-    count: &mut i32,
-    worker_w: &mut WriteHalf<W>,
-    worker_name: &String,
-    worker: &mut Worker,
-    rpc_id: u64,
-    diff: String,
+    develop_send_jobs: &mut Vec<String>, agent_send_jobs: &mut Vec<String>,
+    mine_send_jobs: &mut Vec<String>, normal_send_jobs: &mut Vec<String>,
+    job_rpc: &mut T, count: &mut i32, worker_w: &mut WriteHalf<W>,
+    worker_name: &String, worker: &mut Worker, rpc_id: u64, diff: String,
     is_encrypted: bool,
 ) -> Option<()>
 where
@@ -1614,21 +1569,13 @@ where
 }
 
 async fn share_job_process_develop<T, W>(
-    pool_job_idx: u64,
-    config: &Settings,
+    pool_job_idx: u64, config: &Settings,
     develop_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
     mine_unsend_jobs: &mut VecDeque<(String, Vec<String>)>,
-    develop_send_jobs: &mut Vec<String>,
-    mine_send_jobs: &mut Vec<String>,
-    normal_send_jobs: &mut Vec<String>,
-    job_rpc: &mut T,
-    count: &mut i32,
-    worker_w: &mut WriteHalf<W>,
-    worker_name: &String,
-    worker: &mut Worker,
-    rpc_id: u64,
-    diff: String,
-    is_encrypted: bool,
+    develop_send_jobs: &mut Vec<String>, mine_send_jobs: &mut Vec<String>,
+    normal_send_jobs: &mut Vec<String>, job_rpc: &mut T, count: &mut i32,
+    worker_w: &mut WriteHalf<W>, worker_name: &String, worker: &mut Worker,
+    rpc_id: u64, diff: String, is_encrypted: bool,
 ) -> Option<()>
 where
     T: ServerRpc + Serialize + Clone + Debug,
@@ -1782,13 +1729,9 @@ where
 }
 
 pub async fn handle_tcp<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    stream: TcpStream,
-    config: &Settings,
-    state: State,
+    worker_w: WriteHalf<W>, stream: TcpStream, config: &Settings, state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1868,18 +1811,12 @@ where
     //     .await
     // }
     //}
-    //}
-    //}
 }
 
 pub async fn handle_tcp_timer<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    stream: TcpStream,
-    config: &Settings,
-    state: State,
+    worker_w: WriteHalf<W>, stream: TcpStream, config: &Settings, state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1903,13 +1840,9 @@ where
 }
 
 pub async fn handle_tcp_all<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    stream: TcpStream,
-    config: &Settings,
-    state: State,
+    worker_w: WriteHalf<W>, stream: TcpStream, config: &Settings, state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -1934,14 +1867,10 @@ where
 }
 
 pub async fn handle_ssl<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    stream: TlsStream<TcpStream>,
-    config: &Settings,
-    state: State,
-    is_encrypted: bool,
+    worker_w: WriteHalf<W>, stream: TlsStream<TcpStream>, config: &Settings,
+    state: State, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -2025,14 +1954,10 @@ where
 }
 
 pub async fn handle_tcp_pool<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    pools: &Vec<String>,
-    config: &Settings,
-    state: State,
-    is_encrypted: bool,
+    worker_w: WriteHalf<W>, pools: &Vec<String>, config: &Settings,
+    state: State, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -2060,14 +1985,10 @@ where
 }
 
 pub async fn handle_tcp_pool_timer<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    pools: &Vec<String>,
-    config: &Settings,
-    state: State,
-    is_encrypted: bool,
+    worker_w: WriteHalf<W>, pools: &Vec<String>, config: &Settings,
+    state: State, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -2095,24 +2016,22 @@ where
 }
 
 pub async fn handle_tcp_pool_all<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    config: &Settings,
-    state: State,
+    worker_w: WriteHalf<W>, config: &Settings, state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
-        Ok(pool) => pool,
-        Err(_) => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
+    let (stream_type, pools) =
+        match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
 
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -2137,26 +2056,24 @@ where
 }
 
 pub async fn handle_tls_pool<R, W>(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>,
-    pools: &Vec<String>,
-    config: &Settings,
-    state: State,
-    is_encrypted: bool,
+    worker_w: WriteHalf<W>, pools: &Vec<String>, config: &Settings,
+    state: State, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let (outbound, _) = match crate::client::get_pool_stream_with_tls(&pools, "proxy".into()).await
-    {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            bail!("所有SSL矿池均不可链接。请修改后重试");
-        }
-    };
+    let (outbound, _) =
+        match crate::client::get_pool_stream_with_tls(&pools, "proxy".into())
+            .await
+        {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                bail!("所有SSL矿池均不可链接。请修改后重试");
+            }
+        };
 
     handle_ssl(
         worker,
@@ -2174,14 +2091,10 @@ where
 }
 
 pub fn job_diff_change<T>(
-    diff: &mut u64,
-    rpc: &T,
-    a: &mut VecDeque<(String, Vec<String>)>,
+    diff: &mut u64, rpc: &T, a: &mut VecDeque<(String, Vec<String>)>,
     b: &mut VecDeque<(String, Vec<String>)>,
-    c: &mut VecDeque<(String, Vec<String>)>,
-    mine_send_jobs: &mut Vec<String>,
-    develop_send_jobs: &mut Vec<String>,
-    proxy_send_jobs: &mut Vec<String>,
+    c: &mut VecDeque<(String, Vec<String>)>, mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>, proxy_send_jobs: &mut Vec<String>,
     normal_send_jobs: &mut Vec<String>,
 ) -> bool
 where
@@ -2207,14 +2120,17 @@ where
     true
 }
 
-pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()> {
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            log::error!("所有TCP矿池均不可链接。请修改后重试");
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
+pub async fn submit_fee_hashrate(
+    config: &Settings, hashrate: u64,
+) -> Result<()> {
+    let (stream, _) =
+        match crate::client::get_pool_stream(&config.share_address) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                log::error!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
@@ -2233,14 +2149,17 @@ pub async fn submit_fee_hashrate(config: &Settings, hashrate: u64) -> Result<()>
     let submit_hashrate = ClientWithWorkerName {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".into(),
-        params: [format!("0x{:x}", hashrate), hex::encode(hostname.clone())].to_vec(),
+        params: [format!("0x{:x}", hashrate), hex::encode(hostname.clone())]
+            .to_vec(),
         worker: hostname.clone(),
     };
     write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;
     Ok(())
 }
 
-pub async fn submit_develop_hashrate(_config: &Settings, hashrate: u64) -> Result<()> {
+pub async fn submit_develop_hashrate(
+    _config: &Settings, hashrate: u64,
+) -> Result<()> {
     let stream = match pools::get_develop_pool_stream().await {
         Ok(s) => s,
         Err(e) => return Err(e),
@@ -2265,7 +2184,8 @@ pub async fn submit_develop_hashrate(_config: &Settings, hashrate: u64) -> Resul
     let submit_hashrate = ClientWithWorkerName {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".into(),
-        params: [format!("0x{:x}", hashrate), hex::encode(hostname.clone())].to_vec(),
+        params: [format!("0x{:x}", hashrate), hex::encode(hostname.clone())]
+            .to_vec(),
         worker: hostname.clone(),
     };
     write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;

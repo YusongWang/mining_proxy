@@ -51,9 +51,7 @@ impl EthClientObject for EthClientRootObject {
         true
     }
 
-    fn get_id(&self) -> u64 {
-        self.id
-    }
+    fn get_id(&self) -> u64 { self.id }
 
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
@@ -69,9 +67,7 @@ impl EthClientObject for EthClientRootObject {
         }
     }
 
-    fn get_worker_name(&mut self) -> String {
-        "Default".to_string()
-    }
+    fn get_worker_name(&mut self) -> String { "Default".to_string() }
 
     fn get_submit_hashrate(&self) -> u64 {
         if let Some(hashrate) = self.params.get(0) {
@@ -94,9 +90,7 @@ impl EthClientObject for EthClientRootObject {
         true
     }
 
-    fn get_method(&self) -> String {
-        self.method.clone()
-    }
+    fn get_method(&self) -> String { self.method.clone() }
 
     fn to_vec(&mut self) -> Result<Vec<u8>> {
         let rpc = serde_json::to_vec(&self)?;
@@ -132,9 +126,7 @@ impl EthClientObject for EthClientWorkerObject {
         true
     }
 
-    fn get_id(&self) -> u64 {
-        self.id
-    }
+    fn get_id(&self) -> u64 { self.id }
 
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
@@ -150,9 +142,7 @@ impl EthClientObject for EthClientWorkerObject {
         }
     }
 
-    fn get_worker_name(&mut self) -> String {
-        self.worker.clone()
-    }
+    fn get_worker_name(&mut self) -> String { self.worker.clone() }
 
     fn get_submit_hashrate(&self) -> u64 {
         if let Some(hashrate) = self.params.get(0) {
@@ -174,9 +164,7 @@ impl EthClientObject for EthClientWorkerObject {
         true
     }
 
-    fn get_method(&self) -> String {
-        self.method.clone()
-    }
+    fn get_method(&self) -> String { self.method.clone() }
 
     fn to_vec(&mut self) -> Result<Vec<u8>> {
         let rpc = serde_json::to_vec(&self)?;
@@ -308,7 +296,11 @@ pub struct EthServer {
 //     pub height: u64,
 // }
 
-//币印 {"id":0,"jsonrpc":"2.0","result":["0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"], "height":13834471}
+//币印 {"id":0,"jsonrpc":"2.0","result":["
+// 0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","
+// 0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","
+// 0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"],
+// "height":13834471}
 
 // #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 // #[serde(rename_all = "camelCase")]

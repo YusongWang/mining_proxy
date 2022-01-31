@@ -4,18 +4,20 @@ mod version {
 use std::vec;
 
 use anyhow::{bail, Result};
-use clap::{crate_description, crate_name, crate_version, App, Arg, ArgMatches};
+use clap::{
+    crate_description, crate_name, crate_version, App, Arg, ArgMatches,
+};
 use futures::future;
 use serde::{Deserialize, Serialize};
-use tokio::io::{split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
+use tokio::io::{
+    split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf,
+    WriteHalf,
+};
 
-use tokio::net::TcpSocket;
-use tokio::time::sleep;
+use tokio::{net::TcpSocket, time::sleep};
 
 async fn client_to_server<W>(mut w: WriteHalf<W>, i: i32) -> Result<()>
-where
-    W: AsyncWrite,
-{
+where W: AsyncWrite {
     let mut is_login = false;
     loop {
         if !is_login {
@@ -41,7 +43,8 @@ where
                 params: vec![],
             };
 
-            let mut eth_get_work_msg = serde_json::to_vec(&eth_get_work).unwrap();
+            let mut eth_get_work_msg =
+                serde_json::to_vec(&eth_get_work).unwrap();
             sleep(std::time::Duration::new(5, 0)).await;
             eth_get_work_msg.push(b'\n');
             w.write(&eth_get_work_msg).await?;
@@ -54,7 +57,8 @@ where
                 worker: "test_".to_string() + &i.to_string(),
             };
 
-            let mut submit_hashrate_msg = serde_json::to_vec(&submit_hashrate).unwrap();
+            let mut submit_hashrate_msg =
+                serde_json::to_vec(&submit_hashrate).unwrap();
 
             submit_hashrate_msg.push(b'\n');
             w.write(&submit_hashrate_msg).await?;
@@ -65,25 +69,27 @@ where
 }
 
 async fn server_to_client<R>(mut r: ReadHalf<R>) -> Result<()>
-where
-    R: AsyncRead,
-{
+where R: AsyncRead {
     let mut job_queue = vec![];
     loop {
         let mut buf = vec![0; 1024];
-        let len: usize =
-            match tokio::time::timeout(std::time::Duration::new(60, 0), r.read(&mut buf)).await {
-                Ok(got) => match got {
-                    Ok(len) => len,
-                    Err(e) => {
-                        println!("读取错误 {}", e);
-                        bail!("{}", e);
-                    }
-                },
+        let len: usize = match tokio::time::timeout(
+            std::time::Duration::new(60, 0),
+            r.read(&mut buf),
+        )
+        .await
+        {
+            Ok(got) => match got {
+                Ok(len) => len,
                 Err(e) => {
-                    panic!("读取超时 {}", e);
+                    println!("读取错误 {}", e);
+                    bail!("{}", e);
                 }
-            };
+            },
+            Err(e) => {
+                panic!("读取超时 {}", e);
+            }
+        };
         //let len = r.read(&mut buf).await?;
         if len == 0 {
             println!("客户端下线");
@@ -155,10 +161,9 @@ async fn main() -> Result<()> {
         let client = TcpSocket::new_v4()?;
         let stream = client.connect(server.parse()?).await?;
         let (r, w) = split(stream);
-        let a =
-            tokio::spawn(
-                async move { tokio::try_join!(client_to_server(w, i), server_to_client(r)) },
-            );
+        let a = tokio::spawn(async move {
+            tokio::try_join!(client_to_server(w, i), server_to_client(r))
+        });
         v.push(a);
         i += 1;
     }
@@ -227,7 +232,11 @@ pub struct ServerJobsWichHeigh {
     pub height: u64,
 }
 
-//币印 {"id":0,"jsonrpc":"2.0","result":["0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"], "height":13834471}
+//币印 {"id":0,"jsonrpc":"2.0","result":["
+// 0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","
+// 0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","
+// 0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"],
+// "height":13834471}
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

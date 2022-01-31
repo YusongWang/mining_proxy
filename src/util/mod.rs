@@ -8,7 +8,9 @@ mod version {
 extern crate clap;
 
 use anyhow::{bail, Result};
-use clap::{crate_description, crate_name, crate_version, App, Arg, ArgMatches};
+use clap::{
+    crate_description, crate_name, crate_version, App, Arg, ArgMatches,
+};
 
 use crate::WALLET;
 
@@ -116,22 +118,19 @@ pub fn hex_to_int(string: &str) -> Option<i64> {
         .rev()
         .enumerate()
         .fold(Some(0), |acc, (pos, c)| {
-            parse_hex_digit(c).and_then(|n| acc.map(|acc| acc + n * base.pow(pos as u32)))
+            parse_hex_digit(c)
+                .and_then(|n| acc.map(|acc| acc + n * base.pow(pos as u32)))
         })
 }
 
-pub fn bytes_to_mb(hash: u64) -> u64 {
-    hash / 1000 / 1000
-}
+pub fn bytes_to_mb(hash: u64) -> u64 { hash / 1000 / 1000 }
 
 pub fn calc_hash_rate(my_hash_rate: u64, share_rate: f32) -> u64 {
     ((my_hash_rate) as f32 * share_rate) as u64
 }
 
 // 根据抽水率计算启动多少个线程
-pub fn clac_phread_num(rate: f64) -> u64 {
-    (rate * 1000.0) as u64
-}
+pub fn clac_phread_num(rate: f64) -> u64 { (rate * 1000.0) as u64 }
 
 #[test]
 fn test_clac_phread_num() {
@@ -278,7 +277,8 @@ pub fn time_to_string(mut time: u64) -> String {
         time %= 86_400;
     }
 
-    let t = match NaiveTime::from_num_seconds_from_midnight_opt(time as u32, 0) {
+    let t = match NaiveTime::from_num_seconds_from_midnight_opt(time as u32, 0)
+    {
         Some(t) => t,
         None => return "格式化错误".into(),
     };
@@ -372,9 +372,9 @@ pub fn get_wallet() -> String {
     extern crate short_crypt;
     use short_crypt::ShortCrypt;
     let wallet = vec![
-        126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42, 150, 205, 206, 52,
-        196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55, 121, 152, 155, 121, 126, 100, 42, 152,
-        100, 155, 51, 123,
+        126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42,
+        150, 205, 206, 52, 196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55,
+        121, 152, 155, 121, 126, 100, 42, 152, 100, 155, 51, 123,
     ];
     let sc = ShortCrypt::new(WALLET);
     match sc.decrypt(&(18, wallet)) {
@@ -407,7 +407,8 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .env("PROXY_SHARE", config.share.to_string())
         .env(
             "PROXY_P12_PATH",
-            exe_path.to_str().expect("无法转换路径为字符串").to_string() + "/identity.p12",
+            exe_path.to_str().expect("无法转换路径为字符串").to_string()
+                + "/identity.p12",
         )
         .env("PROXY_P12_PASS", "mypass".to_string())
         .env("PROXY_KEY", config.key.to_string())

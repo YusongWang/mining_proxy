@@ -1,21 +1,23 @@
 use anyhow::Result;
 use log::info;
 
-use tokio::io::{split, BufReader};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    io::{split, BufReader},
+    net::{TcpListener, TcpStream},
+};
 extern crate native_tls;
 use native_tls::Identity;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
 
-use crate::state::{State, Worker};
-use crate::util::config::Settings;
+use crate::{
+    state::{State, Worker},
+    util::config::Settings,
+};
 
 pub async fn accept_tcp_with_tls(
-    worker_queue: UnboundedSender<Worker>,
-    config: Settings,
-    cert: Identity,
+    worker_queue: UnboundedSender<Worker>, config: Settings, cert: Identity,
     state: State,
 ) -> Result<()> {
     if config.ssl_port == 0 {
@@ -33,8 +35,9 @@ pub async fn accept_tcp_with_tls(
 
     log::info!("本地SSL端口{} 启动成功!!!", &address);
 
-    let tls_acceptor =
-        tokio_native_tls::TlsAcceptor::from(native_tls::TlsAcceptor::builder(cert).build()?);
+    let tls_acceptor = tokio_native_tls::TlsAcceptor::from(
+        native_tls::TlsAcceptor::builder(cert).build()?,
+    );
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
@@ -92,23 +95,21 @@ pub async fn accept_tcp_with_tls(
 }
 
 async fn transfer_ssl(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
-    tcp_stream: TcpStream,
-    tls_acceptor: tokio_native_tls::TlsAcceptor,
-    config: &Settings,
-    state: State,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
+    tcp_stream: TcpStream, tls_acceptor: tokio_native_tls::TlsAcceptor,
+    config: &Settings, state: State,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
     let worker_r = BufReader::new(worker_r);
 
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
-        Ok(pool) => pool,
-        Err(_) => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
+    let (stream_type, pools) =
+        match crate::client::get_pool_ip_and_type(&config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
     if config.share == 0 {
         handle_tcp_pool(
             worker,

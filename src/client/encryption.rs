@@ -17,10 +17,7 @@ use tokio::{
 use crate::client::{self_write_socket_byte, write_to_socket_byte};
 
 pub async fn accept_encrypt_tcp(
-    port: i32,
-    server: SocketAddr,
-    key: Vec<u8>,
-    iv: Vec<u8>,
+    port: i32, server: SocketAddr, key: Vec<u8>, iv: Vec<u8>,
 ) -> Result<()> {
     let address = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(address.clone()).await?;
@@ -38,12 +35,17 @@ pub async fn accept_encrypt_tcp(
     }
 }
 
-async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>) -> Result<()> {
+async fn transfer(
+    stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>,
+) -> Result<()> {
     let (worker_r, mut worker_w) = tokio::io::split(stream);
     let worker_r = tokio::io::BufReader::new(worker_r);
     let mut worker_r = worker_r.lines();
 
-    let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
+    let std_stream = match std::net::TcpStream::connect_timeout(
+        &addr,
+        Duration::new(5, 0),
+    ) {
         Ok(stream) => stream,
         Err(_) => {
             bail!("{} 远程地址不通！", addr);

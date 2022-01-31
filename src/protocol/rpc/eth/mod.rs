@@ -41,9 +41,7 @@ impl ClientRpc for Client {
         true
     }
 
-    fn get_id(&mut self) -> u64 {
-        self.id
-    }
+    fn get_id(&mut self) -> u64 { self.id }
 
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
@@ -59,9 +57,7 @@ impl ClientRpc for Client {
         }
     }
 
-    fn get_worker_name(&mut self) -> String {
-        "Default".to_string()
-    }
+    fn get_worker_name(&mut self) -> String { "Default".to_string() }
 
     fn get_submit_hashrate(&self) -> u64 {
         if let Some(hashrate) = self.params.get(0) {
@@ -79,9 +75,7 @@ impl ClientRpc for Client {
         }
     }
 
-    fn set_worker_name(&mut self, _worker_name: &str) -> bool {
-        true
-    }
+    fn set_worker_name(&mut self, _worker_name: &str) -> bool { true }
 
     fn if_parse_protocol_eth_statum(&self) -> bool {
         if let Some(statum) = self.params.get(1) {
@@ -111,9 +105,7 @@ impl ClientRpc for ClientWithWorkerName {
         true
     }
 
-    fn get_id(&mut self) -> u64 {
-        self.id
-    }
+    fn get_id(&mut self) -> u64 { self.id }
 
     fn get_job_id(&mut self) -> Option<String> {
         match self.params.get(1) {
@@ -129,9 +121,7 @@ impl ClientRpc for ClientWithWorkerName {
         }
     }
 
-    fn get_worker_name(&mut self) -> String {
-        self.worker.clone()
-    }
+    fn get_worker_name(&mut self) -> String { self.worker.clone() }
 
     fn get_submit_hashrate(&self) -> u64 {
         if let Some(hashrate) = self.params.get(0) {
@@ -244,9 +234,7 @@ impl ServerRpc for ServerSideJob {
         true
     }
 
-    fn get_id(&mut self) -> u64 {
-        self.id
-    }
+    fn get_id(&mut self) -> u64 { self.id }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -261,9 +249,7 @@ impl ServerRpc for Server {
         true
     }
 
-    fn set_diff(&mut self, _diff: String) -> bool {
-        true
-    }
+    fn set_diff(&mut self, _diff: String) -> bool { true }
 
     fn get_diff(&self) -> u64 {
         let job_diff = match self.result.get(3) {
@@ -307,9 +293,7 @@ impl ServerRpc for Server {
         true
     }
 
-    fn get_id(&mut self) -> u64 {
-        self.id
-    }
+    fn get_id(&mut self) -> u64 { self.id }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -355,13 +339,10 @@ impl ServerRpc for ServerJobsWithHeight {
 
         true
     }
-    fn set_diff(&mut self, _diff: String) -> bool {
-        true
-    }
 
-    fn get_diff(&self) -> u64 {
-        self.height
-    }
+    fn set_diff(&mut self, _diff: String) -> bool { true }
+
+    fn get_diff(&self) -> u64 { self.height }
 
     fn get_job_id(&self) -> Option<String> {
         match self.result.get(0) {
@@ -375,11 +356,13 @@ impl ServerRpc for ServerJobsWithHeight {
         true
     }
 
-    fn get_id(&mut self) -> u64 {
-        self.id
-    }
+    fn get_id(&mut self) -> u64 { self.id }
 }
-//币印 {"id":0,"jsonrpc":"2.0","result":["0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"], "height":13834471}
+//币印 {"id":0,"jsonrpc":"2.0","result":["
+// 0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","
+// 0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","
+// 0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"],
+// "height":13834471}
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -414,12 +397,17 @@ pub struct ServerRootErrorValue {
 }
 
 pub fn handle_error(worker_id: u64, buf: &[u8]) {
-    if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
+    if let Ok(rpc) =
+        serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf)
+    {
         log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
-    } else if let Ok(_rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
+    } else if let Ok(_rpc) =
+        serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf)
+    {
         //log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
-    } else if let Ok(rpc) =
-        serde_json::from_slice::<crate::protocol::rpc::eth::ServerRootError>(&buf)
+    } else if let Ok(rpc) = serde_json::from_slice::<
+        crate::protocol::rpc::eth::ServerRootError,
+    >(&buf)
     {
         log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error.1);
     } else {
@@ -428,12 +416,17 @@ pub fn handle_error(worker_id: u64, buf: &[u8]) {
 }
 
 pub fn handle_error_for_worker(worker_name: &String, buf: &[u8]) {
-    if let Ok(rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf) {
+    if let Ok(rpc) =
+        serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf)
+    {
         log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
-    } else if let Ok(_rpc) = serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf) {
+    } else if let Ok(_rpc) =
+        serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf)
+    {
         //log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
-    } else if let Ok(rpc) =
-        serde_json::from_slice::<crate::protocol::rpc::eth::ServerRootError>(&buf)
+    } else if let Ok(rpc) = serde_json::from_slice::<
+        crate::protocol::rpc::eth::ServerRootError,
+    >(&buf)
     {
         log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error.1);
     } else {

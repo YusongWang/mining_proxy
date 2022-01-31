@@ -15,7 +15,10 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
-        rpc::eth::{Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue, ServerSideJob},
+        rpc::eth::{
+            Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue,
+            ServerSideJob,
+        },
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
@@ -25,14 +28,11 @@ use crate::{
 use super::write_to_socket;
 
 pub async fn handle_stream<R, W, R1, W1>(
-    worker: &mut Worker,
-    workers_queue: UnboundedSender<Worker>,
+    worker: &mut Worker, workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
-    mut pool_w: WriteHalf<W1>,
-    config: &Settings,
-    mut state: State,
+    mut pool_w: WriteHalf<W1>, config: &Settings, mut state: State,
     is_encrypted: bool,
 ) -> Result<()>
 where
@@ -45,13 +45,14 @@ where
     let mut worker_name: String = String::new();
 
     //TODO 这里要兼容SSL矿池
-    let (stream, _) = match crate::client::get_pool_stream(&config.share_address) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            log::error!("所有TCP矿池均不可链接。请修改后重试");
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
+    let (stream, _) =
+        match crate::client::get_pool_stream(&config.share_address) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                log::error!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
@@ -112,16 +113,19 @@ where
     let mut rpc_id = 0;
 
     let mut unsend_mine_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
-    let mut unsend_develop_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
-    let mut unsend_agent_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
+    let mut unsend_develop_jobs: VecDeque<(String, Vec<String>)> =
+        VecDeque::new();
+    let mut unsend_agent_jobs: VecDeque<(String, Vec<String>)> =
+        VecDeque::new();
 
     let mut develop_count = 0;
 
     //TODO 完善精简这里的核心代码。加速任务分配。
     // let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
-    // let mut send_develop_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
-    // let mut send_agent_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
-    // let mut send_normal_jobs: LruCache<String, i32> = LruCache::new(100);
+    // let mut send_develop_jobs: LruCache<String, (u64, u64)> =
+    // LruCache::new(50); let mut send_agent_jobs: LruCache<String, (u64,
+    // u64)> = LruCache::new(50); let mut send_normal_jobs: LruCache<String,
+    // i32> = LruCache::new(100);
 
     let mut send_mine_jobs: Vec<String> = vec![];
     let mut send_develop_jobs: Vec<String> = vec![];

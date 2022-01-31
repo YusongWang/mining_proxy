@@ -113,9 +113,7 @@ pub struct DeleteBookResponse {
 }
 
 #[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
-}
+async fn hello() -> impl Responder { HttpResponse::Ok().body("Hello world!") }
 
 #[post("/echo")]
 async fn echo(req_body: String) -> impl Responder {
@@ -179,7 +177,9 @@ pub struct CreateRequest {
 // }
 
 #[post("/user/login")]
-async fn login(req: web::Json<LoginRequest>) -> actix_web::Result<impl Responder> {
+async fn login(
+    req: web::Json<LoginRequest>,
+) -> actix_web::Result<impl Responder> {
     dbg!(req);
 
     Ok(web::Json(LoginResponse {
@@ -206,8 +206,7 @@ async fn info() -> actix_web::Result<impl Responder> {
 
 #[post("/crate/app")]
 pub async fn crate_app(
-    req: web::Json<CreateRequest>,
-    app: web::Data<AppState>,
+    req: web::Json<CreateRequest>, app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
     //dbg!(req);
     let mut config = Settings::default();
@@ -295,7 +294,8 @@ pub async fn crate_app(
 
     use std::fs::File;
 
-    // let exe_path = std::env::current_dir().expect("获取当前可执行程序路径错误");
+    // let exe_path =
+    // std::env::current_dir().expect("获取当前可执行程序路径错误");
     // let exe_path = exe_path.join("configs.yaml");
     let mut cfgs = match OpenOptions::new()
         //.append(false)
@@ -315,13 +315,14 @@ pub async fn crate_app(
     let mut configs = String::new();
     match cfgs.read_to_string(&mut configs) {
         Ok(_) => {
-            let mut configs: Vec<Settings> = match serde_yaml::from_str(&configs) {
-                Ok(s) => s,
-                Err(e) => {
-                    log::error!("{}", e);
-                    vec![]
-                }
-            };
+            let mut configs: Vec<Settings> =
+                match serde_yaml::from_str(&configs) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::error!("{}", e);
+                        vec![]
+                    }
+                };
 
             dbg!(configs.clone());
             configs.push(config.clone());
@@ -332,7 +333,7 @@ pub async fn crate_app(
                     dbg!(c_str.clone());
                     c_str = c_str[4..c_str.len()].to_string();
                     drop(cfgs);
-                    std::fs::remove_file("configs.yaml");
+                    std::fs::remove_file("configs.yaml")?;
                     let mut cfgs = match OpenOptions::new()
                         //.append(false)
                         .write(true)
@@ -440,7 +441,9 @@ pub async fn crate_app(
 }
 
 #[get("/user/server_list")]
-async fn server_list(app: web::Data<AppState>) -> actix_web::Result<impl Responder> {
+async fn server_list(
+    app: web::Data<AppState>,
+) -> actix_web::Result<impl Responder> {
     let mut v = vec![];
     {
         let proxy_server = app.global_count.lock().unwrap();
@@ -449,6 +452,8 @@ async fn server_list(app: web::Data<AppState>) -> actix_web::Result<impl Respond
             v.push(s.to_string());
         }
     }
+
+
     Ok(web::Json(Response::<Vec<String>> {
         code: 20000,
         message: "".into(),
@@ -459,11 +464,9 @@ async fn server_list(app: web::Data<AppState>) -> actix_web::Result<impl Respond
 // 展示选中的数据信息。以json格式返回
 #[get("/user/server/{name}")]
 async fn server(
-    server: web::Path<String>,
-    app: web::Data<AppState>,
+    server: web::Path<String>, app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
     log::debug!("{}", server);
-
 
     //let server = server.to_path().unwrap();
 
@@ -474,7 +477,6 @@ async fn server(
             log::info!("server {} ", s);
             if *s == server.to_string() {
                 config.kill().await?;
-
             }
         }
     }

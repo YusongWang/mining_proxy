@@ -1,18 +1,20 @@
 use anyhow::Result;
 use log::info;
 
-use tokio::io::{split, BufReader};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::{
+    io::{split, BufReader},
+    net::{TcpListener, TcpStream},
+    sync::mpsc::UnboundedSender,
+};
 
-use crate::state::{State, Worker};
-use crate::util::config::Settings;
+use crate::{
+    state::{State, Worker},
+    util::config::Settings,
+};
 
 use super::*;
 pub async fn accept_tcp(
-    worker_queue: UnboundedSender<Worker>,
-    config: Settings,
-    state: State,
+    worker_queue: UnboundedSender<Worker>, config: Settings, state: State,
 ) -> Result<()> {
     if config.tcp_port == 0 {
         return Ok(());
@@ -42,7 +44,15 @@ pub async fn accept_tcp(
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
-            match transfer(&mut worker, workers.clone(), stream, &config, state.clone()).await {
+            match transfer(
+                &mut worker,
+                workers.clone(),
+                stream,
+                &config,
+                state.clone(),
+            )
+            .await
+            {
                 Ok(_) => {
                     state
                         .online
@@ -73,20 +83,18 @@ pub async fn accept_tcp(
 }
 
 async fn transfer(
-    worker: &mut Worker,
-    worker_queue: UnboundedSender<Worker>,
-    tcp_stream: TcpStream,
-    config: &Settings,
-    state: State,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
+    tcp_stream: TcpStream, config: &Settings, state: State,
 ) -> Result<()> {
     let (worker_r, worker_w) = split(tcp_stream);
     let worker_r = BufReader::new(worker_r);
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
-        Ok(pool) => pool,
-        Err(_) => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
+    let (stream_type, pools) =
+        match crate::client::get_pool_ip_and_type(&config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
 
     if config.share == 0 {
         handle_tcp_pool(

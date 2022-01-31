@@ -32,9 +32,9 @@ async fn main() -> Result<()> {
         version::short_sha()
     );
 
-    let key = matches
-        .value_of("key")
-        .unwrap_or("523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664");
+    let key = matches.value_of("key").unwrap_or(
+        "523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664",
+    );
     // let iv = matches
     //     .value_of("iv")
     //     .unwrap_or("275E2015B9E5CA4DDB87B90EBC897F8C");
@@ -68,9 +68,9 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     });
 
-    let res = tokio::try_join!(mining_proxy::client::monitor::accept_monitor_tcp(
-        port, addr
-    ));
+    let res = tokio::try_join!(
+        mining_proxy::client::monitor::accept_monitor_tcp(port, addr)
+    );
 
     if let Err(err) = res {
         log::warn!("加密服务断开: {}", err);

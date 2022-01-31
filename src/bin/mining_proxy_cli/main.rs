@@ -59,7 +59,8 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     };
 
-    if config.tcp_port == 0 && config.ssl_port == 0 && config.encrypt_port == 0 {
+    if config.tcp_port == 0 && config.ssl_port == 0 && config.encrypt_port == 0
+    {
         println!("本地监听端口必须启动一个。目前全部为0");
         std::process::exit(1);
     };
@@ -85,13 +86,14 @@ async fn main() -> Result<()> {
         }
     };
 
-    let (_, pools) = match mining_proxy::client::get_pool_ip_and_type_for_proxyer(&config) {
-        Ok(s) => s,
-        Err(_) => {
-            println!("解析抽水矿池协议错误");
-            std::process::exit(1);
-        }
-    };
+    let (_, pools) =
+        match mining_proxy::client::get_pool_ip_and_type_for_proxyer(&config) {
+            Ok(s) => s,
+            Err(_) => {
+                println!("解析抽水矿池协议错误");
+                std::process::exit(1);
+            }
+        };
 
     let (_, _) = match mining_proxy::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -129,17 +131,26 @@ async fn main() -> Result<()> {
     let mut buffer = BytesMut::with_capacity(10240);
     let read_key_len = p12.read_buf(&mut buffer).await?;
     //info!("✅ 证书读取成功，证书字节数为: {}", read_key_len);
-    let cert = Identity::from_pkcs12(&buffer[0..read_key_len], config.p12_pass.clone().as_str())?;
+    let cert = Identity::from_pkcs12(
+        &buffer[0..read_key_len],
+        config.p12_pass.clone().as_str(),
+    )?;
 
     // 当前中转总报告算力。Arc<> Or atom 变量
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     // 当前全局状态管理.
-    let state = std::sync::Arc::new(mining_proxy::state::GlobalState::default());
+    let state =
+        std::sync::Arc::new(mining_proxy::state::GlobalState::default());
 
     let res = tokio::try_join!(
         accept_tcp(worker_tx.clone(), config.clone(), state.clone()),
         accept_en_tcp(worker_tx.clone(), config.clone(), state.clone()),
-        accept_tcp_with_tls(worker_tx.clone(), config.clone(), cert, state.clone()),
+        accept_tcp_with_tls(
+            worker_tx.clone(),
+            config.clone(),
+            cert,
+            state.clone()
+        ),
         process_workers(&config, worker_rx, state),
     );
 
@@ -175,8 +186,8 @@ async fn main() -> Result<()> {
 
 // table.add_row(row![
 //     config.share_name.clone(),
-//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//     "",
+//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() +
+// " Mb",     "",
 //     state.proxy_share.load(std::sync::atomic::Ordering::SeqCst),
 //     state.proxy_accept.load(std::sync::atomic::Ordering::SeqCst),
 //     state.proxy_reject.load(std::sync::atomic::Ordering::SeqCst),
@@ -224,8 +235,8 @@ async fn main() -> Result<()> {
 // table.add_row(row![
 //     "汇总",
 //     bytes_to_mb(total_hash).to_string() + " Mb",
-//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//     total_share,
+//     calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() +
+// " Mb",     total_share,
 //     total_accept,
 //     total_invalid,
 //     format!(
@@ -237,10 +248,10 @@ async fn main() -> Result<()> {
 // ]);
 
 //     println!(
-//         "当前总算力: {} 当前抽水算力: {} 总份额: {} 接受份额: {} 拒绝份额: {}\n{} {}",
-//         bytes_to_mb(total_hash).to_string() + " Mb",
-//         calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//         total_share,
+//         "当前总算力: {} 当前抽水算力: {} 总份额: {} 接受份额: {} 拒绝份额:
+// {}\n{} {}",         bytes_to_mb(total_hash).to_string() + " Mb",
+//         calc_hash_rate(bytes_to_mb(total_hash),
+// config.share_rate).to_string() + " Mb",         total_share,
 //         total_accept,
 //         total_invalid,
 //         format!(
@@ -251,8 +262,8 @@ async fn main() -> Result<()> {
 //         format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs()))
 //     );
 //         // bytes_to_mb(total_hash).to_string() + " Mb",
-//         // calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
-//         // total_share,
+//         // calc_hash_rate(bytes_to_mb(total_hash),
+// config.share_rate).to_string() + " Mb",         // total_share,
 //         // total_accept,
 //         // total_invalid,
 //         // format!(
@@ -260,7 +271,8 @@ async fn main() -> Result<()> {
 //         //     crate_version!(),
 //         //     state.online.load(std::sync::atomic::Ordering::SeqCst)
 //         // ),
-//         // format!("软件启动于:{}", time_to_string(runtime.elapsed().as_secs())),
+//         // format!("软件启动于:{}",
+// time_to_string(runtime.elapsed().as_secs())),
 
 //     //(不通矿池难度不一样。份额高低不能决定算力)
 //     //table.printstd();
@@ -268,10 +280,8 @@ async fn main() -> Result<()> {
 // }
 
 pub async fn print_state_nofee(
-    workers: &HashMap<String, Worker>,
-    _: &Settings,
-    state: mining_proxy::state::State,
-    runtime: std::time::Instant,
+    workers: &HashMap<String, Worker>, _: &Settings,
+    state: mining_proxy::state::State, runtime: std::time::Instant,
 ) -> Result<()> {
     // 创建表格
     let mut table = Table::new();
@@ -347,10 +357,8 @@ pub async fn print_state_nofee(
     Ok(())
 }
 pub async fn print_state(
-    workers: &HashMap<String, Worker>,
-    config: &Settings,
-    state: mining_proxy::state::State,
-    runtime: std::time::Instant,
+    workers: &HashMap<String, Worker>, config: &Settings,
+    state: mining_proxy::state::State, runtime: std::time::Instant,
 ) -> Result<()> {
     // 创建表格
     let mut table = Table::new();
@@ -399,8 +407,8 @@ pub async fn print_state(
     //     table.add_row(row![
     //         w.worker_name,
     //         bytes_to_mb(w.hash).to_string() + " Mb",
-    //         calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-    //         w.share_index,
+    //         calc_hash_rate(bytes_to_mb(w.hash),
+    // config.share_rate).to_string() + " Mb",         w.share_index,
     //         w.accept_index,
     //         w.invalid_index,
     //         time_to_string(w.login_time.elapsed().as_secs()),
@@ -412,8 +420,8 @@ pub async fn print_state(
     // table.add_row(row![
     //     w.worker_name,
     //     bytes_to_mb(w.hash).to_string() + " Mb",
-    //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() + " Mb",
-    //     w.share_index,
+    //     calc_hash_rate(bytes_to_mb(w.hash), config.share_rate).to_string() +
+    // " Mb",     w.share_index,
     //     w.accept_index,
     //     w.invalid_index
     // ]);
@@ -472,7 +480,8 @@ pub async fn print_state(
         "汇总",
         //bytes_to_mb(total_hash).to_string() + " Mb",
         human_bytes(total_hash as f64),
-        //calc_hash_rate(bytes_to_mb(total_hash), config.share_rate).to_string() + " Mb",
+        //calc_hash_rate(bytes_to_mb(total_hash),
+        // config.share_rate).to_string() + " Mb",
         human_bytes(calc_hash_rate(total_hash, config.share_rate) as f64),
         total_share,
         total_accept,
@@ -490,8 +499,7 @@ pub async fn print_state(
     Ok(())
 }
 pub async fn process_workers(
-    config: &Settings,
-    mut worker_rx: mpsc::UnboundedReceiver<Worker>,
+    config: &Settings, mut worker_rx: mpsc::UnboundedReceiver<Worker>,
     state: mining_proxy::state::State,
 ) -> Result<()> {
     let runtime = std::time::Instant::now();

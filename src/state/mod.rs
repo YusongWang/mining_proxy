@@ -25,7 +25,10 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(worker: String, worker_name: String, worker_wallet: String, online: bool) -> Self {
+    pub fn new(
+        worker: String, worker_name: String, worker_wallet: String,
+        online: bool,
+    ) -> Self {
         Self {
             worker,
             online,
@@ -57,7 +60,9 @@ impl Worker {
         }
     }
 
-    pub fn login(&mut self, worker: String, worker_name: String, worker_wallet: String) {
+    pub fn login(
+        &mut self, worker: String, worker_name: String, worker_wallet: String,
+    ) {
         info!("矿工: {} 请求登录", worker);
         self.worker = worker;
         self.worker_name = worker_name;
@@ -77,8 +82,8 @@ impl Worker {
             // info!(
             //     "矿工: {} 下线 在线时长 {}",
             //     self.worker,
-            //     crate::util::time_to_string(self.login_time.elapsed().as_secs())
-            // );
+            //     crate::util::time_to_string(self.login_time.elapsed().
+            // as_secs()) );
         } else {
             info!("恶意攻击 协议不正确。没有正确提交协议。强制关闭掉了。");
         }
@@ -86,16 +91,14 @@ impl Worker {
     }
 
     // 判断是否在线
-    pub fn is_online(&self) -> bool {
-        self.online
-    }
+    pub fn is_online(&self) -> bool { self.online }
 
     // 每十分钟清空份额调用方法
     pub fn clear_state(&mut self) {
         // info!(
         //     "✅ worker {} 清空所有数据。清空时有如下数据 {} {} {}",
-        //     self.worker, self.share_index, self.accept_index, self.invalid_index
-        // );
+        //     self.worker, self.share_index, self.accept_index,
+        // self.invalid_index );
         self.share_index = 0;
         self.accept_index = 0;
         self.invalid_index = 0;
@@ -123,16 +126,16 @@ impl Worker {
     }
 
     pub fn submit_hashrate<T>(&mut self, rpc: &T) -> bool
-    where
-        T: crate::protocol::rpc::eth::ClientRpc,
-    {
+    where T: crate::protocol::rpc::eth::ClientRpc {
         self.hash = rpc.get_submit_hashrate();
         true
     }
 
     pub fn new_submit_hashrate(
         &mut self,
-        rpc: &mut Box<dyn crate::protocol::ethjson::EthClientObject + Send + Sync>,
+        rpc: &mut Box<
+            dyn crate::protocol::ethjson::EthClientObject + Send + Sync,
+        >,
     ) -> bool {
         self.hash = rpc.get_submit_hashrate();
         true
@@ -166,9 +169,7 @@ impl GlobalState {
 }
 
 impl Default for GlobalState {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 #[test]
