@@ -16,11 +16,8 @@ use actix_web::{get, post, web, App, HttpServer, Responder};
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
-    util::{config::Settings, logger, *},
-    web::{
-        handles::user::{InfoResponse, Response},
-        AppState,
-    },
+    util::{config::Settings, logger},
+    web::{AppState, OnlineWorker},
 };
 
 use anyhow::{bail, Result};
@@ -31,17 +28,10 @@ use native_tls::Identity;
 
 use tokio::{
     fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     select,
     sync::mpsc::{self, UnboundedReceiver},
 };
-
-struct OnlineWorker {
-    chlid: tokio::process::Child,
-    workers: Vec<Worker>,
-    online: u32,
-    config: Settings,
-}
 
 fn main() -> Result<()> {
     setup_panic!();
@@ -67,9 +57,8 @@ async fn async_main() -> Result<()> {
         //let mut childs:HashMap<String,tokio::process::Child> =
         // HashMap::new();
 
-        let mut data = AppState {
-            global_count: std::sync::Arc::new(Mutex::new(HashMap::new())),
-        };
+        let mut data: AppState =
+            std::sync::Arc::new(Mutex::new(HashMap::new()));
 
         match OpenOptions::new()
             .write(true)
@@ -105,10 +94,15 @@ async fn async_main() -> Result<()> {
                                     //data.global_count.insert(k, v)
                                     //let mut d = data.clone();
                                     //let mut a = data.global_count.clone();
-                                    data.global_count
-                                        .lock()
+                                    let online = OnlineWorker {
+                                        child,
+                                        config: config.clone(),
+                                        workers: vec![],
+                                        online: 0,
+                                    };
+                                    data.lock()
                                         .unwrap()
-                                        .insert(config.name, child);
+                                        .insert(config.name, online);
                                 }
                                 Err(e) => {
                                     log::error!("{}", e);
@@ -125,16 +119,14 @@ async fn async_main() -> Result<()> {
         tokio::spawn(async move { recv_from_child(tcp_data).await });
 
         HttpServer::new(move || {
-            App::new()
-                .app_data(web::Data::new(data.clone()))
-                .service(
-                    web::scope("/api")
-                        .service(mining_proxy::web::handles::user::login)
-                        .service(mining_proxy::web::handles::user::crate_app)
-                        .service(mining_proxy::web::handles::user::server_list)
-                        .service(mining_proxy::web::handles::user::server)
-                        .service(mining_proxy::web::handles::user::info),
-                )
+            App::new().app_data(web::Data::new(data.clone())).service(
+                web::scope("/api")
+                    .service(mining_proxy::web::handles::user::login)
+                    .service(mining_proxy::web::handles::user::crate_app)
+                    .service(mining_proxy::web::handles::user::server_list)
+                    .service(mining_proxy::web::handles::user::server)
+                    .service(mining_proxy::web::handles::user::info),
+            )
         })
         .bind("0.0.0.0:8000")?
         .run()
@@ -180,7 +172,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         "统一钱包模式"
     };
 
-    log::info!("当前启动模式为: {}", mode);
+    log::info!("名称 {} 当前启动模式为: {}", config.name, mode);
 
     let mut buffer = BytesMut::with_capacity(10240);
     let read_key_len = p12.read_buf(&mut buffer).await?;
@@ -263,17 +255,41 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     println!("监听本机端口{}", 65500);
     loop {
         let (mut stream, _) = listener.accept().await?;
+        let inner_app = app.clone();
+        //r_lines.next_line() => {}
+        //let mut pool_lines = pool_r.lines();
         tokio::spawn(async move {
+            let (mut r, _) = stream.split();
+            let mut r_buf = BufReader::new(r);
+            let mut r_lines = r_buf.lines();
+
             loop {
                 let mut buf: BytesMut = BytesMut::new();
-                tokio::select! {
-                    Ok(size) = stream.read_buf(&mut buf) => {
-                        if size > 0 {
-                            // let s = String::from_utf8(buf.to_vec()).unwrap();
-                            // println!("{}", s);
-                            if let Ok(online_work)  = serde_json::from_slice::<Worker>(&buf){
-                                 dbg!(online_work);
+
+                if let Ok(Some(buf_str)) = r_lines.next_line().await {
+                    let s = String::from_utf8(buf.to_vec()).unwrap();
+                    log::info!("{}", s);
+                    log::info!("-----------------------");
+                    if let Ok(online_work) =
+                        serde_json::from_str::<Worker>(&buf_str)
+                    {
+                        dbg!(&online_work);
+
+                        if let Some(temp_app) =
+                            inner_app.lock().unwrap().get_mut("22220".into())
+                        {
+                            let mut is_update = false;
+                            for worker in &mut temp_app.workers {
+                                if worker.worker == online_work.worker {
+                                    *worker = online_work.clone();
+                                    is_update = true;
+                                }
                             }
+                            if is_update == false {
+                                temp_app.workers.push(online_work);
+                            }
+                        } else {
+                            log::error!("未找到此端口");
                         }
                     }
                 };

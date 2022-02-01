@@ -1,5 +1,5 @@
 - name: "22222"
-  log_level: 1
+  log_level: 0
   log_path: ""
   ssl_port: 0
   tcp_port: 22222
@@ -18,7 +18,7 @@
   key: "22"
   iv: "22"
 - name: "22221"
-  log_level: 1
+  log_level: 0
   log_path: ""
   ssl_port: 0
   tcp_port: 22221
@@ -37,7 +37,7 @@
   key: "22"
   iv: "22"
 - name: "22220"
-  log_level: 1
+  log_level: 0
   log_path: ""
   ssl_port: 0
   tcp_port: 22220
@@ -56,7 +56,7 @@
   key: "22"
   iv: "22"
 - name: temp123
-  log_level: 1
+  log_level: 0
   log_path: ""
   ssl_port: 0
   tcp_port: 2222

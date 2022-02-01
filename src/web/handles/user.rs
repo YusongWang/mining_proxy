@@ -6,7 +6,11 @@ use std::{
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 
-use crate::{util::config::Settings, web::AppState};
+use crate::{
+    state::Worker,
+    util::config::Settings,
+    web::{AppState, OnlineWorker},
+};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
@@ -335,7 +339,13 @@ pub async fn crate_app(
 
             match crate::util::run_server(&config) {
                 Ok(child) => {
-                    app.global_count.lock().unwrap().insert(config.name, child);
+                    let online = OnlineWorker {
+                        child,
+                        config: config.clone(),
+                        workers: vec![],
+                        online: 0,
+                    };
+                    app.lock().unwrap().insert(config.name, online);
                 }
                 Err(e) => {
                     return Ok(web::Json(Response::<String> {
@@ -384,7 +394,13 @@ pub async fn crate_app(
 
             match crate::util::run_server(&config) {
                 Ok(child) => {
-                    app.global_count.lock().unwrap().insert(config.name, child);
+                    let online = OnlineWorker {
+                        child,
+                        config: config.clone(),
+                        workers: vec![],
+                        online: 0,
+                    };
+                    app.lock().unwrap().insert(config.name, online);
                 }
                 Err(e) => {
                     return Ok(web::Json(Response::<String> {
@@ -410,13 +426,12 @@ async fn server_list(
 ) -> actix_web::Result<impl Responder> {
     let mut v = vec![];
     {
-        let proxy_server = app.global_count.lock().unwrap();
+        let proxy_server = app.lock().unwrap();
         for (s, _) in &*proxy_server {
             log::info!("server {} ", s);
             v.push(s.to_string());
         }
     }
-
 
     Ok(web::Json(Response::<Vec<String>> {
         code: 20000,
@@ -425,20 +440,32 @@ async fn server_list(
     }))
 }
 
+#[derive(Serialize, Deserialize, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct OnlineWorkerResult {
+    pub workers: Vec<Worker>,
+    pub online: u32,
+    pub config: Settings,
+}
+
 // 展示选中的数据信息。以json格式返回
 #[get("/user/server/{name}")]
 async fn server(
-    server: web::Path<String>, app: web::Data<AppState>,
+    proxy_server_name: web::Path<String>, app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
-    log::debug!("{}", server);
+    log::debug!("{}", proxy_server_name);
 
-    let v = vec![];
+    let mut res: OnlineWorkerResult = OnlineWorkerResult::default();
     {
-        let mut proxy_server = app.global_count.lock().unwrap();
-        for (s, config) in &mut *proxy_server {
-            log::info!("server {} ", s);
-            if *s == server.to_string() {
-                config.kill().await?;
+        let mut proxy_server = app.lock().unwrap();
+        for (name, server) in &*proxy_server {
+            log::info!("server {} ", name);
+            if *name == proxy_server_name.to_string() {
+                //config.kill().await?;
+                //server.child.kill().await?;
+                res.workers = server.workers.clone();
+                res.online = server.online.clone();
+                res.config = server.config.clone();
             }
         }
     }
@@ -447,9 +474,9 @@ async fn server(
     //2. 抽水旷工信息     .
     //3. 当前在线矿机总数 .
 
-    Ok(web::Json(Response::<Vec<String>> {
+    Ok(web::Json(Response::<OnlineWorkerResult> {
         code: 20000,
         message: "".into(),
-        data: v,
+        data: res,
     }))
 }
