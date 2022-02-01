@@ -1,19 +1,76 @@
-- name: "123"
-  log_level: 0
+- name: "22222"
+  log_level: 1
   log_path: ""
-  tcp_port: 8080
   ssl_port: 0
+  tcp_port: 22222
   encrypt_port: 0
-  pool_address: 
+  pool_address:
     - "tcp://127.0.0.1:8888"
-  share: 1
+  share_address:
+    - "tcp://127.0.0.1:8888"
+  share_wallet: "222"
+  share_name: "22222"
   share_rate: 0.01
-  share_address: 
-    - "tcp://127.0.0.1:8888"
-  share_wallet: "0x123456"
-  share_alg: 1
-  share_name: "name"
+  share: 1
+  share_alg: 0
   p12_path: "./identity.p12"
-  p12_pass: "mypass"
-  key: "123"
-  iv: "123"
+  p12_pass: mypass
+  key: "22"
+  iv: "22"
+- name: "22221"
+  log_level: 1
+  log_path: ""
+  ssl_port: 0
+  tcp_port: 22221
+  encrypt_port: 0
+  pool_address:
+    - "tcp://127.0.0.1:8888"
+  share_address:
+    - "tcp://127.0.0.1:8888"
+  share_wallet: "222"
+  share_name: "22221"
+  share_rate: 0.01
+  share: 1
+  share_alg: 0
+  p12_path: "./identity.p12"
+  p12_pass: mypass
+  key: "22"
+  iv: "22"
+- name: "22220"
+  log_level: 1
+  log_path: ""
+  ssl_port: 0
+  tcp_port: 22220
+  encrypt_port: 0
+  pool_address:
+    - "tcp://127.0.0.1:8888"
+  share_address:
+    - "tcp://127.0.0.1:8888"
+  share_wallet: "222"
+  share_name: "22220"
+  share_rate: 0.01
+  share: 1
+  share_alg: 0
+  p12_path: "./identity.p12"
+  p12_pass: mypass
+  key: "22"
+  iv: "22"
+- name: temp123
+  log_level: 1
+  log_path: ""
+  ssl_port: 0
+  tcp_port: 2222
+  encrypt_port: 0
+  pool_address:
+    - "tcp://127.0.0.1:8888"
+  share_address:
+    - "tcp://127.0.0.1:8888"
+  share_wallet: o0x11111
+  share_name: temp123
+  share_rate: 0.01
+  share: 0
+  share_alg: 0
+  p12_path: "./identity.p12"
+  p12_pass: mypass
+  key: "1"
+  iv: "1"
