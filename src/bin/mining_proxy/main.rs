@@ -33,19 +33,21 @@ use tokio::{
     sync::mpsc::{self, UnboundedReceiver},
 };
 
+use actix_web_static_files;
+
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+
 fn main() -> Result<()> {
     setup_panic!();
     openssl_probe::init_ssl_cert_env_vars();
-    actix_web::rt::System::with_tokio_rt(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            //.worker_threads(8)
-            .thread_name("main-tokio")
-            .build()
-            .unwrap()
-    })
-    .block_on(async_main())?;
-
+    let matches = mining_proxy::util::get_app_command_matches()?;
+    if !matches.is_present("server") {
+        //actix_web run time start
+        actix_main(matches);
+    } else {
+        //tokio::runtime::start
+        tokio_main(&matches);
+    }
     Ok(())
 }
 
@@ -116,16 +118,37 @@ async fn async_main() -> Result<()> {
         };
 
         let tcp_data = data.clone();
-        tokio::spawn(async move { recv_from_child(tcp_data).await });
+        tokio::spawn(async move { recv_from_child().await });
 
         HttpServer::new(move || {
-            App::new().app_data(web::Data::new(data.clone())).service(
+            /*  .service(
                 web::scope("/api")
                     .service(mining_proxy::web::handles::user::login)
                     .service(mining_proxy::web::handles::user::crate_app)
                     .service(mining_proxy::web::handles::user::server_list)
                     .service(mining_proxy::web::handles::user::server)
                     .service(mining_proxy::web::handles::user::info),
+            ). */
+
+            // .service(actix_web_static_files::ResourceFiles::new(
+            //     "/", generated,
+            // ))
+            let generated = generate();
+
+            // for (g, res) in generated {
+            //     dbg!(g);
+            // }
+
+            App::new().app_data(web::Data::new(data.clone())).service(
+                actix_web_static_files::ResourceFiles::new(
+                    "/", generated,
+                )
+                // web::scope("/api")
+                //     .service(mining_proxy::web::handles::user::login)
+                //     .service(mining_proxy::web::handles::user::crate_app)
+                //     .service(mining_proxy::web::handles::user::server_list)
+                //     .service(mining_proxy::web::handles::user::server)
+                //     .service(mining_proxy::web::handles::user::info),
             )
         })
         .bind("0.0.0.0:8000")?
@@ -136,6 +159,128 @@ async fn async_main() -> Result<()> {
     } else {
         tokio_run(&matches).await
     }
+}
+
+fn actix_main(matches: ArgMatches<'static>) -> Result<()> {
+    // let mut rt = tokio::runtime::Runtime::new().unwrap();
+    // let local = tokio::task::LocalSet::new();
+    // local.block_on(&mut rt, async move {
+    //     tokio::task::spawn_local(async move {
+    //         let local = tokio::task::LocalSet::new();
+    //         let sys = actix_rt::System::run_in_tokio("server", &local);
+    //         // define your actix-web app
+    //         // define your actix-web server
+    //         sys.await;
+    //     });
+    //     // This still allows use of tokio::spawn
+    // });
+
+    //let mut data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
+    //let l = matches.clone();
+    //let a = data.clone();
+    actix_web::rt::System::new("a").block_on(async move {
+        actix_run(matches).await;
+    });
+
+    Ok(())
+}
+
+async fn actix_run(matches: ArgMatches<'_>) -> Result<()> {
+    logger::init_client(0)?;
+
+    //let mut childs:HashMap<String,tokio::process::Child> =
+    // HashMap::new();
+    let mut data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
+
+    match OpenOptions::new()
+        .write(true)
+        .read(true)
+        //.create(true)
+        //.truncate(true)
+        .open("configs.yaml")
+    {
+        Ok(mut f) => {
+            //let configs:Vec<Settings> = vec![];
+            let mut configs = String::new();
+            if let Ok(len) = f.read_to_string(&mut configs) {
+                if len > 0 {
+                    let configs: Vec<Settings> =
+                        match serde_yaml::from_str(&configs) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                log::error!("{}", e);
+                                vec![]
+                            }
+                        };
+                    for config in configs {
+                        match mining_proxy::util::run_server(&config) {
+                            Ok(child) => {
+                                let online = OnlineWorker {
+                                    child,
+                                    config: config.clone(),
+                                    workers: vec![],
+                                    online: 0,
+                                };
+                                data.lock()
+                                    .unwrap()
+                                    .insert(config.name, online);
+                            }
+                            Err(e) => {
+                                log::error!("{}", e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(_) => {}
+    };
+
+    let tcp_data = data.clone();
+    //let handle_tcp_connections = tokio::spawn(async move {
+    // recv_from_child(tcp_data).await });
+
+    let http = HttpServer::new(move || {
+        /*  .service(
+            web::scope("/api")
+                .service(mining_proxy::web::handles::user::login)
+                .service(mining_proxy::web::handles::user::crate_app)
+                .service(mining_proxy::web::handles::user::server_list)
+                .service(mining_proxy::web::handles::user::server)
+                .service(mining_proxy::web::handles::user::info),
+        ). */
+
+        // .service(actix_web_static_files::ResourceFiles::new(
+        //     "/", generated,
+        // ))
+        let generated = generate();
+
+        App::new()
+            .app_data(web::Data::new(data.clone()))
+            .service(
+                web::scope("/api")
+                    .service(mining_proxy::web::handles::user::login)
+                    .service(mining_proxy::web::handles::user::crate_app)
+                    .service(mining_proxy::web::handles::user::server_list)
+                    .service(mining_proxy::web::handles::user::server)
+                    .service(mining_proxy::web::handles::user::info),
+            )
+            .service(actix_web_static_files::ResourceFiles::new("/", generated))
+    })
+    .bind("0.0.0.0:8000")?
+    .run()
+    .await?;
+
+    Ok(())
+}
+
+fn tokio_main(matches: &ArgMatches<'_>) {
+    tokio::runtime::Builder::new_multi_thread()
+        //.worker_threads(N)
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async { tokio_run(matches).await });
 }
 
 async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
@@ -241,7 +386,9 @@ async fn send_to_parent(
     }
 }
 
-async fn recv_from_child(app: AppState) -> Result<()> {
+async fn recv_from_child() -> Result<()> {
+    let mut app: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
+
     let address = "127.0.0.1:65500";
     let listener = match tokio::net::TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
