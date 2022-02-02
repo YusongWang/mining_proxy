@@ -2,6 +2,7 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
+use actix_cors::Cors;
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -13,7 +14,15 @@ use std::{
 };
 extern crate openssl_probe;
 
-use actix_web::{get, post, web, App, HttpServer, Responder, dev::Service};
+use actix_web_httpauth::{
+    extractors::bearer::BearerAuth, middleware::HttpAuthentication,
+};
+
+use actix_web::{
+    dev::{Service, ServiceRequest},
+    get, post, web, App, Error, HttpServer, Responder,
+};
+
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
@@ -61,14 +70,13 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-
 async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
     logger::init_client(0)?;
 
     //let mut childs:HashMap<String,tokio::process::Child> =
     // HashMap::new();
 
-    let mut data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
+    let data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
 
     match OpenOptions::new()
         .write(true)
@@ -122,11 +130,13 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
         Err(_) => 8888,
     };
 
+    log::info!("web 界面地址为: {}", format!("0.0.0.0:{}", port));
     HttpServer::new(move || {
         let generated = generate();
         let generated1 = generate();
-
         App::new()
+            //.wrap(HttpAuthentication::bearer(ok_validator))
+            .wrap(Cors::permissive())
             .app_data(web::Data::new(data.clone()))
             .service(
                 web::scope("/api")
@@ -140,10 +150,6 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
                 "/", generated1,
             ))
             .service(actix_web_static_files::ResourceFiles::new("", generated))
-            .wrap_fn(async move|req, srv| {
-                println!("Hi from start. You requested: {}", req.path());
-                srv.call(req).await
-            })
     })
     .workers(1)
     .bind(format!("0.0.0.0:{}", port))?
@@ -151,6 +157,13 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
     .await?;
 
     Ok(())
+}
+
+async fn ok_validator(
+    req: ServiceRequest, credentials: BearerAuth,
+) -> Result<ServiceRequest, Error> {
+    eprintln!("{:?}", credentials);
+    Ok(req)
 }
 
 fn tokio_main(matches: &ArgMatches<'_>) {
