@@ -234,6 +234,15 @@ async fn actix_run(matches: ArgMatches<'_>) -> Result<()> {
     let tcp_data = data.clone();
     //let handle_tcp_connections = tokio::spawn(async move {
     // recv_from_child(tcp_data).await });
+    let port:i32 = match std::env::var("MINING_PROXY_WEB_PORT") {
+        Ok(p) => {
+            p.parse().unwrap()
+        },
+        Err(_) => {
+            8888
+        }
+    };
+
 
     let http = HttpServer::new(move || {
         /*  .service(
@@ -262,7 +271,7 @@ async fn actix_run(matches: ArgMatches<'_>) -> Result<()> {
             )
             .service(actix_web_static_files::ResourceFiles::new("/", generated))
     })
-    .bind("0.0.0.0:8000")?
+    .bind(format!("0.0.0.0:{}",port))?
     .run()
     .await?;
 
