@@ -13,7 +13,6 @@ use anyhow::{bail, Result};
 use hex::FromHex;
 use log::{debug, info};
 
-use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
 extern crate rand;
 
@@ -514,7 +513,7 @@ where
         time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(proxy_sleep);
 
-    let sleep = time::sleep(tokio::time::Duration::from_secs(5));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(60));
     tokio::pin!(sleep);
 
     loop {
@@ -1061,7 +1060,7 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(5));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
             },
         }
     }

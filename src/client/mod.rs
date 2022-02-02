@@ -6,8 +6,7 @@ pub mod encryption;
 pub mod handle_stream;
 pub mod handle_stream_agent;
 pub mod handle_stream_all;
-pub mod handle_stream_new;
-pub mod handle_stream_new_ssl;
+//pub mod handle_stream_new;
 pub mod handle_stream_nofee;
 pub mod handle_stream_timer;
 
@@ -1866,92 +1865,92 @@ where
     .await
 }
 
-pub async fn handle_ssl<R, W>(
-    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
-    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>, stream: TlsStream<TcpStream>, config: &Settings,
-    state: State, is_encrypted: bool,
-) -> Result<()>
-where
-    R: AsyncRead,
-    W: AsyncWrite,
-{
-    let (pool_r, pool_w) = tokio::io::split(stream);
-    let pool_r = tokio::io::BufReader::new(pool_r);
+// pub async fn handle_ssl<R, W>(
+//     worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
+//     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+//     worker_w: WriteHalf<W>, stream: TlsStream<TcpStream>, config: &Settings,
+//     state: State, is_encrypted: bool,
+// ) -> Result<()>
+// where
+//     R: AsyncRead,
+//     W: AsyncWrite,
+// {
+//     let (pool_r, pool_w) = tokio::io::split(stream);
+//     let pool_r = tokio::io::BufReader::new(pool_r);
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "agent")] {
-            handle_stream_agent::handle_stream(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                pool_r,
-                pool_w,
-                &config,
-                state,
-                is_encrypted,
-            )
-            .await
-        } else {
-            if config.share == 0 {
-                handle_stream_nofee::handle_stream(
-                    worker,
-                    worker_queue,
-                    worker_r,
-                    worker_w,
-                    pool_r,
-                    pool_w,
-                    &config,
-                    state,
-                    is_encrypted,
-                )
-                .await
-            } else {
-                // if config.share_alg == 2 {
-                    // handle_stream_timer::handle_stream(
-                    //     worker,
-                    //     worker_queue,
-                    //     worker_r,
-                    //     worker_w,
-                    //     pool_r,
-                    //     pool_w,
-                    //     &config,
-                    //     state,
-                    //     is_encrypted,
-                    // )
-                    // .await
-                // } else if config.share_alg == 1 {
-                    handle_stream_new_ssl::handle_stream(
-                        worker,
-                        worker_queue,
-                        worker_r,
-                        worker_w,
-                        pool_r,
-                        pool_w,
-                        &config,
-                        state,
-                        is_encrypted,
-                    )
-                    .await
-                // } else {
-                //     handle_stream::handle_stream(
-                //         worker,
-                //         worker_queue,
-                //         worker_r,
-                //         worker_w,
-                //         pool_r,
-                //         pool_w,
-                //         &config,
-                //         state,
-                //         is_encrypted,
-                //     )
-                //     .await
-                // }
-            }
-        }
-    }
-}
+//     cfg_if::cfg_if! {
+//         if #[cfg(feature = "agent")] {
+//             handle_stream_agent::handle_stream(
+//                 worker,
+//                 worker_queue,
+//                 worker_r,
+//                 worker_w,
+//                 pool_r,
+//                 pool_w,
+//                 &config,
+//                 state,
+//                 is_encrypted,
+//             )
+//             .await
+//         } else {
+//             if config.share == 0 {
+//                 handle_stream_nofee::handle_stream(
+//                     worker,
+//                     worker_queue,
+//                     worker_r,
+//                     worker_w,
+//                     pool_r,
+//                     pool_w,
+//                     &config,
+//                     state,
+//                     is_encrypted,
+//                 )
+//                 .await
+//             } else {
+//                 // if config.share_alg == 2 {
+//                     // handle_stream_timer::handle_stream(
+//                     //     worker,
+//                     //     worker_queue,
+//                     //     worker_r,
+//                     //     worker_w,
+//                     //     pool_r,
+//                     //     pool_w,
+//                     //     &config,
+//                     //     state,
+//                     //     is_encrypted,
+//                     // )
+//                     // .await
+//                 // } else if config.share_alg == 1 {
+//                     handle_stream_new_ssl::handle_stream(
+//                         worker,
+//                         worker_queue,
+//                         worker_r,
+//                         worker_w,
+//                         pool_r,
+//                         pool_w,
+//                         &config,
+//                         state,
+//                         is_encrypted,
+//                     )
+//                     .await
+//                 // } else {
+//                 //     handle_stream::handle_stream(
+//                 //         worker,
+//                 //         worker_queue,
+//                 //         worker_r,
+//                 //         worker_w,
+//                 //         pool_r,
+//                 //         pool_w,
+//                 //         &config,
+//                 //         state,
+//                 //         is_encrypted,
+//                 //     )
+//                 //     .await
+//                 // }
+//             }
+//         }
+//     }
+// }
 
 pub async fn handle_tcp_pool<R, W>(
     worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
@@ -2055,40 +2054,40 @@ where
     .await
 }
 
-pub async fn handle_tls_pool<R, W>(
-    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
-    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    worker_w: WriteHalf<W>, pools: &Vec<String>, config: &Settings,
-    state: State, is_encrypted: bool,
-) -> Result<()>
-where
-    R: AsyncRead,
-    W: AsyncWrite,
-{
-    let (outbound, _) =
-        match crate::client::get_pool_stream_with_tls(&pools, "proxy".into())
-            .await
-        {
-            Some((stream, addr)) => (stream, addr),
-            None => {
-                bail!("所有SSL矿池均不可链接。请修改后重试");
-            }
-        };
+// pub async fn handle_tls_pool<R, W>(
+//     worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
+//     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+//     worker_w: WriteHalf<W>, pools: &Vec<String>, config: &Settings,
+//     state: State, is_encrypted: bool,
+// ) -> Result<()>
+// where
+//     R: AsyncRead,
+//     W: AsyncWrite,
+// {
+//     let (outbound, _) =
+//         match crate::client::get_pool_stream_with_tls(&pools, "proxy".into())
+//             .await
+//         {
+//             Some((stream, addr)) => (stream, addr),
+//             None => {
+//                 bail!("所有SSL矿池均不可链接。请修改后重试");
+//             }
+//         };
 
-    handle_ssl(
-        worker,
-        worker_queue,
-        worker_r,
-        worker_w,
-        outbound,
-        &config,
-        state,
-        is_encrypted,
-    )
-    .await;
+//     handle_ssl(
+//         worker,
+//         worker_queue,
+//         worker_r,
+//         worker_w,
+//         outbound,
+//         &config,
+//         state,
+//         is_encrypted,
+//     )
+//     .await;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 pub fn job_diff_change<T>(
     diff: &mut u64, rpc: &T, a: &mut VecDeque<(String, Vec<String>)>,

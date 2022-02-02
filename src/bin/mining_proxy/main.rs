@@ -114,16 +114,10 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
 
     let tcp_data = data.clone();
     tokio::spawn(async move { recv_from_child(tcp_data).await });
-    let port:i32 = match std::env::var("MINING_PROXY_WEB_PORT") {
-        Ok(p) => {
-            p.parse().unwrap()
-        },
-        Err(_) => {
-            8888
-        }
+    let port: i32 = match std::env::var("MINING_PROXY_WEB_PORT") {
+        Ok(p) => p.parse().unwrap(),
+        Err(_) => 8888,
     };
-
-
 
     HttpServer::new(move || {
         /*  .service(
@@ -159,13 +153,13 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
             ))
             .service(actix_web_static_files::ResourceFiles::new("", generated))
     })
-    .bind(format!("0.0.0.0:{}",port))?
+    .workers(1)
+    .bind(format!("0.0.0.0:{}", port))?
     .run()
     .await?;
 
     Ok(())
 }
-
 
 fn tokio_main(matches: &ArgMatches<'_>) {
     tokio::runtime::Builder::new_multi_thread()
