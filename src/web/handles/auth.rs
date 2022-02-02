@@ -1,10 +1,10 @@
 use jsonwebtoken::{
     decode, encode, DecodingKey, EncodingKey, Header, Validation,
 };
-
 use serde::{Deserialize, Serialize};
 
 use crate::JWT_SECRET;
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Claims {

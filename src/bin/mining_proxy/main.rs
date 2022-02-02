@@ -13,7 +13,7 @@ use std::{
 };
 extern crate openssl_probe;
 
-use actix_web::{get, post, web, App, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpServer, Responder, dev::Service};
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
@@ -60,6 +60,7 @@ fn main() -> Result<()> {
     }
     Ok(())
 }
+
 
 async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
     logger::init_client(0)?;
@@ -122,23 +123,8 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
     };
 
     HttpServer::new(move || {
-        /*  .service(
-            web::scope("/api")
-                .service(mining_proxy::web::handles::user::login)
-                .service(mining_proxy::web::handles::user::crate_app)
-                .service(mining_proxy::web::handles::user::server_list)
-                .service(mining_proxy::web::handles::user::server)
-                .service(mining_proxy::web::handles::user::info),
-        ). */
-
-        // .service(actix_web_static_files::ResourceFiles::new(
-        //     "/", generated,
-        // ))
         let generated = generate();
         let generated1 = generate();
-        // for (g, res) in generated {
-        //     dbg!(g);
-        // }
 
         App::new()
             .app_data(web::Data::new(data.clone()))
@@ -154,6 +140,10 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
                 "/", generated1,
             ))
             .service(actix_web_static_files::ResourceFiles::new("", generated))
+            .wrap_fn(async move|req, srv| {
+                println!("Hi from start. You requested: {}", req.path());
+                srv.call(req).await
+            })
     })
     .workers(1)
     .bind(format!("0.0.0.0:{}", port))?
