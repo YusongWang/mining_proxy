@@ -9,7 +9,7 @@ use std::{
     io::Read,
     sync::{atomic::AtomicUsize, Mutex},
 };
-
+use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 extern crate openssl_probe;
 
@@ -41,6 +41,8 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 fn main() -> Result<()> {
     setup_panic!();
     openssl_probe::init_ssl_cert_env_vars();
+    dotenv().ok();
+    
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         actix_web::rt::System::with_tokio_rt(|| {

@@ -39,7 +39,9 @@ openssl-probe = "0.1.5"
 human_bytes = "0.3"
 human-panic = "1.0.3"
 serde_yaml = "0.8.23"
-# jsonwebtoken = "7"
+jsonwebtoken = "7"
+lazy_static = "1.4.0"
+dotenv = "0.15.0"
 # axum = { version = "0.4", features = ["headers"] }
 #sea-orm = { version = "0.5", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros", "with-chrono"], default-features = false }
 #tower-http = { version = "0.2.0", features = ["cors"] }
