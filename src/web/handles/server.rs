@@ -12,8 +12,6 @@ use crate::{
     web::{data::*, AppState, OnlineWorker},
 };
 
-
-
 #[post("/crate/app")]
 pub async fn crate_app(
     req: web::Json<CreateRequest>, app: web::Data<AppState>,

@@ -1,10 +1,10 @@
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use lazy_static::lazy_static;
+use jsonwebtoken::{
+    decode, encode, DecodingKey, EncodingKey, Header, Validation,
+};
+
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-    static ref JWT_SECRET: String = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-}
+use crate::JWT_SECRET;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Claims {

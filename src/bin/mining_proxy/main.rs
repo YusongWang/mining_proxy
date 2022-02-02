@@ -2,6 +2,8 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
+use dotenv::dotenv;
+use serde::{Deserialize, Serialize};
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet},
@@ -9,8 +11,6 @@ use std::{
     io::Read,
     sync::{atomic::AtomicUsize, Mutex},
 };
-use dotenv::dotenv;
-use serde::{Deserialize, Serialize};
 extern crate openssl_probe;
 
 use actix_web::{get, post, web, App, HttpServer, Responder};
@@ -42,7 +42,7 @@ fn main() -> Result<()> {
     setup_panic!();
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
-    
+
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         actix_web::rt::System::with_tokio_rt(|| {
