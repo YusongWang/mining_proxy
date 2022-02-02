@@ -1,6 +1,7 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
+
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet},
@@ -42,8 +43,15 @@ fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
-        //actix_web run time start
-        actix_main(matches);
+        actix_web::rt::System::with_tokio_rt(|| {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                //.worker_threads(8)
+                .thread_name("main-tokio")
+                .build()
+                .unwrap()
+        })
+        .block_on(async_main(matches))?;
     } else {
         //tokio::runtime::start
         tokio_main(&matches);
@@ -51,139 +59,126 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-async fn async_main() -> Result<()> {
-    let matches = mining_proxy::util::get_app_command_matches()?;
-    if !matches.is_present("server") {
-        logger::init_client(0)?;
+async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
+    logger::init_client(0)?;
 
-        //let mut childs:HashMap<String,tokio::process::Child> =
-        // HashMap::new();
+    //let mut childs:HashMap<String,tokio::process::Child> =
+    // HashMap::new();
 
-        let mut data: AppState =
-            std::sync::Arc::new(Mutex::new(HashMap::new()));
+    let mut data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
 
-        match OpenOptions::new()
-            .write(true)
-            .read(true)
-            //.create(true)
-            //.truncate(true)
-            .open("configs.yaml")
-        {
-            Ok(mut f) => {
-                //let configs:Vec<Settings> = vec![];
-                let mut configs = String::new();
-                if let Ok(len) = f.read_to_string(&mut configs) {
-                    if len > 0 {
-                        let configs: Vec<Settings> =
-                            match serde_yaml::from_str(&configs) {
-                                Ok(s) => s,
-                                Err(e) => {
-                                    log::error!("{}", e);
-                                    vec![]
-                                }
-                            };
-                        for config in configs {
-                            match mining_proxy::util::run_server(&config) {
-                                Ok(child) => {
-                                    //TODO
-                                    // struct {
-                                    // child,
-                                    // workers,
-                                    // config,
-                                    // online
+    match OpenOptions::new()
+        .write(true)
+        .read(true)
+        //.create(true)
+        //.truncate(true)
+        .open("configs.yaml")
+    {
+        Ok(mut f) => {
+            //let configs:Vec<Settings> = vec![];
+            let mut configs = String::new();
+            if let Ok(len) = f.read_to_string(&mut configs) {
+                if len > 0 {
+                    let configs: Vec<Settings> =
+                        match serde_yaml::from_str(&configs) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                log::error!("{}", e);
+                                vec![]
+                            }
+                        };
+                    for config in configs {
+                        match mining_proxy::util::run_server(&config) {
+                            Ok(child) => {
+                                let online = OnlineWorker {
+                                    child,
+                                    config: config.clone(),
+                                    workers: vec![],
+                                    online: 0,
+                                };
 
-                                    //}
-                                    //data.global_count.insert(k, v)
-                                    //let mut d = data.clone();
-                                    //let mut a = data.global_count.clone();
-                                    let online = OnlineWorker {
-                                        child,
-                                        config: config.clone(),
-                                        workers: vec![],
-                                        online: 0,
-                                    };
-                                    data.lock()
-                                        .unwrap()
-                                        .insert(config.name, online);
-                                }
-                                Err(e) => {
-                                    log::error!("{}", e);
-                                }
+                                data.lock()
+                                    .unwrap()
+                                    .insert(config.name, online);
+                            }
+                            Err(e) => {
+                                log::error!("{}", e);
                             }
                         }
                     }
                 }
             }
-            Err(_) => {}
-        };
+        }
+        Err(_) => {}
+    };
 
-        let tcp_data = data.clone();
-        tokio::spawn(async move { recv_from_child().await });
+    let tcp_data = data.clone();
+    tokio::spawn(async move { recv_from_child(tcp_data).await });
 
-        HttpServer::new(move || {
-            /*  .service(
+    HttpServer::new(move || {
+        /*  .service(
+            web::scope("/api")
+                .service(mining_proxy::web::handles::user::login)
+                .service(mining_proxy::web::handles::user::crate_app)
+                .service(mining_proxy::web::handles::user::server_list)
+                .service(mining_proxy::web::handles::user::server)
+                .service(mining_proxy::web::handles::user::info),
+        ). */
+
+        // .service(actix_web_static_files::ResourceFiles::new(
+        //     "/", generated,
+        // ))
+        let generated = generate();
+        let generated1 = generate();
+        // for (g, res) in generated {
+        //     dbg!(g);
+        // }
+
+        App::new()
+            .app_data(web::Data::new(data.clone()))
+            .service(
                 web::scope("/api")
                     .service(mining_proxy::web::handles::user::login)
                     .service(mining_proxy::web::handles::user::crate_app)
                     .service(mining_proxy::web::handles::user::server_list)
                     .service(mining_proxy::web::handles::user::server)
                     .service(mining_proxy::web::handles::user::info),
-            ). */
-
-            // .service(actix_web_static_files::ResourceFiles::new(
-            //     "/", generated,
-            // ))
-            let generated = generate();
-
-            // for (g, res) in generated {
-            //     dbg!(g);
-            // }
-
-            App::new().app_data(web::Data::new(data.clone())).service(
-                actix_web_static_files::ResourceFiles::new(
-                    "/", generated,
-                )
-                // web::scope("/api")
-                //     .service(mining_proxy::web::handles::user::login)
-                //     .service(mining_proxy::web::handles::user::crate_app)
-                //     .service(mining_proxy::web::handles::user::server_list)
-                //     .service(mining_proxy::web::handles::user::server)
-                //     .service(mining_proxy::web::handles::user::info),
             )
-        })
-        .bind("0.0.0.0:8000")?
-        .run()
-        .await?;
-
-        Ok(())
-    } else {
-        tokio_run(&matches).await
-    }
-}
-
-fn actix_main(matches: ArgMatches<'static>) -> Result<()> {
-    // let mut rt = tokio::runtime::Runtime::new().unwrap();
-    // let local = tokio::task::LocalSet::new();
-    // local.block_on(&mut rt, async move {
-    //     tokio::task::spawn_local(async move {
-    //         let local = tokio::task::LocalSet::new();
-    //         let sys = actix_rt::System::run_in_tokio("server", &local);
-    //         // define your actix-web app
-    //         // define your actix-web server
-    //         sys.await;
-    //     });
-    //     // This still allows use of tokio::spawn
-    // });
-
-    //let mut data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
-    //let l = matches.clone();
-    //let a = data.clone();
-    actix_web::rt::System::new("a").block_on(async move {
-        actix_run(matches).await;
-    });
+            .service(actix_web_static_files::ResourceFiles::new(
+                "/", generated1,
+            ))
+            .service(actix_web_static_files::ResourceFiles::new("", generated))
+    })
+    .bind("0.0.0.0:8000")?
+    .run()
+    .await?;
 
     Ok(())
 }
+
+// fn actix_main(matches: ArgMatches<'static>) -> Result<()> {
+//     // let mut rt = tokio::runtime::Runtime::new().unwrap();
+//     // let local = tokio::task::LocalSet::new();
+//     // local.block_on(&mut rt, async move {
+//     //     tokio::task::spawn_local(async move {
+//     //         let local = tokio::task::LocalSet::new();
+//     //         let sys = actix_rt::System::run_in_tokio("server", &local);
+//     //         // define your actix-web app
+//     //         // define your actix-web server
+//     //         sys.await;
+//     //     });
+//     //     // This still allows use of tokio::spawn
+//     // });
+
+//     //let mut data: AppState =
+// std::sync::Arc::new(Mutex::new(HashMap::new()));     //let l =
+// matches.clone();     //let a = data.clone();
+//     actix_web::rt::System::new("a").block_on(async move {
+//         actix_run(matches).await;
+//     });
+
+//     Ok(())
+// }
 
 async fn actix_run(matches: ArgMatches<'_>) -> Result<()> {
     logger::init_client(0)?;
@@ -340,7 +335,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             cert,
             state.clone()
         ),
-        send_to_parent(worker_rx),
+        send_to_parent(worker_rx, &config),
     );
 
     if let Err(err) = res {
@@ -350,8 +345,15 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendToParentStruct {
+    name: String,
+    worker: Worker,
+}
+
 async fn send_to_parent(
-    mut worker_rx: UnboundedReceiver<Worker>,
+    mut worker_rx: UnboundedReceiver<Worker>, config: &Settings,
 ) -> Result<()> {
     let runtime = std::time::Instant::now();
 
@@ -367,9 +369,16 @@ async fn send_to_parent(
             // let mut b = a.as_bytes().to_vec();
             // b.push(b'\n');
             // stream.write(&b).await.unwrap();
+            let name = config.name.clone();
+
             select! {
                 Some(w) = worker_rx.recv() => {
-                    let mut rpc = serde_json::to_vec(&w)?;
+                    let send = SendToParentStruct{
+                        name:name,
+                        worker:w,
+                    };
+
+                    let mut rpc = serde_json::to_vec(&send)?;
                     rpc.push(b'\n');
                     stream.write(&rpc).await.unwrap();
                 },
@@ -386,9 +395,7 @@ async fn send_to_parent(
     }
 }
 
-async fn recv_from_child() -> Result<()> {
-    let mut app: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
-
+async fn recv_from_child(app: AppState) -> Result<()> {
     let address = "127.0.0.1:65500";
     let listener = match tokio::net::TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
@@ -418,22 +425,23 @@ async fn recv_from_child() -> Result<()> {
                     log::info!("{}", s);
                     log::info!("-----------------------");
                     if let Ok(online_work) =
-                        serde_json::from_str::<Worker>(&buf_str)
+                        serde_json::from_str::<SendToParentStruct>(&buf_str)
                     {
                         dbg!(&online_work);
 
                         if let Some(temp_app) =
-                            inner_app.lock().unwrap().get_mut("22220".into())
+                            inner_app.lock().unwrap().get_mut(&online_work.name)
                         {
                             let mut is_update = false;
                             for worker in &mut temp_app.workers {
-                                if worker.worker == online_work.worker {
-                                    *worker = online_work.clone();
+                                if worker.worker == online_work.worker.worker {
+                                    dbg!(&worker);
+                                    *worker = online_work.worker.clone();
                                     is_update = true;
                                 }
                             }
                             if is_update == false {
-                                temp_app.workers.push(online_work);
+                                temp_app.workers.push(online_work.worker);
                             }
                         } else {
                             log::error!("未找到此端口");

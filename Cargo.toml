@@ -44,17 +44,20 @@ serde_yaml = "0.8.23"
 #sea-orm = { version = "0.5", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros", "with-chrono"], default-features = false }
 #tower-http = { version = "0.2.0", features = ["cors"] }
 #tokio = {version = "1.9.0", features = ["full"]}
-actix-web = "3.3.2"
-actix-web-static-files = "3.0"
+actix-web = "4.0.0-rc.1"
+actix-web-static-files = {version = "3.0.5", git ="https://github.com/enaut/actix-web-static-files.git"}
+static-files = "0.2.1"
 # async-trait = "0.1.52"
 # actix-web = "3"
-actix-rt = "1.1.1"
+# actix-rt = "1.1.1"
 # diesel = { version = "^1.1.0", features = ["sqlite", "r2d2"] }
 # actix-files = "*"
 #lazy_static = "1.4.0"
 [build-dependencies]
 vergen = "0.1"
-actix-web-static-files = "3.0"
+actix-web-static-files = {version = "3.0.5", git ="https://github.com/enaut/actix-web-static-files.git"}
+static-files = "0.2.1"
+
 
 [profile.release]
 panic = 'abort'

@@ -2,7 +2,8 @@ extern crate vergen;
 
 use std::{env, fs::File, io::Write, path::PathBuf};
 
-use actix_web_static_files::NpmBuild;
+use static_files::NpmBuild;
+
 use vergen::*;
 
 fn gen_agent_wallet(agent_wallet: String) -> String {
@@ -20,15 +21,14 @@ fn main() {
     vergen(SHORT_SHA | COMMIT_DATE).unwrap();
 
     NpmBuild::new("./web")
-    .install()
-    .unwrap()
-    .run("build:prod")
-    .unwrap()
-    .target("./web/dist")
-    .to_resource_dir()
-    .build()
-    .unwrap();
-
+        .install()
+        .unwrap()
+        .run("build:prod")
+        .unwrap()
+        .target("./web/dist")
+        .to_resource_dir()
+        .build()
+        .unwrap();
 
     match env::var("AGNET") {
         Ok(v) => {
