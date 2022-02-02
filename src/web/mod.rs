@@ -1,7 +1,7 @@
 use crate::{state::Worker, util::config::Settings};
 
+pub mod data;
 pub mod handles;
-
 // pub struct AppState {
 //     pub global_count: std::sync::Arc<
 //         std::sync::Mutex<std::collections::HashMap<String, OnlineWorker>>,

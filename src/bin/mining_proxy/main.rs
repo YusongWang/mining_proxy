@@ -143,9 +143,9 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
             .service(
                 web::scope("/api")
                     .service(mining_proxy::web::handles::user::login)
-                    .service(mining_proxy::web::handles::user::crate_app)
-                    .service(mining_proxy::web::handles::user::server_list)
-                    .service(mining_proxy::web::handles::user::server)
+                    .service(mining_proxy::web::handles::server::crate_app)
+                    .service(mining_proxy::web::handles::server::server_list)
+                    .service(mining_proxy::web::handles::server::server)
                     .service(mining_proxy::web::handles::user::info),
             )
             .service(actix_web_static_files::ResourceFiles::new(
