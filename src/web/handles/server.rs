@@ -1,9 +1,10 @@
+use actix_web_grants::proc_macro::has_permissions;
 use std::{
     fs::OpenOptions,
     io::{Read, Write},
 };
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, post, web, Responder};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -13,6 +14,7 @@ use crate::{
 };
 
 #[post("/crate/app")]
+#[has_permissions("ROLE_ADMIN")]
 pub async fn crate_app(
     req: web::Json<CreateRequest>, app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
@@ -116,7 +118,7 @@ pub async fn crate_app(
         Ok(f) => f,
         Err(_) => match File::create("configs.yaml") {
             Ok(t) => t,
-            Err(e) => panic!(e),
+            Err(e) => std::panic::panic_any(e),
         },
     };
 
@@ -153,7 +155,7 @@ pub async fn crate_app(
                         Ok(f) => f,
                         Err(_) => match File::create("configs.yaml") {
                             Ok(t) => t,
-                            Err(e) => panic!(e),
+                            Err(e) => std::panic::panic_any(e),
                         },
                     };
 
@@ -261,6 +263,7 @@ pub async fn crate_app(
 }
 
 #[get("/user/server_list")]
+#[has_permissions("ROLE_ADMIN")]
 async fn server_list(
     app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
@@ -297,7 +300,7 @@ async fn server(
 
     let mut res: OnlineWorkerResult = OnlineWorkerResult::default();
     {
-        let mut proxy_server = app.lock().unwrap();
+        let proxy_server = app.lock().unwrap();
         for (name, server) in &*proxy_server {
             log::info!("server {} ", name);
             if *name == proxy_server_name.to_string() {

@@ -1,9 +1,6 @@
-use std::{
-    sync::{
-        atomic::{AtomicU32, AtomicU64},
-        Arc,
-    },
-    time::Instant,
+use std::sync::{
+    atomic::{AtomicU32, AtomicU64},
+    Arc,
 };
 
 use log::{debug, info};

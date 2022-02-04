@@ -2,37 +2,24 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
-use actix_cors::Cors;
 use dotenv::dotenv;
+use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::Cell,
-    collections::{HashMap, HashSet},
-    fs::OpenOptions,
-    io::Read,
-    sync::{atomic::AtomicUsize, Mutex},
-};
+use std::{collections::HashMap, fs::OpenOptions, io::Read, sync::Mutex};
 extern crate openssl_probe;
 
-use actix_web_httpauth::{
-    extractors::bearer::BearerAuth, middleware::HttpAuthentication,
-};
-
-use actix_web::{
-    dev::{Service, ServiceRequest},
-    get, post, web, App, Error, HttpServer, Responder,
-};
+use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
 
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     state::Worker,
     util::{config::Settings, logger},
-    web::{AppState, OnlineWorker},
+    web::{handles::auth::Claims, AppState, OnlineWorker},
 };
 
-use anyhow::{bail, Result};
-use bytes::{BufMut, BytesMut};
-use clap::{crate_version, ArgMatches};
+use anyhow::Result;
+use bytes::BytesMut;
+use clap::ArgMatches;
 use human_panic::setup_panic;
 use native_tls::Identity;
 
@@ -70,7 +57,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
+async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
     logger::init_client(0)?;
 
     //let mut childs:HashMap<String,tokio::process::Child> =
@@ -130,13 +117,13 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
         Err(_) => 8888,
     };
 
-    log::info!("web 界面地址为: {}", format!("0.0.0.0:{}", port));
-    HttpServer::new(move || {
+    let web_sever = HttpServer::new(move || {
         let generated = generate();
         let generated1 = generate();
+        use actix_web_grants::GrantsMiddleware;
+        let auth = GrantsMiddleware::with_extractor(extract);
         App::new()
-            //.wrap(HttpAuthentication::bearer(ok_validator))
-            .wrap(Cors::permissive())
+            .wrap(auth)
             .app_data(web::Data::new(data.clone()))
             .service(
                 web::scope("/api")
@@ -153,17 +140,11 @@ async fn async_main(matches: ArgMatches<'_>) -> Result<()> {
     })
     .workers(1)
     .bind(format!("0.0.0.0:{}", port))?
-    .run()
-    .await?;
+    .run();
 
+    log::info!("界面启动成功地址为: {}", format!("0.0.0.0:{}", port));
+    web_sever.await;
     Ok(())
-}
-
-async fn ok_validator(
-    req: ServiceRequest, credentials: BearerAuth,
-) -> Result<ServiceRequest, Error> {
-    eprintln!("{:?}", credentials);
-    Ok(req)
 }
 
 fn tokio_main(matches: &ArgMatches<'_>) {
@@ -252,7 +233,7 @@ pub struct SendToParentStruct {
 async fn send_to_parent(
     mut worker_rx: UnboundedReceiver<Worker>, config: &Settings,
 ) -> Result<()> {
-    let runtime = std::time::Instant::now();
+    let _runtime = std::time::Instant::now();
 
     loop {
         if let Ok(mut stream) =
@@ -310,12 +291,12 @@ async fn recv_from_child(app: AppState) -> Result<()> {
         //r_lines.next_line() => {}
         //let mut pool_lines = pool_r.lines();
         tokio::spawn(async move {
-            let (mut r, _) = stream.split();
-            let mut r_buf = BufReader::new(r);
+            let (r, _) = stream.split();
+            let r_buf = BufReader::new(r);
             let mut r_lines = r_buf.lines();
 
             loop {
-                let mut buf: BytesMut = BytesMut::new();
+                let buf: BytesMut = BytesMut::new();
 
                 if let Ok(Some(buf_str)) = r_lines.next_line().await {
                     let s = String::from_utf8(buf.to_vec()).unwrap();
@@ -350,4 +331,41 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     }
 
     Ok(())
+}
+
+use mining_proxy::JWT_SECRET;
+
+const ROLE_ADMIN: &str = "ROLE_ADMIN";
+// You can use both &ServiceRequest and &mut ServiceRequest
+async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
+    // Here is a place for your code to get user permissions/grants/permissions
+    // from a request For example from a token or database
+    log::info!("check the Role");
+    println!("{:?}", req.headers().get("token"));
+
+    if req.path() != "/api/user/login" {
+        // 判断权限
+        if let Some(token) = req.headers().get("token") {
+            let token_data = decode::<Claims>(
+                token.to_str().unwrap(),
+                &DecodingKey::from_secret(JWT_SECRET.as_bytes()),
+                &Validation::default(),
+            );
+            dbg!(&token_data);
+
+            if let Ok(_) = token_data {
+                Ok(vec![ROLE_ADMIN.to_string()])
+            } else {
+                Ok(vec![])
+            }
+        } else {
+            Ok(vec![])
+        }
+    } else {
+        Ok(vec![])
+    }
+
+    //println!("{:?}",req.headers());
+
+    // Stub example
 }

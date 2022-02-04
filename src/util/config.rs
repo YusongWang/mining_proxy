@@ -199,7 +199,7 @@ impl Settings {
         //尝试监听本地端口
         if self.tcp_port != 0 {
             let address = format!("0.0.0.0:{}", self.tcp_port);
-            let listener = match TcpListener::bind(address.clone()) {
+            let _listener = match TcpListener::bind(address.clone()) {
                 Ok(listener) => listener,
                 Err(_) => {
                     bail!("TCP端口被占用 {}", self.tcp_port);
@@ -209,7 +209,7 @@ impl Settings {
 
         if self.ssl_port != 0 {
             let address = format!("0.0.0.0:{}", self.ssl_port);
-            let listener = match TcpListener::bind(address.clone()) {
+            let _listener = match TcpListener::bind(address.clone()) {
                 Ok(listener) => listener,
                 Err(_) => {
                     bail!("SSL端口被占用 {}", self.ssl_port);
@@ -219,7 +219,7 @@ impl Settings {
 
         if self.encrypt_port != 0 {
             let address = format!("0.0.0.0:{}", self.encrypt_port);
-            let listener = match TcpListener::bind(address.clone()) {
+            let _listener = match TcpListener::bind(address.clone()) {
                 Ok(listener) => listener,
                 Err(_) => {
                     bail!("加密端口被占用 {}", self.encrypt_port);

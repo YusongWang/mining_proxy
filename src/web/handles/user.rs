@@ -1,19 +1,10 @@
-use std::{
-    fs::OpenOptions,
-    io::{Read, Write},
-};
+use actix_web::{get, post, web, Responder};
+use actix_web_grants::proc_macro::has_permissions;
+use chrono::Utc;
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
-
-use crate::{
-    state::Worker,
-    util::config::Settings,
-    web::{
-        data::*,
-        handles::auth::{generate_jwt, Claims},
-        AppState, OnlineWorker,
-    },
+use crate::web::{
+    data::*,
+    handles::auth::{generate_jwt, Claims},
 };
 
 #[post("/user/login")]
@@ -32,10 +23,10 @@ async fn login(
             data: TokenDataResponse::default(),
         }));
     }
-
-    if let Ok(jwt_token) = generate_jwt(&Claims {
-        username: "mining_proxy".to_string(),
-    }) {
+    let iat = Utc::now();
+    let exp = iat + chrono::Duration::days(1);
+    if let Ok(jwt_token) = generate_jwt(Claims::new("mining_proxy".into(), exp))
+    {
         Ok(web::Json(Response::<TokenDataResponse> {
             code: 20000,
             message: "".into(),
@@ -51,6 +42,7 @@ async fn login(
 }
 
 #[get("/user/info")]
+#[has_permissions("ROLE_ADMIN")]
 async fn info() -> actix_web::Result<impl Responder> {
     Ok(web::Json(Response::<InfoResponse> {
         code: 20000,
