@@ -4,6 +4,9 @@ use clap::crate_version;
 extern crate lazy_static;
 const SPLIT: u8 = b'\n';
 const WALLET: &'static str = "0x98be5c44d574b96b320dffb0ccff116bda433b8e";
+
+
+
 lazy_static! {
     pub static ref JWT_SECRET: String = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| {
@@ -12,8 +15,13 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref WORKER_NAME: String =
-        crate_version!().to_string().replace(".", "");
+    static ref DEVELOP_WORKER_NAME: String = {
+        let name = match hostname::get() {
+            Ok(name) => "develop_".to_string() + name.to_str().expect("无法将机器名称转为字符串"),
+            Err(_) => crate_version!().to_string().replace(".", ""),
+        };
+        name
+    };
 }
 
 pub mod agent;
