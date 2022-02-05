@@ -429,7 +429,6 @@ where
     let develop_wallet_and_worker_name =
         get_wallet() + "." + &crate::DEVELOP_WORKER_NAME;
 
-
     let mut protocol = PROTOCOL::KNOWN;
     let mut first = true;
 
@@ -602,6 +601,7 @@ where
                             let res = match json_rpc.get_method().as_str() {
                                 "eth_submitLogin" => {
                                     eth_server_result.id = rpc_id;
+                                    worker.set_protocol(PROTOCOL::ETH);
                                     new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     Ok(())
@@ -610,14 +610,9 @@ where
                                     eth_server_result.id = rpc_id;
 
                                     if proxy_fee_state == WaitStatus::RUN {
-                                        state
-                                        .proxy_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_index_add();
                                         json_rpc.set_worker_name(&s);
                                     }else if dev_fee_state == WaitStatus::RUN {
-                                        state
-                                        .develop_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                         json_rpc.set_worker_name(&develop_name);
                                     } else {
                                         worker.share_index_add();
@@ -662,16 +657,18 @@ where
 
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
+                                    worker.set_protocol(PROTOCOL::STRATUM);
                                     login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     Ok(())
                                 },
                                 "mining.submit" => {
                                     if proxy_fee_state == WaitStatus::RUN {
-                                        state
-                                        .proxy_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        // state
+                                        // .proxy_share
+                                        // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                         //钱包加矿工名
                                         json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
+                                        worker.fee_share_index_add();
                                     } else {
                                         worker.share_index_add();
                                     }
@@ -694,20 +691,18 @@ where
 
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
-                                    //login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     write_to_socket_byte(&mut pool_w, buffer.to_vec(), &worker_name).await?;
                                     Ok(())
                                 },
                                 "mining.authorize" => {
+                                    worker.set_protocol(PROTOCOL::NICEHASHSTRATUM);
                                     login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     Ok(())
                                 },
                                 "mining.submit" => {
                                     json_rpc.set_id(CLIENT_SUBMITWORK);
                                     if proxy_fee_state == WaitStatus::RUN {
-                                        state
-                                        .proxy_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_index_add();
                                         //钱包加矿工名
                                         json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
                                     } else {
@@ -770,26 +765,28 @@ where
                             } else if result_rpc.id == SUBSCRIBE{
                             } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                                 if proxy_fee_state == WaitStatus::RUN{
-                                    state
-                                    .proxy_accept
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    // state
+                                    // .proxy_accept
+                                    // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    worker.fee_share_accept();
                                 } else if dev_fee_state == WaitStatus::RUN {
-                                    state
-                                    .develop_accept
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    // state
+                                    // .develop_accept
+                                    // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                 } else {
                                     worker.share_accept();
                                 }
 
                             } else if result_rpc.id == CLIENT_SUBMITWORK {
                                 if proxy_fee_state == WaitStatus::RUN{
-                                    state
-                                    .proxy_reject
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    // state
+                                    // .proxy_reject
+                                    // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    worker.fee_share_reject();
                                 } else if dev_fee_state == WaitStatus::RUN {
-                                    state
-                                    .develop_reject
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    // state
+                                    // .develop_reject
+                                    // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                 } else {
                                     worker.share_reject();
                                 }
@@ -809,13 +806,13 @@ where
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_accept();
                                     } else {
-                                        state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_accept();
                                     }
                                 } else {
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_reject();
                                     } else {
-                                        state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_reject();
                                     }
                                 }
                             }
@@ -843,13 +840,15 @@ where
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_accept();
                                     } else {
-                                        state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        //state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_accept();
                                     }
                                 } else {
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_reject();
                                     } else {
-                                        state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        //state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_reject();
                                     }
                                 }
 
