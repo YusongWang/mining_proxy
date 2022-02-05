@@ -18,6 +18,7 @@ fn gen_agent_wallet(agent_wallet: String) -> String {
 }
 
 fn main() {
+    std::env::set_var("OUT_DIR", "./src/generated/");
     vergen(SHORT_SHA | COMMIT_DATE).unwrap();
 
     NpmBuild::new("./web")
