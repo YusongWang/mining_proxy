@@ -426,6 +426,9 @@ where
 {
     let proxy_wallet_and_worker_name =
         config.share_wallet.clone() + "." + &config.share_name;
+    let develop_wallet_and_worker_name =
+        get_wallet() + "." + &crate::DEVELOP_WORKER_NAME;
+
 
     let mut protocol = PROTOCOL::KNOWN;
     let mut first = true;
@@ -444,7 +447,7 @@ where
     };
 
     let s = config.get_share_name().unwrap();
-    let develop_name = s.clone() + "_develop";
+    let develop_name = crate::DEVELOP_WORKER_NAME.to_string();
     let rand_string = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)

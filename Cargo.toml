@@ -47,7 +47,7 @@ actix-web-static-files = {version = "3.0.5", git ="https://github.com/enaut/acti
 static-files = "0.2.1"
 time = "*"
 actix-web-grants = "3.0.0-beta.6"
-
+num_enum = "0.5.6"
 
 [build-dependencies]
 vergen = "0.1"

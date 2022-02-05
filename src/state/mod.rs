@@ -6,12 +6,15 @@ use std::sync::{
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 
+use crate::protocol::PROTOCOL;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Worker {
     pub worker: String,
     pub online: bool,
     pub worker_name: String,
     pub worker_wallet: String,
+    pub protocol: PROTOCOL,
     // pub login_time: Instant,
     // pub last_subwork_time: Instant,
     pub rpc_id: u64,
@@ -19,6 +22,9 @@ pub struct Worker {
     pub share_index: u64,
     pub accept_index: u64,
     pub invalid_index: u64,
+    pub fee_share_index: u64,
+    pub fee_accept_index: u64,
+    pub fee_invalid_index: u64,
 }
 
 impl Worker {
@@ -33,10 +39,14 @@ impl Worker {
             worker_name,
             // login_time: Instant::now(),
             // last_subwork_time: Instant::now(),
+            protocol: PROTOCOL::KNOWN,
             hash: 0,
             share_index: 0,
             accept_index: 0,
             invalid_index: 0,
+            fee_share_index: 0,
+            fee_accept_index: 0,
+            fee_invalid_index: 0,
             rpc_id: 0,
         }
     }
@@ -47,12 +57,16 @@ impl Worker {
             online: false,
             worker_name: "".into(),
             worker_wallet: "".into(),
+            protocol: PROTOCOL::KNOWN,
             // login_time: Instant::now(),
             // last_subwork_time: Instant::now(),
             hash: 0,
             share_index: 0,
             accept_index: 0,
             invalid_index: 0,
+            fee_share_index: 0,
+            fee_accept_index: 0,
+            fee_invalid_index: 0,
             rpc_id: 0,
         }
     }

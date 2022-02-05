@@ -5,9 +5,8 @@ use std::{
 };
 
 use actix_web::{get, post, web, Responder};
-use serde::{Deserialize, Serialize};
 use human_bytes::human_bytes;
-
+use serde::{Deserialize, Serialize};
 
 use crate::{
     state::Worker,
@@ -312,6 +311,8 @@ pub struct OnlineWorkerResult {
     pub workers: Vec<ResWorker>,
     pub online: u32,
     pub config: Settings,
+    pub fee_hash: String,
+    pub total_hash: String,
 }
 
 // 展示选中的数据信息。以json格式返回
@@ -321,16 +322,16 @@ async fn server(
 ) -> actix_web::Result<impl Responder> {
     log::debug!("{}", proxy_server_name);
 
+    let mut total_hash: f64 = 0.0;
+
     let mut res: OnlineWorkerResult = OnlineWorkerResult::default();
     {
         let proxy_server = app.lock().unwrap();
         for (name, server) in &*proxy_server {
             log::info!("server {} ", name);
             if *name == proxy_server_name.to_string() {
-                //config.kill().await?;
-                //server.child.kill().await?;
-
                 for r in &server.workers {
+                    total_hash += r.hash as f64;
                     res.workers.push(ResWorker {
                         worker_name: r.worker_name.clone(),
                         worker_wallet: r.worker_wallet.clone(),
@@ -340,12 +341,14 @@ async fn server(
                         invalid_index: r.invalid_index,
                     });
                 }
-
-                res.online = server.online.clone();
                 res.config = server.config.clone();
             }
         }
         res.online = proxy_server.len() as u32;
+
+        res.fee_hash =
+            human_bytes(total_hash as f64 * res.config.share_rate as f64);
+        res.total_hash = human_bytes(total_hash as f64);
     }
 
     //1. 基本配置文件信息 .
