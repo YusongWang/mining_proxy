@@ -10,7 +10,7 @@ pub struct CreateRequest {
     pub share: u32,
     pub pool_address: String,
     pub share_address: String,
-    pub share_rate: u32,
+    pub share_rate: f32,
     pub share_wallet: String,
     pub key: String,
     pub iv: String,

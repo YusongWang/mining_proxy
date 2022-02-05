@@ -66,7 +66,7 @@ pub async fn crate_app(
             }));
         }
 
-        if req.share_rate == 0 {
+        if req.share_rate <= 0.0 {
             //println!("抽水比例必须填写");
             return Ok(web::Json(Response::<String> {
                 code: 40000,
