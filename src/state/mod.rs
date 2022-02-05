@@ -102,10 +102,7 @@ impl Worker {
     }
 
     // 设置当前链接协议
-    pub fn set_protocol(&mut self,p:PROTOCOL) {
-        self.protocol = p;
-    }
-
+    pub fn set_protocol(&mut self, p: PROTOCOL) { self.protocol = p; }
 
     // 判断是否在线
     pub fn is_online(&self) -> bool { self.online }
