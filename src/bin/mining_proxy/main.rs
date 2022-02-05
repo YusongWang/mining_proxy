@@ -44,7 +44,7 @@ fn main() -> Result<()> {
         actix_web::rt::System::with_tokio_rt(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
-                //.worker_threads(8)
+                .worker_threads(1)
                 .thread_name("main-tokio")
                 .build()
                 .unwrap()
