@@ -6,7 +6,9 @@ const SPLIT: u8 = b'\n';
 const WALLET: &'static str = "0x98be5c44d574b96b320dffb0ccff116bda433b8e";
 
 
-
+pub fn wallcome() {
+    println!("");
+}
 lazy_static! {
     pub static ref JWT_SECRET: String = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| {

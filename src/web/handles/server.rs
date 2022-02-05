@@ -6,6 +6,8 @@ use std::{
 
 use actix_web::{get, post, web, Responder};
 use serde::{Deserialize, Serialize};
+use human_bytes::human_bytes;
+
 
 use crate::{
     state::Worker,
@@ -133,6 +135,17 @@ pub async fn crate_app(
                         vec![]
                     }
                 };
+
+            // 去重
+            for c in &configs {
+                if config.name == c.name {
+                    return Ok(web::Json(Response::<String> {
+                        code: 40000,
+                        message: format!("配置错误 服务器名: {} 已经存在，请修改后重新添加。",config.name),
+                        data: String::default(),
+                    }));
+                }
+            }
 
             dbg!(configs.clone());
             configs.push(config.clone());
@@ -284,9 +297,19 @@ async fn server_list(
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ResWorker {
+    pub worker_name: String,
+    pub worker_wallet: String,
+    pub hash: String,
+    pub share_index: u64,
+    pub accept_index: u64,
+    pub invalid_index: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct OnlineWorkerResult {
-    pub workers: Vec<Worker>,
+    pub workers: Vec<ResWorker>,
     pub online: u32,
     pub config: Settings,
 }
@@ -306,11 +329,23 @@ async fn server(
             if *name == proxy_server_name.to_string() {
                 //config.kill().await?;
                 //server.child.kill().await?;
-                res.workers = server.workers.clone();
+
+                for r in &server.workers {
+                    res.workers.push(ResWorker {
+                        worker_name: r.worker_name.clone(),
+                        worker_wallet: r.worker_wallet.clone(),
+                        hash: human_bytes(r.hash as f64),
+                        share_index: r.share_index,
+                        accept_index: r.accept_index,
+                        invalid_index: r.invalid_index,
+                    });
+                }
+
                 res.online = server.online.clone();
                 res.config = server.config.clone();
             }
         }
+        res.online = proxy_server.len() as u32;
     }
 
     //1. 基本配置文件信息 .
