@@ -2,3 +2,11 @@
 identity.p12
 .DS_Store
 default.yaml
+configs.yaml
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln

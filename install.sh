@@ -1,116 +1,89 @@
-#!/bin/sh
-# shellcheck shell=dash
-#[[ $(id -u) != 0 ]] && echo -e "\n 请使用 ${red}root ${none}用户运行 ${yellow}~(^_^) ${none}\n" && exit 1
-red='\e[91m'
-green='\e[92m'
-yellow='\e[94m'
-magenta='\e[95m'
-cyan='\e[96m'
-none='\e[0m'
-_red() { echo -e ${red}$*${none}; }
-_green() { echo -e ${green}$*${none}; }
-_yellow() { echo -e ${yellow}$*${none}; }
-_magenta() { echo -e ${magenta}$*${none}; }
-_cyan() { echo -e ${cyan}$*${none}; }
+#!/bin/bash
+echo "-----------"
+echo -n "输入矿工名:"
+read workname
+echo -n "输入TCP端口(填写0不开启):"
+read tcp_port
+echo -n "输入SSL端口(填写0不开启):"
+read ssl_port
+echo -n "输入加密协议端口(填写0不开启):"
+read encrypt_port
+echo -n "输入代理池TCP地址(如：tcp://asia2.ethermine.org:4444):"
+read pool_address
+echo -n "是否抽水? 0不抽水 1抽水:"
+read share
+echo -n "输入抽水池TCP地址(如：tcp://asia2.ethermine.org:4444):"
+read share_address
+echo -n "输入抽水钱包地址(0x开头):"
+read share_wallet
+echo -n "输入抽水比例 非常重要不要输入错误 (1为100% 0.01为百分之1% ):"
+read share_rate
+echo "-----------"
+echo "Welcome,$workname!"
+rm -rf ~/proxy_tmp
+cd ~/
+mkdir ~/proxy_tmp
+cd ~/proxy_tmp
 
+wget -c "https://github.com/dothinkdone/mining_proxy/releases/download/v0.2.0/mining_proxy.tar.gz"
+tar -xf ./mining_proxy.tar.gz
 
-if [ "$KSH_VERSION" = 'Version JM 93t+ 2010-03-05' ]; then
-    # The version of ksh93 that ships with many illumos systems does not
-    # support the "local" extension.  Print a message rather than fail in
-    # subtle ways later on:
-    echo '请使用sh 执行 !' >&2
-    exit 1
-fi
-# case $sys_bit in
-# 'amd64' | x86_64) ;;
-# *)
-#     echo -e " 
-# 	 这个 ${red}安装脚本${none} 不支持你的系统。 ${yellow}(-_-) ${none}
-# 	备注: 仅支持 Ubuntu 16+ / Debian 8+ / CentOS 7+ 系统
-# 	" && exit 1
-#     ;;
-# esac
+rm -rf "/opt/$workname/"
+mkdir -p "/opt/$workname/bin"
+mkdir -p "/opt/$workname/config"
+mkdir -p "/opt/$workname/logs"
 
+mv mining_proxy "/opt/$workname/bin"
+mv identity.p12 "/opt/$workname/config/"
 
+cat > /opt/$workname/config/$workname.conf << EOF
+PROXY_NAME="$workname"
+PROXY_LOG_LEVEL=1
+PROXY_LOG_PATH=""
+PROXY_TCP_PORT=$tcp_port
+PROXY_SSL_PORT=$ssl_port
+PROXY_ENCRYPT_PORT=$encrypt_port
+PROXY_POOL_ADDRESS="$pool_address"
+PROXY_SHARE_ADDRESS="$share_address"
+PROXY_SHARE_WALLET="$share_wallet"
+PROXY_SHARE_RATE=$share_rate
+PROXY_SHARE_NAME="$workname"
+PROXY_SHARE=$share
+PROXY_P12_PATH="/opt/$workname/config/identity.p12"
+PROXY_P12_PASS="mypass"
+PROXY_SHARE_ALG=1
+PROXY_KEY="523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664"
+PROXY_IV="275E2015B9E5CA4DDB87B90EBC897F8C"
+EOF
 
-
-set -u
-
-set url = "https://github.com/dothinkdone/minerProxy/releases/download/v0.1.4/linux.tar.gz"
-
-eth_miner_config_ask() {
-    echo
-    while :; do
-        echo -e "是否开启 ETH抽水中转， 输入 [${magenta}Y/N${none}] 按回车"
-        read -p "$(echo -e "(默认: [${cyan}Y${none}]):")" enableEthProxy
-        [[ -z $enableEthProxy ]] && enableEthProxy="y"
-
-        case $enableEthProxy in
-        Y | y)
-            enableEthProxy="y"
-            eth_miner_config
-            break
-            ;;
-        N | n)
-            enableEthProxy="n"
-            echo
-            echo
-            echo -e "$yellow 不启用ETH抽水中转 $none"
-            echo "----------------------------------------------------------------"
-            echo
-            break
-            ;;
-        *)
-            error
-            ;;
-        esac
-    done
-}
-
-main() {
-    eth_miner_config_ask 
-  
-    # mkdir -p ./opt/proxy/{bin,logs,config}
-    # wget -c url
-    # tar -xvf ./opt/linux.tar.gz
-    # mv ./proxy ./opt/proxy/bin/
-    # mv ./default.yaml ./opt/proxy/config/
-    # mv ./identity.p12 ./opt/proxy/config/
-}
-
-
-gen_service() {
-    touch proxy.service
-    echo <<EOF
+cat > /usr/lib/systemd/system/$workname.service << EOF
 [Unit]
-Description=Eth-Proxy
+Description=mining_proxy
 After=network.target
 After=network-online.target
 Wants=network-online.target
-
 [Service]
 Type=simple
-ExecStart=/opt/proxy/bin/proxy -c /opt/proxy/config/default.yaml
+EnvironmentFile=/opt/$workname/config/$workname.conf
+ExecStart=/opt/$workname/bin/mining_proxy
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
 LimitNOFILE=65536
-WorkingDirectory=/opt/proxy/
+WorkingDirectory=/opt/$workname/
 Restart=always
-ReStartSec=600
 [Install]
 WantedBy=multi-user.target
-EOF >> proxy.service;
-}
+EOF
 
-need_cmd() {
-    if ! check_cmd "$1"; then
-        err "need '$1' (command not found)"
-    fi
-}
+systemctl daemon-reload
+systemctl enable $workname
+systemctl start $workname
+echo "已经设置守护进程 $workname"
+echo "加入开机自启动 $workname"
 
-check_cmd() {
-    command -v "$1" > /dev/null 2>&1
-}
-
-
-main "$@" || exit 1
+echo "$workname 已经启动"
+echo "启动命令: systemctl start $workname"
+echo "运行状态查看: systemctl status $workname"
+echo "停止命令: systemctl stop $workname"
+echo "重启命令(修改配置后执行此命令即可): systemctl restart $workname"
+echo "查看日志: journalctl -fu $workname -o cat"

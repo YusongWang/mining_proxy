@@ -1,27 +1,18 @@
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::{bail, Result};
-use hex::FromHex;
+
 use log::{debug, info};
 
-use openssl::{
-    aes::{aes_ige, AesKey},
-    symm::{decrypt, encrypt, Cipher, Mode},
-};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     select,
 };
 
-use crate::client::{self_write_socket_byte, write_to_socket_byte, write_to_socket_string};
+use crate::client::{self_write_socket_byte, write_to_socket_byte};
 
-pub async fn accept_monitor_tcp(
-    port: i32,
-    server: SocketAddr,
-    key: Vec<u8>,
-    iv: Vec<u8>,
-) -> Result<()> {
+pub async fn accept_monitor_tcp(port: i32, server: SocketAddr) -> Result<()> {
     let address = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(address.clone()).await?;
     info!("😄 Accepting Monitor Tcp On: {}", &address);
@@ -29,25 +20,25 @@ pub async fn accept_monitor_tcp(
     loop {
         let (stream, addr) = listener.accept().await?;
         info!("😄 Accepting Monitor Tcp connection from {}", addr);
-        let iv = iv.clone();
-        let key = key.clone();
 
-        tokio::spawn(async move { transfer(stream, server, key, iv).await });
+        tokio::spawn(async move { transfer(stream, server).await });
     }
-
-    Ok(())
 }
 
-async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>) -> Result<()> {
+async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
     let (worker_r, mut worker_w) = tokio::io::split(stream);
     let worker_r = tokio::io::BufReader::new(worker_r);
     let mut worker_r = worker_r.lines();
 
-    let std_stream = match std::net::TcpStream::connect_timeout(&addr, Duration::new(5, 0)) {
+    let std_stream = match std::net::TcpStream::connect_timeout(
+        &addr,
+        Duration::new(5, 0),
+    ) {
         Ok(stream) => stream,
         Err(_) => {
-            info!("{} 远程地址不通！", addr);
-            std::process::exit(1);
+            //info!("{} 远程地址不通！", addr);
+            //std::process::exit(1);
+            bail!("{} 远程地址不通！", addr);
         }
     };
 
@@ -58,31 +49,46 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
     let mut pool_r = pool_r.split(crate::SPLIT);
     let mut client_timeout_sec = 1;
 
-    let key = key.clone();
-    let mut iv = iv.clone();
-
     loop {
         select! {
             res = tokio::time::timeout(std::time::Duration::new(client_timeout_sec,0), worker_r.next_line()) => {
-                let start = std::time::Instant::now();
+                //let start = std::time::Instant::now();
                 let buffer = match res{
                     Ok(res) => {
                         match res {
                             Ok(buf) => match buf{
                                     Some(buf) => buf,
                                     None =>       {
-                                    pool_w.shutdown().await;
-                                    info!("矿机下线了");
-                                    bail!("矿机下线了")},
+                                        match pool_w.shutdown().await  {
+                                            Ok(_) => {},
+                                            Err(e) => {
+                                                log::error!("Error Shutdown Socket {:?}",e);
+                                            },
+                                        };
+                                        info!("矿机下线了");
+                                        bail!("矿机下线了")
+                                    },
                                 },
                             _ => {
-                                pool_w.shutdown().await;
+                                   match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
                                 info!("矿机下线了");
                                 bail!("矿机下线了")
                             },
                         }
                     },
-                    Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
+                    Err(e) => {
+                           match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+                        bail!("读取超时了 矿机下线了: {}",e)},
                 };
 
                 if client_timeout_sec == 1 {
@@ -104,7 +110,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                     //let mut output = buf.as_bytes().to_vec().clone();
 
                     // let cipher = Cipher::aes_256_cbc();
-                    // //let data = b"Some Crypto Text";
+                    // //let data = b"Some Crypto String";
                     // let ciphertext = encrypt(
                     //     cipher,
                     //     &key,
@@ -123,13 +129,18 @@ async fn transfer(stream: TcpStream, addr: SocketAddr, key: Vec<u8>, iv: Vec<u8>
                 }
             },
             res = pool_r.next_segment() => {
-                let start = std::time::Instant::now();
+                //let start = std::time::Instant::now();
                 let buffer = match res{
                     Ok(res) => {
                         match res {
                             Some(buf) => buf,
                             None => {
-                                worker_w.shutdown().await;
+                                match worker_w.shutdown().await{
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
                                 info!("矿机下线了");
                                 bail!("矿机下线了")
                             }

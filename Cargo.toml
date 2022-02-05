@@ -1,15 +1,15 @@
 [package]
-name = "proxy"
-version = "0.1.7"
+name = "mining_proxy"
+version = "0.2.2"
 edition = "2018"
-authors = ["DoThinkDone Github : https://github.com/dothinkdone/minerProxy"]
-description = "A simple Eth Proxy\n一个简单的以太坊SSL代理工具\n本工具是开放软件，任何人都可以免费下载和使用。\n请遵循本地法律的情况下使用。如非法使用由软件使用人承担一切责任\n"
+authors = ["YusongWang admin@wangyusong.com"]
+description = "A simple Eth Proxy\n一个简单的矿工代理工具\n本工具是开放软件，任何人都可以免费下载和使用。\n请遵循本地法律的情况下使用。如非法使用由软件使用人承担一切责任\n"
 build = "build.rs"
 
 [dependencies]
 clap = "2.34.0"
 anyhow = "1.0.51"
-tokio = { version = "1.13.0", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 config = "0.11"
 serde =  { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0"
@@ -23,24 +23,53 @@ hostname = "0.3.1"
 rand = "0.8.3"
 rand_chacha = "0.3.1"
 hex = "0.4.3"
-prettytable-rs = "^0.8"
-sentry = "0.23.0"
-sentry-log = "0.23.0"
+# sentry = "0.23.0"
+# sentry-log = "0.23.0"
 fern = "0.5"
 async-channel = "1.6.1"
-lru = "0.7.2"
+#lru = "0.7.2"
 openssl-sys = "0.9"
-openssl = "0.10"
+openssl = { version = "0.10"}
+#prettytable-rs = "^0.8"
 base64 = "0.13.0"
 cfg-if = "1.0.0"
+short-crypt = "1.0.25"
+ethereum-hexutil = "0.2.3"
+openssl-probe = "0.1.5"
+human_bytes = "0.3"
+human-panic = "1.0.3"
+serde_yaml = "0.8.23"
+jsonwebtoken = "7"
+lazy_static = "1.4.0"
+dotenv = "0.15.0"
+actix-web = "4.0.0-rc.2"
+actix-web-static-files = {version = "3.0.5", git ="https://github.com/enaut/actix-web-static-files.git"}
+static-files = "0.2.1"
+time = "*"
+actix-web-grants = "3.0.0-beta.6"
+
 
 [build-dependencies]
 vergen = "0.1"
+actix-web-static-files = {version = "3.0.5", git ="https://github.com/enaut/actix-web-static-files.git"}
+static-files = "0.2.1"
 
 
 [profile.release]
 panic = 'abort'
-opt-level = "z"
+opt-level = "s"
+lto = true
+#incremental = false
 
 [features]
+nofee = []
 agent = []
+
+# [target.x86_64-pc-windows-msvc]
+# rustflags = ["-C", "target-feature=+crt-static"]
+# [target.armv7-unknown-linux-musleabihf]
+# linker = "armv7l-linux-musleabihf-gcc"
+
+# [target.aarch64-unknown-linux-musl]
+# linker = "aarch64-linux-musl-gcc"
+# rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lgcc"]

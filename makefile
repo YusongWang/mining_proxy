@@ -1,14 +1,15 @@
 build : 
-	cargo build  --release --target=x86_64-unknown-linux-musl
+	cargo build  --features nofee --release --target=x86_64-unknown-linux-musl
 ag_build : 
 	cargo build  --features agent --release --target=x86_64-unknown-linux-musl
 strip : 
-	strip ./target/x86_64-unknown-linux-musl/release/proxy && strip ./target/x86_64-unknown-linux-musl/release/encrypt
+	strip ./target/x86_64-unknown-linux-musl/release/mining_proxy && strip ./target/x86_64-unknown-linux-musl/release/encrypt
 upx : 
-	upx --best --lzma ./target/x86_64-unknown-linux-musl/release/proxy && upx --best --lzma ./target/x86_64-unknown-linux-musl/release/encrypt
+	upx --best --lzma ./target/x86_64-unknown-linux-musl/release/mining_proxy && upx --best --lzma ./target/x86_64-unknown-linux-musl/release/encrypt
 mv : 
-	mv ./target/x86_64-unknown-linux-musl/release/proxy ./release/proxy && mv ./target/x86_64-unknown-linux-musl/release/encrypt ./release/encrypt
+	mv ./target/x86_64-unknown-linux-musl/release/mining_proxy ./release/mining_proxy && mv ./target/x86_64-unknown-linux-musl/release/encrypt ./release/encrypt
 all : build strip upx mv
+
 agent: ag_build strip upx mv
 
 proxy :

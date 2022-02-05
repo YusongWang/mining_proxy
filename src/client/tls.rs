@@ -1,122 +1,149 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use log::info;
 
-use tokio::io::{split, BufReader};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    io::{split, BufReader},
+    net::{TcpListener, TcpStream},
+};
 extern crate native_tls;
 use native_tls::Identity;
-
-use tokio::sync::broadcast;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
-use crate::jobs::JobQueue;
-use crate::state::Worker;
-use crate::util::config::Settings;
+
+use crate::{
+    state::{State, Worker},
+    util::config::Settings,
+};
 
 pub async fn accept_tcp_with_tls(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    config: Settings,
-    _job_send: broadcast::Sender<String>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
-    _state_send: UnboundedSender<(u64, String)>,
-    _dev_state_send: UnboundedSender<(u64, String)>,
-    cert: Identity,
+    worker_queue: UnboundedSender<Worker>, config: Settings, cert: Identity,
+    state: State,
 ) -> Result<()> {
-    let address = format!("0.0.0.0:{}", config.ssl_port);
-    let listener = TcpListener::bind(address.clone()).await?;
-    info!("😄 Accepting Tls On: {}", &address);
+    if config.ssl_port == 0 {
+        return Ok(());
+    }
 
-    let tls_acceptor =
-        tokio_native_tls::TlsAcceptor::from(native_tls::TlsAcceptor::builder(cert).build()?);
+    let address = format!("0.0.0.0:{}", config.ssl_port);
+    let listener = match TcpListener::bind(address.clone()).await {
+        Ok(listener) => listener,
+        Err(_) => {
+            log::info!("本地端口被占用 {}", address);
+            std::process::exit(1);
+        }
+    };
+
+    log::info!("本地SSL端口{} 启动成功!!!", &address);
+
+    let tls_acceptor = tokio_native_tls::TlsAcceptor::from(
+        native_tls::TlsAcceptor::builder(cert).build()?,
+    );
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        info!("😄 accept connection from {}", addr);
+        //info!("😄 accept connection from {}", addr);
         let workers = worker_queue.clone();
 
         let config = config.clone();
         let acceptor = tls_acceptor.clone();
-        let mine_jobs_queue = mine_jobs_queue.clone();
-        let develop_jobs_queue = develop_jobs_queue.clone();
-        let proxy_fee_sender = proxy_fee_sender.clone();
-        let develop_fee_sender = develop_fee_sender.clone();
+        let state = state.clone();
+
+        state
+            .online
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         tokio::spawn(async move {
-            transfer_ssl(
-                workers,
+            // 矿工状态管理
+            let mut worker: Worker = Worker::default();
+            match transfer_ssl(
+                &mut worker,
+                workers.clone(),
                 stream,
                 acceptor,
                 &config,
-                mine_jobs_queue,
-                develop_jobs_queue,
-                proxy_fee_sender,
-                develop_fee_sender,
+                state.clone(),
             )
             .await
+            {
+                Ok(_) => {
+                    state
+                        .online
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                    if worker.is_online() {
+                        worker.offline();
+                        workers.send(worker);
+                    } else {
+                        info!("IP: {} 断开", addr);
+                    }
+                }
+                Err(e) => {
+                    if worker.is_online() {
+                        worker.offline();
+                        workers.send(worker);
+                        info!("IP: {} 断开原因 {}", addr, e);
+                    } else {
+                        info!("IP: {} 恶意链接断开: {}", addr, e);
+                    }
+
+                    state
+                        .online
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
         });
     }
 }
 
 async fn transfer_ssl(
-    worker_queue: tokio::sync::mpsc::Sender<Worker>,
-    tcp_stream: TcpStream,
-    tls_acceptor: tokio_native_tls::TlsAcceptor,
-    config: &Settings,
-    mine_jobs_queue: Arc<JobQueue>,
-    develop_jobs_queue: Arc<JobQueue>,
-    proxy_fee_sender: broadcast::Sender<(u64, String)>,
-    develop_fee_sender: broadcast::Sender<(u64, String)>,
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
+    tcp_stream: TcpStream, tls_acceptor: tokio_native_tls::TlsAcceptor,
+    config: &Settings, state: State,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
     let worker_r = BufReader::new(worker_r);
 
-    info!("😄 tls_acceptor Success!");
-
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
-        Some(pool) => pool,
-        None => {
-            info!("未匹配到矿池 或 均不可链接。请修改后重试");
-            return Ok(());
-        }
-    };
-
-    if stream_type == crate::client::TCP {
+    let (stream_type, pools) =
+        match crate::client::get_pool_ip_and_type(&config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
+    if config.share == 0 {
         handle_tcp_pool(
+            worker,
             worker_queue,
             worker_r,
             worker_w,
             &pools,
             &config,
-            mine_jobs_queue,
-            develop_jobs_queue,
-            proxy_fee_sender,
-            develop_fee_sender,
+            state,
             false,
         )
         .await
-    } else if stream_type == crate::client::SSL {
-        handle_tls_pool(
+    } else if config.share == 1 {
+        handle_tcp_pool_timer(
+            worker,
             worker_queue,
             worker_r,
             worker_w,
             &pools,
             &config,
-            mine_jobs_queue,
-            develop_jobs_queue,
-            proxy_fee_sender,
-            develop_fee_sender,
+            state,
             false,
         )
         .await
     } else {
-        log::error!("致命错误：未找到支持的矿池BUG 请上报");
-        return Ok(());
+        handle_tcp_pool_all(
+            worker,
+            worker_queue,
+            worker_r,
+            worker_w,
+            &config,
+            state,
+            false,
+        )
+        .await
     }
 }
