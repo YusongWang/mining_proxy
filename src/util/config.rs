@@ -181,20 +181,22 @@ impl Settings {
             }
         };
 
-        let (_, pools) =
-            match crate::client::get_pool_ip_and_type_for_proxyer(&self) {
-                Ok(s) => s,
-                Err(e) => {
-                    bail!("{}", e);
+        if self.share != 0 {
+            let (_, pools) =
+                match crate::client::get_pool_ip_and_type_for_proxyer(&self) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        bail!("{}", e);
+                    }
+                };
+
+            let (_, _) = match crate::client::get_pool_stream(&pools) {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    bail!("无法链接到抽水矿池");
                 }
             };
-
-        let (_, _) = match crate::client::get_pool_stream(&pools) {
-            Some((stream, addr)) => (stream, addr),
-            None => {
-                bail!("无法链接到抽水矿池");
-            }
-        };
+        }
 
         //尝试监听本地端口
         if self.tcp_port != 0 {
