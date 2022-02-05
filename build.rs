@@ -21,15 +21,17 @@ fn main() {
     std::env::set_var("OUT_DIR", "./src/generated/");
     vergen(SHORT_SHA | COMMIT_DATE).unwrap();
 
-    NpmBuild::new("./web")
-        .install()
-        .unwrap()
-        .run("build:prod")
-        .unwrap()
-        .target("./web/dist")
-        .to_resource_dir()
-        .build()
-        .unwrap();
+    if let Err(_) = env::var("PROD") {
+        NpmBuild::new("./web")
+            .install()
+            .unwrap()
+            .run("build:prod")
+            .unwrap()
+            .target("./web/dist")
+            .to_resource_dir()
+            .build()
+            .unwrap();
+    };
 
     match env::var("AGNET") {
         Ok(v) => {
