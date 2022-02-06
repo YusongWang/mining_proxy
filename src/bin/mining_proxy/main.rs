@@ -248,38 +248,31 @@ pub struct SendToParentStruct {
 async fn send_to_parent(
     mut worker_rx: UnboundedReceiver<Worker>, config: &Settings,
 ) -> Result<()> {
-    // loop {
-    //     if let Ok(mut stream) =
-    //         tokio::net::TcpStream::connect("127.0.0.1:65500").await
-    //     {
-    //         let sleep =
-    //             tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
-    //         tokio::pin!(sleep);
+    let _runtime = std::time::Instant::now();
 
-    //         let name = config.name.clone();
-
-    //         select! {
-    //             Some(w) = worker_rx.recv() => {
-    //                 let send = SendToParentStruct{
-    //                     name:name,
-    //                     worker:w,
-    //                 };
-
-    //                 let mut rpc = serde_json::to_vec(&send)?;
-    //                 rpc.push(b'\n');
-    //                 stream.write(&rpc).await.unwrap();
-    //             },
-    //             () = &mut sleep => {
-    //                 //RPC keep.alive
-    //                 //一分钟发送一次保持活动
-    //                 sleep.as_mut().reset(tokio::time::Instant::now() +
-    // tokio::time::Duration::from_secs(60));             },
-    //         }
-    //     } else {
-    //         log::error!("无法链接到主控web端");
-    //         tokio::time::sleep(tokio::time::Duration::from_secs(60 *
-    // 2)).await;     }
-    // }
+    loop {
+        if let Ok(mut stream) =
+            tokio::net::TcpStream::connect("127.0.0.1:65500").await
+        {
+            //let name = config.name.clone();
+            loop {
+                select! {
+                    Some(w) = worker_rx.recv() => {
+                        let send = SendToParentStruct{
+                            name:config.name.clone(),
+                            worker:w,
+                        };
+                        let mut rpc = serde_json::to_vec(&send)?;
+                        rpc.push(b'\n');
+                        stream.write(&rpc).await.unwrap();
+                    },
+                }
+            }
+        } else {
+            log::error!("无法链接到主控web端");
+            tokio::time::sleep(tokio::time::Duration::from_secs(60 * 2)).await;
+        }
+    }
 }
 
 async fn recv_from_child(app: AppState) -> Result<()> {
