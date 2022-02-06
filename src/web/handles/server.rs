@@ -306,13 +306,20 @@ pub struct ResWorker {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct OnlineWorkerResult {
     pub workers: Vec<ResWorker>,
     pub online: u32,
     pub config: Settings,
     pub fee_hash: String,
     pub total_hash: String,
+    pub accept_index: u64,
+    pub share_index: u64,
+    pub reject_index: u64,
+    pub fee_accept_index: u64,
+    pub fee_share_index: u64,
+    pub fee_reject_index: u64,
+    pub rate: f64,
+    pub share_rate: f64,
 }
 
 // 展示选中的数据信息。以json格式返回
@@ -327,9 +334,19 @@ async fn server(
     let mut res: OnlineWorkerResult = OnlineWorkerResult::default();
     {
         let proxy_server = app.lock().unwrap();
+        let mut online = 0;
+        let mut accept_index: u64 = 0;
+        let mut share_index: u64 = 0;
+        let mut reject_index: u64 = 0;
+        let mut fee_accept_index: u64 = 0;
+        let mut fee_share_index: u64 = 0;
+        let mut fee_reject_index: u64 = 0;
+
         for (name, server) in &*proxy_server {
             log::info!("server {} ", name);
             if *name == proxy_server_name.to_string() {
+                online = server.workers.len() as u32;
+
                 for r in &server.workers {
                     total_hash += r.hash as f64;
                     res.workers.push(ResWorker {
@@ -340,11 +357,28 @@ async fn server(
                         accept_index: r.accept_index,
                         invalid_index: r.invalid_index,
                     });
+
+                    share_index += r.share_index;
+                    accept_index += r.accept_index;
+                    reject_index += r.invalid_index;
+                    fee_accept_index += r.fee_share_index;
+                    fee_share_index += r.fee_accept_index;
+                    fee_reject_index += r.fee_invalid_index;
                 }
                 res.config = server.config.clone();
             }
         }
-        res.online = proxy_server.len() as u32;
+
+        res.online = online;
+        res.share_index = share_index;
+        res.accept_index = accept_index;
+        res.reject_index = reject_index;
+        res.fee_accept_index = fee_accept_index;
+        res.fee_share_index = fee_share_index;
+        res.fee_reject_index = fee_reject_index;
+
+        res.rate = res.accept_index as f64 / res.share_index as f64;
+        res.share_rate = res.fee_accept_index as f64 / res.accept_index as f64;
 
         res.fee_hash =
             human_bytes(total_hash as f64 * res.config.share_rate as f64);

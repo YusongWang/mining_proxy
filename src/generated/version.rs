@@ -1,6 +1,6 @@
 /// Generate a short SHA string
 pub fn short_sha() -> &'static str {
-    "bd30209"
+    "e34be20"
 }
 
 /// Generate the commit date string
