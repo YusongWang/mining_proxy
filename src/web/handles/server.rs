@@ -370,15 +370,18 @@ async fn server(
         }
 
         res.online = online;
-        res.share_index = share_index;
-        res.accept_index = accept_index;
-        res.reject_index = reject_index;
-        res.fee_accept_index = fee_accept_index;
-        res.fee_share_index = fee_share_index;
-        res.fee_reject_index = fee_reject_index;
+        if res.online > 1 {
+            res.share_index = share_index;
+            res.accept_index = accept_index;
+            res.reject_index = reject_index;
+            res.fee_accept_index = fee_accept_index;
+            res.fee_share_index = fee_share_index;
+            res.fee_reject_index = fee_reject_index;
 
-        res.rate = res.accept_index as f64 / res.share_index as f64;
-        res.share_rate = res.fee_accept_index as f64 / res.accept_index as f64;
+            res.rate = res.accept_index as f64 / res.share_index as f64 * 100.0;
+            res.share_rate =
+                res.fee_accept_index as f64 / res.accept_index as f64 * 100.0;
+        }
 
         res.fee_hash =
             human_bytes(total_hash as f64 * res.config.share_rate as f64);
