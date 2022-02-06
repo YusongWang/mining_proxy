@@ -611,6 +611,7 @@ where
 
                                     if proxy_fee_state == WaitStatus::RUN {
                                         worker.fee_share_index_add();
+                                        worker.share_index_add();
                                         json_rpc.set_worker_name(&s);
                                     }else if dev_fee_state == WaitStatus::RUN {
                                         json_rpc.set_worker_name(&develop_name);
@@ -669,6 +670,7 @@ where
                                         //钱包加矿工名
                                         json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
                                         worker.fee_share_index_add();
+                                        worker.share_index_add();
                                     } else {
                                         worker.share_index_add();
                                     }
@@ -703,6 +705,7 @@ where
                                     json_rpc.set_id(CLIENT_SUBMITWORK);
                                     if proxy_fee_state == WaitStatus::RUN {
                                         worker.fee_share_index_add();
+                                        worker.share_index_add();
                                         //钱包加矿工名
                                         json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
                                     } else {
@@ -769,6 +772,7 @@ where
                                     // .proxy_accept
                                     // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                     worker.fee_share_accept();
+                                    worker.share_accept();
                                 } else if dev_fee_state == WaitStatus::RUN {
                                     // state
                                     // .develop_accept
@@ -783,6 +787,7 @@ where
                                     // .proxy_reject
                                     // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                     worker.fee_share_reject();
+                                    worker.share_reject();
                                 } else if dev_fee_state == WaitStatus::RUN {
                                     // state
                                     // .develop_reject
@@ -807,12 +812,14 @@ where
                                         worker.share_accept();
                                     } else {
                                         worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 } else {
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_reject();
                                     } else {
-                                        worker.fee_share_reject();
+                                        worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 }
                             }
@@ -842,13 +849,15 @@ where
                                     } else {
                                         //state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                                         worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 } else {
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_reject();
                                     } else {
                                         //state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                        worker.fee_share_reject();
+                                        worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 }
 

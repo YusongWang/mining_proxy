@@ -449,8 +449,8 @@ async fn dashboard(
         let mut fee_share_index: u64 = 0;
         let mut fee_reject_index: u64 = 0;
 
-        for (name, other_server) in &*proxy_server {
-            online = other_server.workers.len() as u32;
+        for (_, other_server) in &*proxy_server {
+            online += other_server.workers.len() as u32;
 
             for r in &other_server.workers {
                 total_hash += r.hash as f64;
@@ -472,6 +472,9 @@ async fn dashboard(
         res.fee_accept_index += fee_accept_index;
         res.fee_share_index += fee_share_index;
         res.fee_reject_index += fee_reject_index;
+
+        res.proxy_num = proxy_server.len() as i32;
+        res.online = online;
     }
 
     res.fee_hash = human_bytes(fee_hash as f64);
