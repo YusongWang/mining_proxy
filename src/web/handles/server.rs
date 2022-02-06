@@ -147,14 +147,9 @@ pub async fn crate_app(
                     }));
                 }
             }
-
-            dbg!(configs.clone());
             configs.push(config.clone());
-
-            dbg!(configs.clone());
             match serde_yaml::to_string(&configs) {
                 Ok(mut c_str) => {
-                    dbg!(c_str.clone());
                     c_str = c_str[4..c_str.len()].to_string();
                     drop(cfgs);
                     std::fs::remove_file("configs.yaml")?;
@@ -220,13 +215,11 @@ pub async fn crate_app(
         }
         Err(_) => {
             let mut configs: Vec<Settings> = vec![];
-            dbg!(configs.clone());
+
             configs.push(config.clone());
 
-            dbg!(configs.clone());
             match serde_yaml::to_string(&configs) {
                 Ok(mut c_str) => {
-                    dbg!(c_str.clone());
                     c_str = c_str[4..c_str.len()].to_string();
                     match cfgs.write_all(c_str.as_bytes()) {
                         Ok(()) => {}

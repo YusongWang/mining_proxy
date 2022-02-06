@@ -320,7 +320,7 @@ async fn recv_from_child(app: AppState) -> Result<()> {
                     if let Ok(online_work) =
                         serde_json::from_str::<SendToParentStruct>(&buf_str)
                     {
-                        dbg!(&online_work);
+                        //dbg!(&online_work);
 
                         if let Some(temp_app) =
                             inner_app.lock().unwrap().get_mut(&online_work.name)
@@ -328,7 +328,7 @@ async fn recv_from_child(app: AppState) -> Result<()> {
                             let mut is_update = false;
                             for worker in &mut temp_app.workers {
                                 if worker.worker == online_work.worker.worker {
-                                    dbg!(&worker);
+                                    //dbg!(&worker);
                                     *worker = online_work.worker.clone();
                                     is_update = true;
                                 }
@@ -366,7 +366,7 @@ async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
                 &DecodingKey::from_secret(JWT_SECRET.as_bytes()),
                 &Validation::default(),
             );
-            dbg!(&token_data);
+            //dbg!(&token_data);
 
             if let Ok(_) = token_data {
                 Ok(vec![ROLE_ADMIN.to_string()])
