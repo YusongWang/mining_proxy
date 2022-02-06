@@ -39,6 +39,8 @@ fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
 
+    let _ = mining_proxy::RUNTIME;
+
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         actix_web::rt::System::with_tokio_rt(|| {
@@ -128,10 +130,12 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
             .service(
                 web::scope("/api")
                     .service(mining_proxy::web::handles::user::login)
+                    .service(mining_proxy::web::handles::user::info)
+                    .service(mining_proxy::web::handles::user::logout)
                     .service(mining_proxy::web::handles::server::crate_app)
                     .service(mining_proxy::web::handles::server::server_list)
                     .service(mining_proxy::web::handles::server::server)
-                    .service(mining_proxy::web::handles::user::info),
+                    .service(mining_proxy::web::handles::server::dashboard),
             )
             .service(actix_web_static_files::ResourceFiles::new(
                 "/", generated1,

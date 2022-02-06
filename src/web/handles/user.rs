@@ -55,3 +55,13 @@ async fn info() -> actix_web::Result<impl Responder> {
         },
     }))
 }
+
+#[post("/user/logout")]
+#[has_permissions("ROLE_ADMIN")]
+async fn logout() -> actix_web::Result<impl Responder> {
+    Ok(web::Json(Response::<String> {
+        code: 20000,
+        message: "".into(),
+        data: "".into(),
+    }))
+}

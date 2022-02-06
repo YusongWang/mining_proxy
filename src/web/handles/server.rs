@@ -4,13 +4,15 @@ use std::{
     io::{Read, Write},
 };
 
+use clap::crate_version;
+
 use actix_web::{get, post, web, Responder};
 use human_bytes::human_bytes;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     state::Worker,
-    util::config::Settings,
+    util::{config::Settings, time_to_string},
     web::{data::*, AppState, OnlineWorker},
 };
 
@@ -309,6 +311,7 @@ pub struct ResWorker {
 pub struct OnlineWorkerResult {
     pub workers: Vec<ResWorker>,
     pub online: u32,
+    pub online_time: String,
     pub config: Settings,
     pub fee_hash: String,
     pub total_hash: String,
@@ -378,9 +381,14 @@ async fn server(
             res.fee_share_index = fee_share_index;
             res.fee_reject_index = fee_reject_index;
 
-            res.rate = res.accept_index as f64 / res.share_index as f64 * 100.0;
-            res.share_rate =
-                res.fee_accept_index as f64 / res.accept_index as f64 * 100.0;
+            res.rate = floor(
+                res.accept_index as f64 / res.share_index as f64 * 100.0,
+                2,
+            );
+            res.share_rate = floor(
+                res.fee_accept_index as f64 / res.accept_index as f64 * 100.0,
+                2,
+            );
         }
 
         res.fee_hash =
@@ -393,6 +401,98 @@ async fn server(
     //3. 当前在线矿机总数 .
 
     Ok(web::Json(Response::<OnlineWorkerResult> {
+        code: 20000,
+        message: "".into(),
+        data: res,
+    }))
+}
+
+pub fn floor(value: f64, scale: i8) -> f64 {
+    let multiplier = 10f64.powi(scale as i32) as f64;
+    (value * multiplier).floor() / multiplier
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct DashboardResult {
+    pub proxy_num: i32,
+    pub online: u32,
+    pub fee_hash: String,
+    pub total_hash: String,
+    pub accept_index: u64,
+    pub share_index: u64,
+    pub reject_index: u64,
+    pub fee_accept_index: u64,
+    pub fee_share_index: u64,
+    pub fee_reject_index: u64,
+    pub rate: f64,       //总代理算力
+    pub share_rate: f64, //抽水算力
+    pub version: String,
+    pub develop_worker_name: String,
+    pub online_time: String,
+}
+
+// 展示选中的数据信息。以json格式返回
+#[post("/user/dashboard")]
+async fn dashboard(
+    app: web::Data<AppState>,
+) -> actix_web::Result<impl Responder> {
+    let mut total_hash: f64 = 0.0;
+    let mut fee_hash: f64 = 0.0;
+    let mut res: DashboardResult = DashboardResult::default();
+    {
+        let proxy_server = app.lock().unwrap();
+        let mut online = 0;
+        let mut accept_index: u64 = 0;
+        let mut share_index: u64 = 0;
+        let mut reject_index: u64 = 0;
+        let mut fee_accept_index: u64 = 0;
+        let mut fee_share_index: u64 = 0;
+        let mut fee_reject_index: u64 = 0;
+
+        for (name, other_server) in &*proxy_server {
+            online = other_server.workers.len() as u32;
+
+            for r in &other_server.workers {
+                total_hash += r.hash as f64;
+                share_index += r.share_index;
+                accept_index += r.accept_index;
+                reject_index += r.invalid_index;
+                fee_accept_index += r.fee_share_index;
+                fee_share_index += r.fee_accept_index;
+                fee_reject_index += r.fee_invalid_index;
+            }
+
+            fee_hash +=
+                total_hash as f64 * other_server.config.share_rate as f64;
+        }
+
+        res.share_index += share_index;
+        res.accept_index += accept_index;
+        res.reject_index += reject_index;
+        res.fee_accept_index += fee_accept_index;
+        res.fee_share_index += fee_share_index;
+        res.fee_reject_index += fee_reject_index;
+    }
+
+    res.fee_hash = human_bytes(fee_hash as f64);
+    res.total_hash = human_bytes(total_hash as f64);
+    if res.accept_index > 0 {
+        res.rate =
+            floor(res.accept_index as f64 / res.share_index as f64 * 100.0, 2);
+        res.share_rate = floor(
+            res.fee_accept_index as f64 / res.accept_index as f64 * 100.0,
+            2,
+        );
+    } else {
+        res.rate = 0.0;
+        res.share_rate = 0.0;
+    }
+
+    res.online_time = time_to_string(crate::RUNTIME.elapsed().as_secs());
+    res.develop_worker_name = crate::DEVELOP_WORKER_NAME.clone();
+    res.version = crate_version!().to_string();
+
+    Ok(web::Json(Response::<DashboardResult> {
         code: 20000,
         message: "".into(),
         data: res,
