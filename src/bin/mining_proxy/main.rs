@@ -151,7 +151,7 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
         let mut proxy_server = data.lock().unwrap();
 
         for (_, other_server) in &mut *proxy_server {
-            other_server.child.kill();
+            other_server.child.kill().await;
         }
 
         bail!("web端口 {} 被占用了", port);
