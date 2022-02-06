@@ -278,7 +278,6 @@ async fn server_list(
     {
         let proxy_server = app.lock().unwrap();
         for (s, _) in &*proxy_server {
-            log::info!("server {} ", s);
             v.push(s.to_string());
         }
     }
@@ -297,6 +296,7 @@ pub struct ResWorker {
     pub hash: String,
     pub share_index: u64,
     pub accept_index: u64,
+    pub fee_accept_index: u64,
     pub invalid_index: u64,
 }
 
@@ -323,8 +323,6 @@ pub struct OnlineWorkerResult {
 async fn server(
     proxy_server_name: web::Path<String>, app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
-    log::debug!("{}", proxy_server_name);
-
     let mut total_hash: f64 = 0.0;
 
     let mut res: OnlineWorkerResult = OnlineWorkerResult::default();
@@ -339,7 +337,6 @@ async fn server(
         let mut fee_reject_index: u64 = 0;
 
         for (name, server) in &*proxy_server {
-            log::info!("server {} ", name);
             if *name == proxy_server_name.to_string() {
                 online = server.workers.len() as u32;
 
@@ -352,6 +349,7 @@ async fn server(
                         share_index: r.share_index,
                         accept_index: r.accept_index,
                         invalid_index: r.invalid_index,
+                        fee_accept_index: r.fee_accept_index,
                     });
 
                     share_index += r.share_index;

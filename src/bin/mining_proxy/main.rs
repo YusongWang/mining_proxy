@@ -257,11 +257,7 @@ async fn send_to_parent(
             let sleep =
                 tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
             tokio::pin!(sleep);
-            //RPC impl
-            // let a = "hello ".to_string();
-            // let mut b = a.as_bytes().to_vec();
-            // b.push(b'\n');
-            // stream.write(&b).await.unwrap();
+
             let name = config.name.clone();
 
             select! {
@@ -299,12 +295,10 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     };
 
     log::info!("本地TCP端口{} 启动成功!!!", &address);
-    println!("监听本机端口{}", 65500);
     loop {
         let (mut stream, _) = listener.accept().await?;
         let inner_app = app.clone();
-        //r_lines.next_line() => {}
-        //let mut pool_lines = pool_r.lines();
+
         tokio::spawn(async move {
             let (r, _) = stream.split();
             let r_buf = BufReader::new(r);
@@ -315,13 +309,11 @@ async fn recv_from_child(app: AppState) -> Result<()> {
 
                 if let Ok(Some(buf_str)) = r_lines.next_line().await {
                     let s = String::from_utf8(buf.to_vec()).unwrap();
-                    log::info!("{}", s);
-                    log::info!("-----------------------");
+                    // log::info!("{}", s);
+                    // log::info!("-----------------------");
                     if let Ok(online_work) =
                         serde_json::from_str::<SendToParentStruct>(&buf_str)
                     {
-                        //dbg!(&online_work);
-
                         if let Some(temp_app) =
                             inner_app.lock().unwrap().get_mut(&online_work.name)
                         {
@@ -355,8 +347,8 @@ const ROLE_ADMIN: &str = "ROLE_ADMIN";
 async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
     // Here is a place for your code to get user permissions/grants/permissions
     // from a request For example from a token or database
-    log::info!("check the Role");
-    println!("{:?}", req.headers().get("token"));
+    // log::info!("check the Role");
+    // println!("{:?}", req.headers().get("token"));
 
     if req.path() != "/api/user/login" {
         // 判断权限
@@ -366,8 +358,6 @@ async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
                 &DecodingKey::from_secret(JWT_SECRET.as_bytes()),
                 &Validation::default(),
             );
-            //dbg!(&token_data);
-
             if let Ok(_) = token_data {
                 Ok(vec![ROLE_ADMIN.to_string()])
             } else {
