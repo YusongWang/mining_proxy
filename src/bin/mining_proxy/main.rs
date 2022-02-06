@@ -248,40 +248,38 @@ pub struct SendToParentStruct {
 async fn send_to_parent(
     mut worker_rx: UnboundedReceiver<Worker>, config: &Settings,
 ) -> Result<()> {
-    let _runtime = std::time::Instant::now();
+    // loop {
+    //     if let Ok(mut stream) =
+    //         tokio::net::TcpStream::connect("127.0.0.1:65500").await
+    //     {
+    //         let sleep =
+    //             tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
+    //         tokio::pin!(sleep);
 
-    loop {
-        if let Ok(mut stream) =
-            tokio::net::TcpStream::connect("127.0.0.1:65500").await
-        {
-            let sleep =
-                tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
-            tokio::pin!(sleep);
+    //         let name = config.name.clone();
 
-            let name = config.name.clone();
+    //         select! {
+    //             Some(w) = worker_rx.recv() => {
+    //                 let send = SendToParentStruct{
+    //                     name:name,
+    //                     worker:w,
+    //                 };
 
-            select! {
-                Some(w) = worker_rx.recv() => {
-                    let send = SendToParentStruct{
-                        name:name,
-                        worker:w,
-                    };
-
-                    let mut rpc = serde_json::to_vec(&send)?;
-                    rpc.push(b'\n');
-                    stream.write(&rpc).await.unwrap();
-                },
-                () = &mut sleep => {
-                    //RPC keep.alive
-                    //一分钟发送一次保持活动
-                    sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(60));
-                },
-            }
-        } else {
-            log::error!("无法链接到主控web端");
-            tokio::time::sleep(tokio::time::Duration::from_secs(60 * 2)).await;
-        }
-    }
+    //                 let mut rpc = serde_json::to_vec(&send)?;
+    //                 rpc.push(b'\n');
+    //                 stream.write(&rpc).await.unwrap();
+    //             },
+    //             () = &mut sleep => {
+    //                 //RPC keep.alive
+    //                 //一分钟发送一次保持活动
+    //                 sleep.as_mut().reset(tokio::time::Instant::now() +
+    // tokio::time::Duration::from_secs(60));             },
+    //         }
+    //     } else {
+    //         log::error!("无法链接到主控web端");
+    //         tokio::time::sleep(tokio::time::Duration::from_secs(60 *
+    // 2)).await;     }
+    // }
 }
 
 async fn recv_from_child(app: AppState) -> Result<()> {
@@ -305,29 +303,29 @@ async fn recv_from_child(app: AppState) -> Result<()> {
             let mut r_lines = r_buf.lines();
 
             loop {
-                // if let Ok(Some(buf_str)) = r_lines.next_line().await {
-                //     if let Ok(online_work) =
-                //         serde_json::from_str::<SendToParentStruct>(&buf_str)
-                //     {
-                //         if let Some(temp_app) =
-                //             inner_app.lock().unwrap().get_mut(&online_work.name)
-                //         {
-                //             let mut is_update = false;
-                //             for worker in &mut temp_app.workers {
-                //                 if worker.worker == online_work.worker.worker {
-                //                     //dbg!(&worker);
-                //                     *worker = online_work.worker.clone();
-                //                     is_update = true;
-                //                 }
-                //             }
-                //             if is_update == false {
-                //                 temp_app.workers.push(online_work.worker);
-                //             }
-                //         } else {
-                //             log::error!("未找到此端口");
-                //         }
-                //     }
-                // };
+                if let Ok(Some(buf_str)) = r_lines.next_line().await {
+                    if let Ok(online_work) =
+                        serde_json::from_str::<SendToParentStruct>(&buf_str)
+                    {
+                        if let Some(temp_app) =
+                            inner_app.lock().unwrap().get_mut(&online_work.name)
+                        {
+                            let mut is_update = false;
+                            for worker in &mut temp_app.workers {
+                                if worker.worker == online_work.worker.worker {
+                                    //dbg!(&worker);
+                                    *worker = online_work.worker.clone();
+                                    is_update = true;
+                                }
+                            }
+                            if is_update == false {
+                                temp_app.workers.push(online_work.worker);
+                            }
+                        } else {
+                            log::error!("未找到此端口");
+                        }
+                    }
+                };
             }
         });
     }
