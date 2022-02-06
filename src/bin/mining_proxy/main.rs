@@ -17,7 +17,7 @@ use mining_proxy::{
     web::{handles::auth::Claims, AppState, OnlineWorker},
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bytes::BytesMut;
 use clap::ArgMatches;
 use human_panic::setup_panic;
@@ -119,14 +119,15 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
         Err(_) => 8888,
     };
 
-    let web_sever = HttpServer::new(move || {
+    let http_data = data.clone();
+    let web_sever = if let Ok(http) = HttpServer::new(move || {
         let generated = generate();
         let generated1 = generate();
         use actix_web_grants::GrantsMiddleware;
         let auth = GrantsMiddleware::with_extractor(extract);
         App::new()
             .wrap(auth)
-            .app_data(web::Data::new(data.clone()))
+            .app_data(web::Data::new(http_data.clone()))
             .service(
                 web::scope("/api")
                     .service(mining_proxy::web::handles::user::login)
@@ -143,8 +144,18 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
             .service(actix_web_static_files::ResourceFiles::new("", generated))
     })
     .workers(1)
-    .bind(format!("0.0.0.0:{}", port))?
-    .run();
+    .bind(format!("0.0.0.0:{}", port))
+    {
+        http.run()
+    } else {
+        let mut proxy_server = data.lock().unwrap();
+
+        for (_, other_server) in &mut *proxy_server {
+            other_server.child.kill();
+        }
+
+        bail!("web端口 {} 被占用了", port);
+    };
 
     log::info!("界面启动成功地址为: {}", format!("0.0.0.0:{}", port));
     web_sever.await;
