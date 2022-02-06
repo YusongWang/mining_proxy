@@ -305,34 +305,29 @@ async fn recv_from_child(app: AppState) -> Result<()> {
             let mut r_lines = r_buf.lines();
 
             loop {
-                let buf: BytesMut = BytesMut::new();
-
-                if let Ok(Some(buf_str)) = r_lines.next_line().await {
-                    let s = String::from_utf8(buf.to_vec()).unwrap();
-                    // log::info!("{}", s);
-                    // log::info!("-----------------------");
-                    if let Ok(online_work) =
-                        serde_json::from_str::<SendToParentStruct>(&buf_str)
-                    {
-                        if let Some(temp_app) =
-                            inner_app.lock().unwrap().get_mut(&online_work.name)
-                        {
-                            let mut is_update = false;
-                            for worker in &mut temp_app.workers {
-                                if worker.worker == online_work.worker.worker {
-                                    //dbg!(&worker);
-                                    *worker = online_work.worker.clone();
-                                    is_update = true;
-                                }
-                            }
-                            if is_update == false {
-                                temp_app.workers.push(online_work.worker);
-                            }
-                        } else {
-                            log::error!("未找到此端口");
-                        }
-                    }
-                };
+                // if let Ok(Some(buf_str)) = r_lines.next_line().await {
+                //     if let Ok(online_work) =
+                //         serde_json::from_str::<SendToParentStruct>(&buf_str)
+                //     {
+                //         if let Some(temp_app) =
+                //             inner_app.lock().unwrap().get_mut(&online_work.name)
+                //         {
+                //             let mut is_update = false;
+                //             for worker in &mut temp_app.workers {
+                //                 if worker.worker == online_work.worker.worker {
+                //                     //dbg!(&worker);
+                //                     *worker = online_work.worker.clone();
+                //                     is_update = true;
+                //                 }
+                //             }
+                //             if is_update == false {
+                //                 temp_app.workers.push(online_work.worker);
+                //             }
+                //         } else {
+                //             log::error!("未找到此端口");
+                //         }
+                //     }
+                // };
             }
         });
     }

@@ -59,6 +59,7 @@ static-files = "0.2.1"
 panic = 'abort'
 opt-level = "s"
 lto = true
+debug = true
 #incremental = false
 
 [features]
