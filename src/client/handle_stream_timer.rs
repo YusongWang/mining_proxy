@@ -152,22 +152,22 @@ where
         Ok(buf) => match buf {
             Some(buf) => Ok(buf),
             None => {
-                match pool_w.shutdown().await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        log::error!("Error Shutdown Socket {:?}", e);
-                    }
-                }
+                // match pool_w.shutdown().await {
+                //     Ok(_) => {}
+                //     Err(e) => {
+                //         log::error!("Error Shutdown Socket {:?}", e);
+                //     }
+                // }
                 bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name)
             }
         },
         Err(e) => {
-            match pool_w.shutdown().await {
-                Ok(_) => {}
-                Err(e) => {
-                    log::error!("Error Shutdown Socket {:?}", e);
-                }
-            };
+            // match pool_w.shutdown().await {
+            //     Ok(_) => {}
+            //     Err(e) => {
+            //         log::error!("Error Shutdown Socket {:?}", e);
+            //     }
+            // };
             bail!("矿工：{} {}", worker_name, e)
         }
     };
@@ -504,6 +504,12 @@ where
                             info!("读取失败了。正在切换矿池");
                             continue;
                         } else {
+                            match pool_w.shutdown().await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    log::error!("Error Shutdown Socket {:?}", e);
+                                }
+                            };
                             return bail!(e);
                         }
                     },
@@ -982,7 +988,7 @@ where
                     info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
                 } else if proxy_fee_state == WaitStatus::RUN {
-                    proxy_fee_state = WaitStatus::WAIT;
+
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
                         Ok(pool) => pool,
                         Err(_) => {
@@ -1064,7 +1070,7 @@ where
                     pool_lines = new_pool_r;
                     pool_w = new_pool_w;
 
-
+                    proxy_fee_state = WaitStatus::WAIT;
                     info!("抽水结束!!");
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime));
                 }
