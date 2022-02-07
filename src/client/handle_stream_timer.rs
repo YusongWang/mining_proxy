@@ -500,8 +500,12 @@ where
                 let mut buf_bytes = match seagment_unwrap(&mut pool_w,res,&worker_name).await {
                     Ok(buf_bytes) => buf_bytes,
                     Err(e) => {
-                        info!("读取失败了。正在切换矿池");
-                        return bail!(e)
+                        if proxy_fee_state == WaitStatus::RUN {
+                            info!("读取失败了。正在切换矿池");
+                            continue;
+                        } else {
+                            return bail!(e);
+                        }
                     },
                 };
 
