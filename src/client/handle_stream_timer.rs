@@ -371,6 +371,7 @@ pub async fn pool_with_ssl_reconnect(
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
+
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -479,15 +480,13 @@ where
     let mut fee_lefttime: u64 = 100;
     //let mut fee_lefttime: u64 = 5400;
 
-    // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
-    // 记录原矿工信息。重新登录的时候还要使用。
+    let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
+
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let dev_number = rand::Rng::gen_range(&mut rng, 0..60) as i32;
+    let dev_number =
+        rand::Rng::gen_range(&mut rng, 0..fee_lefttime - proxy_time) as i32;
 
-    // 抽水线程.10 - 20 分钟内循环 600 - 1200
-    //let mut proxy_lefttime: u64 = 0;
-    let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
     let proxy_sleep =
         time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(proxy_sleep);
@@ -898,7 +897,6 @@ where
                 }
             },
             () = &mut proxy_sleep  => {
-                //info!("中转抽水时间片");
                 if proxy_fee_state == WaitStatus::WAIT {
                     proxy_fee_state = WaitStatus::RUN;
 
@@ -988,7 +986,7 @@ where
 
 
 
-
+                    #[cfg(debug_assertions)]
                     info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
                 } else if proxy_fee_state == WaitStatus::RUN {
@@ -1075,13 +1073,13 @@ where
                     pool_w = new_pool_w;
 
                     proxy_fee_state = WaitStatus::WAIT;
+
+                    #[cfg(debug_assertions)]
                     info!("抽水结束!!");
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime - proxy_time));
                 }
             },
             () = &mut sleep  => {
-                // 发送本地矿工状态到远端。
-                //info!("发送本地矿工状态到远端。{:?}",worker);
                 match workers_queue.send(worker.clone()){
                     Ok(_) => {},
                     Err(_) => {
