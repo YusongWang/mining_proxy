@@ -1,0 +1,12 @@
+# 
+
+1. 优化随机算法掉线问题
+    无需提交hashrate 及 get work, 矿池不会主动断开
+
+    hashrate 只需要提交给主代理矿池即可
+
+    carry pool 可以使用NIceHash协议。要补充测试carry pool
+    
+2. 整理
+
+

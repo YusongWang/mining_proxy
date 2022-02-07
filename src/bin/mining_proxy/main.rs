@@ -189,12 +189,9 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         }
     };
 
-    let mut p12 = match File::open(config.p12_path.clone()).await {
-        Ok(f) => f,
-        Err(_) => {
-            println!("证书路径错误: {} 下未找到证书!", config.p12_path);
-            std::process::exit(1);
-        }
+    let p12 = match File::open(config.p12_path.clone()).await {
+        Ok(f) => Some(f),
+        Err(_) => None,
     };
 
     let mode = if config.share == 0 {
@@ -205,14 +202,19 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         "统一钱包模式"
     };
 
+    let cert;
     log::info!("名称 {} 当前启动模式为: {}", config.name, mode);
-
-    let mut buffer = BytesMut::with_capacity(10240);
-    let read_key_len = p12.read_buf(&mut buffer).await?;
-    let cert = Identity::from_pkcs12(
-        &buffer[0..read_key_len],
-        config.p12_pass.clone().as_str(),
-    )?;
+    let der = include_bytes!("identity.p12");
+    if let Some(mut p12) = p12 {
+        let mut buffer = BytesMut::with_capacity(10240);
+        let read_key_len = p12.read_buf(&mut buffer).await?;
+        cert = Identity::from_pkcs12(
+            &buffer[0..read_key_len],
+            config.p12_pass.clone().as_str(),
+        )?;
+    } else {
+        cert = Identity::from_pkcs12(der, "mypass")?;
+    }
 
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
