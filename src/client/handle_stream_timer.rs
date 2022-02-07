@@ -476,14 +476,14 @@ where
     let mut dev_fee_state = WaitStatus::WAIT;
     let mut proxy_fee_state = WaitStatus::WAIT;
 
-    let mut fee_lefttime: u64 = 500;
+    let mut fee_lefttime: u64 = 100;
     //let mut fee_lefttime: u64 = 5400;
 
     // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
     // 记录原矿工信息。重新登录的时候还要使用。
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let dev_number = rand::Rng::gen_range(&mut rng, 60..fee_lefttime) as i32;
+    let dev_number = rand::Rng::gen_range(&mut rng, 0..60) as i32;
 
     // 抽水线程.10 - 20 分钟内循环 600 - 1200
     let mut proxy_lefttime: u64 = 0;
@@ -510,6 +510,9 @@ where
                                     log::error!("Error Shutdown Socket {:?}", e);
                                 }
                             };
+
+                            info!("需要关闭链接了可能由抽水服务导致的。");
+
                             return bail!(e);
                         }
                     },

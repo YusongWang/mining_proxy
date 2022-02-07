@@ -107,9 +107,6 @@ pub async fn crate_app(
 
     use std::fs::File;
 
-    // let exe_path =
-    // std::env::current_dir().expect("获取当前可执行程序路径错误");
-    // let exe_path = exe_path.join("configs.yaml");
     let mut cfgs = match OpenOptions::new()
         //.append(false)
         .write(true)

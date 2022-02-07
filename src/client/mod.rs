@@ -180,17 +180,6 @@ pub fn get_pool_stream(
             }
         };
         std_stream.set_nonblocking(true).unwrap();
-        // std_stream
-        //     .set_read_timeout(Some(Duration::from_millis(1)))
-        //     .expect("读取超时");
-        // std_stream
-        //     .set_write_timeout(Some(Duration::from_millis(1)))
-        //     .expect("读取超时");
-        // debug!(
-        //     "{} conteact to {}",
-        //     std_stream.local_addr().unwrap(),
-        //     address
-        // );
         return Some((std_stream, addr));
     }
 
