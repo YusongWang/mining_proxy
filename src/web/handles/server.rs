@@ -291,6 +291,8 @@ pub struct ResWorker {
     pub worker_name: String,
     pub worker_wallet: String,
     pub hash: String,
+    pub last_subwork_time: String,
+    pub online_time: String,
     pub share_index: u64,
     pub accept_index: u64,
     pub fee_accept_index: u64,
@@ -347,6 +349,12 @@ async fn server(
                             accept_index: r.accept_index,
                             invalid_index: r.invalid_index,
                             fee_accept_index: r.fee_accept_index,
+                            online_time: time_to_string(
+                                r.login_time.elapsed().as_secs(),
+                            ),
+                            last_subwork_time: time_to_string(
+                                r.last_subwork_time.elapsed().as_secs(),
+                            ),
                         });
 
                         share_index += r.share_index;

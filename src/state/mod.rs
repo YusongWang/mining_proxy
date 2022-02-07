@@ -3,8 +3,11 @@ use std::sync::{
     Arc,
 };
 
+extern crate serde_millis;
+
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
+use std::time::Instant;
 
 use crate::protocol::PROTOCOL;
 
@@ -15,8 +18,10 @@ pub struct Worker {
     pub worker_name: String,
     pub worker_wallet: String,
     pub protocol: PROTOCOL,
-    // pub login_time: Instant,
-    // pub last_subwork_time: Instant,
+    #[serde(with = "serde_millis")]
+    pub login_time: Instant,
+    #[serde(with = "serde_millis")]
+    pub last_subwork_time: Instant,
     pub rpc_id: u64,
     pub hash: u64,
     pub share_index: u64,
@@ -37,8 +42,8 @@ impl Worker {
             online,
             worker_wallet,
             worker_name,
-            // login_time: Instant::now(),
-            // last_subwork_time: Instant::now(),
+            login_time: Instant::now(),
+            last_subwork_time: Instant::now(),
             protocol: PROTOCOL::KNOWN,
             hash: 0,
             share_index: 0,
@@ -58,8 +63,8 @@ impl Worker {
             worker_name: "".into(),
             worker_wallet: "".into(),
             protocol: PROTOCOL::KNOWN,
-            // login_time: Instant::now(),
-            // last_subwork_time: Instant::now(),
+            login_time: Instant::now(),
+            last_subwork_time: Instant::now(),
             hash: 0,
             share_index: 0,
             accept_index: 0,
@@ -121,7 +126,7 @@ impl Worker {
 
     // 总份额增加
     pub fn share_index_add(&mut self) {
-        //self.last_subwork_time = Instant::now();
+        self.last_subwork_time = Instant::now();
 
         self.share_index += 1;
         debug!("矿工: {} Share #{}", self.worker, self.share_index);

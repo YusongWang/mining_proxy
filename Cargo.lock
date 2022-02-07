@@ -1118,7 +1118,9 @@ dependencies = [
  "rand",
  "rand_chacha",
  "serde 1.0.130",
+ "serde_derive",
  "serde_json",
+ "serde_millis",
  "serde_yaml",
  "short-crypt",
  "static-files",
@@ -1670,6 +1672,15 @@ checksum = "d0ffa0837f2dfa6fb90868c2b5468cad482e175f7dad97e7421951e663f2b527"
 dependencies = [
  "itoa 0.4.8",
  "ryu",
+ "serde 1.0.130",
+]
+
+[[package]]
+name = "serde_millis"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6e2dc780ca5ee2c369d1d01d100270203c4ff923d2a4264812d723766434d00"
+dependencies = [
  "serde 1.0.130",
 ]
 

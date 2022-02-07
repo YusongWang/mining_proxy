@@ -300,6 +300,9 @@ async fn recv_from_child(app: AppState) -> Result<()> {
                     if let Ok(online_work) =
                         serde_json::from_str::<SendToParentStruct>(&buf_str)
                     {
+                        #[cfg(debug_assertions)]
+                        dbg!("{}", &online_work);
+
                         if let Some(temp_app) =
                             inner_app.lock().unwrap().get_mut(&online_work.name)
                         {
@@ -322,8 +325,6 @@ async fn recv_from_child(app: AppState) -> Result<()> {
             }
         });
     }
-
-    Ok(())
 }
 
 use mining_proxy::JWT_SECRET;

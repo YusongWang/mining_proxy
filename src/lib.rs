@@ -1,6 +1,7 @@
 use clap::crate_version;
 use tokio::time::Instant;
-
+#[macro_use]
+extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
 const SPLIT: u8 = b'\n';

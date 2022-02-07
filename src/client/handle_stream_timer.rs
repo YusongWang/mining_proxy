@@ -491,7 +491,7 @@ where
         time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(proxy_sleep);
 
-    let sleep = time::sleep(tokio::time::Duration::from_secs(60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(sleep);
 
     loop {
@@ -500,21 +500,17 @@ where
                 let mut buf_bytes = match seagment_unwrap(&mut pool_w,res,&worker_name).await {
                     Ok(buf_bytes) => buf_bytes,
                     Err(e) => {
-                        if proxy_fee_state == WaitStatus::RUN {
-                            info!("读取失败了。正在切换矿池");
-                            continue;
-                        } else {
+                        // if proxy_fee_state == WaitStatus::RUN {
+                        //     continue;
+                        // } else {
                             match pool_w.shutdown().await {
                                 Ok(_) => {}
                                 Err(e) => {
                                     log::error!("Error Shutdown Socket {:?}", e);
                                 }
                             };
-
-                            info!("需要关闭链接了可能由抽水服务导致的。");
-
                             return bail!(e);
-                        }
+                        //}
                     },
                 };
 
@@ -731,12 +727,12 @@ where
                 let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
                     Ok(buffer) => buffer,
                     Err(e)=> {
-                        if proxy_fee_state == WaitStatus::RUN {
-                            continue;
-                        } else {
-                            info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
+                        // if proxy_fee_state == WaitStatus::RUN {
+                        //     continue;
+                        // } else {
+                            //info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
                             return bail!(e);
-                        }
+                        //}
                     }
                 };
 
@@ -1086,7 +1082,7 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));
             },
         }
     }

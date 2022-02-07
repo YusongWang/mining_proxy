@@ -536,7 +536,7 @@ where
 
     let mut is_submithashrate = false;
 
-    let sleep = time::sleep(tokio::time::Duration::from_secs(2 * 60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(sleep);
 
     loop {
@@ -840,7 +840,7 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 2));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));
             },
         }
     }
