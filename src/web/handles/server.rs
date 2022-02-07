@@ -365,7 +365,7 @@ async fn server(
         }
 
         res.online = online;
-        if res.online > 1 {
+        if res.online >= 1 {
             res.share_index = share_index;
             res.accept_index = accept_index;
             res.reject_index = reject_index;
