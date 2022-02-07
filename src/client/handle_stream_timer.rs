@@ -477,8 +477,8 @@ where
     let mut dev_fee_state = WaitStatus::WAIT;
     let mut proxy_fee_state = WaitStatus::WAIT;
 
-    let mut fee_lefttime: u64 = 100;
-    //let mut fee_lefttime: u64 = 5400;
+    //let mut fee_lefttime: u64 = 100;
+    let mut fee_lefttime: u64 = 5400 / 3;
 
     let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
 
