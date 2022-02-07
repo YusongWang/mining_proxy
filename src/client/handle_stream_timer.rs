@@ -385,6 +385,7 @@ pub async fn pool_with_ssl_reconnect(
     let mut pool_lines = pool_r.lines();
     Ok((pool_lines, pool_w))
 }
+
 pub async fn handle_stream<R, W>(
     worker: &mut Worker, workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
@@ -398,6 +399,9 @@ where
     W: AsyncWrite,
 {
     //let mut pool_w = pool_r.clone();
+
+    let mut is_frist_login = true;
+
     let proxy_wallet_and_worker_name =
         config.share_wallet.clone() + "." + &config.share_name;
     let develop_wallet_and_worker_name =
@@ -745,8 +749,9 @@ where
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                             if result_rpc.id == CLIENT_LOGIN {
-                                if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                                if is_frist_login == true {
                                     worker.logind();
+                                    is_frist_login = false;
                                 }
                             } else if result_rpc.id == CLIENT_SUBHASHRATE {
                                 //info!("{} 算力提交成功",worker_name);
@@ -786,9 +791,6 @@ where
                         }
                     } else if protocol == PROTOCOL::STRATUM {
 
-                        //write_rpc(is_encrypted,&mut worker_w,&)
-
-
                         if let Ok(mut job_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
 
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
@@ -812,10 +814,16 @@ where
                             }
 
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
-                            if proxy_fee_state == WaitStatus::WAIT{
+                            // if proxy_fee_state == WaitStatus::WAIT{
+                            //     worker.logind();
+                                
+                            // }
+                            if is_frist_login == true {
                                 worker.logind();
                                 write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                is_frist_login = false;
                             }
+
                             continue;
                             //write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else {
@@ -852,10 +860,15 @@ where
                             } else if result_rpc.id == CLIENT_LOGIN {
                                 continue;
                             } else {
-                                if proxy_fee_state == WaitStatus::WAIT{
+                                if is_frist_login == true {
                                     worker.logind();
                                     write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                }
+                                    is_frist_login = false;
+                                }                                
+                                // if proxy_fee_state == WaitStatus::WAIT{
+                                //     worker.logind();
+                                //     write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                // }
                             }
 
                             continue;
