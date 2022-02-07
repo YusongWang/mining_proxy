@@ -816,7 +816,7 @@ where
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
                             // if proxy_fee_state == WaitStatus::WAIT{
                             //     worker.logind();
-                                
+
                             // }
                             if is_frist_login == true {
                                 worker.logind();
@@ -864,7 +864,7 @@ where
                                     worker.logind();
                                     write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     is_frist_login = false;
-                                }                                
+                                }
                                 // if proxy_fee_state == WaitStatus::WAIT{
                                 //     worker.logind();
                                 //     write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
