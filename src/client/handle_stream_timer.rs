@@ -486,7 +486,8 @@ where
     let dev_number = rand::Rng::gen_range(&mut rng, 0..60) as i32;
 
     // 抽水线程.10 - 20 分钟内循环 600 - 1200
-    let mut proxy_lefttime: u64 = 0;
+    //let mut proxy_lefttime: u64 = 0;
+    let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
     let proxy_sleep =
         time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(proxy_sleep);
@@ -986,7 +987,7 @@ where
                     pool_w = proxy_w;
 
 
-                    let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
+
 
                     info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
@@ -1075,7 +1076,7 @@ where
 
                     proxy_fee_state = WaitStatus::WAIT;
                     info!("抽水结束!!");
-                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime));
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime - proxy_time));
                 }
             },
             () = &mut sleep  => {
