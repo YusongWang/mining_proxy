@@ -158,7 +158,7 @@ where
                         log::error!("Error Shutdown Socket {:?}", e);
                     }
                 }
-                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
+                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name)
             }
         },
         Err(e) => {
@@ -167,8 +167,8 @@ where
                 Err(e) => {
                     log::error!("Error Shutdown Socket {:?}", e);
                 }
-            }
-            bail!("矿工：{} {}", worker_name, e);
+            };
+            bail!("矿工：{} {}", worker_name, e)
         }
     };
 
@@ -197,31 +197,6 @@ where
     write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
 }
 
-// pub fn new_job_diff_change(
-//     diff: &mut u64,
-//     rpc: &EthServerRootObject,
-//     a: &mut VecDeque<(String, Vec<String>)>,
-//     b: &mut VecDeque<(String, Vec<String>)>,
-//     c: &mut VecDeque<(String, Vec<String>)>,
-// ) -> bool
-// {
-//     let job_diff = rpc.get_diff();
-//     if job_diff == 0 {
-//         return true;
-//     }
-
-//     if job_diff > *diff {
-//         // 写入新难度
-//         *diff = job_diff;
-//         // 清空已有任务队列
-//         a.clear();
-//         b.clear();
-//         c.clear();
-//     }
-
-//     true
-// }
-
 async fn buf_parse_to_string<W>(
     w: &mut WriteHalf<W>, buffer: &[u8],
 ) -> Result<String>
@@ -243,8 +218,6 @@ where W: AsyncWrite {
     };
 
     buf
-    // log::warn!("端口可能被恶意扫描: {}", buf);
-    // bail!("端口可能被恶意扫描。");
 }
 
 pub async fn write_rpc<W, T>(
@@ -424,6 +397,7 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    //let mut pool_w = pool_r.clone();
     let proxy_wallet_and_worker_name =
         config.share_wallet.clone() + "." + &config.share_name;
     let develop_wallet_and_worker_name =
@@ -489,7 +463,7 @@ where
 
     let mut is_submithashrate = false;
 
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Debug)]
     enum WaitStatus {
         WAIT,
         RUN,
@@ -498,10 +472,8 @@ where
     let mut dev_fee_state = WaitStatus::WAIT;
     let mut proxy_fee_state = WaitStatus::WAIT;
 
-    // 抽水率10%
-
-    //let mut fee_lefttime: u64 = 500;
-    let mut fee_lefttime: u64 = 5400;
+    let mut fee_lefttime: u64 = 500;
+    //let mut fee_lefttime: u64 = 5400;
 
     // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
     // 记录原矿工信息。重新登录的时候还要使用。
@@ -521,8 +493,13 @@ where
     loop {
         select! {
             res = worker_lines.next_segment() => {
-                //let start = std::time::Instant::now();
-                let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
+                let mut buf_bytes = match seagment_unwrap(&mut pool_w,res,&worker_name).await {
+                    Ok(buf_bytes) => buf_bytes,
+                    Err(e) => {
+                        info!("读取失败了。正在切换矿池");
+                        return bail!(e)
+                    },
+                };
 
                 if is_encrypted {
                     let key = Vec::from_hex(config.key.clone()).unwrap();
@@ -737,9 +714,10 @@ where
                 let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
                     Ok(buffer) => buffer,
                     Err(e)=> {
-                        if proxy_fee_state == WaitStatus::WAIT {
+                        if proxy_fee_state == WaitStatus::RUN {
                             continue;
                         } else {
+                            info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
                             return bail!(e);
                         }
                     }
@@ -748,7 +726,6 @@ where
 
                 #[cfg(debug_assertions)]
                 debug!("<--------------------<  矿池 {} #{:?}",worker_name, buffer);
-
 
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -896,6 +873,7 @@ where
             () = &mut proxy_sleep  => {
                 //info!("中转抽水时间片");
                 if proxy_fee_state == WaitStatus::WAIT {
+                    proxy_fee_state = WaitStatus::RUN;
 
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
                         Ok(s) => s,
@@ -981,12 +959,13 @@ where
                     pool_lines = proxy_lines;
                     pool_w = proxy_w;
 
-                    proxy_fee_state = WaitStatus::RUN;
+
                     let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
 
-                    //info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
+                    info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
                 } else if proxy_fee_state == WaitStatus::RUN {
+                    proxy_fee_state = WaitStatus::WAIT;
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
                         Ok(pool) => pool,
                         Err(_) => {
@@ -1068,7 +1047,8 @@ where
                     pool_lines = new_pool_r;
                     pool_w = new_pool_w;
 
-                    proxy_fee_state = WaitStatus::WAIT;
+
+                    info!("抽水结束!!");
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime));
                 }
             },

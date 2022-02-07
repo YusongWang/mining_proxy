@@ -61,16 +61,16 @@ pub async fn accept_tcp(
                         worker.offline();
                         workers.send(worker);
                     } else {
-                        info!("IP: {} 断开", addr);
+                        info!("IP: {} 下线", addr);
                     }
                 }
                 Err(e) => {
                     if worker.is_online() {
                         worker.offline();
                         workers.send(worker);
-                        info!("IP: {} 断开原因 {}", addr, e);
+                        info!("IP: {} 下线原因 {}", addr, e);
                     } else {
-                        info!("IP: {} 恶意链接断开: {}", addr, e);
+                        info!("IP: {} 恶意链接: {}", addr, e);
                     }
 
                     state
