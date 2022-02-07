@@ -338,26 +338,27 @@ async fn server(
 
         for (name, server) in &*proxy_server {
             if *name == proxy_server_name.to_string() {
-                online = server.workers.len() as u32;
-
                 for r in &server.workers {
-                    total_hash += r.hash as f64;
-                    res.workers.push(ResWorker {
-                        worker_name: r.worker_name.clone(),
-                        worker_wallet: r.worker_wallet.clone(),
-                        hash: human_bytes(r.hash as f64),
-                        share_index: r.share_index,
-                        accept_index: r.accept_index,
-                        invalid_index: r.invalid_index,
-                        fee_accept_index: r.fee_accept_index,
-                    });
+                    if r.is_online() {
+                        online += 1;
+                        total_hash += r.hash as f64;
+                        res.workers.push(ResWorker {
+                            worker_name: r.worker_name.clone(),
+                            worker_wallet: r.worker_wallet.clone(),
+                            hash: human_bytes(r.hash as f64),
+                            share_index: r.share_index,
+                            accept_index: r.accept_index,
+                            invalid_index: r.invalid_index,
+                            fee_accept_index: r.fee_accept_index,
+                        });
 
-                    share_index += r.share_index;
-                    accept_index += r.accept_index;
-                    reject_index += r.invalid_index;
-                    fee_accept_index += r.fee_share_index;
-                    fee_share_index += r.fee_accept_index;
-                    fee_reject_index += r.fee_invalid_index;
+                        share_index += r.share_index;
+                        accept_index += r.accept_index;
+                        reject_index += r.invalid_index;
+                        fee_accept_index += r.fee_share_index;
+                        fee_share_index += r.fee_accept_index;
+                        fee_reject_index += r.fee_invalid_index;
+                    }
                 }
                 res.config = server.config.clone();
             }
@@ -441,16 +442,17 @@ async fn dashboard(
         let mut fee_reject_index: u64 = 0;
 
         for (_, other_server) in &*proxy_server {
-            online += other_server.workers.len() as u32;
-
             for r in &other_server.workers {
-                total_hash += r.hash as f64;
-                share_index += r.share_index;
-                accept_index += r.accept_index;
-                reject_index += r.invalid_index;
-                fee_accept_index += r.fee_share_index;
-                fee_share_index += r.fee_accept_index;
-                fee_reject_index += r.fee_invalid_index;
+                if r.is_online() {
+                    online += 1;
+                    total_hash += r.hash as f64;
+                    share_index += r.share_index;
+                    accept_index += r.accept_index;
+                    reject_index += r.invalid_index;
+                    fee_accept_index += r.fee_share_index;
+                    fee_share_index += r.fee_accept_index;
+                    fee_reject_index += r.fee_invalid_index;
+                }
             }
 
             fee_hash +=

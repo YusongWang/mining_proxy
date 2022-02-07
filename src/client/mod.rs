@@ -305,7 +305,10 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -329,7 +332,10 @@ where W: AsyncWrite {
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -352,7 +358,10 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -372,7 +381,10 @@ where W: AsyncWrite {
     );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -384,7 +396,10 @@ where W: AsyncWrite {
     rpc.push(b'\n');
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -396,7 +411,10 @@ where W: AsyncWrite {
     rpc.push(SPLIT);
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }

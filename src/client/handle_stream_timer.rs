@@ -734,7 +734,17 @@ where
                 }
             },
             res = pool_lines.next_line() => {
-                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await?;
+                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
+                    Ok(buffer) => buffer,
+                    Err(e)=> {
+                        if proxy_fee_state == WaitStatus::WAIT {
+                            continue;
+                        } else {
+                            return bail!(e);
+                        }
+                    }
+                };
+
 
                 #[cfg(debug_assertions)]
                 debug!("<--------------------<  矿池 {} #{:?}",worker_name, buffer);
