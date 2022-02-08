@@ -56,5 +56,16 @@ Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
 Windows 双击运行即可
 Liunx 建议用screen 管理或者使用systemctl 进行管理
 
+在软件运行目录下创建 .env 文件
+```env
+MINING_PROXY_WEB_PORT=8020
+MINING_PROXY_WEB_PORT_PASSWORD=123456789
+JWT_SECRET=test
+```
+第一行是网页的端口
+第二行是网页管理的密码
+第三行是登录密码的加密秘钥。建议用随机字符串不少于32位的字符串
+
+
 ## 其他说明
 <a href="https://github.com/YusongWang/mining_proxy_web">Web界面地址</a><br>
