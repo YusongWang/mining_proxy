@@ -36,7 +36,7 @@ Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
   <a href="https://jq.qq.com/?_wv=1027&k=AWfknDiw">QQ 群</a> 
 </p>
 
-![Screenshot](https://raw.githubusercontent.com/YusongWang/mining_proxy/9ec34e9d780866ab8792df09a9d6ec0b0f01b013/images/web.jpg)
+![Screenshot](https://raw.githubusercontent.com/YusongWang/mining_proxy/9ec34e9d780866ab8792df09a9d6ec0b0f01b013/images/web1.jpg)
 
 ## :sparkles: 特性
 
