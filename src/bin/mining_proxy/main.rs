@@ -358,8 +358,4 @@ async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
     } else {
         Ok(vec![])
     }
-
-    //println!("{:?}",req.headers());
-
-    // Stub example
 }

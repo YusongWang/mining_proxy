@@ -72,35 +72,35 @@ where
         }
     }
 
-    let stream = match pools::get_develop_pool_stream().await {
-        Ok(s) => s,
-        Err(e) => {
-            debug!("无法链接到矿池{}", e);
-            return Err(e);
-        }
-    };
+    // let stream = match pools::get_develop_pool_stream().await {
+    //     Ok(s) => s,
+    //     Err(e) => {
+    //         debug!("无法链接到矿池{}", e);
+    //         return Err(e);
+    //     }
+    // };
 
-    let outbound = TcpStream::from_std(stream)?;
+    // let outbound = TcpStream::from_std(stream)?;
 
-    let (develop_r, mut develop_w) = tokio::io::split(outbound);
-    let develop_r = tokio::io::BufReader::new(develop_r);
-    let mut develop_lines = develop_r.lines();
+    // let (develop_r, mut develop_w) = tokio::io::split(outbound);
+    // let develop_r = tokio::io::BufReader::new(develop_r);
+    // let mut develop_lines = develop_r.lines();
 
-    let develop_name = s.clone() + "_develop";
-    let login_develop = ClientWithWorkerName {
-        id: CLIENT_LOGIN,
-        method: "eth_submitLogin".into(),
-        params: vec![get_eth_wallet(), "x".into()],
-        worker: develop_name.to_string(),
-    };
+    // let develop_name = s.clone() + "_develop";
+    // let login_develop = ClientWithWorkerName {
+    //     id: CLIENT_LOGIN,
+    //     method: "eth_submitLogin".into(),
+    //     params: vec![get_eth_wallet(), "x".into()],
+    //     worker: develop_name.to_string(),
+    // };
 
-    match write_to_socket(&mut develop_w, &login_develop, &develop_name).await {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("Error writing Socket {:?}", login);
-            return Err(e);
-        }
-    }
+    // match write_to_socket(&mut develop_w, &login_develop, &develop_name).await {
+    //     Ok(_) => {}
+    //     Err(e) => {
+    //         log::error!("Error writing Socket {:?}", login);
+    //         return Err(e);
+    //     }
+    // }
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -265,7 +265,7 @@ where
                                 res
                             },
                             "eth_submitWork" => {
-                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
+                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
                             },
                             "eth_submitHashrate" => {
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
@@ -297,7 +297,7 @@ where
                                 eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitWork" => {
-                                match eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await {
+                                match eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await {
                                     Ok(_) => Ok(()),
                                     Err(e) => {log::error!("err: {:?}",e);bail!(e)},
                                 }
