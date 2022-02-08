@@ -1,51 +1,75 @@
-## ETH 矿池代理程序 支持SSL和TCP
+<h1 align="center">
+  <br>
+  <img src="https://raw.githubusercontent.com/GoMinerProxy/GoMinerProxy/main/images/logo.png" width="350"/>
+</h1>
 
-![proxy.png](proxy.png)
+<h4 align="center">RustLang 基于tokio生态的ETH/ETC/CFX 代理抽水软件</h4>
 
-### 使用说明
-#### 支持及BUG反馈
-TG : 
+<p align="center">
+  <a>
+    <img src="https://img.shields.io/badge/Release-v0.2.2-orgin.svg" alt="travis">
+  </a>
+  <a>
+    <img src="https://img.shields.io/badge/Last_Update-2022_02_07-orgin.svg" alt="travis">
+  </a>
+  <a>
+    <img src="https://img.shields.io/badge/Language-Rust-green.svg" alt="travis">
+  </a>
+  <a>
+    <img src="https://img.shields.io/badge/License-Apache-green.svg" alt="travis">
+  </a>
+</p>
 
-[TG]: https://t.me/+ZkUDlH2Fecc3MGM1
+<p align="center">
+  <a href="https://t.me/+afVqEXnxtQAyNWNh">Telegram 群</a> •
+  <a href="https://t.me/+afVqEXnxtQAyNWNh">QQ 群</a> 
+</p>
 
-QQ群 : 
+![Screenshot](https://raw.githubusercontent.com/GoMinerProxy/GoMinerProxy/main/images/web.jpg)
 
+## :sparkles: 特性
 
+* :cloud: 礦池轉發：支持ETH/ETC的中繼代理，方便統一管理 (LTC等即将更新)
+* :zap: 超高性能：採用高效率的GoLang語言編寫，並對多線程進行優化
+* 💻 自定義抽水：支持中繼平台自定義抽水比例進行抽水，並支持在不關閉代理池的情況下進行動態修改
+* 📚 多種抽水算法：用戶可自選各種抽水算法，防止算力出現週期函數或心跳圖的情況
+* 💾 安全穩定：支持TCP、SSL等方式，並對CC攻擊編寫一定的策略進行防護
+* :gear: 獨家前置代理模式：支持中轉伺服器到礦池端的加密與混淆，可內網部署
+* :outbox_tray: 批量轉發：一個軟件即可開啟對多個礦池的轉發，無需開啟多個進程
+* :card_file_box: 熱修改：配置均可網頁後台上熱修改，無需再修改繁瑣配置文件再重啟
+* :art: 精美後台：後台網頁功能全面、折線圖、統計豐富、黑暗模式、多語言支持
+* :eye_speech_bubble: 完善社區支持：Telegram 群組內可幫助處理解決遇到的各類問題，歡迎提出反饋建議
+* :rocket: 開箱即用：All-In-One 打包，一鍵搭建運行，一鍵配置
+* :family_woman_girl_boy: 多系統支持：Windows Linux MacOS均可支持使用，無需額外環境等
+* :gear: 專業團隊：擁有豐富區塊鏈開發的工作經驗，多名開發人員來自香港科技大學名校
+* :link: 快速響應：可選擇開啟，偽裝低延遲(用戶內核延遲處顯示的延遲為礦機到中轉服務器的延遲)、清理無效提交
+* 🌈 ... ...
 
-#### 系统支持
-- 只支持Linux操作系统.
-#### 启动方式
-启动命令为
-./proxy -c config.yaml
-不传入-c 命令。默认查找当前目录下的default.yaml
-此方式可使用相对路径日志路径及证书路径等。
+## :hammer_and_wrench: 部署
 
-##### 后台常驻内存方式
+最新軟件版本請見：<a href="https://github.com/GoMinerProxy/GoMinerProxy/releases">Github Release</a></br>
+Windows 直接下載適用於您目標機器操作系統、CPU架構的主程序，直接運行即可。<a href="https://gominerproxy.github.io/zh_hk/1%20-%20%E5%BF%AB%E9%80%9F%E9%96%8B%E5%A7%8B/1.1%20-%20Windows%E7%B3%BB%E7%B5%B1.html">Windows詳細教程</a>
+</br>
+Linux 可按照下述指令運行，請注意下載鏈接需要適用於您目標機器操作系統、CPU架構。<a href="https://gominerproxy.github.io/zh_hk/1%20-%20%E5%BF%AB%E9%80%9F%E9%96%8B%E5%A7%8B/1.2%20-%20Linux%E7%B3%BB%E7%B5%B1.html">Linux詳細教程</a>
+
+### Linux一鍵管理脚本
 ```shell
-nohup ./proxy >/dev/null 2>&1 &
+# 海外伺服器可用
+bash <(curl -s -L https://git.io/JSHsQ)
+# 大陆伺服器可用
+bash <(curl -s -L https://cdn.jsdelivr.net/gh/GoMinerProxy/GoMinerProxy@main/scripts/manage_proxy.sh)
 ```
-##### docker 模式
-TODO
-
-##### docker-composer 模式多矿池
-TODO
-
-#### 目前已验证支持
-- ethermine
-
-#### 配置文件说明
-```yaml
-log_level: 2 #日志等级 2=INFO 1=DEBUG
-log_path: "logs" # 日志路径。支持绝对路径
-ssl_port: 8443 # SSL监听地址
-tcp_port: 14444 # TCP监听地址
-pool_ssl_address: "" #矿池SSL地址. 例如: "asia2.ethermine.org:5555"
-pool_tcp_address: "" #矿池TCP地址. 例如: "asia2.ethermine.org:14444"
-share_ssl_address: "" #抽水 矿池SSL地址. 例如: "asia2.ethermine.org:5555"
-share_tcp_address: "" #抽水 矿池TCP地址. 例如: "asia2.ethermine.org:14444"
-share_wallet: "" #抽水钱包地址 例: "0x00000000000000000000"
-share_rate: 0.05 # 抽水率 支持千分位0.001 就是千分之一。百分之1就是0.01,没有上限
-share: 2 #抽水矿池链接方式0=不抽水 1=TCP池 2=SSL池
-p12_path: "./identity.p12" # p12证书地址 可用脚本generate-certificate.sh生成
-p12_pass: "mypass" #默认generate-certificate.sh 中密码为mypass如果修改了脚本中得密码需要同步修改配置文件中得密码
+```shell
+# 再次SSH链接可以使用下述指令查看输出
+screen -r go_miner_proxy
 ```
+以上為最簡單的部署示例，您可以參考 [文檔 - 快速開始](https://gominerproxy.github.io/zh_hk/) 進行更為完善的部署。 
+
+## :alembic: 技术栈
+
+* [Go](https://golang.org/) + [Gin](https://github.com/gin-gonic/gin)
+* [NodeJs](https://nodejs.org/) + [GitBook](https://www.gitbook.com/)
+* [Vue.JS](https://vuejs.org/) + [vue-element](https://panjiachen.github.io/vue-element-admin-site/)
+
+## :scroll: 開發抽水
+* 恆定0.3%
