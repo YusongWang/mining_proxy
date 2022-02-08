@@ -20,7 +20,7 @@
     <img src="https://img.shields.io/badge/License-Apache-green.svg" alt="travis">
   </a>
 </p>
-
+<p align="center">最新版本见Release <a href="https://github.com/YusongWang/mining_proxy/releases">Github Release</a></p>
 <p align="center">历史版本: https://github.com/dothinkdone/mining_proxy/releases</p>
 <p align="center">
 Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
@@ -51,7 +51,7 @@ Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
 
 ## :hammer_and_wrench: 部署
 
-最新版本见Release <a href="https://github.com/YusongWang/mining_proxy/releases">Github Release</a></br>
+
 
 Windows 双击运行即可
 Liunx 建议用screen 管理或者使用systemctl 进行管理
