@@ -69,3 +69,7 @@ JWT_SECRET=test
 
 ## 其他说明
 <a href="https://github.com/YusongWang/mining_proxy_web">Web界面地址</a><br>
+
+## 抽水逻辑说明
+
+![Screenshot](https://raw.githubusercontent.com/YusongWang/mining_proxy/main/images/fee.jpg)

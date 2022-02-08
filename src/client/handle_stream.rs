@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use std::io::Error;
 
 use hex::FromHex;
 use log::{debug, info};
@@ -25,6 +26,72 @@ use crate::{
 };
 
 use super::write_to_socket;
+
+async fn seagment_unwrap<W>(
+    pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
+    worker_name: &String,
+) -> Result<Vec<u8>>
+where
+    W: AsyncWrite,
+{
+    let byte_buffer = match res {
+        Ok(buf) => match buf {
+            Some(buf) => Ok(buf),
+            None => {
+                // match pool_w.shutdown().await {
+                //     Ok(_) => {}
+                //     Err(e) => {
+                //         log::error!("Error Shutdown Socket {:?}", e);
+                //     }
+                // }
+                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name)
+            }
+        },
+        Err(e) => {
+            // match pool_w.shutdown().await {
+            //     Ok(_) => {}
+            //     Err(e) => {
+            //         log::error!("Error Shutdown Socket {:?}", e);
+            //     }
+            // };
+            bail!("矿工：{} {}", worker_name, e)
+        }
+    };
+
+    byte_buffer
+}
+
+async fn lines_unwrap<W>(
+    w: &mut WriteHalf<W>, res: Result<Option<String>, Error>,
+    worker_name: &String, form_name: &str,
+) -> Result<String>
+where
+    W: AsyncWrite,
+{
+    let buffer = match res {
+        Ok(res) => match res {
+            Some(buf) => Ok(buf),
+            None => {
+                // match w.shutdown().await {
+                //     Ok(_) => {}
+                //     Err(e) => {
+                //         log::error!("Error Worker Shutdown Socket {:?}", e);
+                //     }
+                // };
+                bail!(
+                    "{}：{}  读取到字节0. 矿池主动断开 ",
+                    form_name,
+                    worker_name
+                );
+            }
+        },
+        Err(e) => {
+            bail!("{}：{} 读取错误:", form_name, worker_name);
+        }
+    };
+
+    buffer
+}
 
 pub async fn write_rpc<W, T>(
     encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String,
@@ -183,27 +250,16 @@ where
         select! {
             res = worker_lines.next_segment() => {
                 let start = std::time::Instant::now();
-                let buf_bytes = match res {
-                    Ok(buf) => match buf {
-                            Some(buf) => buf,
-                            None => {
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                }
-                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
-                            },
-                        },
+                let mut buf_bytes = match seagment_unwrap(&mut pool_w,res,&worker_name).await {
+                    Ok(buf_bytes) => buf_bytes,
                     Err(e) => {
-                        match pool_w.shutdown().await  {
-                            Ok(_) => {},
+                        match pool_w.shutdown().await {
+                            Ok(_) => {}
                             Err(e) => {
-                                log::error!("Error Shutdown Socket {:?}",e);
-                            },
-                        }
-                        bail!("矿工：{} {}",worker_name,e);
+                                log::error!("Error Shutdown Socket {:?}", e);
+                            }
+                        };
+                        return bail!(e);
                     },
                 };
 
@@ -308,8 +364,6 @@ where
                                 eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
                             },
                             "eth_submitHashrate" => {
-                                eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
@@ -333,7 +387,6 @@ where
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_getWork" => {
-
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitLogin" => {
@@ -350,8 +403,6 @@ where
                                 }
                             },
                             "eth_submitHashrate" => {
-                                eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
@@ -392,24 +443,18 @@ where
             res = pool_lines.next_line() => {
                 let start = std::time::Instant::now();
 
-                let buffer = match res{
-                    Ok(res) => {
-                        match res {
-                            Some(buf) => buf,
-                            None => {
-                                match worker_w.shutdown().await {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Worker Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                log::error!("矿池主动断开了 Code: 000357");
-                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
-                            }
-                        }
-                    },
-                    Err(e) => {bail!("矿机下线了: {}",e)},
+                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
+                    Ok(buffer) => buffer,
+                    Err(e)=> {
+                        // if proxy_fee_state == WaitStatus::RUN {
+                        //     continue;
+                        // } else {
+                            //info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
+                            return bail!(e);
+                        //}
+                    }
                 };
+
 
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
@@ -602,25 +647,17 @@ where
                 info!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
             },
             res = proxy_lines.next_line() => {
-                let buffer = match res{
-                    Ok(res) => {
-                        match res {
-                            Some(buf) => buf,
-                            None => {
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                log::error!("矿池主动断开了 Code: 000567");
-                                bail!("矿工：{}  读取到字节0.矿工主动断开 ",worker_name);
-                            }
-                        }
-                    },
-                    Err(e) => bail!("矿机下线了: {}",e),
+                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"代理矿池").await {
+                    Ok(buffer) => buffer,
+                    Err(e)=> {
+                        // if proxy_fee_state == WaitStatus::RUN {
+                        //     continue;
+                        // } else {
+                            //info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
+                            return bail!(e);
+                        //}
+                    }
                 };
-
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {

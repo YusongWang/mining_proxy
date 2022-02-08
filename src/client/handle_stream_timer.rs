@@ -488,17 +488,13 @@ where
                 let mut buf_bytes = match seagment_unwrap(&mut pool_w,res,&worker_name).await {
                     Ok(buf_bytes) => buf_bytes,
                     Err(e) => {
-                        // if proxy_fee_state == WaitStatus::RUN {
-                        //     continue;
-                        // } else {
-                            match pool_w.shutdown().await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    log::error!("Error Shutdown Socket {:?}", e);
-                                }
-                            };
-                            return bail!(e);
-                        //}
+                        match pool_w.shutdown().await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error Shutdown Socket {:?}", e);
+                            }
+                        };
+                        return bail!(e);
                     },
                 };
 
