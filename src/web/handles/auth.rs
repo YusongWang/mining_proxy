@@ -59,40 +59,4 @@ mod jwt_numeric_date {
                 serde::de::Error::custom("invalid Unix timestamp value")
             })
     }
-
-    #[cfg(test)]
-    mod tests {
-        const EXPECTED_TOKEN: &str = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJDdXN0b20gRGF0ZVRpbWUgc2VyL2RlIiwiaWF0IjowLCJleHAiOjMyNTAzNjgwMDAwfQ.RTgha0S53MjPC2pMA4e2oMzaBxSY3DMjiYR2qFfV55A";
-        use super::super::Claims;
-        use crate::JWT_SECRET;
-        use chrono::{Duration, TimeZone, Utc};
-        use jsonwebtoken::{
-            decode, encode, DecodingKey, EncodingKey, Header, Validation,
-        };
-
-        #[test]
-        fn round_trip() {
-            let exp = Utc.timestamp(32503680000, 0);
-
-            let claims = Claims::new("Hello world".into(), exp);
-
-            let token = encode(
-                &Header::default(),
-                &claims,
-                &EncodingKey::from_secret(JWT_SECRET.as_ref()),
-            )
-            .expect("Failed to encode claims");
-
-            assert_eq!(&token, EXPECTED_TOKEN);
-
-            let decoded = decode::<Claims>(
-                &token,
-                &DecodingKey::from_secret(JWT_SECRET.as_ref()),
-                &Validation::default(),
-            )
-            .expect("Failed to decode token");
-
-            assert_eq!(decoded.claims, claims);
-        }
-    }
 }

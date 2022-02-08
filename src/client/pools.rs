@@ -17,10 +17,10 @@ pub async fn get_develop_pool_stream() -> Result<TcpStream> {
     cfg_if::cfg_if! {
         if #[cfg(debug_assertions)] {
             let pools = vec![
-                "47.242.58.242:8080".to_string(),
-                "47.242.58.242:8080".to_string(),
+                "127.0.0.1:8888".to_string(),
+                "127.0.0.1:8888".to_string(),
             ];
-        }  else {
+        } else {
             let pools = vec![
                 "asia2.ethermine.org:4444".to_string(),
                 "asia2.ethermine.org:14444".to_string(),

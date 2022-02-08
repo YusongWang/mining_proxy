@@ -61,16 +61,16 @@ pub async fn accept_tcp(
                         worker.offline();
                         workers.send(worker);
                     } else {
-                        info!("IP: {} 断开", addr);
+                        info!("IP: {} 下线", addr);
                     }
                 }
                 Err(e) => {
                     if worker.is_online() {
                         worker.offline();
                         workers.send(worker);
-                        info!("IP: {} 断开原因 {}", addr, e);
+                        info!("IP: {} 下线原因 {}", addr, e);
                     } else {
-                        info!("IP: {} 恶意链接断开: {}", addr, e);
+                        info!("IP: {} 恶意链接: {}", addr, e);
                     }
 
                     state
@@ -109,17 +109,31 @@ async fn transfer(
         )
         .await
     } else if config.share == 1 {
-        handle_tcp_pool_timer(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            state,
-            false,
-        )
-        .await
+        if config.share_alg == 99 {
+            handle_tcp_random(
+                worker,
+                worker_queue,
+                worker_r,
+                worker_w,
+                &pools,
+                &config,
+                state,
+                false,
+            )
+            .await
+        } else {
+            handle_tcp_pool_timer(
+                worker,
+                worker_queue,
+                worker_r,
+                worker_w,
+                &pools,
+                &config,
+                state,
+                false,
+            )
+            .await
+        }
     } else {
         handle_tcp_pool_all(
             worker,

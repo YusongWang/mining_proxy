@@ -17,7 +17,7 @@ use mining_proxy::{
     web::{handles::auth::Claims, AppState, OnlineWorker},
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bytes::BytesMut;
 use clap::ArgMatches;
 use human_panic::setup_panic;
@@ -38,6 +38,8 @@ fn main() -> Result<()> {
     setup_panic!();
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
+
+    let _ = mining_proxy::RUNTIME;
 
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
@@ -117,21 +119,24 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
         Err(_) => 8888,
     };
 
-    let web_sever = HttpServer::new(move || {
+    let http_data = data.clone();
+    let web_sever = if let Ok(http) = HttpServer::new(move || {
         let generated = generate();
         let generated1 = generate();
         use actix_web_grants::GrantsMiddleware;
         let auth = GrantsMiddleware::with_extractor(extract);
         App::new()
             .wrap(auth)
-            .app_data(web::Data::new(data.clone()))
+            .app_data(web::Data::new(http_data.clone()))
             .service(
                 web::scope("/api")
                     .service(mining_proxy::web::handles::user::login)
+                    .service(mining_proxy::web::handles::user::info)
+                    .service(mining_proxy::web::handles::user::logout)
                     .service(mining_proxy::web::handles::server::crate_app)
                     .service(mining_proxy::web::handles::server::server_list)
                     .service(mining_proxy::web::handles::server::server)
-                    .service(mining_proxy::web::handles::user::info),
+                    .service(mining_proxy::web::handles::server::dashboard),
             )
             .service(actix_web_static_files::ResourceFiles::new(
                 "/", generated1,
@@ -139,8 +144,18 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
             .service(actix_web_static_files::ResourceFiles::new("", generated))
     })
     .workers(1)
-    .bind(format!("0.0.0.0:{}", port))?
-    .run();
+    .bind(format!("0.0.0.0:{}", port))
+    {
+        http.run()
+    } else {
+        let mut proxy_server = data.lock().unwrap();
+
+        for (_, other_server) in &mut *proxy_server {
+            other_server.child.kill().await;
+        }
+
+        bail!("web端口 {} 被占用了", port);
+    };
 
     log::info!("界面启动成功地址为: {}", format!("0.0.0.0:{}", port));
     web_sever.await;
@@ -174,12 +189,9 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         }
     };
 
-    let mut p12 = match File::open(config.p12_path.clone()).await {
-        Ok(f) => f,
-        Err(_) => {
-            println!("证书路径错误: {} 下未找到证书!", config.p12_path);
-            std::process::exit(1);
-        }
+    let p12 = match File::open(config.p12_path.clone()).await {
+        Ok(f) => Some(f),
+        Err(_) => None,
     };
 
     let mode = if config.share == 0 {
@@ -190,14 +202,19 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         "统一钱包模式"
     };
 
+    let cert;
     log::info!("名称 {} 当前启动模式为: {}", config.name, mode);
-
-    let mut buffer = BytesMut::with_capacity(10240);
-    let read_key_len = p12.read_buf(&mut buffer).await?;
-    let cert = Identity::from_pkcs12(
-        &buffer[0..read_key_len],
-        config.p12_pass.clone().as_str(),
-    )?;
+    let der = include_bytes!("identity.p12");
+    if let Some(mut p12) = p12 {
+        let mut buffer = BytesMut::with_capacity(10240);
+        let read_key_len = p12.read_buf(&mut buffer).await?;
+        cert = Identity::from_pkcs12(
+            &buffer[0..read_key_len],
+            config.p12_pass.clone().as_str(),
+        )?;
+    } else {
+        cert = Identity::from_pkcs12(der, "mypass")?;
+    }
 
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
@@ -239,32 +256,19 @@ async fn send_to_parent(
         if let Ok(mut stream) =
             tokio::net::TcpStream::connect("127.0.0.1:65500").await
         {
-            let sleep =
-                tokio::time::sleep(tokio::time::Duration::from_secs(5 * 60));
-            tokio::pin!(sleep);
-            //RPC impl
-            // let a = "hello ".to_string();
-            // let mut b = a.as_bytes().to_vec();
-            // b.push(b'\n');
-            // stream.write(&b).await.unwrap();
-            let name = config.name.clone();
-
-            select! {
-                Some(w) = worker_rx.recv() => {
-                    let send = SendToParentStruct{
-                        name:name,
-                        worker:w,
-                    };
-
-                    let mut rpc = serde_json::to_vec(&send)?;
-                    rpc.push(b'\n');
-                    stream.write(&rpc).await.unwrap();
-                },
-                () = &mut sleep => {
-                    //RPC keep.alive
-                    //一分钟发送一次保持活动
-                    sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(60));
-                },
+            //let name = config.name.clone();
+            loop {
+                select! {
+                    Some(w) = worker_rx.recv() => {
+                        let send = SendToParentStruct{
+                            name:config.name.clone(),
+                            worker:w,
+                        };
+                        let mut rpc = serde_json::to_vec(&send)?;
+                        rpc.push(b'\n');
+                        stream.write(&rpc).await.unwrap();
+                    },
+                }
             }
         } else {
             log::error!("无法链接到主控web端");
@@ -284,28 +288,22 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     };
 
     log::info!("本地TCP端口{} 启动成功!!!", &address);
-    println!("监听本机端口{}", 65500);
     loop {
         let (mut stream, _) = listener.accept().await?;
         let inner_app = app.clone();
-        //r_lines.next_line() => {}
-        //let mut pool_lines = pool_r.lines();
+
         tokio::spawn(async move {
             let (r, _) = stream.split();
             let r_buf = BufReader::new(r);
             let mut r_lines = r_buf.lines();
 
             loop {
-                let buf: BytesMut = BytesMut::new();
-
                 if let Ok(Some(buf_str)) = r_lines.next_line().await {
-                    let s = String::from_utf8(buf.to_vec()).unwrap();
-                    log::info!("{}", s);
-                    log::info!("-----------------------");
                     if let Ok(online_work) =
                         serde_json::from_str::<SendToParentStruct>(&buf_str)
                     {
-                        dbg!(&online_work);
+                        #[cfg(debug_assertions)]
+                        dbg!("{}", &online_work);
 
                         if let Some(temp_app) =
                             inner_app.lock().unwrap().get_mut(&online_work.name)
@@ -313,7 +311,7 @@ async fn recv_from_child(app: AppState) -> Result<()> {
                             let mut is_update = false;
                             for worker in &mut temp_app.workers {
                                 if worker.worker == online_work.worker.worker {
-                                    dbg!(&worker);
+                                    //dbg!(&worker);
                                     *worker = online_work.worker.clone();
                                     is_update = true;
                                 }
@@ -329,8 +327,6 @@ async fn recv_from_child(app: AppState) -> Result<()> {
             }
         });
     }
-
-    Ok(())
 }
 
 use mining_proxy::JWT_SECRET;
@@ -340,8 +336,8 @@ const ROLE_ADMIN: &str = "ROLE_ADMIN";
 async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
     // Here is a place for your code to get user permissions/grants/permissions
     // from a request For example from a token or database
-    log::info!("check the Role");
-    println!("{:?}", req.headers().get("token"));
+    // log::info!("check the Role");
+    // println!("{:?}", req.headers().get("token"));
 
     if req.path() != "/api/user/login" {
         // 判断权限
@@ -351,8 +347,6 @@ async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
                 &DecodingKey::from_secret(JWT_SECRET.as_bytes()),
                 &Validation::default(),
             );
-            dbg!(&token_data);
-
             if let Ok(_) = token_data {
                 Ok(vec![ROLE_ADMIN.to_string()])
             } else {

@@ -16,7 +16,7 @@ pub trait ClientRpc {
     fn get_id(&mut self) -> u64;
 
     fn get_job_id(&mut self) -> Option<String>;
-    fn get_wallet(&mut self) -> Option<String>;
+    fn get_eth_wallet(&mut self) -> Option<String>;
 
     fn get_worker_name(&mut self) -> String;
     fn set_worker_name(&mut self, worker_name: &str) -> bool;
@@ -50,7 +50,7 @@ impl ClientRpc for Client {
         }
     }
 
-    fn get_wallet(&mut self) -> Option<String> {
+    fn get_eth_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
             None => None,
@@ -114,7 +114,7 @@ impl ClientRpc for ClientWithWorkerName {
         }
     }
 
-    fn get_wallet(&mut self) -> Option<String> {
+    fn get_eth_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
             None => None,

@@ -7,6 +7,7 @@ use super::get_develop_fee;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Settings {
+    pub coin: String,
     pub name: String,
     pub log_level: u32,
     pub log_path: String,
@@ -37,6 +38,7 @@ impl Default for Settings {
             // pool_tcp_address: Vec::new(),
             // share_tcp_address: Vec::new(),
             // share_ssl_address: Vec::new(),
+            coin: "ETH".into(),
             share_wallet: "".into(),
             share_rate: 0.0,
             ssl_port: 8443,
@@ -158,6 +160,15 @@ impl Settings {
         if self.share_address.is_empty() {
             bail!("抽水矿池代理池地址为空")
         };
+
+        match self.coin.as_str() {
+            "ETH" => {}
+            "ETC" => {}
+            "CFX" => {}
+            _ => {
+                bail!("不支持的代理币种 {}", self.coin)
+            }
+        }
 
         if self.tcp_port == 0 && self.ssl_port == 0 && self.encrypt_port == 0 {
             bail!("本地监听端口必须启动一个。目前全部为0")

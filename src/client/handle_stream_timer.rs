@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::Error;
 
 use crate::protocol::{
@@ -43,7 +41,7 @@ use crate::{
         PROTOCOL, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_wallet, is_fee_random},
+    util::{config::Settings, get_eth_wallet, is_fee_random},
 };
 
 use super::write_to_socket;
@@ -87,7 +85,7 @@ async fn new_eth_submit_login<W>(
 where
     W: AsyncWrite,
 {
-    if let Some(wallet) = rpc.get_wallet() {
+    if let Some(wallet) = rpc.get_eth_wallet() {
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
         let mut split = wallet.split(".").collect::<Vec<&str>>();
@@ -152,23 +150,23 @@ where
         Ok(buf) => match buf {
             Some(buf) => Ok(buf),
             None => {
-                match pool_w.shutdown().await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        log::error!("Error Shutdown Socket {:?}", e);
-                    }
-                }
-                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
+                // match pool_w.shutdown().await {
+                //     Ok(_) => {}
+                //     Err(e) => {
+                //         log::error!("Error Shutdown Socket {:?}", e);
+                //     }
+                // }
+                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name)
             }
         },
         Err(e) => {
-            match pool_w.shutdown().await {
-                Ok(_) => {}
-                Err(e) => {
-                    log::error!("Error Shutdown Socket {:?}", e);
-                }
-            }
-            bail!("矿工：{} {}", worker_name, e);
+            // match pool_w.shutdown().await {
+            //     Ok(_) => {}
+            //     Err(e) => {
+            //         log::error!("Error Shutdown Socket {:?}", e);
+            //     }
+            // };
+            bail!("矿工：{} {}", worker_name, e)
         }
     };
 
@@ -197,31 +195,6 @@ where
     write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
 }
 
-// pub fn new_job_diff_change(
-//     diff: &mut u64,
-//     rpc: &EthServerRootObject,
-//     a: &mut VecDeque<(String, Vec<String>)>,
-//     b: &mut VecDeque<(String, Vec<String>)>,
-//     c: &mut VecDeque<(String, Vec<String>)>,
-// ) -> bool
-// {
-//     let job_diff = rpc.get_diff();
-//     if job_diff == 0 {
-//         return true;
-//     }
-
-//     if job_diff > *diff {
-//         // 写入新难度
-//         *diff = job_diff;
-//         // 清空已有任务队列
-//         a.clear();
-//         b.clear();
-//         c.clear();
-//     }
-
-//     true
-// }
-
 async fn buf_parse_to_string<W>(
     w: &mut WriteHalf<W>, buffer: &[u8],
 ) -> Result<String>
@@ -243,8 +216,6 @@ where W: AsyncWrite {
     };
 
     buf
-    // log::warn!("端口可能被恶意扫描: {}", buf);
-    // bail!("端口可能被恶意扫描。");
 }
 
 pub async fn write_rpc<W, T>(
@@ -297,7 +268,7 @@ async fn develop_pool_login(
     let login_develop = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![get_wallet(), "x".into()],
+        params: vec![get_eth_wallet(), "x".into()],
         worker: develop_name.to_string(),
     };
 
@@ -398,6 +369,7 @@ pub async fn pool_with_ssl_reconnect(
             bail!("未匹配到矿池 或 均不可链接。请修改后重试");
         }
     };
+
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -412,6 +384,7 @@ pub async fn pool_with_ssl_reconnect(
     let mut pool_lines = pool_r.lines();
     Ok((pool_lines, pool_w))
 }
+
 pub async fn handle_stream<R, W>(
     worker: &mut Worker, workers_queue: UnboundedSender<Worker>,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
@@ -424,8 +397,12 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
+    let mut is_frist_login = true;
+
     let proxy_wallet_and_worker_name =
         config.share_wallet.clone() + "." + &config.share_name;
+    let develop_wallet_and_worker_name =
+        get_eth_wallet() + "." + &crate::DEVELOP_WORKER_NAME;
 
     let mut protocol = PROTOCOL::KNOWN;
     let mut first = true;
@@ -442,32 +419,8 @@ where
         jsonrpc: "2.0".into(),
         result: vec![true],
     };
-
     let s = config.get_share_name().unwrap();
-    let develop_name = s.clone() + "_develop";
-    let rand_string = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30)
-        .collect::<Vec<u8>>();
-
-    let proxy_eth_submit_hash = EthClientWorkerObject {
-        id: CLIENT_SUBHASHRATE,
-        method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
-        worker: s.clone(),
-    };
-
-    let rand_string = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30)
-        .collect::<Vec<u8>>();
-
-    let develop_eth_submit_hash = EthClientWorkerObject {
-        id: CLIENT_SUBHASHRATE,
-        method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
-        worker: develop_name.to_string(),
-    };
+    let develop_name = crate::DEVELOP_WORKER_NAME.to_string();
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -487,40 +440,67 @@ where
 
     let mut is_submithashrate = false;
 
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Debug)]
     enum WaitStatus {
         WAIT,
-        RUN,
+        ProxyRun,
+        DevRun,
     };
 
-    let mut dev_fee_state = WaitStatus::WAIT;
+    //let mut dev_fee_state = WaitStatus::WAIT;
     let mut proxy_fee_state = WaitStatus::WAIT;
 
-    // 抽水率10%
+    let mut fee_lefttime: u64 = 3600;
 
-    //let mut fee_lefttime: u64 = 500;
-    let mut fee_lefttime: u64 = 5400;
+    let mut dev_time = (fee_lefttime as f64
+        * get_develop_fee(config.share_rate as f64, false))
+        as u64;
+    if dev_time < 20 {
+        dev_time = 20;
+    }
 
-    // BUG 平滑抽水时间。 抽水单位为180分钟抽一次。 频繁掉线会导致抽水频繁
-    // 记录原矿工信息。重新登录的时候还要使用。
+    #[cfg(debug_assertions)]
+    info!("开发者抽水多少秒{}!!", dev_time);
+    let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
+    #[cfg(debug_assertions)]
+    info!("中转者抽水多少秒{}!!", proxy_time);
+
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let dev_number = rand::Rng::gen_range(&mut rng, 60..fee_lefttime) as i32;
+    let dev_number =
+        rand::Rng::gen_range(&mut rng, 0..fee_lefttime - proxy_time - dev_time)
+            as i32;
 
-    // 抽水线程.10 - 20 分钟内循环 600 - 1200
-    let mut proxy_lefttime: u64 = 0;
+    #[cfg(debug_assertions)]
+    info!("多少秒开始抽水{}!!", dev_number);
+
     let proxy_sleep =
         time::sleep(tokio::time::Duration::from_secs(dev_number as u64));
     tokio::pin!(proxy_sleep);
 
-    let sleep = time::sleep(tokio::time::Duration::from_secs(60));
+    //30 秒上送一次当前旷工状态
+    let sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(sleep);
 
     loop {
         select! {
             res = worker_lines.next_segment() => {
-                //let start = std::time::Instant::now();
-                let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
+                let mut buf_bytes = match seagment_unwrap(&mut pool_w,res,&worker_name).await {
+                    Ok(buf_bytes) => buf_bytes,
+                    Err(e) => {
+                        // if proxy_fee_state == WaitStatus::RUN {
+                        //     continue;
+                        // } else {
+                            match pool_w.shutdown().await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    log::error!("Error Shutdown Socket {:?}", e);
+                                }
+                            };
+                            return bail!(e);
+                        //}
+                    },
+                };
 
                 if is_encrypted {
                     let key = Vec::from_hex(config.key.clone()).unwrap();
@@ -599,6 +579,7 @@ where
                             let res = match json_rpc.get_method().as_str() {
                                 "eth_submitLogin" => {
                                     eth_server_result.id = rpc_id;
+                                    worker.set_protocol(PROTOCOL::ETH);
                                     new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     Ok(())
@@ -606,15 +587,11 @@ where
                                 "eth_submitWork" => {
                                     eth_server_result.id = rpc_id;
 
-                                    if proxy_fee_state == WaitStatus::RUN {
-                                        state
-                                        .proxy_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    if proxy_fee_state == WaitStatus::ProxyRun {
+                                        worker.fee_share_index_add();
+                                        worker.share_index_add();
                                         json_rpc.set_worker_name(&s);
-                                    }else if dev_fee_state == WaitStatus::RUN {
-                                        state
-                                        .develop_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }else if proxy_fee_state == WaitStatus::DevRun {
                                         json_rpc.set_worker_name(&develop_name);
                                     } else {
                                         worker.share_index_add();
@@ -659,16 +636,15 @@ where
 
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
+                                    worker.set_protocol(PROTOCOL::STRATUM);
                                     login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     Ok(())
                                 },
                                 "mining.submit" => {
-                                    if proxy_fee_state == WaitStatus::RUN {
-                                        state
-                                        .proxy_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                        //钱包加矿工名
+                                    if proxy_fee_state == WaitStatus::ProxyRun {
                                         json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
+                                        worker.fee_share_index_add();
+                                        worker.share_index_add();
                                     } else {
                                         worker.share_index_add();
                                     }
@@ -688,23 +664,21 @@ where
                             }
                         } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
 
-
                             let res = match json_rpc.get_method().as_str() {
                                 "mining.subscribe" => {
-                                    //login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     write_to_socket_byte(&mut pool_w, buffer.to_vec(), &worker_name).await?;
                                     Ok(())
                                 },
                                 "mining.authorize" => {
+                                    worker.set_protocol(PROTOCOL::NICEHASHSTRATUM);
                                     login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                     Ok(())
                                 },
                                 "mining.submit" => {
                                     json_rpc.set_id(CLIENT_SUBMITWORK);
-                                    if proxy_fee_state == WaitStatus::RUN {
-                                        state
-                                        .proxy_share
-                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    if proxy_fee_state == WaitStatus::ProxyRun {
+                                        worker.fee_share_index_add();
+                                        worker.share_index_add();
                                         //钱包加矿工名
                                         json_rpc.set_worker_name(&proxy_wallet_and_worker_name);
                                     } else {
@@ -733,11 +707,21 @@ where
                 }
             },
             res = pool_lines.next_line() => {
-                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await?;
+                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
+                    Ok(buffer) => buffer,
+                    Err(e)=> {
+                        // if proxy_fee_state == WaitStatus::RUN {
+                        //     continue;
+                        // } else {
+                            //info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
+                            return bail!(e);
+                        //}
+                    }
+                };
+
 
                 #[cfg(debug_assertions)]
                 debug!("<--------------------<  矿池 {} #{:?}",worker_name, buffer);
-
 
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -757,8 +741,15 @@ where
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                             if result_rpc.id == CLIENT_LOGIN {
-                                if proxy_fee_state == WaitStatus::WAIT && dev_fee_state == WaitStatus::WAIT{
+                                if is_frist_login == true {
                                     worker.logind();
+                                    match workers_queue.send(worker.clone()){
+                                        Ok(_) => {},
+                                        Err(_) => {
+                                            log::warn!("发送矿工状态失败");
+                                        },
+                                    };
+                                    is_frist_login = false;
                                 }
                             } else if result_rpc.id == CLIENT_SUBHASHRATE {
                                 //info!("{} 算力提交成功",worker_name);
@@ -766,36 +757,26 @@ where
                                 //info!("{} 获取任务成功",worker_name);
                             } else if result_rpc.id == SUBSCRIBE{
                             } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
-                                if proxy_fee_state == WaitStatus::RUN{
-                                    state
-                                    .proxy_accept
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                } else if dev_fee_state == WaitStatus::RUN {
-                                    state
-                                    .develop_accept
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                if proxy_fee_state == WaitStatus::ProxyRun{
+                                    // state
+                                    // .proxy_accept
+                                    // .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    worker.fee_share_accept();
+                                    worker.share_accept();
                                 } else {
                                     worker.share_accept();
                                 }
 
                             } else if result_rpc.id == CLIENT_SUBMITWORK {
-                                if proxy_fee_state == WaitStatus::RUN{
-                                    state
-                                    .proxy_reject
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                } else if dev_fee_state == WaitStatus::RUN {
-                                    state
-                                    .develop_reject
-                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                if proxy_fee_state == WaitStatus::ProxyRun{
+                                    worker.fee_share_reject();
+                                    worker.share_reject();
                                 } else {
                                     worker.share_reject();
                                 }
                             }
                         }
                     } else if protocol == PROTOCOL::STRATUM {
-
-                        //write_rpc(is_encrypted,&mut worker_w,&)
-
 
                         if let Ok(mut job_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
 
@@ -806,22 +787,36 @@ where
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_accept();
                                     } else {
-                                        state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 } else {
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_reject();
                                     } else {
-                                        state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 }
                             }
 
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
-                            if proxy_fee_state == WaitStatus::WAIT{
+                            // if proxy_fee_state == WaitStatus::WAIT{
+                            //     worker.logind();
+
+                            // }
+                            if is_frist_login == true {
                                 worker.logind();
+                                match workers_queue.send(worker.clone()){
+                                    Ok(_) => {},
+                                    Err(_) => {
+                                        log::warn!("发送矿工状态失败");
+                                    },
+                                };
                                 write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                is_frist_login = false;
                             }
+
                             continue;
                             //write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else {
@@ -840,13 +835,17 @@ where
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_accept();
                                     } else {
-                                        state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        //state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 } else {
                                     if proxy_fee_state == WaitStatus::WAIT{
                                         worker.share_reject();
                                     } else {
-                                        state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        //state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        worker.fee_share_accept();
+                                        worker.share_accept();
                                     }
                                 }
 
@@ -854,10 +853,21 @@ where
                             } else if result_rpc.id == CLIENT_LOGIN {
                                 continue;
                             } else {
-                                if proxy_fee_state == WaitStatus::WAIT{
+                                if is_frist_login == true {
+                                    match workers_queue.send(worker.clone()){
+                                        Ok(_) => {},
+                                        Err(_) => {
+                                            log::warn!("发送矿工状态失败");
+                                        },
+                                    };
                                     worker.logind();
                                     write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    is_frist_login = false;
                                 }
+                                // if proxy_fee_state == WaitStatus::WAIT{
+                                //     worker.logind();
+                                //     write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                // }
                             }
 
                             continue;
@@ -873,8 +883,8 @@ where
                 }
             },
             () = &mut proxy_sleep  => {
-                //info!("中转抽水时间片");
                 if proxy_fee_state == WaitStatus::WAIT {
+                    proxy_fee_state = WaitStatus::ProxyRun;
 
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
                         Ok(s) => s,
@@ -959,13 +969,99 @@ where
 
                     pool_lines = proxy_lines;
                     pool_w = proxy_w;
-
-                    proxy_fee_state = WaitStatus::RUN;
-                    let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
-
-                    //info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
+                    #[cfg(debug_assertions)]
+                    info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
-                } else if proxy_fee_state == WaitStatus::RUN {
+                } else if proxy_fee_state == WaitStatus::ProxyRun {
+                    proxy_fee_state = WaitStatus::DevRun;
+
+                    let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
+                        Ok(s) => s,
+                        Err(_) => {
+                            bail!("无法链接到矿池");
+                            //return Err(e);
+                        }
+                    };
+
+                    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+                        Some((stream, addr)) => (stream, addr),
+                        None => {
+                            bail!("所有TCP矿池均不可链接。请修改后重试");
+                        }
+                    };
+
+                    let outbound = TcpStream::from_std(outbound)?;
+
+                    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+                    let proxy_r = tokio::io::BufReader::new(proxy_r);
+                    let mut proxy_lines = proxy_r.lines();
+
+                    let dev_name = crate::DEVELOP_WORKER_NAME.to_string();
+                    if protocol == PROTOCOL::ETH {
+                        let login = ClientWithWorkerName {
+                            id: CLIENT_LOGIN,
+                            method: "eth_submitLogin".into(),
+                            params: vec![config.share_wallet.clone(), "x".into()],
+                            worker: dev_name.clone(),
+                        };
+                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+                    } else if protocol == PROTOCOL::STRATUM {
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.subscribe".into(),
+                            params: vec![develop_wallet_and_worker_name.clone(), "x".into()],
+                        };
+
+                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+                    } else if protocol == PROTOCOL::NICEHASHSTRATUM {
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.subscribe".into(),
+                            params: vec!["mining_proxy/1.0.0".into(), "EthereumStratum/1.0.0".into()],
+                        };
+
+                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+
+                        let login = StraumRoot {
+                            id: CLIENT_LOGIN,
+                            method: "mining.authorize".into(),
+                            params: vec![develop_wallet_and_worker_name.clone(), "x".into()],
+                        };
+
+                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                log::error!("Error writing Socket {:?}", login);
+                                return Err(e);
+                            }
+                        }
+                    }
+
+                    pool_lines = proxy_lines;
+                    pool_w = proxy_w;
+                    #[cfg(debug_assertions)]
+                    info!("{} 本次开发者抽水时间为 {} 秒",worker.worker_name,dev_time);
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(dev_time));
+                } else if proxy_fee_state == WaitStatus::DevRun {
+
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
                         Ok(pool) => pool,
                         Err(_) => {
@@ -1048,19 +1144,20 @@ where
                     pool_w = new_pool_w;
 
                     proxy_fee_state = WaitStatus::WAIT;
-                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime));
+
+                    #[cfg(debug_assertions)]
+                    info!("抽水结束!!");
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime - proxy_time - dev_time));
                 }
             },
             () = &mut sleep  => {
-                // 发送本地矿工状态到远端。
-                //info!("发送本地矿工状态到远端。{:?}",worker);
                 match workers_queue.send(worker.clone()){
                     Ok(_) => {},
                     Err(_) => {
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));
             },
         }
     }

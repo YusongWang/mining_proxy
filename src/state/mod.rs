@@ -3,8 +3,13 @@ use std::sync::{
     Arc,
 };
 
+extern crate serde_millis;
+
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
+use std::time::Instant;
+
+use crate::protocol::PROTOCOL;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Worker {
@@ -12,13 +17,19 @@ pub struct Worker {
     pub online: bool,
     pub worker_name: String,
     pub worker_wallet: String,
-    // pub login_time: Instant,
-    // pub last_subwork_time: Instant,
+    pub protocol: PROTOCOL,
+    #[serde(with = "serde_millis")]
+    pub login_time: Instant,
+    #[serde(with = "serde_millis")]
+    pub last_subwork_time: Instant,
     pub rpc_id: u64,
     pub hash: u64,
     pub share_index: u64,
     pub accept_index: u64,
     pub invalid_index: u64,
+    pub fee_share_index: u64,
+    pub fee_accept_index: u64,
+    pub fee_invalid_index: u64,
 }
 
 impl Worker {
@@ -31,12 +42,16 @@ impl Worker {
             online,
             worker_wallet,
             worker_name,
-            // login_time: Instant::now(),
-            // last_subwork_time: Instant::now(),
+            login_time: Instant::now(),
+            last_subwork_time: Instant::now(),
+            protocol: PROTOCOL::KNOWN,
             hash: 0,
             share_index: 0,
             accept_index: 0,
             invalid_index: 0,
+            fee_share_index: 0,
+            fee_accept_index: 0,
+            fee_invalid_index: 0,
             rpc_id: 0,
         }
     }
@@ -47,12 +62,16 @@ impl Worker {
             online: false,
             worker_name: "".into(),
             worker_wallet: "".into(),
-            // login_time: Instant::now(),
-            // last_subwork_time: Instant::now(),
+            protocol: PROTOCOL::KNOWN,
+            login_time: Instant::now(),
+            last_subwork_time: Instant::now(),
             hash: 0,
             share_index: 0,
             accept_index: 0,
             invalid_index: 0,
+            fee_share_index: 0,
+            fee_accept_index: 0,
+            fee_invalid_index: 0,
             rpc_id: 0,
         }
     }
@@ -87,6 +106,9 @@ impl Worker {
         true
     }
 
+    // 设置当前链接协议
+    pub fn set_protocol(&mut self, p: PROTOCOL) { self.protocol = p; }
+
     // 判断是否在线
     pub fn is_online(&self) -> bool { self.online }
 
@@ -104,7 +126,7 @@ impl Worker {
 
     // 总份额增加
     pub fn share_index_add(&mut self) {
-        //self.last_subwork_time = Instant::now();
+        self.last_subwork_time = Instant::now();
 
         self.share_index += 1;
         debug!("矿工: {} Share #{}", self.worker, self.share_index);
@@ -120,6 +142,26 @@ impl Worker {
     pub fn share_reject(&mut self) {
         self.invalid_index += 1;
         debug!("矿工: {} Share Reject #{}", self.worker, self.share_index);
+    }
+
+    // 总份额增加
+    pub fn fee_share_index_add(&mut self) {
+        //self.last_subwork_time = Instant::now();
+
+        self.fee_share_index += 1;
+        //debug!("矿工: {} Share #{}", self.worker, self.share_index);
+    }
+
+    // 接受份额
+    pub fn fee_share_accept(&mut self) {
+        self.fee_accept_index += 1;
+        //debug!("矿工: {} Share Accept #{}", self.worker, self.share_index);
+    }
+
+    // 拒绝的份额
+    pub fn fee_share_reject(&mut self) {
+        self.fee_invalid_index += 1;
+        //debug!("矿工: {} Share Reject #{}", self.worker, self.share_index);
     }
 
     pub fn submit_hashrate<T>(&mut self, rpc: &T) -> bool

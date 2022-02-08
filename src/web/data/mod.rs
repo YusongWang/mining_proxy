@@ -4,13 +4,15 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct CreateRequest {
     pub name: String,
+    pub coin: String,
+    pub share_alg: u32,
     pub tcp_port: u32,
     pub ssl_port: u32,
     pub encrypt_port: u32,
     pub share: u32,
     pub pool_address: String,
     pub share_address: String,
-    pub share_rate: u32,
+    pub share_rate: f32,
     pub share_wallet: String,
     pub key: String,
     pub iv: String,

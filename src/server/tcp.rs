@@ -27,7 +27,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK, SUBSCRIBE,
     },
     state::{State, Worker},
-    util::{config::Settings, get_develop_fee, get_wallet, is_fee_random},
+    util::{config::Settings, get_develop_fee, get_eth_wallet, is_fee_random},
 };
 
 pub struct Tcp {
@@ -205,7 +205,7 @@ async fn new_eth_submit_login(
     rpc: &mut Box<dyn EthClientObject + Send + Sync>,
     worker_name: &mut String,
 ) -> Result<()> {
-    if let Some(wallet) = rpc.get_wallet() {
+    if let Some(wallet) = rpc.get_eth_wallet() {
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
         let mut split = wallet.split(".").collect::<Vec<&str>>();

@@ -69,7 +69,7 @@ pub async fn login<W>(
 where
     W: AsyncWrite,
 {
-    if let Some(wallet) = rpc.get_wallet() {
+    if let Some(wallet) = rpc.get_eth_wallet() {
         //rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
         let split = wallet.split(".").collect::<Vec<&str>>();

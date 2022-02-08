@@ -47,7 +47,9 @@ actix-web-static-files = {version = "3.0.5", git ="https://github.com/enaut/acti
 static-files = "0.2.1"
 time = "*"
 actix-web-grants = "3.0.0-beta.6"
-
+num_enum = "0.5.6"
+serde_derive = "1.0.0"
+serde_millis = "0.1.1"
 
 [build-dependencies]
 vergen = "0.1"
@@ -59,6 +61,7 @@ static-files = "0.2.1"
 panic = 'abort'
 opt-level = "s"
 lto = true
+debug = true
 #incremental = false
 
 [features]

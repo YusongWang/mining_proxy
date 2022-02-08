@@ -18,8 +18,10 @@ fn gen_agent_wallet(agent_wallet: String) -> String {
 }
 
 fn main() {
+    //std::env::set_var("OUT_DIR", "./src/generated");
     vergen(SHORT_SHA | COMMIT_DATE).unwrap();
 
+    //if let Err(_) = env::var("PROD") {
     NpmBuild::new("./web")
         .install()
         .unwrap()
@@ -29,6 +31,7 @@ fn main() {
         .to_resource_dir()
         .build()
         .unwrap();
+    //};
 
     match env::var("AGNET") {
         Ok(v) => {

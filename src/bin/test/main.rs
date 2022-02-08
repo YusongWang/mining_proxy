@@ -4,7 +4,7 @@ fn main() {
     // use short_crypt::ShortCrypt;
     // let _sc = ShortCrypt::new(a);
 
-    // let a = get_wallet();
+    // let a = get_eth_wallet();
     // println!("{}", a);
 }
 

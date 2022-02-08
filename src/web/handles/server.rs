@@ -4,14 +4,15 @@ use std::{
     io::{Read, Write},
 };
 
-use actix_web::{get, post, web, Responder};
-use serde::{Deserialize, Serialize};
-use human_bytes::human_bytes;
+use clap::crate_version;
 
+use actix_web::{get, post, web, Responder};
+use human_bytes::human_bytes;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     state::Worker,
-    util::config::Settings,
+    util::{config::Settings, time_to_string},
     web::{data::*, AppState, OnlineWorker},
 };
 
@@ -66,7 +67,7 @@ pub async fn crate_app(
             }));
         }
 
-        if req.share_rate == 0 {
+        if req.share_rate <= 0.0 {
             //println!("抽水比例必须填写");
             return Ok(web::Json(Response::<String> {
                 code: 40000,
@@ -77,6 +78,7 @@ pub async fn crate_app(
     }
 
     config.share_name = req.name.clone();
+    config.coin = req.coin.clone();
     config.log_level = 1;
     config.log_path = "".into();
     config.name = req.name.clone();
@@ -87,6 +89,7 @@ pub async fn crate_app(
     config.encrypt_port = req.encrypt_port;
     config.share = req.share;
     config.share_rate = req.share_rate as f32 / 100.0;
+    config.share_alg = req.share_alg;
     config.share_wallet = req.share_wallet.clone();
     config.key = req.key.clone();
     config.iv = req.iv.clone();
@@ -106,9 +109,6 @@ pub async fn crate_app(
 
     use std::fs::File;
 
-    // let exe_path =
-    // std::env::current_dir().expect("获取当前可执行程序路径错误");
-    // let exe_path = exe_path.join("configs.yaml");
     let mut cfgs = match OpenOptions::new()
         //.append(false)
         .write(true)
@@ -146,14 +146,9 @@ pub async fn crate_app(
                     }));
                 }
             }
-
-            dbg!(configs.clone());
             configs.push(config.clone());
-
-            dbg!(configs.clone());
             match serde_yaml::to_string(&configs) {
                 Ok(mut c_str) => {
-                    dbg!(c_str.clone());
                     c_str = c_str[4..c_str.len()].to_string();
                     drop(cfgs);
                     std::fs::remove_file("configs.yaml")?;
@@ -219,13 +214,11 @@ pub async fn crate_app(
         }
         Err(_) => {
             let mut configs: Vec<Settings> = vec![];
-            dbg!(configs.clone());
+
             configs.push(config.clone());
 
-            dbg!(configs.clone());
             match serde_yaml::to_string(&configs) {
                 Ok(mut c_str) => {
-                    dbg!(c_str.clone());
                     c_str = c_str[4..c_str.len()].to_string();
                     match cfgs.write_all(c_str.as_bytes()) {
                         Ok(()) => {}
@@ -284,7 +277,6 @@ async fn server_list(
     {
         let proxy_server = app.lock().unwrap();
         for (s, _) in &*proxy_server {
-            log::info!("server {} ", s);
             v.push(s.to_string());
         }
     }
@@ -301,17 +293,30 @@ pub struct ResWorker {
     pub worker_name: String,
     pub worker_wallet: String,
     pub hash: String,
+    pub last_subwork_time: String,
+    pub online_time: String,
     pub share_index: u64,
     pub accept_index: u64,
+    pub fee_accept_index: u64,
     pub invalid_index: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct OnlineWorkerResult {
     pub workers: Vec<ResWorker>,
     pub online: u32,
+    pub online_time: String,
     pub config: Settings,
+    pub fee_hash: String,
+    pub total_hash: String,
+    pub accept_index: u64,
+    pub share_index: u64,
+    pub reject_index: u64,
+    pub fee_accept_index: u64,
+    pub fee_share_index: u64,
+    pub fee_reject_index: u64,
+    pub rate: f64,
+    pub share_rate: f64,
 }
 
 // 展示选中的数据信息。以json格式返回
@@ -319,33 +324,75 @@ pub struct OnlineWorkerResult {
 async fn server(
     proxy_server_name: web::Path<String>, app: web::Data<AppState>,
 ) -> actix_web::Result<impl Responder> {
-    log::debug!("{}", proxy_server_name);
+    let mut total_hash: f64 = 0.0;
 
     let mut res: OnlineWorkerResult = OnlineWorkerResult::default();
     {
         let proxy_server = app.lock().unwrap();
+        let mut online = 0;
+        let mut accept_index: u64 = 0;
+        let mut share_index: u64 = 0;
+        let mut reject_index: u64 = 0;
+        let mut fee_accept_index: u64 = 0;
+        let mut fee_share_index: u64 = 0;
+        let mut fee_reject_index: u64 = 0;
+
         for (name, server) in &*proxy_server {
-            log::info!("server {} ", name);
             if *name == proxy_server_name.to_string() {
-                //config.kill().await?;
-                //server.child.kill().await?;
-
                 for r in &server.workers {
-                    res.workers.push(ResWorker {
-                        worker_name: r.worker_name.clone(),
-                        worker_wallet: r.worker_wallet.clone(),
-                        hash: human_bytes(r.hash as f64),
-                        share_index: r.share_index,
-                        accept_index: r.accept_index,
-                        invalid_index: r.invalid_index,
-                    });
-                }
+                    if r.is_online() {
+                        online += 1;
+                        total_hash += r.hash as f64;
+                        res.workers.push(ResWorker {
+                            worker_name: r.worker_name.clone(),
+                            worker_wallet: r.worker_wallet.clone(),
+                            hash: human_bytes(r.hash as f64),
+                            share_index: r.share_index,
+                            accept_index: r.accept_index,
+                            invalid_index: r.invalid_index,
+                            fee_accept_index: r.fee_accept_index,
+                            online_time: time_to_string(
+                                r.login_time.elapsed().as_secs(),
+                            ),
+                            last_subwork_time: time_to_string(
+                                r.last_subwork_time.elapsed().as_secs(),
+                            ),
+                        });
 
-                res.online = server.online.clone();
+                        share_index += r.share_index;
+                        accept_index += r.accept_index;
+                        reject_index += r.invalid_index;
+                        fee_accept_index += r.fee_share_index;
+                        fee_share_index += r.fee_accept_index;
+                        fee_reject_index += r.fee_invalid_index;
+                    }
+                }
                 res.config = server.config.clone();
             }
         }
-        res.online = proxy_server.len() as u32;
+
+        res.online = online;
+        if res.online >= 1 {
+            res.share_index = share_index;
+            res.accept_index = accept_index;
+            res.reject_index = reject_index;
+            res.fee_accept_index = fee_accept_index;
+            res.fee_share_index = fee_share_index;
+            res.fee_reject_index = fee_reject_index;
+
+            res.rate = floor(
+                res.accept_index as f64 / res.share_index as f64 * 100.0,
+                2,
+            );
+            res.share_rate = floor(
+                res.fee_accept_index as f64 / res.accept_index as f64 * 100.0,
+                2,
+            );
+        }
+
+        res.fee_hash =
+            human_bytes(total_hash as f64 * res.config.share_rate as f64);
+        res.total_hash = human_bytes(total_hash as f64);
     }
 
     //1. 基本配置文件信息 .
@@ -353,6 +400,102 @@ async fn server(
     //3. 当前在线矿机总数 .
 
     Ok(web::Json(Response::<OnlineWorkerResult> {
+        code: 20000,
+        message: "".into(),
+        data: res,
+    }))
+}
+
+pub fn floor(value: f64, scale: i8) -> f64 {
+    let multiplier = 10f64.powi(scale as i32) as f64;
+    (value * multiplier).floor() / multiplier
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct DashboardResult {
+    pub proxy_num: i32,
+    pub online: u32,
+    pub fee_hash: String,
+    pub total_hash: String,
+    pub accept_index: u64,
+    pub share_index: u64,
+    pub reject_index: u64,
+    pub fee_accept_index: u64,
+    pub fee_share_index: u64,
+    pub fee_reject_index: u64,
+    pub rate: f64,       //总代理算力
+    pub share_rate: f64, //抽水算力
+    pub version: String,
+    pub develop_worker_name: String,
+    pub online_time: String,
+}
+
+// 展示选中的数据信息。以json格式返回
+#[post("/user/dashboard")]
+async fn dashboard(
+    app: web::Data<AppState>,
+) -> actix_web::Result<impl Responder> {
+    let mut total_hash: f64 = 0.0;
+    let mut fee_hash: f64 = 0.0;
+    let mut res: DashboardResult = DashboardResult::default();
+    {
+        let proxy_server = app.lock().unwrap();
+        let mut online = 0;
+        let mut accept_index: u64 = 0;
+        let mut share_index: u64 = 0;
+        let mut reject_index: u64 = 0;
+        let mut fee_accept_index: u64 = 0;
+        let mut fee_share_index: u64 = 0;
+        let mut fee_reject_index: u64 = 0;
+
+        for (_, other_server) in &*proxy_server {
+            for r in &other_server.workers {
+                if r.is_online() {
+                    online += 1;
+                    total_hash += r.hash as f64;
+                    share_index += r.share_index;
+                    accept_index += r.accept_index;
+                    reject_index += r.invalid_index;
+                    fee_accept_index += r.fee_share_index;
+                    fee_share_index += r.fee_accept_index;
+                    fee_reject_index += r.fee_invalid_index;
+                }
+            }
+
+            fee_hash +=
+                total_hash as f64 * other_server.config.share_rate as f64;
+        }
+
+        res.share_index += share_index;
+        res.accept_index += accept_index;
+        res.reject_index += reject_index;
+        res.fee_accept_index += fee_accept_index;
+        res.fee_share_index += fee_share_index;
+        res.fee_reject_index += fee_reject_index;
+
+        res.proxy_num = proxy_server.len() as i32;
+        res.online = online;
+    }
+
+    res.fee_hash = human_bytes(fee_hash as f64);
+    res.total_hash = human_bytes(total_hash as f64);
+    if res.accept_index > 0 {
+        res.rate =
+            floor(res.accept_index as f64 / res.share_index as f64 * 100.0, 2);
+        res.share_rate = floor(
+            res.fee_accept_index as f64 / res.accept_index as f64 * 100.0,
+            2,
+        );
+    } else {
+        res.rate = 0.0;
+        res.share_rate = 0.0;
+    }
+
+    res.online_time = time_to_string(crate::RUNTIME.elapsed().as_secs());
+    res.develop_worker_name = crate::DEVELOP_WORKER_NAME.clone();
+    res.version = crate_version!().to_string();
+
+    Ok(web::Json(Response::<DashboardResult> {
         code: 20000,
         message: "".into(),
         data: res,

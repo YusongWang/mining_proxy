@@ -46,7 +46,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::{State, Worker},
-    util::{config::Settings, get_agent_fee, get_develop_fee, get_wallet},
+    util::{config::Settings, get_agent_fee, get_develop_fee, get_eth_wallet},
     SPLIT,
 };
 
@@ -67,6 +67,31 @@ pub fn get_pool_ip_and_type(
                 let p = protocol.to_string().to_lowercase();
                 if p != "tcp:" {
                     //println!("不支持的服务类型 {}",*protocol);
+                    bail!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
+                }
+            }
+            if let Some(url) = new_pool_url.get(1) {
+                pools.push(url.to_string());
+            };
+        }
+        Ok((TCP, pools))
+    } else {
+        bail!("中转池地址设置存在错误请检查");
+    }
+}
+
+pub fn get_pool_ip_and_type_from_vec(
+    config: &Vec<String>,
+) -> Result<(i32, Vec<String>)> {
+    //FIX 兼容SSL
+    if !config.is_empty() {
+        let address = config.clone();
+        let mut pools = vec![];
+        for addr in address.iter() {
+            let new_pool_url: Vec<&str> = addr.split("//").collect();
+            if let Some(protocol) = new_pool_url.get(0) {
+                let p = protocol.to_string().to_lowercase();
+                if p != "tcp:" {
                     bail!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
                 }
             }
@@ -180,17 +205,6 @@ pub fn get_pool_stream(
             }
         };
         std_stream.set_nonblocking(true).unwrap();
-        // std_stream
-        //     .set_read_timeout(Some(Duration::from_millis(1)))
-        //     .expect("读取超时");
-        // std_stream
-        //     .set_write_timeout(Some(Duration::from_millis(1)))
-        //     .expect("读取超时");
-        // debug!(
-        //     "{} conteact to {}",
-        //     std_stream.local_addr().unwrap(),
-        //     address
-        // );
         return Some((std_stream, addr));
     }
 
@@ -305,7 +319,10 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -329,7 +346,10 @@ where W: AsyncWrite {
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -352,7 +372,10 @@ where
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -372,7 +395,10 @@ where W: AsyncWrite {
     );
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -384,7 +410,10 @@ where W: AsyncWrite {
     rpc.push(b'\n');
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -396,7 +425,10 @@ where W: AsyncWrite {
     rpc.push(SPLIT);
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!("旷工: {} 服务器断开连接. 写入成功0字节", worker);
+        bail!(
+            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+            worker
+        );
     }
     Ok(())
 }
@@ -439,7 +471,7 @@ where
     W: AsyncWrite,
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
-    if let Some(wallet) = rpc.get_wallet() {
+    if let Some(wallet) = rpc.get_eth_wallet() {
         //rpc.id = CLIENT_LOGIN;
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
@@ -1811,6 +1843,40 @@ where
     // }
     //}
 }
+pub async fn handle_tcp_random<R, W>(
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
+    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    worker_w: WriteHalf<W>, pools: &Vec<String>, config: &Settings,
+    state: State, is_encrypted: bool,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let stream = TcpStream::from_std(outbound)?;
+    let (pool_r, pool_w) = tokio::io::split(stream);
+    let pool_r = tokio::io::BufReader::new(pool_r);
+
+    handle_stream::handle_stream(
+        worker,
+        worker_queue,
+        worker_r,
+        worker_w,
+        pool_r,
+        pool_w,
+        &config,
+        state,
+        is_encrypted,
+    )
+    .await
+}
 
 pub async fn handle_tcp_timer<R, W>(
     worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
@@ -2174,7 +2240,7 @@ pub async fn submit_develop_hashrate(
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![get_wallet(), "x".into()],
+        params: vec![get_eth_wallet(), "x".into()],
         worker: hostname.clone(),
     };
 

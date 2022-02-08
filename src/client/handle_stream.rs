@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use anyhow::{bail, Result};
 
 use hex::FromHex;
@@ -22,7 +20,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_wallet},
+    util::{config::Settings, get_eth_wallet},
 };
 
 use super::write_to_socket;
@@ -43,16 +41,14 @@ where
 {
     //let start = std::time::Instant::now();
     let mut worker_name: String = String::new();
-
-    //TODO 这里要兼容SSL矿池
-    let (stream, _) =
-        match crate::client::get_pool_stream(&config.share_address) {
-            Some((stream, addr)) => (stream, addr),
-            None => {
-                log::error!("所有TCP矿池均不可链接。请修改后重试");
-                bail!("所有TCP矿池均不可链接。请修改后重试");
-            }
-        };
+    let (_, pool) = get_pool_ip_and_type_from_vec(&config.share_address)?;
+    let (stream, _) = match crate::client::get_pool_stream(&pool) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            //log::error!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
@@ -94,7 +90,7 @@ where
     let login_develop = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![get_wallet(), "x".into()],
+        params: vec![get_eth_wallet(), "x".into()],
         worker: develop_name.to_string(),
     };
 

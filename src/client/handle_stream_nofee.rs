@@ -41,7 +41,7 @@ use crate::{
         PROTOCOL, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_wallet, is_fee_random},
+    util::{config::Settings, get_eth_wallet, is_fee_random},
 };
 
 use super::write_to_socket;
@@ -85,7 +85,7 @@ async fn new_eth_submit_login<W>(
 where
     W: AsyncWrite,
 {
-    if let Some(wallet) = rpc.get_wallet() {
+    if let Some(wallet) = rpc.get_eth_wallet() {
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
         let mut split = wallet.split(".").collect::<Vec<&str>>();
@@ -295,7 +295,7 @@ async fn develop_pool_login(
     let login_develop = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![get_wallet(), "x".into()],
+        params: vec![get_eth_wallet(), "x".into()],
         worker: develop_name.to_string(),
     };
 
@@ -487,7 +487,7 @@ where
 
     let mut is_submithashrate = false;
 
-    let sleep = time::sleep(tokio::time::Duration::from_secs(60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(sleep);
 
     loop {
@@ -795,7 +795,7 @@ where
                         log::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));
             },
         }
     }
