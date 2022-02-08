@@ -308,8 +308,6 @@ where
                                 eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
                             },
                             "eth_submitHashrate" => {
-                                eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_getWork" => {
@@ -333,7 +331,6 @@ where
                         rpc_id = client_json_rpc.id;
                         let res = match client_json_rpc.method.as_str() {
                             "eth_getWork" => {
-
                                 eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "eth_submitLogin" => {
@@ -350,8 +347,6 @@ where
                                 }
                             },
                             "eth_submitHashrate" => {
-                                eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
                             },
                             "mining.subscribe" => {
