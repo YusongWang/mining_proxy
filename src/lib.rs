@@ -5,7 +5,6 @@ extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
 const SPLIT: u8 = b'\n';
-const WALLET: &'static str = "0x98be5c44d574b96b320dffb0ccff116bda433b8e";
 
 lazy_static! {
     pub static ref JWT_SECRET: String = std::env::var("JWT_SECRET")
