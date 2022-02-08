@@ -585,15 +585,10 @@ where
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
                         } else if result_rpc.id == CLIENT_GETWORK {
                         } else if result_rpc.result {
-                            state
-                            .proxy_accept
-                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            worker.fee_share_accept();
                         } else if result_rpc.id == 999{
                         } else {
-                            state
-                            .proxy_reject
-                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
+                            worker.fee_share_accept();
                         }
                     } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
                         #[cfg(debug_assertions)]
