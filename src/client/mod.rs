@@ -688,39 +688,6 @@ where
             #[cfg(debug_assertions)]
             debug!("返回True给矿工。成功！！！");
             return Ok(());
-        } else if develop_send_jobs.contains(&job_id) {
-            //if let Some(_thread_id) = develop_send_jobs.get(&job_id) {
-            let mut hostname = String::from("develop_");
-            state
-                .develop_share
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-
-            let name = hostname::get()?;
-            hostname += name.to_str().unwrap();
-            rpc.set_worker_name(&hostname);
-            #[cfg(debug_assertions)]
-            debug!("得到开发者抽水任务。{:?}", rpc);
-            #[cfg(debug_assertions)]
-            debug!("提交开发者任务!");
-            let s = ServerId {
-                id: rpc.get_id(),
-                jsonrpc: "2.0".into(),
-                result: true,
-            };
-            let (proxy, worker) = tokio::join!(
-                write_to_socket(proxy_w, rpc, &config.share_name),
-                write_to_socket(worker_w, &s, &worker_name)
-            );
-            if proxy.is_err() {
-                #[cfg(debug_assertions)]
-                debug!("给矿工返回成功写入失败了。")
-            }
-
-            if worker.is_err() {
-                #[cfg(debug_assertions)]
-                debug!("给矿工返回成功写入失败了。")
-            }
-            return Ok(());
         } else {
             worker.share_index_add();
             rpc.set_id(worker.share_index);

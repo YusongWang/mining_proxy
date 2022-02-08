@@ -345,52 +345,20 @@ pub fn get_agent_fee(share_fee: f64) -> f64 {
     share_fee / 10.0
 }
 
+//TODO 整理代码 删除无用代码。 目前折中防止报错
 #[inline(always)]
 pub fn get_eth_wallet() -> String {
-    extern crate short_crypt;
-    use short_crypt::ShortCrypt;
-    let wallet = vec![
-        126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42,
-        150, 205, 206, 52, 196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55,
-        121, 152, 155, 121, 126, 100, 42, 152, 100, 155, 51, 123,
-    ];
-    let sc = ShortCrypt::new(WALLET);
-    match sc.decrypt(&(18, wallet)) {
-        Ok(s) => String::from_utf8(s).unwrap(),
-        Err(_) => std::process::exit(1),
-    }
+    return "".into();
 }
 
 #[inline(always)]
 pub fn get_etc_wallet() -> String {
-    extern crate short_crypt;
-    use short_crypt::ShortCrypt;
-    let wallet = vec![
-        126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42,
-        150, 205, 206, 52, 196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55,
-        121, 152, 155, 121, 126, 100, 42, 152, 100, 155, 51, 123,
-    ];
-    let sc = ShortCrypt::new(WALLET);
-    match sc.decrypt(&(18, wallet)) {
-        Ok(s) => String::from_utf8(s).unwrap(),
-        Err(_) => std::process::exit(1),
-    }
+    return "".into();
 }
 
 #[inline(always)]
 pub fn get_cfx_wallet() -> String {
-    extern crate short_crypt;
-    use short_crypt::ShortCrypt;
-    let wallet = vec![
-        126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42,
-        150, 205, 206, 52, 196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55,
-        121, 152, 155, 121, 126, 100, 42, 152, 100, 155, 51, 123,
-    ];
-    let sc = ShortCrypt::new(WALLET);
-    match sc.decrypt(&(18, wallet)) {
-        Ok(s) => String::from_utf8(s).unwrap(),
-        Err(_) => std::process::exit(1),
-    }
+    return "".into();
 }
 
 pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
