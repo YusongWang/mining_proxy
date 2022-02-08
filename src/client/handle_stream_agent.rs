@@ -23,7 +23,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_wallet},
+    util::{config::Settings, get_eth_wallet},
 };
 
 use super::write_to_socket;
@@ -95,7 +95,7 @@ where
     let login_develop = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![get_wallet(), "x".into()],
+        params: vec![get_eth_wallet(), "x".into()],
         worker: develop_name.to_string(),
     };
 

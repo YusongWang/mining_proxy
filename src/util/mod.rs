@@ -317,40 +317,27 @@ fn test_time_to_string() {
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "agent")] {
+        #[inline(always)]
         pub fn get_develop_fee(share_fee: f64,is_true:bool) -> f64 {
-            let mut fee;
-            if share_fee <= 0.05 {
-                if is_true {
-                    return 0.003;
-                }
-                fee =  0.003 + 0.003*0.2 ;
-            } else {
-                fee = share_fee / 10.0;
-                if is_true {
-                    return fee;
-                }
-                fee += fee *0.2;
-            }
-            fee
+            0.001
         }
     } else {
+        #[inline(always)]
         pub fn get_develop_fee(share_fee: f64,is_true:bool) -> f64 {
             if share_fee <= 0.01 {
                 if is_true {
                     return 0.001;
                 }
-                return 0.001 + 0.0001;
+                return 0.001;
+            } else if share_fee >= 0.03{
+                return 0.003;
+            } else {
+                return 0.002;
             }
-
-            let fee = share_fee / 10.0;
-            if is_true {
-                return fee;
-            }
-            fee + fee * 0.1
         }
     }
 }
-
+#[inline(always)]
 pub fn get_agent_fee(share_fee: f64) -> f64 {
     if share_fee <= 0.05 {
         return 0.005;
@@ -358,17 +345,40 @@ pub fn get_agent_fee(share_fee: f64) -> f64 {
     share_fee / 10.0
 }
 
-// #[test]
-// fn test_get_develop_fee() {
-//     assert_eq!(get_develop_fee(0.01), 0.001);
-//     assert_eq!(get_develop_fee(0.001), 0.001);
-//     assert_eq!(get_develop_fee(0.004), 0.001);
-//     assert_eq!(get_develop_fee(0.0001), 0.001);
-//     assert_eq!(get_develop_fee(0.10), 0.01);
-//     assert_eq!(get_develop_fee(1.0), 0.10);
-// }
+#[inline(always)]
+pub fn get_eth_wallet() -> String {
+    extern crate short_crypt;
+    use short_crypt::ShortCrypt;
+    let wallet = vec![
+        126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42,
+        150, 205, 206, 52, 196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55,
+        121, 152, 155, 121, 126, 100, 42, 152, 100, 155, 51, 123,
+    ];
+    let sc = ShortCrypt::new(WALLET);
+    match sc.decrypt(&(18, wallet)) {
+        Ok(s) => String::from_utf8(s).unwrap(),
+        Err(_) => std::process::exit(1),
+    }
+}
 
-pub fn get_wallet() -> String {
+#[inline(always)]
+pub fn get_etc_wallet() -> String {
+    extern crate short_crypt;
+    use short_crypt::ShortCrypt;
+    let wallet = vec![
+        126, 207, 201, 55, 46, 101, 154, 159, 205, 210, 52, 124, 46, 109, 42,
+        150, 205, 206, 52, 196, 122, 108, 45, 199, 151, 47, 204, 42, 47, 55,
+        121, 152, 155, 121, 126, 100, 42, 152, 100, 155, 51, 123,
+    ];
+    let sc = ShortCrypt::new(WALLET);
+    match sc.decrypt(&(18, wallet)) {
+        Ok(s) => String::from_utf8(s).unwrap(),
+        Err(_) => std::process::exit(1),
+    }
+}
+
+#[inline(always)]
+pub fn get_cfx_wallet() -> String {
     extern crate short_crypt;
     use short_crypt::ShortCrypt;
     let wallet = vec![

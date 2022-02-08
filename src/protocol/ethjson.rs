@@ -7,7 +7,7 @@ pub trait EthClientObject {
     fn get_id(&self) -> u64;
 
     fn get_job_id(&mut self) -> Option<String>;
-    fn get_wallet(&mut self) -> Option<String>;
+    fn get_eth_wallet(&mut self) -> Option<String>;
     fn set_wallet(&mut self, wallet: &str) -> bool;
 
     fn get_worker_name(&mut self) -> String;
@@ -60,7 +60,7 @@ impl EthClientObject for EthClientRootObject {
         }
     }
 
-    fn get_wallet(&mut self) -> Option<String> {
+    fn get_eth_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
             None => None,
@@ -135,7 +135,7 @@ impl EthClientObject for EthClientWorkerObject {
         }
     }
 
-    fn get_wallet(&mut self) -> Option<String> {
+    fn get_eth_wallet(&mut self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
             None => None,

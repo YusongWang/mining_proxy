@@ -46,7 +46,7 @@ use crate::{
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
     },
     state::{State, Worker},
-    util::{config::Settings, get_agent_fee, get_develop_fee, get_wallet},
+    util::{config::Settings, get_agent_fee, get_develop_fee, get_eth_wallet},
     SPLIT,
 };
 
@@ -446,7 +446,7 @@ where
     W: AsyncWrite,
     T: crate::protocol::rpc::eth::ClientRpc + Serialize,
 {
-    if let Some(wallet) = rpc.get_wallet() {
+    if let Some(wallet) = rpc.get_eth_wallet() {
         //rpc.id = CLIENT_LOGIN;
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
@@ -2181,7 +2181,7 @@ pub async fn submit_develop_hashrate(
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
-        params: vec![get_wallet(), "x".into()],
+        params: vec![get_eth_wallet(), "x".into()],
         worker: hostname.clone(),
     };
 
