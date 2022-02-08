@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(dead_code)]
-
 use std::io::Error;
 
 use crate::protocol::{
@@ -10,6 +7,7 @@ use crate::protocol::{
         StraumResultBool, StraumRoot,
     },
 };
+
 use anyhow::{bail, Result};
 use hex::FromHex;
 use log::{debug, info};

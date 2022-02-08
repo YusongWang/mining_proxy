@@ -80,6 +80,31 @@ pub fn get_pool_ip_and_type(
     }
 }
 
+pub fn get_pool_ip_and_type_from_vec(
+    config: &Vec<String>,
+) -> Result<(i32, Vec<String>)> {
+    //FIX 兼容SSL
+    if !config.is_empty() {
+        let address = config.clone();
+        let mut pools = vec![];
+        for addr in address.iter() {
+            let new_pool_url: Vec<&str> = addr.split("//").collect();
+            if let Some(protocol) = new_pool_url.get(0) {
+                let p = protocol.to_string().to_lowercase();
+                if p != "tcp:" {
+                    bail!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
+                }
+            }
+            if let Some(url) = new_pool_url.get(1) {
+                pools.push(url.to_string());
+            };
+        }
+        Ok((TCP, pools))
+    } else {
+        bail!("中转池地址设置存在错误请检查");
+    }
+}
+
 // 从配置文件返回 连接矿池类型及连接地址
 pub fn get_pool_ip_and_type_for_proxyer(
     config: &crate::util::config::Settings,
@@ -1817,6 +1842,40 @@ where
     //     .await
     // }
     //}
+}
+pub async fn handle_tcp_random<R, W>(
+    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
+    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    worker_w: WriteHalf<W>, pools: &Vec<String>, config: &Settings,
+    state: State, is_encrypted: bool,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let stream = TcpStream::from_std(outbound)?;
+    let (pool_r, pool_w) = tokio::io::split(stream);
+    let pool_r = tokio::io::BufReader::new(pool_r);
+
+    handle_stream::handle_stream(
+        worker,
+        worker_queue,
+        worker_r,
+        worker_w,
+        pool_r,
+        pool_w,
+        &config,
+        state,
+        is_encrypted,
+    )
+    .await
 }
 
 pub async fn handle_tcp_timer<R, W>(

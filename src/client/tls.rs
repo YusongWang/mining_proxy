@@ -123,17 +123,31 @@ async fn transfer_ssl(
         )
         .await
     } else if config.share == 1 {
-        handle_tcp_pool_timer(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            state,
-            false,
-        )
-        .await
+        if config.share_alg == 99 {
+            handle_tcp_random(
+                worker,
+                worker_queue,
+                worker_r,
+                worker_w,
+                &pools,
+                &config,
+                state,
+                false,
+            )
+            .await
+        } else {
+            handle_tcp_pool_timer(
+                worker,
+                worker_queue,
+                worker_r,
+                worker_w,
+                &pools,
+                &config,
+                state,
+                false,
+            )
+            .await
+        }
     } else {
         handle_tcp_pool_all(
             worker,

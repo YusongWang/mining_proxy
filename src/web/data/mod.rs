@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct CreateRequest {
     pub name: String,
+    pub coin: String,
+    pub share_alg: u32,
     pub tcp_port: u32,
     pub ssl_port: u32,
     pub encrypt_port: u32,

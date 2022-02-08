@@ -412,7 +412,8 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .env("PROXY_SHARE_ADDRESS", config.share_address[0].clone())
         .env("PROXY_SHARE_RATE", config.share_rate.to_string())
         .env("PROXY_SHARE_WALLET", config.share_wallet.to_string())
-        .env("PROXY_SHARE_ALG", "1".to_string())
+        .env("PROXY_SHARE_ALG", config.share_alg.to_string())
+        .env("PROXY_COIN", config.coin.to_string())
         .env("PROXY_SHARE_NAME", config.share_name.to_string())
         .env("PROXY_SHARE", config.share.to_string())
         .env(
