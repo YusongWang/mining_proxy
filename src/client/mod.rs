@@ -638,10 +638,9 @@ where
 
 async fn eth_submit_work_develop<W, W1, W2, T>(
     worker: &mut Worker, pool_w: &mut WriteHalf<W>,
-    proxy_w: &mut WriteHalf<W1>, develop_w: &mut WriteHalf<W1>,
-    worker_w: &mut WriteHalf<W2>, rpc: &mut T, worker_name: &String,
-    mine_send_jobs: &mut Vec<String>, develop_send_jobs: &mut Vec<String>,
-    config: &Settings, state: &mut State,
+    proxy_w: &mut WriteHalf<W1>, worker_w: &mut WriteHalf<W2>, rpc: &mut T,
+    worker_name: &String, mine_send_jobs: &mut Vec<String>,
+    develop_send_jobs: &mut Vec<String>, config: &Settings, state: &mut State,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -670,7 +669,7 @@ where
             };
 
             let (proxy, worker) = tokio::join!(
-                write_to_socket(develop_w, rpc, &config.share_name),
+                write_to_socket(proxy_w, rpc, &config.share_name),
                 write_to_socket(worker_w, &s, &worker_name)
             );
             if proxy.is_err() {
