@@ -452,15 +452,16 @@ where
 
     let mut fee_lefttime: u64 = 3600;
 
-    let mut dev_time = (fee_lefttime as f64
-        * get_develop_fee(config.share_rate as f64, false))
-        as u64;
-    if dev_time < 20 {
-        dev_time = 20;
-    }
+    // let mut dev_time = (fee_lefttime as f64
+    //     * get_develop_fee(config.share_rate as f64, false))
+    //     as u64;
+    // if dev_time < 20 {
+    //     dev_time = 20;
+    // }
 
-    #[cfg(debug_assertions)]
-    info!("开发者抽水多少秒{}!!", dev_time);
+    // #[cfg(debug_assertions)]
+    // info!("开发者抽水多少秒{}!!", dev_time);
+
     let proxy_time = (fee_lefttime as f32 * config.share_rate) as u64;
     #[cfg(debug_assertions)]
     info!("中转者抽水多少秒{}!!", proxy_time);
@@ -468,8 +469,7 @@ where
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
     let dev_number =
-        rand::Rng::gen_range(&mut rng, 0..fee_lefttime - proxy_time - dev_time)
-            as i32;
+        rand::Rng::gen_range(&mut rng, 0..fee_lefttime - proxy_time) as i32;
 
     #[cfg(debug_assertions)]
     info!("多少秒开始抽水{}!!", dev_number);
@@ -973,95 +973,6 @@ where
                     info!("{} 本次中转抽水时间为 {} 秒",worker.worker_name,proxy_time);
                     proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(proxy_time));
                 } else if proxy_fee_state == WaitStatus::ProxyRun {
-                    proxy_fee_state = WaitStatus::DevRun;
-
-                    let (stream_type, pools) = match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
-                        Ok(s) => s,
-                        Err(_) => {
-                            bail!("无法链接到矿池");
-                            //return Err(e);
-                        }
-                    };
-
-                    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
-                        Some((stream, addr)) => (stream, addr),
-                        None => {
-                            bail!("所有TCP矿池均不可链接。请修改后重试");
-                        }
-                    };
-
-                    let outbound = TcpStream::from_std(outbound)?;
-
-                    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
-                    let proxy_r = tokio::io::BufReader::new(proxy_r);
-                    let mut proxy_lines = proxy_r.lines();
-
-                    let dev_name = crate::DEVELOP_WORKER_NAME.to_string();
-                    if protocol == PROTOCOL::ETH {
-                        let login = ClientWithWorkerName {
-                            id: CLIENT_LOGIN,
-                            method: "eth_submitLogin".into(),
-                            params: vec![config.share_wallet.clone(), "x".into()],
-                            worker: dev_name.clone(),
-                        };
-                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                log::error!("Error writing Socket {:?}", login);
-                                return Err(e);
-                            }
-                        }
-                    } else if protocol == PROTOCOL::STRATUM {
-                        let login = StraumRoot {
-                            id: CLIENT_LOGIN,
-                            method: "mining.subscribe".into(),
-                            params: vec![develop_wallet_and_worker_name.clone(), "x".into()],
-                        };
-
-                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                log::error!("Error writing Socket {:?}", login);
-                                return Err(e);
-                            }
-                        }
-                    } else if protocol == PROTOCOL::NICEHASHSTRATUM {
-                        let login = StraumRoot {
-                            id: CLIENT_LOGIN,
-                            method: "mining.subscribe".into(),
-                            params: vec!["mining_proxy/1.0.0".into(), "EthereumStratum/1.0.0".into()],
-                        };
-
-                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                log::error!("Error writing Socket {:?}", login);
-                                return Err(e);
-                            }
-                        }
-
-                        let login = StraumRoot {
-                            id: CLIENT_LOGIN,
-                            method: "mining.authorize".into(),
-                            params: vec![develop_wallet_and_worker_name.clone(), "x".into()],
-                        };
-
-                        match write_to_socket(&mut proxy_w, &login, &dev_name).await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                log::error!("Error writing Socket {:?}", login);
-                                return Err(e);
-                            }
-                        }
-                    }
-
-                    pool_lines = proxy_lines;
-                    pool_w = proxy_w;
-                    #[cfg(debug_assertions)]
-                    info!("{} 本次开发者抽水时间为 {} 秒",worker.worker_name,dev_time);
-                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(dev_time));
-                } else if proxy_fee_state == WaitStatus::DevRun {
-
                     let (stream_type, pools) = match crate::client::get_pool_ip_and_type(&config) {
                         Ok(pool) => pool,
                         Err(_) => {
@@ -1138,8 +1049,6 @@ where
                         }
                     }
 
-
-
                     pool_lines = new_pool_r;
                     pool_w = new_pool_w;
 
@@ -1147,7 +1056,7 @@ where
 
                     #[cfg(debug_assertions)]
                     info!("抽水结束!!");
-                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime - proxy_time - dev_time));
+                    proxy_sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(fee_lefttime - proxy_time));
                 }
             },
             () = &mut sleep  => {
