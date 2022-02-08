@@ -59,7 +59,7 @@ Liunx 建议用screen 管理或者使用systemctl 进行管理
 在软件运行目录下创建 .env 文件
 ```env
 MINING_PROXY_WEB_PORT=8020
-MINING_PROXY_WEB_PORT_PASSWORD=123456789
+MINING_PROXY_WEB_PASSWORD=123456789
 JWT_SECRET=test
 ```
 第一行是网页的端口
