@@ -347,19 +347,13 @@ pub fn get_agent_fee(share_fee: f64) -> f64 {
 
 //TODO 整理代码 删除无用代码。 目前折中防止报错
 #[inline(always)]
-pub fn get_eth_wallet() -> String {
-    return "".into();
-}
+pub fn get_eth_wallet() -> String { return "".into(); }
 
 #[inline(always)]
-pub fn get_etc_wallet() -> String {
-    return "".into();
-}
+pub fn get_etc_wallet() -> String { return "".into(); }
 
 #[inline(always)]
-pub fn get_cfx_wallet() -> String {
-    return "".into();
-}
+pub fn get_cfx_wallet() -> String { return "".into(); }
 
 pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
     //tokio::process::Command::new(program)
