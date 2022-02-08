@@ -12,8 +12,6 @@ use clap::{
     crate_description, crate_name, crate_version, App, Arg, ArgMatches,
 };
 
-use crate::WALLET;
-
 use self::config::Settings;
 
 pub fn get_app_command_matches() -> Result<ArgMatches<'static>> {
