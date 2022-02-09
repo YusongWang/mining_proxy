@@ -27,7 +27,7 @@ Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
 </p>
 
 <p align="center">
-作者微信: 13842095202 • Tg: @kk_good
+Tg: @kk_good
 </p>
 
 
