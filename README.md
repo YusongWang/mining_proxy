@@ -27,11 +27,6 @@ Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
 </p>
 
 <p align="center">
-Tg: @kk_good
-</p>
-
-
-<p align="center">
   <a href="https://t.me/+ZkUDlH2Fecc3MGM1">Telegram 群</a> •
   <a href="https://jq.qq.com/?_wv=1027&k=AWfknDiw">QQ 群</a> 
 </p>
