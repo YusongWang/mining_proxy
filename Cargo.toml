@@ -36,7 +36,7 @@ cfg-if = "1.0.0"
 short-crypt = "1.0.25"
 ethereum-hexutil = "0.2.3"
 openssl-probe = "0.1.5"
-human_bytes = "0.3"
+human_bytes = { version = "0.3", features = ["bibytes"] }
 human-panic = "1.0.3"
 serde_yaml = "0.8.23"
 jsonwebtoken = "7"

@@ -6,8 +6,6 @@
 echo -n "123123123123122312adsd" > passphrase
 ```
 
-
-
 ```shell
 openssl enc -aes-256-cbc -kfile passphrase -md md5 -P -salt
 ```
