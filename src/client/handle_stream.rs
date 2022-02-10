@@ -109,7 +109,7 @@ where
 
 async fn new_eth_submit_work<W, W1, W2>(
     worker: &mut Worker, pool_w: &mut WriteHalf<W>,
-    proxy_w: &mut WriteHalf<W1>, develop_w: &mut WriteHalf<W1>,
+    proxy_w: &mut WriteHalf<W1>,
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
     mine_send_jobs: &mut LruCache<
@@ -322,14 +322,22 @@ async fn proxy_pool_login(
     config: &Settings, hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
-    let (stream, _) =
-        match crate::client::get_pool_stream(&config.share_address) {
-            Some((stream, addr)) => (stream, addr),
-            None => {
-                log::error!("所有TCP矿池均不可链接。请修改后重试");
-                bail!("所有TCP矿池均不可链接。请修改后重试");
-            }
-        };
+    let (_, pools) = match crate::client::get_pool_ip_and_type_from_vec(
+        &config.share_address,
+    ) {
+        Ok((stream, addr)) => (stream, addr),
+        Err(e) => {
+            log::error!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let (stream, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
@@ -445,35 +453,9 @@ where
     };
 
     let s = config.get_share_name().unwrap();
-    let develop_name = s.clone() + "_develop";
-    let rand_string = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30)
-        .collect::<Vec<u8>>();
-
-    let proxy_eth_submit_hash = EthClientWorkerObject {
-        id: CLIENT_SUBHASHRATE,
-        method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
-        worker: s.clone(),
-    };
-
-    let rand_string = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30)
-        .collect::<Vec<u8>>();
-
-    let develop_eth_submit_hash = EthClientWorkerObject {
-        id: CLIENT_SUBHASHRATE,
-        method: "eth_submitHashrate".to_string(),
-        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
-        worker: develop_name.to_string(),
-    };
 
     let (mut proxy_lines, mut proxy_w) =
         proxy_pool_login(&config, s.clone()).await?;
-    let (mut develop_lines, mut develop_w) =
-        develop_pool_login(s.clone()).await?;
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
@@ -576,7 +558,7 @@ where
                             },
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
-                                new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_proxy_jobs,&mut send_develop_jobs,&config,&mut state).await?;
+                                new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_proxy_jobs,&mut send_develop_jobs,&config,&mut state).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
