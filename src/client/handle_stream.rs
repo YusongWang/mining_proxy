@@ -481,13 +481,13 @@ where
     let mut rpc_id = 0;
 
     let mut unsend_proxy_jobs: VecDeque<Vec<String>> =
-        VecDeque::with_capacity(200);
+        VecDeque::with_capacity(500);
     let mut unsend_develop_jobs: VecDeque<Vec<String>> =
-        VecDeque::with_capacity(200);
+        VecDeque::with_capacity(500);
 
-    let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(300);
+    let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(500);
     let mut send_develop_jobs: LruCache<String, Vec<String>> =
-        LruCache::new(300);
+        LruCache::new(500);
     let mut send_normal_jobs: LruCache<String, Vec<String>> =
         LruCache::new(500);
 
@@ -734,11 +734,9 @@ where
                 }
             },
             () = &mut sleep  => {
-
-                if unsend_proxy_jobs.len() >= 150 {
-                    unsend_proxy_jobs.drain(0..100);
+                if unsend_proxy_jobs.len() >= 500 {
+                    unsend_proxy_jobs.drain(0..400);
                 }
-
 
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
