@@ -1,12 +1,20 @@
+use std::{f32::consts::E, io::Error};
+
 use anyhow::{bail, Result};
-use std::io::Error;
 
 use hex::FromHex;
 use log::{debug, info};
 
+use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
+extern crate rand;
+
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
+    io::{
+        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader,
+        Lines, ReadHalf, WriteHalf,
+    },
     net::TcpStream,
     select, time,
 };
@@ -14,52 +22,23 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
-        ethjson::EthServerRoot,
+        ethjson::{
+            EthServer, EthServerRoot, EthServerRootObject,
+            EthServerRootObjectBool, EthServerRootObjectError,
+            EthServerRootObjectJsonRpc,
+        },
         rpc::eth::{
             Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue,
             ServerSideJob,
         },
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
+        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
+        SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_eth_wallet},
+    util::{config::Settings, get_eth_wallet, is_fee_random},
 };
 
 use super::write_to_socket;
-
-async fn seagment_unwrap<W>(
-    pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
-    worker_name: &String,
-) -> Result<Vec<u8>>
-where
-    W: AsyncWrite,
-{
-    let byte_buffer = match res {
-        Ok(buf) => match buf {
-            Some(buf) => Ok(buf),
-            None => {
-                // match pool_w.shutdown().await {
-                //     Ok(_) => {}
-                //     Err(e) => {
-                //         log::error!("Error Shutdown Socket {:?}", e);
-                //     }
-                // }
-                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name)
-            }
-        },
-        Err(e) => {
-            // match pool_w.shutdown().await {
-            //     Ok(_) => {}
-            //     Err(e) => {
-            //         log::error!("Error Shutdown Socket {:?}", e);
-            //     }
-            // };
-            bail!("矿工：{} {}", worker_name, e)
-        }
-    };
-
-    byte_buffer
-}
 
 async fn lines_unwrap<W>(
     w: &mut WriteHalf<W>, res: Result<Option<String>, Error>,
@@ -93,6 +72,207 @@ where
     buffer
 }
 
+async fn new_eth_submit_login<W>(
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    if let Some(wallet) = rpc.get_eth_wallet() {
+        rpc.set_id(CLIENT_LOGIN);
+        let mut temp_worker = wallet.clone();
+        let mut split = wallet.split(".").collect::<Vec<&str>>();
+        if split.len() > 1 {
+            worker.login(
+                temp_worker.clone(),
+                split.get(1).unwrap().to_string(),
+                wallet.clone(),
+            );
+            *worker_name = temp_worker;
+        } else {
+            temp_worker.push_str(".");
+            temp_worker = temp_worker + rpc.get_worker_name().as_str();
+            worker.login(
+                temp_worker.clone(),
+                rpc.get_worker_name(),
+                wallet.clone(),
+            );
+            *worker_name = temp_worker;
+        }
+
+        write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+    } else {
+        bail!("请求登录出错。可能收到暴力攻击");
+    }
+}
+
+async fn new_eth_submit_work<W, W1, W2>(
+    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
+    proxy_w: &mut WriteHalf<W1>, develop_w: &mut WriteHalf<W1>,
+    worker_w: &mut WriteHalf<W2>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
+    mine_send_jobs: &mut LruCache<
+        std::string::String,
+        Vec<std::string::String>,
+    >,
+    develop_send_jobs: &mut LruCache<
+        std::string::String,
+        Vec<std::string::String>,
+    >,
+    config: &Settings, state: &mut State,
+) -> Result<()>
+where
+    W: AsyncWrite,
+    W1: AsyncWrite,
+    W2: AsyncWrite,
+{
+    rpc.set_id(CLIENT_SUBMITWORK);
+    if let Some(job_id) = rpc.get_job_id() {
+        #[cfg(debug_assertions)]
+        debug!("提交的JobID {}", job_id);
+        if mine_send_jobs.contains(&job_id) {
+            let hostname = config.get_share_name().unwrap();
+            // state
+            //     .proxy_share
+            //     .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            rpc.set_worker_name(&hostname);
+            #[cfg(debug_assertions)]
+            debug!("得到抽水任务。{:?}", rpc);
+
+            write_to_socket_byte(proxy_w, rpc.to_vec()?, &config.share_name)
+                .await?;
+            return Ok(());
+        } else {
+            worker.share_index_add();
+            //rpc.set_id(worker.share_index);
+            write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
+        }
+    } else {
+        worker.share_index_add();
+        //rpc.set_id(worker.share_index);
+        write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
+    }
+}
+
+async fn new_eth_submit_hashrate<W>(
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    worker.new_submit_hashrate(rpc);
+    rpc.set_id(CLIENT_SUBHASHRATE);
+    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+}
+
+async fn seagment_unwrap<W>(
+    pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
+    worker_name: &String,
+) -> Result<Vec<u8>>
+where
+    W: AsyncWrite,
+{
+    let byte_buffer = match res {
+        Ok(buf) => match buf {
+            Some(buf) => Ok(buf),
+            None => {
+                match pool_w.shutdown().await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        log::error!("Error Shutdown Socket {:?}", e);
+                    }
+                }
+                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
+            }
+        },
+        Err(e) => {
+            match pool_w.shutdown().await {
+                Ok(_) => {}
+                Err(e) => {
+                    log::error!("Error Shutdown Socket {:?}", e);
+                }
+            }
+            bail!("矿工：{} {}", worker_name, e);
+        }
+    };
+
+    byte_buffer
+}
+
+async fn new_eth_get_work<W>(
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    worker_name: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    rpc.set_id(CLIENT_GETWORK);
+    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+}
+
+async fn new_subscribe<W>(
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    worker_name: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    rpc.set_id(SUBSCRIBE);
+    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+}
+
+// pub fn new_job_diff_change(
+//     diff: &mut u64,
+//     rpc: &EthServerRootObject,
+//     a: &mut VecDeque<(String, Vec<String>)>,
+//     b: &mut VecDeque<(String, Vec<String>)>,
+//     c: &mut VecDeque<(String, Vec<String>)>,
+// ) -> bool
+// {
+//     let job_diff = rpc.get_diff();
+//     if job_diff == 0 {
+//         return true;
+//     }
+
+//     if job_diff > *diff {
+//         // 写入新难度
+//         *diff = job_diff;
+//         // 清空已有任务队列
+//         a.clear();
+//         b.clear();
+//         c.clear();
+//     }
+
+//     true
+// }
+
+async fn buf_parse_to_string<W>(
+    w: &mut WriteHalf<W>, buffer: &[u8],
+) -> Result<String>
+where W: AsyncWrite {
+    let buf = match String::from_utf8(buffer.to_vec()) {
+        Ok(s) => Ok(s),
+        Err(_) => {
+            //log::warn!("无法解析的字符串{:?}", buffer);
+            match w.shutdown().await {
+                Ok(_) => {
+                    //log::warn!("端口可能被恶意扫描: {}", buf);
+                }
+                Err(e) => {
+                    log::error!("Error Shutdown Socket {:?}", e);
+                }
+            };
+            bail!("端口可能被恶意扫描。也可能是协议被加密了。");
+        }
+    };
+
+    buf
+    // log::warn!("端口可能被恶意扫描: {}", buf);
+    // bail!("端口可能被恶意扫描。");
+}
+
 pub async fn write_rpc<W, T>(
     encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String,
     iv: String,
@@ -108,44 +288,48 @@ where
     }
 }
 
-pub async fn write_string<W>(
-    encrypt: bool, w: &mut WriteHalf<W>, rpc: &str, worker: &String,
-    key: String, iv: String,
-) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    if encrypt {
-        write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
-    } else {
-        write_to_socket_string(w, &rpc, &worker).await
-    }
-}
-
-pub async fn handle_stream<R, W, R1, W1>(
-    worker: &mut Worker, workers_queue: UnboundedSender<Worker>,
-    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
-    mut worker_w: WriteHalf<W>,
-    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
-    mut pool_w: WriteHalf<W1>, config: &Settings, mut state: State,
-    is_encrypted: bool,
-) -> Result<()>
-where
-    R: AsyncRead,
-    W: AsyncWrite,
-    R1: AsyncRead,
-    W1: AsyncWrite,
-{
-    //let start = std::time::Instant::now();
-    let mut worker_name: String = String::new();
-    let (_, pool) = get_pool_ip_and_type_from_vec(&config.share_address)?;
-    let (stream, _) = match crate::client::get_pool_stream(&pool) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            //log::error!("所有TCP矿池均不可链接。请修改后重试");
-            bail!("所有TCP矿池均不可链接。请修改后重试");
+async fn develop_pool_login(
+    hostname: String,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    let stream = match pools::get_develop_pool_stream().await {
+        Ok(s) => s,
+        Err(e) => {
+            debug!("无法链接到矿池{}", e);
+            return Err(e);
         }
     };
+
+    let outbound = TcpStream::from_std(stream)?;
+
+    let (develop_r, mut develop_w) = tokio::io::split(outbound);
+    let develop_r = tokio::io::BufReader::new(develop_r);
+    let mut develop_lines = develop_r.lines();
+
+    let develop_name = hostname + "_develop";
+    let login_develop = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![get_eth_wallet(), "x".into()],
+        worker: develop_name.to_string(),
+    };
+
+    write_to_socket(&mut develop_w, &login_develop, &develop_name).await?;
+
+    Ok((develop_lines, develop_w))
+}
+
+async fn proxy_pool_login(
+    config: &Settings, hostname: String,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    //TODO 这里要兼容SSL矿池
+    let (stream, _) =
+        match crate::client::get_pool_stream(&config.share_address) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                log::error!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
@@ -169,99 +353,206 @@ where
         }
     }
 
+    Ok((proxy_lines, proxy_w))
+}
+
+pub async fn pool_with_tcp_reconnect(
+    config: &Settings,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
+    {
+        Ok(pool) => pool,
+        Err(_) => {
+            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+        }
+    };
+
+    // if stream_type == crate::client::TCP {
+    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let stream = TcpStream::from_std(outbound)?;
+
+    let (pool_r, pool_w) = tokio::io::split(stream);
+    let pool_r = tokio::io::BufReader::new(pool_r);
+    let mut pool_lines = pool_r.lines();
+    Ok((pool_lines, pool_w))
+    // } else if stream_type == crate::client::SSL {
+    // let (stream, _) =
+    //     match crate::client::get_pool_stream_with_tls(&pools,
+    // "proxy".into()).await {         Some((stream, addr)) => (stream,
+    // addr),         None => {
+    //             bail!("所有SSL矿池均不可链接。请修改后重试");
+    //         }
+    //     };
+
+    // let (pool_r, pool_w) = tokio::io::split(stream);
+    // let pool_r = tokio::io::BufReader::new(pool_r);
+
+    // Ok((pool_r, pool_w))
+    // } else {
+    //     log::error!("致命错误：未找到支持的矿池BUG 请上报");
+    //     bail!("致命错误：未找到支持的矿池BUG 请上报");
+    // }
+}
+
+pub async fn pool_with_ssl_reconnect(
+    config: &Settings,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
+    {
+        Ok(pool) => pool,
+        Err(_) => {
+            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+        }
+    };
+    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let stream = TcpStream::from_std(outbound)?;
+
+    let (pool_r, pool_w) = tokio::io::split(stream);
+    let pool_r = tokio::io::BufReader::new(pool_r);
+    let mut pool_lines = pool_r.lines();
+    Ok((pool_lines, pool_w))
+}
+
+pub async fn handle_stream<R, W>(
+    worker: &mut Worker, workers_queue: UnboundedSender<Worker>,
+    worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
+    mut worker_w: WriteHalf<W>,
+    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
+    mut pool_w: WriteHalf<TcpStream>, config: &Settings, mut state: State,
+    is_encrypted: bool,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
+    let mut worker_name: String = String::new();
     let mut eth_server_result = EthServerRoot {
         id: 0,
         jsonrpc: "2.0".into(),
         result: true,
     };
 
-    // let stream = match pools::get_develop_pool_stream().await {
-    //     Ok(s) => s,
-    //     Err(e) => {
-    //         debug!("无法链接到矿池{}", e);
-    //         return Err(e);
-    //     }
-    // };
+    let s = config.get_share_name().unwrap();
+    let develop_name = s.clone() + "_develop";
+    let rand_string = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .collect::<Vec<u8>>();
 
-    // let outbound = TcpStream::from_std(stream)?;
+    let proxy_eth_submit_hash = EthClientWorkerObject {
+        id: CLIENT_SUBHASHRATE,
+        method: "eth_submitHashrate".to_string(),
+        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
+        worker: s.clone(),
+    };
 
-    // let (develop_r, mut develop_w) = tokio::io::split(outbound);
-    // let develop_r = tokio::io::BufReader::new(develop_r);
-    // let mut develop_lines = develop_r.lines();
+    let rand_string = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .collect::<Vec<u8>>();
 
-    // let develop_name = s.clone() + "_develop";
-    // let login_develop = ClientWithWorkerName {
-    //     id: CLIENT_LOGIN,
-    //     method: "eth_submitLogin".into(),
-    //     params: vec![get_eth_wallet(), "x".into()],
-    //     worker: develop_name.to_string(),
-    // };
+    let develop_eth_submit_hash = EthClientWorkerObject {
+        id: CLIENT_SUBHASHRATE,
+        method: "eth_submitHashrate".to_string(),
+        params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
+        worker: develop_name.to_string(),
+    };
 
-    // match write_to_socket(&mut develop_w, &login_develop,
-    // &develop_name).await {     Ok(_) => {}
-    //     Err(e) => {
-    //         log::error!("Error writing Socket {:?}", login);
-    //         return Err(e);
-    //     }
-    // }
+    let (mut proxy_lines, mut proxy_w) =
+        proxy_pool_login(&config, s.clone()).await?;
+    let (mut develop_lines, mut develop_w) =
+        develop_pool_login(s.clone()).await?;
 
     // 池子 给矿机的封包总数。
     let mut pool_job_idx: u64 = 0;
-    let mut job_diff = 0;
-
+    //最后一次发送的rpc_id
     let mut rpc_id = 0;
 
-    let mut unsend_mine_jobs: VecDeque<(String, Vec<String>)> = VecDeque::new();
-    let mut unsend_develop_jobs: VecDeque<(String, Vec<String>)> =
-        VecDeque::new();
-    let mut unsend_agent_jobs: VecDeque<(String, Vec<String>)> =
-        VecDeque::new();
+    let mut unsend_proxy_jobs: VecDeque<Vec<String>> =
+        VecDeque::with_capacity(200);
+    let mut unsend_develop_jobs: VecDeque<Vec<String>> =
+        VecDeque::with_capacity(200);
 
-    let mut develop_count = 0;
-
-    //TODO 完善精简这里的核心代码。加速任务分配。
-    // let mut send_mine_jobs: LruCache<String, (u64, u64)> = LruCache::new(50);
-    // let mut send_develop_jobs: LruCache<String, (u64, u64)> =
-    // LruCache::new(50); let mut send_agent_jobs: LruCache<String, (u64,
-    // u64)> = LruCache::new(50); let mut send_normal_jobs: LruCache<String,
-    // i32> = LruCache::new(100);
-
-    let mut send_mine_jobs: Vec<String> = vec![];
-    let mut send_develop_jobs: Vec<String> = vec![];
-    let mut send_agent_jobs: Vec<String> = vec![];
-    let mut send_normal_jobs: Vec<String> = vec![];
+    let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(300);
+    let mut send_develop_jobs: LruCache<String, Vec<String>> =
+        LruCache::new(300);
+    let mut send_normal_jobs: LruCache<String, Vec<String>> =
+        LruCache::new(500);
 
     // 包装为封包格式。
-    // let mut worker_lines = worker_r.lines();
     let mut pool_lines = pool_r.lines();
+
     let mut worker_lines;
+
     if is_encrypted {
         worker_lines = worker_r.split(SPLIT);
     } else {
         worker_lines = worker_r.split(b'\n');
     }
 
-    let mut is_submithashrate = false;
+    let mut sleep_count: usize = 0;
 
-    let sleep = time::sleep(tokio::time::Duration::from_millis(1000 * 60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(15));
     tokio::pin!(sleep);
+
+    let mut first_submit_hashrate = true;
 
     loop {
         select! {
             res = worker_lines.next_segment() => {
                 let start = std::time::Instant::now();
-                let mut buf_bytes = match seagment_unwrap(&mut pool_w,res,&worker_name).await {
-                    Ok(buf_bytes) => buf_bytes,
-                    Err(e) => {
-                        match pool_w.shutdown().await {
-                            Ok(_) => {}
+                let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
+
+
+                if is_encrypted {
+                    let key = Vec::from_hex(config.key.clone()).unwrap();
+                    let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                    let cipher = Cipher::aes_256_cbc();
+
+                    buf_bytes = match base64::decode(&buf_bytes[..]) {
+                        Ok(buffer) => buffer,
+                        Err(e) => {
+                            log::error!("{}",e);
+                            match pool_w.shutdown().await  {
+                                Ok(_) => {},
+                                Err(_) => {
+                                    log::error!("Error Shutdown Socket {:?}",e);
+                                },
+                            };
+                            bail!("解密矿机请求失败{}",e);
+                        },
+                    };
+
+                    buf_bytes = match decrypt(
+                        cipher,
+                        &key,
+                        Some(&iv),
+                        &buf_bytes[..]) {
+                            Ok(s) => s,
                             Err(e) => {
-                                log::error!("Error Shutdown Socket {:?}", e);
-                            }
-                        };
-                        return bail!(e);
-                    },
-                };
+                                log::warn!("加密报文解密失败");
+                                match pool_w.shutdown().await  {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        log::error!("Error Shutdown Socket {:?}",e);
+                                    },
+                                };
+                                bail!("解密矿机请求失败{}",e);
+                        },
+                    };
+                }
 
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
@@ -271,146 +562,48 @@ where
                         continue;
                     }
 
-                    let buf: String;
-                    if is_encrypted {
-                        let key = Vec::from_hex(config.key.clone()).unwrap();
-                        let iv = Vec::from_hex(config.iv.clone()).unwrap();
-                        let cipher = Cipher::aes_256_cbc();
+                    if let Some(mut json_rpc) = parse(&buffer) {
+                        #[cfg(debug_assertions)]
+                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
 
-                        let buffer = match base64::decode(&buffer[..]) {
-                            Ok(buffer) => buffer,
-                            Err(e) => {
-                                log::error!("{}",e);
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(_) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                return Ok(());
-                            },
-                        };
-
-
-                        //let data = b"Some Crypto Text";
-                        let buffer = match decrypt(
-                            cipher,
-                            &key,
-                            Some(&iv),
-                            &buffer[..]) {
-                                Ok(s) => s,
-                                Err(_) => {
-
-                                    log::warn!("解密失败{:?}",buffer);
-                                    match pool_w.shutdown().await  {
-                                        Ok(_) => {},
-                                        Err(e) => {
-                                            log::error!("Error Shutdown Socket {:?}",e);
-                                        },
-                                    };
-                                    return Ok(());
-                                },
-                            };
-
-                        buf = match String::from_utf8(buffer) {
-                            Ok(s) => s,
-                            Err(_) => {
-                                log::warn!("无法解析的字符串");
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                return Ok(());
-                            },
-                        };
-                    } else {
-                        buf = match String::from_utf8(buffer.to_vec()) {
-                            Ok(s) => s,
-                            Err(_e) => {
-                                log::warn!("无法解析的字符串{:?}",buffer);
-
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-
-                                return Ok(());
-                            },
-                        };
-                    }
-                    if let Some(mut client_json_rpc) = parse_client_workername(&buf) {
-                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
-                        rpc_id = client_json_rpc.id;
-                        let res = match client_json_rpc.method.as_str() {
+                        rpc_id = json_rpc.get_id();
+                        let res = match json_rpc.get_method().as_str() {
                             "eth_submitLogin" => {
                                 eth_server_result.id = rpc_id;
+                                new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                let res = match eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await {
-                                    Ok(a) => Ok(a),
-                                    Err(e) => {
-                                        //info!("错误 {} ",e);
-                                        bail!(e);
-                                    },
-                                };
-                                res
+                                Ok(())
                             },
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
+                                new_eth_submit_work(worker,&mut pool_w,&mut proxy_w,&mut develop_w,&mut worker_w,&mut json_rpc,&mut worker_name,&mut send_proxy_jobs,&mut send_develop_jobs,&config,&mut state).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await
+                                Ok(())
                             },
                             "eth_submitHashrate" => {
-                                eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
-                            },
-                            "eth_getWork" => {
-                                eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
-                            },
-                            "mining.subscribe" => {
-                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
-                            },
-                            _ => {
-                                log::warn!("Not found method {:?}",client_json_rpc);
-                                write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await
-                            },
-                        };
+                                eth_server_result.id = rpc_id;
+                                // FIX ME
+                                // if true {
+                                //     let mut hash = json_rpc.get_submit_hashrate();
+                                //     hash = hash - (hash  as f32 * config.share_rate) as u64;
+                                //     json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
+                                // }
+                                new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
 
-                        if res.is_err() {
-                            log::warn!("写入任务错误: {:?}",res);
-                            return res;
-                        }
-                    } else if let Some(mut client_json_rpc) = parse_client(&buf) {
-                        info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,client_json_rpc);
-                        rpc_id = client_json_rpc.id;
-                        let res = match client_json_rpc.method.as_str() {
+                                Ok(())
+                            },
                             "eth_getWork" => {
-                                eth_get_work(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
-                            },
-                            "eth_submitLogin" => {
-                                eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                eth_submit_login(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
-                            },
-                            "eth_submitWork" => {
-                                eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                match eth_submit_work_develop(worker,&mut pool_w,&mut proxy_w,&mut worker_w,&mut client_json_rpc,&mut worker_name,&mut send_mine_jobs,&mut send_develop_jobs,&config,&mut state).await {
-                                    Ok(_) => Ok(()),
-                                    Err(e) => {log::error!("err: {:?}",e);bail!(e)},
-                                }
-                            },
-                            "eth_submitHashrate" => {
-                                eth_submit_hashrate(worker,&mut pool_w,&mut client_json_rpc,&mut worker_name).await
-                            },
-                            "mining.subscribe" => {
-                                subscribe(&mut pool_w,&mut client_json_rpc,&mut worker_name).await
+                                //eth_server_result.id = rpc_id;
+                                new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                Ok(())
                             },
                             _ => {
-                                log::warn!("Not found method {:?}",client_json_rpc);
-                                write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await
+                                log::warn!("Not found method {:?}",json_rpc);
+                                eth_server_result.id = rpc_id;
+                                write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
+                                Ok(())
                             },
                         };
 
@@ -419,43 +612,27 @@ where
                             return res;
                         }
                     } else {
-                        let buf = match String::from_utf8(buffer.to_vec()) {
-                            Ok(s) => s,
-                            Err(_e) => {
-                                log::warn!("无法解析的字符串{:?}",buffer);
-
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-
-                                return Ok(());
-                            },
-                        };
-                        log::warn!("未知: {}",buf);
+                        log::warn!("协议解析错误: {:?}",buffer);
+                        bail!("未知的协议{}",buf_parse_to_string(&mut worker_w,&buffer).await?);
                     }
                 }
                 #[cfg(debug_assertions)]
                 info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
-                let start = std::time::Instant::now();
-
+                //let start = std::time::Instant::now();
                 let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
-                    Ok(buffer) => buffer,
-                    Err(e)=> {
-                        // if proxy_fee_state == WaitStatus::RUN {
-                        //     continue;
-                        // } else {
-                            //info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
-                            return bail!(e);
-                        //}
-                    }
+                    Ok(buf) => buf,
+                    Err(e) => {
+                        info!("{}", e);
+
+                        let (relogin_pool_lines,relogin_pool_w) = pool_with_tcp_reconnect(&config).await?;
+                        pool_lines = relogin_pool_lines;
+                        pool_w = relogin_pool_w;
+
+                        continue;
+                    },
                 };
-
-
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -463,292 +640,117 @@ where
                     if buf.is_empty() {
                         continue;
                     }
+
                     #[cfg(debug_assertions)]
                     log::info!(
                         "1    ---- Worker : {}  Send Rpc {}",
                         worker_name,
                         buf
                     );
-                    if let Ok(mut result_rpc) = serde_json::from_str::<ServerId1>(&buf){
+
+                    if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
+                        pool_job_idx += 1;
+                        if pool_job_idx  == u64::MAX {
+                            pool_job_idx = 0;
+                        }
+                        let job_id = job_rpc.get_job_id().unwrap();
+                        let job_res = job_rpc.get_job_result().unwrap();
+                        let mut eth_socket_jobs_rpc = EthServerRootObjectJsonRpc{ id: 0, jsonrpc: "2.0".into(), result:job_res.clone()};
+                        // TODO 先用job_id 去重。如果有重复了本回合直接跳过并执行ETh_GET_WORK
+                        if send_proxy_jobs.contains(&job_id){
+                            continue;
+                        }
+
+                        if send_develop_jobs.contains(&job_id){
+                            continue;
+                        }
+
+                        if send_normal_jobs.contains(&job_id){
+                            continue;
+                        }
+
+                        if is_fee_random(config.share_rate.into()) {
+                            #[cfg(debug_assertions)]
+                            info!("_-----=------------------中转抽水回合");
+                            if let Some(job_res) = unsend_proxy_jobs.pop_back() {
+                                if let Some(job_id) = job_res.get(0){
+                                    eth_socket_jobs_rpc.result = job_res.clone();
+                                    send_proxy_jobs.put(job_id.to_string(),job_res);
+                                }
+                            }
+                        } else {
+                            send_normal_jobs.put(job_id,job_res);
+                        }
+
+                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
-                            match workers_queue.send(worker.clone()){
-                                Ok(_) => {},
-                                Err(_) => {
-                                    log::warn!("发送矿工状态失败");
-                                },
-                            };
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                            //info!("矿工提交算力");
-                            if !is_submithashrate {
-                                match workers_queue.send(worker.clone()){
-                                    Ok(_) => {},
-                                    Err(_) => {
-                                        log::warn!("发送矿工状态失败");
-                                    },
-                                };
-                                is_submithashrate = true;
-                            }
+                            //info!("{} 算力提交成功",worker_name);
                         } else if result_rpc.id == CLIENT_GETWORK {
-                            //info!("矿工请求任务");
-                        } else if result_rpc.id == SUBSCRIBE {
-                            //info!("矿工请求任务");
-                        } else if result_rpc.id == worker.share_index && result_rpc.result {
-                            //info!("份额被接受.");
+                            //info!("{} 获取任务成功",worker_name);
+                        } else if result_rpc.id == SUBSCRIBE{
+                        } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             worker.share_accept();
-                        } else if result_rpc.result {
-                            //log::warn!("份额被接受，但是索引乱了.要上报给开发者 {:?}",result_rpc);
-                            worker.share_accept();
-                        } else if result_rpc.id == worker.share_index {
+                        } else if result_rpc.id == CLIENT_SUBMITWORK {
                             worker.share_reject();
-                            //log::warn!("拒绝原因 {}",buf);
-                            //crate::protocol::rpc::eth::handle_error_for_worker(&worker_name, &buf.as_bytes().to_vec());
-                            result_rpc.result = true;
-                        }
-
-                        result_rpc.id = rpc_id ;
-                        // if is_encrypted {
-                        //     match write_encrypt_socket(&mut worker_w, &result_rpc, &worker_name,config.key.clone(),config.iv.clone()).await {
-                        //         Ok(_) => {},
-                        //         Err(e) => {
-                        //             log::error!("Error Worker Write Socket {:?}",e);
-                        //         },
-                        //     };
-                        // } else {
-                        //     match write_to_socket(&mut worker_w, &result_rpc, &worker_name).await {
-                        //         Ok(_) => {},
-                        //         Err(e) => {
-                        //             log::error!("Error Worker Write Socket {:?}",e);
-                        //         },
-                        //     };
-                        // }
-
-                    } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
-                        pool_job_idx += 1;
-
-                        if pool_job_idx  == u64::MAX {
-                            pool_job_idx = 0;
-                        }
-
-
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-
-
-                        if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
-                                Some(_) => {},
-                                None => {
-                                    log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
-                                },
-                            };
-                        } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
-                            }
-
-                            if is_encrypted {
-                                match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
-                                    Ok(_) => {},
-                                    Err(e) => {bail!("矿机下线了 {}",e);},
-                                };
-                            } else {
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                    Ok(_) => {},
-                                    Err(e) => {bail!("矿机下线了 {}",e);},
-                                };
-                            }
-                        }
-
-                    } else if let Ok(mut job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
-                        if pool_job_idx  == u64::MAX {
-                            pool_job_idx = 0;
-                        }
-
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-
-                        pool_job_idx += 1;
-                        if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
-                                Some(_) => {},
-                                None => {
-                                    log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
-                                },
-                            };
-                        } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
-                            }
-
-
-                            if is_encrypted {
-                                match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
-                                    Ok(_) => {},
-                                    Err(e) => {bail!("矿机下线了 {}",e);},
-                                };
-                            } else {
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                    Ok(_) => {},
-                                    Err(e) => {bail!("矿机下线了 {}",e);},
-                                };
-                            }
-                        }
-                    } else if let Ok(mut job_rpc) =  serde_json::from_str::<Server>(&buf) {
-                        if pool_job_idx  == u64::MAX {
-                            pool_job_idx = 0;
-                        }
-
-
-                        job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-
-                        pool_job_idx += 1;
-                        if config.share != 0 {
-                            match share_job_process(pool_job_idx,&config,&mut unsend_develop_jobs,&mut unsend_mine_jobs,&mut unsend_agent_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_mine_jobs,&mut send_normal_jobs,&mut job_rpc,&mut develop_count,&mut worker_w,&worker_name,worker,rpc_id,format!("0x{:x}",job_diff),is_encrypted).await {
-                                Some(_) => {},
-                                None => {
-                                    log::error!("任务没有分配成功! at_count :{}",pool_job_idx);
-                                },
-                            };
-                        } else {
-                            if job_rpc.id != 0{
-                                if job_rpc.id == CLIENT_GETWORK || job_rpc.id == worker.share_index{
-                                    job_rpc.id = rpc_id ;
-                                }
-                            }
-
-                            if is_encrypted {
-                                match write_encrypt_socket(&mut worker_w, &job_rpc, &worker_name,config.key.clone(),config.iv.clone()).await{
-                                    Ok(_) => {},
-                                    Err(e) => {bail!("矿机下线了 {}",e);},
-                                };
-                            } else {
-                                match write_to_socket(&mut worker_w, &job_rpc, &worker_name).await{
-                                    Ok(_) => {},
-                                    Err(e) => {bail!("矿机下线了 {}",e);},
-                                };
-                            }
-                        }
-                    } else {
-                        log::warn!("未找到的交易 {}",buf);
-
-                        match write_to_socket_string(&mut worker_w, &buf, &worker_name).await {
-                            Ok(_) => {},
-                            Err(e) => {
-                                log::error!("Error Worker Write Socket {:?}",e);
-                            },
                         }
                     }
                 }
 
-                #[cfg(debug_assertions)]
-                info!("接受矿工: {} 分配任务时间{:?}",worker.worker_name,start.elapsed());
             },
             res = proxy_lines.next_line() => {
-                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"代理矿池").await {
-                    Ok(buffer) => buffer,
-                    Err(e)=> {
-                        // if proxy_fee_state == WaitStatus::RUN {
-                        //     continue;
-                        // } else {
-                            //info!("读取矿池失败了{} 当前状态为{:?}",e,proxy_fee_state);
-                            return bail!(e);
-                        //}
-                    }
+                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"抽水池").await{
+                    Ok(buf) => buf,
+                    Err(e) => {
+                        info!("{}", e);
+                        let (relogin_proxy_r, relogin_proxy_w) = proxy_pool_login(&config,s.clone()).await?;
+                        proxy_w = relogin_proxy_w;
+                        proxy_lines = relogin_proxy_r;
+
+                        continue;
+                    },
                 };
+
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
                         continue;
                     }
 
-                    if let Ok(result_rpc) = serde_json::from_str::<ServerId1>(&buf){
-                        #[cfg(debug_assertions)]
-                        debug!("收到抽水矿机返回 {:?}", result_rpc);
-                        if result_rpc.id == CLIENT_LOGIN {
-                        } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                        } else if result_rpc.id == CLIENT_GETWORK {
-                        } else if result_rpc.result {
+                    if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
+                        let job_res = job_rpc.get_job_result().unwrap();
+                        unsend_proxy_jobs.push_back(job_res);
+                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
+                        if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
+                            //state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                             worker.fee_share_accept();
-                        } else if result_rpc.id == 999{
-                        } else {
-                            worker.fee_share_accept();
+                        } else if result_rpc.id == CLIENT_SUBMITWORK {
+                            //state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            worker.fee_share_reject();
                         }
-                    } else if let Ok(job_rpc) =  serde_json::from_str::<ServerJobsWithHeight>(&buf) {
-                        #[cfg(debug_assertions)]
-                        debug!("收到抽水矿机任务 {:?}", job_rpc);
-                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
-                        let diff = job_rpc.get_diff();
-
-                        if diff != 0 {
-                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-                            if diff == job_diff {
-                                if let Some(job_id) = job_rpc.get_job_id() {
-                                    unsend_mine_jobs.push_back((job_id,job_rpc.result));
-                                }
-                            }
-                        } else {
-                            if let Some(job_id) = job_rpc.get_job_id() {
-                                unsend_mine_jobs.push_back((job_id,job_rpc.result));
-                            }
-                        }
-
-                    } else if let Ok(job_rpc) =  serde_json::from_str::<ServerSideJob>(&buf) {
-                        //send_job_to_client(state, job_rpc, &mut send_mine_jobs,&mut pool_w,&worker_name).await;
-                        #[cfg(debug_assertions)]
-                        debug!("收到抽水矿机任务 {:?}", job_rpc);
-                        let diff = job_rpc.get_diff();
-                        if diff != 0 {
-                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-                            if diff == job_diff {
-                                if let Some(job_id) = job_rpc.get_job_id() {
-                                    unsend_mine_jobs.push_back((job_id,job_rpc.result));
-                                }
-                            }
-                        } else {
-                            if let Some(job_id) = job_rpc.get_job_id() {
-                                unsend_mine_jobs.push_back((job_id,job_rpc.result));
-                            }
-                        }
-
-                    } else if let Ok(job_rpc) =  serde_json::from_str::<Server>(&buf) {
-                        #[cfg(debug_assertions)]
-                        debug!("收到抽水矿机任务 {:?}", job_rpc);
-
-                        let diff = job_rpc.get_diff();
-                        if diff != 0 {
-                            job_diff_change(&mut job_diff,&job_rpc,&mut unsend_mine_jobs,&mut unsend_develop_jobs,&mut unsend_agent_jobs,&mut send_mine_jobs,&mut send_develop_jobs,&mut send_agent_jobs,&mut send_normal_jobs);
-                            if diff == job_diff {
-                                if let Some(job_id) = job_rpc.get_job_id() {
-                                    unsend_mine_jobs.push_back((job_id,job_rpc.result));
-                                }
-                            }
-                        } else {
-                            if let Some(job_id) = job_rpc.get_job_id() {
-                                unsend_mine_jobs.push_back((job_id,job_rpc.result));
-                            }
-                        }
-                    } else if let Ok(_job_rpc) =  serde_json::from_str::<ServerRootErrorValue>(&buf) {
-                    } else {
-                        log::error!("未找到的交易 {}",buf);
-                        //write_to_socket_string(&mut pool_w, &buf, &worker_name).await;
                     }
-
                 }
             },
             () = &mut sleep  => {
+
+                if unsend_proxy_jobs.len() >= 150 {
+                    unsend_proxy_jobs.drain(0..100);
+                }
+
+
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
-                match workers_queue.send(worker.clone()){
+                match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {
                         log::warn!("发送矿工状态失败");
                     },
                 };
 
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60 * 2));
+                //info!("提交常规任务");
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));
             },
         }
     }
