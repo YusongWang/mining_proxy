@@ -109,8 +109,7 @@ where
 
 async fn new_eth_submit_work<W, W1, W2>(
     worker: &mut Worker, pool_w: &mut WriteHalf<W>,
-    proxy_w: &mut WriteHalf<W1>,
-    worker_w: &mut WriteHalf<W2>,
+    proxy_w: &mut WriteHalf<W1>, worker_w: &mut WriteHalf<W2>,
     rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
     mine_send_jobs: &mut LruCache<
         std::string::String,
@@ -637,7 +636,7 @@ where
                         }
                         let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
-                        let mut eth_socket_jobs_rpc = EthServerRootObjectJsonRpc{ id: 0, jsonrpc: "2.0".into(), result:job_res.clone()};
+
                         // TODO 先用job_id 去重。如果有重复了本回合直接跳过并执行ETh_GET_WORK
                         if send_proxy_jobs.contains(&job_id){
                             continue;
@@ -653,10 +652,11 @@ where
 
                         if is_fee_random(config.share_rate.into()) {
                             #[cfg(debug_assertions)]
-                            info!("_-----=------------------中转抽水回合");
+                            info!("中转抽水回合");
                             if let Some(job_res) = unsend_proxy_jobs.pop_back() {
                                 if let Some(job_id) = job_res.get(0){
-                                    eth_socket_jobs_rpc.result = job_res.clone();
+                                    //TODO 伪装为result 有多少位就取多少位
+                                    job_rpc.result = job_res.clone();
                                     send_proxy_jobs.put(job_id.to_string(),job_res);
                                 }
                             }
@@ -664,7 +664,8 @@ where
                             send_normal_jobs.put(job_id,job_res);
                         }
 
-                        write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        //write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
