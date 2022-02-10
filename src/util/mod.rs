@@ -392,3 +392,26 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         }
     }
 }
+
+const SUFFIX: [&'static str; 9] =
+    ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+
+pub fn human_bytes<T: Into<f64>>(size: T) -> String {
+    let size = size.into();
+
+    if size <= 0.0 {
+        return "0 B".to_string();
+    }
+
+    let base = size.log10() / 1000_f64.log10();
+
+    let mut result = format!("{:.1}", 1000_f64.powf(base - base.floor()),)
+        .trim_end_matches(".0")
+        .to_owned();
+
+    // Add suffix
+    result.push(' ');
+    result.push_str(SUFFIX[base.floor() as usize]);
+
+    result
+}

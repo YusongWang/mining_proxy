@@ -901,12 +901,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "human_bytes"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc178557b4a227ff4d9c51fbbf17f29607c32a96be106c97bb8499e075db0de2"
-
-[[package]]
 name = "idna"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1118,7 +1112,6 @@ dependencies = [
  "hex",
  "hostname",
  "human-panic",
- "human_bytes",
  "jsonwebtoken",
  "lazy_static",
  "log",

@@ -7,12 +7,12 @@ use std::{
 use clap::crate_version;
 
 use actix_web::{get, post, web, Responder};
-use human_bytes::human_bytes;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
     state::Worker,
-    util::{config::Settings, time_to_string},
+    util::{config::Settings, human_bytes, time_to_string},
     web::{data::*, AppState, OnlineWorker},
 };
 
@@ -385,7 +385,7 @@ async fn server(
                 2,
             );
             res.share_rate = floor(
-                res.fee_accept_index as f64 / res.accept_index as f64 * 100.0,
+                res.fee_share_index as f64 / res.accept_index as f64 * 100.0,
                 2,
             );
         }
