@@ -1,89 +1,67 @@
 #!/bin/bash
 echo "-----------"
-echo -n "输入矿工名:"
-read workname
-echo -n "输入TCP端口(填写0不开启):"
-read tcp_port
-echo -n "输入SSL端口(填写0不开启):"
-read ssl_port
-echo -n "输入加密协议端口(填写0不开启):"
-read encrypt_port
-echo -n "输入代理池TCP地址(如：tcp://asia2.ethermine.org:4444):"
-read pool_address
-echo -n "是否抽水? 0不抽水 1抽水:"
-read share
-echo -n "输入抽水池TCP地址(如：tcp://asia2.ethermine.org:4444):"
-read share_address
-echo -n "输入抽水钱包地址(0x开头):"
-read share_wallet
-echo -n "输入抽水比例 非常重要不要输入错误 (1为100% 0.01为百分之1% ):"
-read share_rate
-echo "-----------"
-echo "Welcome,$workname!"
+echo -n "输入web界面端口（如:8088）:"
+read web_port
+echo -n "输入web管理密码（最少8位数）:"
+read web_pass
+echo -n "输入web-Jwt秘钥(非常重要！！！！！32位以上随机数最好没有准好好随机数可以随便输入一些):"
+read web_secret
+
 rm -rf ~/proxy_tmp
 cd ~/
 mkdir ~/proxy_tmp
 cd ~/proxy_tmp
 
-wget -c "https://github.com/dothinkdone/mining_proxy/releases/download/v0.2.0/mining_proxy.tar.gz"
+wget -c "https://github.com/YusongWang/mining_proxy/releases/download/v0.2.2/mining_proxy.tar.gz"
 tar -xf ./mining_proxy.tar.gz
 
-rm -rf "/opt/$workname/"
-mkdir -p "/opt/$workname/bin"
-mkdir -p "/opt/$workname/config"
-mkdir -p "/opt/$workname/logs"
+rm -rf "/opt/MiningProxy/"
+mkdir -p "/opt/MiningProxy/bin"
+mkdir -p "/opt/MiningProxy/config"
+mkdir -p "/opt/MiningProxy/logs"
 
-mv mining_proxy "/opt/$workname/bin"
-mv identity.p12 "/opt/$workname/config/"
+mv mining_proxy "/opt/MiningProxy/bin"
+mv identity.p12 "/opt/MiningProxy/config/"
 
-cat > /opt/$workname/config/$workname.conf << EOF
-PROXY_NAME="$workname"
-PROXY_LOG_LEVEL=1
-PROXY_LOG_PATH=""
-PROXY_TCP_PORT=$tcp_port
-PROXY_SSL_PORT=$ssl_port
-PROXY_ENCRYPT_PORT=$encrypt_port
-PROXY_POOL_ADDRESS="$pool_address"
-PROXY_SHARE_ADDRESS="$share_address"
-PROXY_SHARE_WALLET="$share_wallet"
-PROXY_SHARE_RATE=$share_rate
-PROXY_SHARE_NAME="$workname"
-PROXY_SHARE=$share
-PROXY_P12_PATH="/opt/$workname/config/identity.p12"
-PROXY_P12_PASS="mypass"
-PROXY_SHARE_ALG=1
-PROXY_KEY="523B607044E6BF7E46AF75233FDC1278B7AA0FC42D085DEA64AE484AD7FB3664"
-PROXY_IV="275E2015B9E5CA4DDB87B90EBC897F8C"
+cat > /opt/MiningProxy/config/MiningProxy.conf << EOF
+MINING_PROXY_WEB_PORT=$web_port
+MINING_PROXY_WEB_PASSWORD=$web_pass
+JWT_SECRET=$web_secret
 EOF
 
-cat > /usr/lib/systemd/system/$workname.service << EOF
+cat > /usr/lib/systemd/system/MiningProxy.service << EOF
 [Unit]
-Description=mining_proxy
+Description=MiningProxy
 After=network.target
 After=network-online.target
 Wants=network-online.target
 [Service]
 Type=simple
-EnvironmentFile=/opt/$workname/config/$workname.conf
-ExecStart=/opt/$workname/bin/mining_proxy
+EnvironmentFile=/opt/MiningProxy/config/MiningProxy.conf
+ExecStart=/opt/MiningProxy/bin/mining_proxy
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
 LimitNOFILE=65536
-WorkingDirectory=/opt/$workname/
+WorkingDirectory=/opt/MiningProxy/
 Restart=always
 [Install]
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
-systemctl enable $workname
-systemctl start $workname
-echo "已经设置守护进程 $workname"
-echo "加入开机自启动 $workname"
+rm -rf ~/proxy_tmp
 
-echo "$workname 已经启动"
-echo "启动命令: systemctl start $workname"
-echo "运行状态查看: systemctl status $workname"
-echo "停止命令: systemctl stop $workname"
-echo "重启命令(修改配置后执行此命令即可): systemctl restart $workname"
-echo "查看日志: journalctl -fu $workname -o cat"
+
+systemctl daemon-reload
+systemctl enable MiningProxy
+systemctl start MiningProxy
+
+
+echo "已经设置守护进程 MiningProxy"
+echo "加入开机自启动 MiningProxy"
+
+echo "MiningProxy 已经启动"
+echo "启动命令: systemctl start MiningProxy"
+echo "运行状态查看: systemctl status MiningProxy"
+echo "停止命令: systemctl stop MiningProxy"
+echo "重启命令(修改配置后执行此命令即可): systemctl restart MiningProxy"
+echo "查看日志: journalctl -fu MiningProxy -o cat"
