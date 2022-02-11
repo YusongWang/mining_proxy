@@ -21,7 +21,6 @@ mkdir -p "/opt/MiningProxy/config"
 mkdir -p "/opt/MiningProxy/logs"
 
 mv mining_proxy "/opt/MiningProxy/bin"
-mv identity.p12 "/opt/MiningProxy/config/"
 
 cat > /opt/MiningProxy/config/MiningProxy.conf << EOF
 MINING_PROXY_WEB_PORT=$web_port
