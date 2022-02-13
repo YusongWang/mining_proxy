@@ -4,7 +4,6 @@
 pub mod encry;
 pub mod encryption;
 pub mod handle_stream;
-pub mod handle_stream_agent;
 pub mod handle_stream_all;
 //pub mod handle_stream_new;
 pub mod handle_stream_nofee;

@@ -11,7 +11,6 @@ use actix_web::{get, post, web, Responder};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    state::Worker,
     util::{config::Settings, human_bytes, time_to_string},
     web::{data::*, AppState, OnlineWorker},
 };
