@@ -94,9 +94,9 @@ impl Tcp {
                             worker.offline();
                             workers.send(worker);
                         } else {
-                            info!("IP: {} 恶意链接断开: {}", addr, e);
+                            debug!("IP: {} 恶意链接断开: {}", addr, e);
                         }
-
+                        
                         state
                             .online
                             .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);

@@ -69,7 +69,7 @@ pub async fn accept_en_tcp(
                         workers.send(worker);
                         info!("IP: {} 断开原因 {}", addr, e);
                     } else {
-                        info!("IP: {} 恶意链接断开: {}", addr, e);
+                        debug!("IP: {} 恶意链接断开: {}", addr, e);
                     }
 
                     state

@@ -581,7 +581,7 @@ where
                                 Ok(())
                             },
                             _ => {
-                                log::warn!("Not found method {:?}",json_rpc);
+                                //log::warn!("Not found method {:?}",json_rpc);
                                 eth_server_result.id = rpc_id;
                                 write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
                                 Ok(())
@@ -601,12 +601,10 @@ where
                 info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
-                //let start = std::time::Instant::now();
                 let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
                     Ok(buf) => buf,
                     Err(e) => {
-                        info!("{}", e);
-
+                        //TODO FIX this. 为什么矿池会主动断开？ 可能发送了一些特殊的字符？
                         let (relogin_pool_lines,relogin_pool_w) = pool_with_tcp_reconnect(&config).await?;
                         pool_lines = relogin_pool_lines;
                         pool_w = relogin_pool_w;
@@ -681,20 +679,9 @@ where
                         }
                     }
                 }
-
             },
             res = proxy_lines.next_line() => {
-                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"抽水池").await{
-                    Ok(buf) => buf,
-                    Err(e) => {
-                        info!("{}", e);
-                        let (relogin_proxy_r, relogin_proxy_w) = proxy_pool_login(&config,s.clone()).await?;
-                        proxy_w = relogin_proxy_w;
-                        proxy_lines = relogin_proxy_r;
-
-                        continue;
-                    },
-                };
+                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"抽水池").await?;
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
@@ -721,8 +708,6 @@ where
                     unsend_proxy_jobs.drain(0..400);
                 }
 
-                // 发送本地矿工状态到远端。
-                //info!("发送本地矿工状态到远端。{:?}",worker);
                 match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {
