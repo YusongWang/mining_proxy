@@ -30,6 +30,8 @@ lazy_static! {
     pub static ref RUNTIME: tokio::time::Instant = Instant::now();
 }
 
+pub fn init() { let _ = RUNTIME.elapsed().as_secs(); }
+
 pub mod agent;
 pub mod client;
 pub mod protocol;

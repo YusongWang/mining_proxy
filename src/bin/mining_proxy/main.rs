@@ -38,9 +38,7 @@ fn main() -> Result<()> {
     setup_panic!();
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
-
-    let t = &mining_proxy::RUNTIME;
-    eprintln!("{}", t.elapsed().as_secs());
+    mining_proxy::init();
 
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
