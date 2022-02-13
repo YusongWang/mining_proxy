@@ -39,7 +39,8 @@ fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
 
-    let _ = mining_proxy::RUNTIME;
+    let t = &mining_proxy::RUNTIME;
+    eprintln!("{}", t.elapsed().as_secs());
 
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
@@ -61,9 +62,6 @@ fn main() -> Result<()> {
 
 async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
     logger::init_client(0)?;
-
-    //let mut childs:HashMap<String,tokio::process::Child> =
-    // HashMap::new();
 
     let data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
 
