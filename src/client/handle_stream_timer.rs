@@ -797,10 +797,6 @@ where
                             }
 
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
-                            // if proxy_fee_state == WaitStatus::WAIT{
-                            //     worker.logind();
-
-                            // }
                             if is_frist_login == true {
                                 worker.logind();
                                 match workers_queue.send(worker.clone()){

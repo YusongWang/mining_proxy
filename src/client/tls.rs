@@ -82,7 +82,7 @@ pub async fn accept_tcp_with_tls(
                         workers.send(worker);
                         info!("IP: {} 断开原因 {}", addr, e);
                     } else {
-                        info!("IP: {} 恶意链接断开: {}", addr, e);
+                        debug!("IP: {} 恶意链接断开: {}", addr, e);
                     }
 
                     state

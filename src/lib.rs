@@ -1,6 +1,5 @@
 use clap::crate_version;
 use tokio::time::Instant;
-#[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
@@ -30,7 +29,8 @@ lazy_static! {
     pub static ref RUNTIME: tokio::time::Instant = Instant::now();
 }
 
-pub mod agent;
+pub fn init() { let _ = RUNTIME.elapsed().as_secs(); }
+
 pub mod client;
 pub mod protocol;
 pub mod state;

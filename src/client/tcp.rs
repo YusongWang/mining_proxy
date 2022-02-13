@@ -70,7 +70,7 @@ pub async fn accept_tcp(
                         workers.send(worker);
                         info!("IP: {} 下线原因 {}", addr, e);
                     } else {
-                        info!("IP: {} 恶意链接: {}", addr, e);
+                        debug!("IP: {} 恶意链接: {}", addr, e);
                     }
 
                     state

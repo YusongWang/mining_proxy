@@ -18,10 +18,8 @@ fn gen_agent_wallet(agent_wallet: String) -> String {
 }
 
 fn main() {
-    //std::env::set_var("OUT_DIR", "./src/generated");
     vergen(SHORT_SHA | COMMIT_DATE).unwrap();
 
-    //if let Err(_) = env::var("PROD") {
     NpmBuild::new("./web")
         .install()
         .unwrap()
@@ -31,7 +29,6 @@ fn main() {
         .to_resource_dir()
         .build()
         .unwrap();
-    //};
 
     match env::var("AGNET") {
         Ok(v) => {
@@ -41,13 +38,5 @@ fn main() {
             f.write_all(gen_agent_wallet(v).as_bytes()).unwrap();
         }
         Err(_e) => {}
-    }
-
-    if let Ok(v) = env::var("DEP_OPENSSL_VERSION_NUMBER") {
-        let version = u64::from_str_radix(&v, 16).unwrap();
-
-        if version >= 0x1_01_01_00_0 {
-            println!("cargo:rustc-cfg=openssl111");
-        }
     }
 }
