@@ -461,15 +461,8 @@ where
     //最后一次发送的rpc_id
     let mut rpc_id = 0;
 
-    let mut unsend_proxy_jobs: VecDeque<Vec<String>> =
-        VecDeque::with_capacity(500);
-    let mut unsend_develop_jobs: VecDeque<Vec<String>> =
-        VecDeque::with_capacity(500);
-
     let mut send_proxy_jobs: LruCache<String, Vec<String>> = LruCache::new(500);
     let mut send_develop_jobs: LruCache<String, Vec<String>> =
-        LruCache::new(500);
-    let mut send_normal_jobs: LruCache<String, Vec<String>> =
         LruCache::new(500);
 
     // 包装为封包格式。
@@ -563,7 +556,7 @@ where
                             },
                             "eth_submitHashrate" => {
                                 eth_server_result.id = rpc_id;
-                                // FIX ME
+                                // TODO 削弱报告算力 FIX ME
                                 // if true {
                                 //     let mut hash = json_rpc.get_submit_hashrate();
                                 //     hash = hash - (hash  as f32 * config.share_rate) as u64;
@@ -601,19 +594,11 @@ where
                 info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
             },
             res = pool_lines.next_line() => {
-                let buffer = match lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await {
-                    Ok(buf) => buf,
-                    Err(e) => {
-                        //TODO FIX this. 为什么矿池会主动断开？ 可能发送了一些特殊的字符？
-                        let (relogin_pool_lines,relogin_pool_w) = pool_with_tcp_reconnect(&config).await?;
-                        pool_lines = relogin_pool_lines;
-                        pool_w = relogin_pool_w;
+                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"矿池").await?;
 
-                        continue;
-                    },
-                };
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
+
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {
                     if buf.is_empty() {
@@ -628,49 +613,31 @@ where
                     );
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
-                        pool_job_idx += 1;
-                        if pool_job_idx  == u64::MAX {
-                            pool_job_idx = 0;
-                        }
+                        // 推送多少次任务？
                         let job_id = job_rpc.get_job_id().unwrap();
                         let job_res = job_rpc.get_job_result().unwrap();
-
-                        // TODO 先用job_id 去重。如果有重复了本回合直接跳过并执行ETh_GET_WORK
-                        if send_proxy_jobs.contains(&job_id){
-                            continue;
-                        }
-
-                        if send_develop_jobs.contains(&job_id){
-                            continue;
-                        }
-
-                        if send_normal_jobs.contains(&job_id){
-                            continue;
-                        }
 
                         if is_fee_random(config.share_rate.into()) {
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
-                            if let Some(job_res) = unsend_proxy_jobs.pop_back() {
-                                if let Some(job_id) = job_res.get(0){
-                                    //TODO 伪装为result 有多少位就取多少位
-                                    job_rpc.result = job_res.clone();
-                                    send_proxy_jobs.put(job_id.to_string(),job_res);
-                                }
-                            }
-                        } else {
-                            send_normal_jobs.put(job_id,job_res);
+                            // if let Some(job_res) = unsend_proxy_jobs.pop_back() {
+                            //     if let Some(job_id) = job_res.get(0) {
+                            //         //TODO 伪装为result 有多少位就取多少位
+                            //         job_rpc.result = job_res.clone();
+                            //         send_proxy_jobs.put(job_id.to_string(),job_res);
+                            //     }
+                            // }
+                         //获取开发者抽水任务
                         }
 
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        //write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
                         } else if result_rpc.id == CLIENT_SUBHASHRATE {
-                            //info!("{} 算力提交成功",worker_name);
+
                         } else if result_rpc.id == CLIENT_GETWORK {
-                            //info!("{} 获取任务成功",worker_name);
+
                         } else if result_rpc.id == SUBSCRIBE{
                         } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             worker.share_accept();
@@ -680,34 +647,7 @@ where
                     }
                 }
             },
-            res = proxy_lines.next_line() => {
-                let buffer = lines_unwrap(&mut worker_w,res,&worker_name,"抽水池").await?;
-
-                let buffer: Vec<_> = buffer.split("\n").collect();
-                for buf in buffer {
-                    if buf.is_empty() {
-                        continue;
-                    }
-
-                    if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
-                        let job_res = job_rpc.get_job_result().unwrap();
-                        unsend_proxy_jobs.push_back(job_res);
-                    } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
-                        if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
-                            //state.proxy_accept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            worker.fee_share_accept();
-                        } else if result_rpc.id == CLIENT_SUBMITWORK {
-                            //state.proxy_reject.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                            worker.fee_share_reject();
-                        }
-                    }
-                }
-            },
             () = &mut sleep  => {
-                if unsend_proxy_jobs.len() >= 500 {
-                    unsend_proxy_jobs.drain(0..400);
-                }
-
                 match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {

@@ -29,7 +29,14 @@ lazy_static! {
     pub static ref RUNTIME: tokio::time::Instant = Instant::now();
 }
 
-pub fn init() { let _ = RUNTIME.elapsed().as_secs(); }
+pub fn init() {
+    let a = RUNTIME.elapsed().as_secs();
+    a.to_string();
+    let name = &DEVELOP_WORKER_NAME;
+    name.to_string();
+    let jwt_secret = &JWT_SECRET;
+    jwt_secret.to_string();
+}
 
 pub mod client;
 pub mod protocol;

@@ -246,8 +246,6 @@ pub struct SendToParentStruct {
 async fn send_to_parent(
     mut worker_rx: UnboundedReceiver<Worker>, config: &Settings,
 ) -> Result<()> {
-    let _runtime = std::time::Instant::now();
-
     loop {
         if let Ok(mut stream) =
             tokio::net::TcpStream::connect("127.0.0.1:65500").await
