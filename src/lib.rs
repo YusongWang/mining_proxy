@@ -42,6 +42,4 @@ pub mod client;
 pub mod protocol;
 pub mod state;
 pub mod util;
-
-pub mod mine;
 pub mod web;

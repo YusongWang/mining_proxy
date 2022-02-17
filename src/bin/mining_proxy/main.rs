@@ -2,6 +2,9 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 use std::io;
+use std::sync::Arc;
+
+use tokio::sync::RwLock;
 use tracing::instrument;
 use tracing::Level;
 
@@ -107,7 +110,7 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
     //logger::init_client(0)?;
 
     tracing::info!("123123");
-    let data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
+    let data: AppState = Arc::new(Mutex::new(HashMap::new()));
 
     match OpenOptions::new()
         .write(true)
@@ -262,8 +265,9 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
-    let state =
-        std::sync::Arc::new(mining_proxy::state::GlobalState::default());
+    let state = Arc::new(mining_proxy::state::GlobalState::default());
+
+    let fee_job: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(Vec::new()));
 
     let res = tokio::try_join!(
         accept_tcp(worker_tx.clone(), config.clone(), state.clone()),
@@ -275,6 +279,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             state.clone()
         ),
         send_to_parent(worker_rx, &config),
+        mining_proxy::client::fee::fee(&config, Arc::clone(&fee_job)),
     );
 
     if let Err(err) = res {

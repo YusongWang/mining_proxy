@@ -1,8 +1,6 @@
-#![allow(dead_code)]
-#![allow(unused)]
-
 pub mod encry;
 pub mod encryption;
+pub mod fee;
 pub mod handle_stream;
 pub mod handle_stream_all;
 //pub mod handle_stream_new;
@@ -31,9 +29,14 @@ use tracing::debug;
 
 use anyhow::Result;
 use tokio::{
-    io::{AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
+    io::{
+        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader,
+        Lines, ReadHalf, WriteHalf,
+    },
     net::TcpStream,
+    select,
     sync::mpsc::UnboundedSender,
+    time,
 };
 
 use crate::{
@@ -2220,4 +2223,108 @@ pub async fn submit_develop_hashrate(
     };
     write_to_socket(&mut proxy_w, &submit_hashrate, &hostname).await;
     Ok(())
+}
+
+// new -----------------------------------------------------------------
+async fn proxy_pool_login(
+    config: &Settings, hostname: String,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    //TODO 这里要兼容SSL矿池
+    let (_, pools) = match crate::client::get_pool_ip_and_type_from_vec(
+        &config.share_address,
+    ) {
+        Ok((stream, addr)) => (stream, addr),
+        Err(e) => {
+            tracing::error!("所有TCP矿池均不可链接。请修改后重试");
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let (stream, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+    let proxy_r = tokio::io::BufReader::new(proxy_r);
+    let mut proxy_lines = proxy_r.lines();
+
+    let s = config.get_share_name().unwrap();
+
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![config.share_wallet.clone(), "x".into()],
+        worker: s.clone(),
+    };
+
+    match write_to_socket(&mut proxy_w, &login, &s).await {
+        Ok(_) => {}
+        Err(e) => {
+            tracing::error!("Error writing Socket {:?}", login);
+            return Err(e);
+        }
+    }
+
+    Ok((proxy_lines, proxy_w))
+}
+
+async fn lines_unwrap(
+    res: Result<Option<String>, std::io::Error>, worker_name: &String,
+    form_name: &str,
+) -> Result<String> {
+    let buffer = match res {
+        Ok(res) => match res {
+            Some(buf) => Ok(buf),
+            None => {
+                bail!(
+                    "{}：{}  读取到字节0. 矿池主动断开 ",
+                    form_name,
+                    worker_name
+                );
+            }
+        },
+        Err(e) => {
+            bail!("{}：{} 读取错误:", form_name, worker_name);
+        }
+    };
+
+    buffer
+}
+
+async fn seagment_unwrap<W>(
+    pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
+    worker_name: &String,
+) -> Result<Vec<u8>>
+where
+    W: AsyncWrite,
+{
+    let byte_buffer = match res {
+        Ok(buf) => match buf {
+            Some(buf) => Ok(buf),
+            None => {
+                match pool_w.shutdown().await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        tracing::error!("Error Shutdown Socket {:?}", e);
+                    }
+                }
+                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
+            }
+        },
+        Err(e) => {
+            match pool_w.shutdown().await {
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!("Error Shutdown Socket {:?}", e);
+                }
+            }
+            bail!("矿工：{} {}", worker_name, e);
+        }
+    };
+
+    byte_buffer
 }
