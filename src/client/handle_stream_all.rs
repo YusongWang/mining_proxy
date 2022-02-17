@@ -10,7 +10,7 @@ use crate::protocol::{
 
 use anyhow::{bail, Result};
 use hex::FromHex;
-use log::{debug, info};
+use tracing::{debug, info};
 
 use openssl::symm::{decrypt, Cipher};
 extern crate rand;
@@ -61,8 +61,8 @@ where
                 // match w.shutdown().await {
                 //     Ok(_) => {}
                 //     Err(e) => {
-                //         log::error!("Error Worker Shutdown Socket {:?}", e);
-                //     }
+                //         tracing::error!("Error Worker Shutdown Socket {:?}",
+                // e);     }
                 // };
                 bail!(
                     "{}：{}  读取到字节0. 矿池主动断开 ",
@@ -202,7 +202,7 @@ where
                 match pool_w.shutdown().await {
                     Ok(_) => {}
                     Err(e) => {
-                        log::error!("Error Shutdown Socket {:?}", e);
+                        tracing::error!("Error Shutdown Socket {:?}", e);
                     }
                 }
                 bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
@@ -212,7 +212,7 @@ where
             match pool_w.shutdown().await {
                 Ok(_) => {}
                 Err(e) => {
-                    log::error!("Error Shutdown Socket {:?}", e);
+                    tracing::error!("Error Shutdown Socket {:?}", e);
                 }
             }
             bail!("矿工：{} {}", worker_name, e);
@@ -276,13 +276,13 @@ where W: AsyncWrite {
     let buf = match String::from_utf8(buffer.to_vec()) {
         Ok(s) => Ok(s),
         Err(_) => {
-            //log::warn!("无法解析的字符串{:?}", buffer);
+            //tracing::warn!("无法解析的字符串{:?}", buffer);
             match w.shutdown().await {
                 Ok(_) => {
-                    //log::warn!("端口可能被恶意扫描: {}", buf);
+                    //tracing::warn!("端口可能被恶意扫描: {}", buf);
                 }
                 Err(e) => {
-                    log::error!("Error Shutdown Socket {:?}", e);
+                    tracing::error!("Error Shutdown Socket {:?}", e);
                 }
             };
             bail!("端口可能被恶意扫描。也可能是协议被加密了。");
@@ -290,7 +290,7 @@ where W: AsyncWrite {
     };
 
     buf
-    // log::warn!("端口可能被恶意扫描: {}", buf);
+    // tracing::warn!("端口可能被恶意扫描: {}", buf);
     // bail!("端口可能被恶意扫描。");
 }
 
@@ -361,7 +361,7 @@ async fn proxy_pool_login(
         match crate::client::get_pool_stream(&config.share_address) {
             Some((stream, addr)) => (stream, addr),
             None => {
-                log::error!("所有TCP矿池均不可链接。请修改后重试");
+                tracing::error!("所有TCP矿池均不可链接。请修改后重试");
                 bail!("所有TCP矿池均不可链接。请修改后重试");
             }
         };
@@ -383,7 +383,7 @@ async fn proxy_pool_login(
     match write_to_socket(&mut proxy_w, &login, &s).await {
         Ok(_) => {}
         Err(e) => {
-            log::error!("Error writing Socket {:?}", login);
+            tracing::error!("Error writing Socket {:?}", login);
             return Err(e);
         }
     }
@@ -429,7 +429,7 @@ pub async fn pool_with_tcp_reconnect(
 
     // Ok((pool_r, pool_w))
     // } else {
-    //     log::error!("致命错误：未找到支持的矿池BUG 请上报");
+    //     tracing::error!("致命错误：未找到支持的矿池BUG 请上报");
     //     bail!("致命错误：未找到支持的矿池BUG 请上报");
     // }
 }
@@ -551,11 +551,11 @@ where
                     buf_bytes = match base64::decode(&buf_bytes[..]) {
                         Ok(buffer) => buffer,
                         Err(e) => {
-                            log::error!("{}",e);
+                            tracing::error!("{}",e);
                             match pool_w.shutdown().await  {
                                 Ok(_) => {},
                                 Err(_) => {
-                                    log::error!("Error Shutdown Socket {:?}",e);
+                                    tracing::error!("Error Shutdown Socket {:?}",e);
                                 },
                             };
                             bail!("解密矿机请求失败{}",e);
@@ -569,11 +569,11 @@ where
                         &buf_bytes[..]) {
                             Ok(s) => s,
                             Err(e) => {
-                                log::warn!("加密报文解密失败");
+                                tracing::warn!("加密报文解密失败");
                                 match pool_w.shutdown().await  {
                                     Ok(_) => {},
                                     Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
+                                        tracing::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
                                 bail!("解密矿机请求失败{}",e);
@@ -606,7 +606,7 @@ where
                                     }
                                 },
                                 _ => {
-                                    log::warn!("Not found method {:?}",json_rpc);
+                                    tracing::warn!("Not found method {:?}",json_rpc);
                                     // eth_server_result.id = rpc_id;
                                     // write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
                                     // Ok(())
@@ -645,7 +645,7 @@ where
                                     Ok(())
                                 },
                                 _ => {
-                                    log::warn!("Not found ETH method {:?}",json_rpc);
+                                    tracing::warn!("Not found ETH method {:?}",json_rpc);
                                     eth_server_result.id = rpc_id;
                                     write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
                                     Ok(())
@@ -653,7 +653,7 @@ where
                             };
 
                             if res.is_err() {
-                                log::warn!("写入任务错误: {:?}",res);
+                                tracing::warn!("写入任务错误: {:?}",res);
                                 return res;
                             }
                         } else if protocol == PROTOCOL::STRATUM {
@@ -670,14 +670,14 @@ where
                                     Ok(())
                                 },
                                 _ => {
-                                    log::warn!("Not found ETH method {:?}",json_rpc);
+                                    tracing::warn!("Not found ETH method {:?}",json_rpc);
                                     write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
                                     Ok(())
                                 },
                             };
 
                             if res.is_err() {
-                                log::warn!("写入任务错误: {:?}",res);
+                                tracing::warn!("写入任务错误: {:?}",res);
                                 return res;
                             }
                         } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
@@ -699,20 +699,20 @@ where
                                     Ok(())
                                 },
                                 _ => {
-                                    log::warn!("Not found ETH method {:?}",json_rpc);
+                                    tracing::warn!("Not found ETH method {:?}",json_rpc);
                                     write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
                                     Ok(())
                                 },
                             };
 
                             if res.is_err() {
-                                log::warn!("写入任务错误: {:?}",res);
+                                tracing::warn!("写入任务错误: {:?}",res);
                                 return res;
                             }
                         }
 
                     } else {
-                        log::warn!("协议解析错误: {:?}",buffer);
+                        tracing::warn!("协议解析错误: {:?}",buffer);
                         bail!("未知的协议{}",buf_parse_to_string(&mut worker_w,&buffer).await?);
                     }
                 }
@@ -787,7 +787,7 @@ where
 
                             //write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         } else {
-                            log::error!("致命错误。未找到的协议{:?}",buf);
+                            tracing::error!("致命错误。未找到的协议{:?}",buf);
                         }
 
                         write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
@@ -835,7 +835,7 @@ where
                 match workers_queue.send(worker.clone()){
                     Ok(_) => {},
                     Err(_) => {
-                        log::warn!("发送矿工状态失败");
+                        tracing::warn!("发送矿工状态失败");
                     },
                 };
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));

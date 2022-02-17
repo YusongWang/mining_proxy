@@ -2,7 +2,7 @@ use std::{net::SocketAddr, time::Duration};
 
 use anyhow::{bail, Result};
 
-use log::{debug, info};
+use tracing::{debug, info};
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt},
@@ -62,7 +62,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
                                         match pool_w.shutdown().await  {
                                             Ok(_) => {},
                                             Err(e) => {
-                                                log::error!("Error Shutdown Socket {:?}",e);
+                                                tracing::error!("Error Shutdown Socket {:?}",e);
                                             },
                                         };
                                         info!("矿机下线了");
@@ -73,7 +73,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
                                    match pool_w.shutdown().await  {
                                     Ok(_) => {},
                                     Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
+                                        tracing::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
                                 info!("矿机下线了");
@@ -85,7 +85,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
                            match pool_w.shutdown().await  {
                                     Ok(_) => {},
                                     Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
+                                        tracing::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
                         bail!("读取超时了 矿机下线了: {}",e)},
@@ -138,7 +138,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
                                 match worker_w.shutdown().await{
                                     Ok(_) => {},
                                     Err(e) => {
-                                        log::error!("Error Shutdown Socket {:?}",e);
+                                        tracing::error!("Error Shutdown Socket {:?}",e);
                                     },
                                 };
                                 info!("矿机下线了");

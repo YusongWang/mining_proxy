@@ -4,7 +4,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::{bail, Result};
-use log::{debug, info};
+use tracing::{debug, info};
 
 use openssl::symm::{decrypt, encrypt, Cipher};
 
@@ -128,7 +128,7 @@ async fn transfer(
                     let buf = match base64::decode(&buf[..]) {
                         Ok(buf) => buf,
                         Err(e) => {
-                            log::error!("{}",e);
+                            tracing::error!("{}",e);
                             pool_w.shutdown().await;
                             return Ok(());
                         },

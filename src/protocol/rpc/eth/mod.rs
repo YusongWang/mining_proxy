@@ -192,7 +192,7 @@ impl ServerRpc for ServerSideJob {
         } else if self.result.len() > 3 {
             self.result[3] = diff;
         } else {
-            log::error!("矿池高度设置有问题。请修复此BUG");
+            tracing::error!("矿池高度设置有问题。请修复此BUG");
         }
         true
     }
@@ -260,20 +260,20 @@ impl ServerRpc for Server {
                     } else if let Some(h) = hex_to_int(&diff[..]) {
                         h as u64
                     } else {
-                        log::error!("收到任务JobId 字段不存在{:?}", self);
+                        tracing::error!("收到任务JobId 字段不存在{:?}", self);
                         0
                     }
                 } else {
                     if let Some(h) = hex_to_int(&diff[..]) {
                         h as u64
                     } else {
-                        log::error!("收到任务JobId 字段不存在{:?}", self);
+                        tracing::error!("收到任务JobId 字段不存在{:?}", self);
                         0
                     }
                 }
             }
             None => {
-                log::error!("收到任务JobId 字段不存在{:?}", self);
+                tracing::error!("收到任务JobId 字段不存在{:?}", self);
                 0
             }
         };
@@ -400,18 +400,18 @@ pub fn handle_error(worker_id: u64, buf: &[u8]) {
     if let Ok(rpc) =
         serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf)
     {
-        log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
+        tracing::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
     } else if let Ok(_rpc) =
         serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf)
     {
-        //log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
+        //tracing::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error);
     } else if let Ok(rpc) = serde_json::from_slice::<
         crate::protocol::rpc::eth::ServerRootError,
     >(&buf)
     {
-        log::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error.1);
+        tracing::warn!("抽水矿机 {} Share Reject: {}", worker_id, rpc.error.1);
     } else {
-        log::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, buf);
+        tracing::warn!("抽水矿机 {} Share Reject: {:?}", worker_id, buf);
     }
 }
 
@@ -419,17 +419,17 @@ pub fn handle_error_for_worker(worker_name: &String, buf: &[u8]) {
     if let Ok(rpc) =
         serde_json::from_slice::<crate::protocol::rpc::eth::ServerError>(&buf)
     {
-        log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
+        tracing::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
     } else if let Ok(_rpc) =
         serde_json::from_slice::<crate::protocol::rpc::eth::ServerRoot>(&buf)
     {
-        //log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
+        //tracing::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error);
     } else if let Ok(rpc) = serde_json::from_slice::<
         crate::protocol::rpc::eth::ServerRootError,
     >(&buf)
     {
-        log::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error.1);
+        tracing::warn!("矿机 {} Share Reject: {}", worker_name, rpc.error.1);
     } else {
-        log::warn!("矿机 {} Share Reject: {:?}", worker_name, buf);
+        tracing::warn!("矿机 {} Share Reject: {:?}", worker_name, buf);
     }
 }

@@ -1,6 +1,13 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
+use std::io;
+use tracing::instrument;
+use tracing::Level;
+
+use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{self, fmt::time::FormatTime};
 
 use dotenv::dotenv;
 use jsonwebtoken::{decode, DecodingKey, Validation};
@@ -39,6 +46,43 @@ fn main() -> Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
     mining_proxy::init();
+    struct LocalTimer;
+
+    impl FormatTime for LocalTimer {
+        fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
+            write!(w, "{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
+        }
+    }
+
+    let file_appender = tracing_appender::rolling::daily("/tmp", "tracing.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    // 设置日志输出时的格式，例如，是否包含日志级别、是否包含日志来源位置、
+    // 设置日志的时间格式 参考: https://docs.rs/tracing-subscriber/0.3.3/tracing_subscriber/fmt/struct.SubscriberBuilder.html#method.with_timer
+    let format = tracing_subscriber::fmt::format()
+        .with_level(true)
+        .with_target(true)
+        .with_timer(LocalTimer);
+
+    // 初始化并设置日志格式(定制和筛选日志)
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .with_writer(io::stdout) // 写入标准输出
+        //.with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
+        //.with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
+        .event_format(format)
+        .finish();
+
+    // let subscriber = FmtSubscriber::builder()
+    //     // all spans/events with a level higher than TRACE (e.g, debug, info,
+    //     // warn, etc.) will be written to stdout.
+    //     .with_timer(tracing_subscriber::fmt::time::uptime())
+    //     .with_max_level(Level::TRACE)
+    //     // completes the builder.
+    //     .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
 
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
@@ -53,14 +97,16 @@ fn main() -> Result<()> {
         .block_on(async_main(matches))?;
     } else {
         //tokio::runtime::start
-        tokio_main(&matches);
+        tokio_main(&matches)?;
     }
     Ok(())
 }
 
+#[instrument]
 async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
-    logger::init_client(0)?;
+    //logger::init_client(0)?;
 
+    tracing::info!("123123");
     let data: AppState = std::sync::Arc::new(Mutex::new(HashMap::new()));
 
     match OpenOptions::new()
@@ -79,7 +125,7 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
                         match serde_yaml::from_str(&configs) {
                             Ok(s) => s,
                             Err(e) => {
-                                log::error!("{}", e);
+                                tracing::error!("{}", e);
                                 vec![]
                             }
                         };
@@ -98,7 +144,7 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
                                     .insert(config.name, online);
                             }
                             Err(e) => {
-                                log::error!("{}", e);
+                                tracing::error!("{}", e);
                             }
                         }
                     }
@@ -147,40 +193,42 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
         let mut proxy_server = data.lock().unwrap();
 
         for (_, other_server) in &mut *proxy_server {
-            other_server.child.kill().await;
+            other_server.child.kill().await?;
         }
 
         bail!("web端口 {} 被占用了", port);
     };
 
-    log::info!("界面启动成功地址为: {}", format!("0.0.0.0:{}", port));
-    web_sever.await;
+    tracing::info!("界面启动成功地址为: {}", format!("0.0.0.0:{}", port));
+    web_sever.await?;
     Ok(())
 }
 
-fn tokio_main(matches: &ArgMatches<'_>) {
+fn tokio_main(matches: &ArgMatches<'_>) -> Result<()> {
     tokio::runtime::Builder::new_multi_thread()
-        //.worker_threads(N)
         .enable_all()
         .build()
         .unwrap()
-        .block_on(async { tokio_run(matches).await });
+        .block_on(async { tokio_run(matches).await })?;
+
+    Ok(())
 }
 
+#[instrument]
 async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = Settings::new(config_file_name, true)?;
 
-    logger::init(
-        config.name.as_str(),
-        config.log_path.clone(),
-        config.log_level,
-    )?;
+    // logger::init(
+    //     config.name.as_str(),
+    //     config.log_path.clone(),
+    //     config.log_level,
+    // )?;
 
     match config.check() {
         Ok(_) => {}
         Err(err) => {
-            log::error!("config配置错误 {}", err);
+            tracing::error!("config配置错误 {}", err);
             std::process::exit(1);
         }
     };
@@ -199,7 +247,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     };
 
     let cert;
-    log::info!("名称 {} 当前启动模式为: {}", config.name, mode);
+    tracing::info!("名称 {} 当前启动模式为: {}", config.name, mode);
     let der = include_bytes!("identity.p12");
     if let Some(mut p12) = p12 {
         let mut buffer = BytesMut::with_capacity(10240);
@@ -230,7 +278,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     );
 
     if let Err(err) = res {
-        log::error!("致命错误 : {}", err);
+        tracing::error!("致命错误 : {}", err);
     }
 
     Ok(())
@@ -265,7 +313,7 @@ async fn send_to_parent(
                 }
             }
         } else {
-            log::error!("无法链接到主控web端");
+            tracing::error!("无法链接到主控web端");
             tokio::time::sleep(tokio::time::Duration::from_secs(60 * 2)).await;
         }
     }
@@ -276,12 +324,12 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     let listener = match tokio::net::TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
         Err(_) => {
-            log::info!("本地端口被占用 {}", address);
+            tracing::info!("本地端口被占用 {}", address);
             std::process::exit(1);
         }
     };
 
-    log::info!("本地TCP端口{} 启动成功!!!", &address);
+    tracing::info!("本地TCP端口{} 启动成功!!!", &address);
     loop {
         let (mut stream, _) = listener.accept().await?;
         let inner_app = app.clone();
@@ -314,7 +362,7 @@ async fn recv_from_child(app: AppState) -> Result<()> {
                                 temp_app.workers.push(online_work.worker);
                             }
                         } else {
-                            log::error!("未找到此端口");
+                            tracing::error!("未找到此端口");
                         }
                     }
                 };
@@ -330,7 +378,7 @@ const ROLE_ADMIN: &str = "ROLE_ADMIN";
 async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
     // Here is a place for your code to get user permissions/grants/permissions
     // from a request For example from a token or database
-    // log::info!("check the Role");
+    // tracing::info!("check the Role");
     // println!("{:?}", req.headers().get("token"));
 
     if req.path() != "/api/user/login" {

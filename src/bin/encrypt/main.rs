@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
         ));
 
     if let Err(err) = res {
-        log::warn!("加密服务断开: {}", err);
+        tracing::warn!("加密服务断开: {}", err);
     }
 
     Ok(())

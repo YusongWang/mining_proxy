@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, io::Error, ops::BitAnd, pin::Pin};
 
 use anyhow::{bail, Result};
-use log::{debug, info};
+use tracing::{debug, info};
 use lru::LruCache;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use serde::Serialize;
@@ -114,7 +114,7 @@ where
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
     #[cfg(debug_assertions)]
-    log::debug!(
+    tracing::debug!(
         "write_to_socket ------Worker : {}  Send Rpc {:?}",
         worker,
         String::from_utf8(rpc.clone())?
@@ -136,7 +136,7 @@ pub async fn m_write_to_socket_string(
     rpc.push(b'\n');
 
     #[cfg(debug_assertions)]
-    log::debug!(
+    tracing::debug!(
         "0 ------Worker : {}  Send Rpc {}",
         worker,
         String::from_utf8(rpc.to_vec())?
@@ -174,7 +174,7 @@ async fn lines_unwrap(
                 match w.shutdown().await {
                     Ok(_) => {}
                     Err(e) => {
-                        log::error!("Error Worker Shutdown Socket {:?}", e);
+                        tracing::error!("Error Worker Shutdown Socket {:?}", e);
                     }
                 };
                 return bail!("{}：{}  读取到字节0. 矿池主动断开 ", form_name, worker_name);
@@ -305,7 +305,7 @@ async fn seagment_unwrap(
                 match pool_w.shutdown().await {
                     Ok(_) => {}
                     Err(e) => {
-                        log::error!("Error Shutdown Socket {:?}", e);
+                        tracing::error!("Error Shutdown Socket {:?}", e);
                     }
                 }
                 bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
@@ -315,7 +315,7 @@ async fn seagment_unwrap(
             match pool_w.shutdown().await {
                 Ok(_) => {}
                 Err(e) => {
-                    log::error!("Error Shutdown Socket {:?}", e);
+                    tracing::error!("Error Shutdown Socket {:?}", e);
                 }
             }
             bail!("矿工：{} {}", worker_name, e);
@@ -372,13 +372,13 @@ async fn buf_parse_to_string(w: &mut WriteHalf<'_>, buffer: &[u8]) -> Result<Str
     let buf = match String::from_utf8(buffer.to_vec()) {
         Ok(s) => Ok(s),
         Err(_) => {
-            //log::warn!("无法解析的字符串{:?}", buffer);
+            //tracing::warn!("无法解析的字符串{:?}", buffer);
             match w.shutdown().await {
                 Ok(_) => {
-                    //log::warn!("端口可能被恶意扫描: {}", buf);
+                    //tracing::warn!("端口可能被恶意扫描: {}", buf);
                 }
                 Err(e) => {
-                    log::error!("Error Shutdown Socket {:?}", e);
+                    tracing::error!("Error Shutdown Socket {:?}", e);
                 }
             };
             bail!("端口可能被恶意扫描。也可能是协议被加密了。");
@@ -386,7 +386,7 @@ async fn buf_parse_to_string(w: &mut WriteHalf<'_>, buffer: &[u8]) -> Result<Str
     };
 
     buf
-    // log::warn!("端口可能被恶意扫描: {}", buf);
+    // tracing::warn!("端口可能被恶意扫描: {}", buf);
     // bail!("端口可能被恶意扫描。");
 }
 
@@ -431,7 +431,7 @@ async fn u_seagment_unwrap(
                 match pool_w.shutdown().await {
                     Ok(_) => {}
                     Err(e) => {
-                        log::error!("Error Shutdown Socket {:?}", e);
+                        tracing::error!("Error Shutdown Socket {:?}", e);
                     }
                 }
                 bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
@@ -441,7 +441,7 @@ async fn u_seagment_unwrap(
             match pool_w.shutdown().await {
                 Ok(_) => {}
                 Err(e) => {
-                    log::error!("Error Shutdown Socket {:?}", e);
+                    tracing::error!("Error Shutdown Socket {:?}", e);
                 }
             }
             bail!("矿工：{} {}", worker_name, e);

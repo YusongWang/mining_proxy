@@ -5,9 +5,9 @@ use std::sync::{
 
 extern crate serde_millis;
 
-use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
+use tracing::{debug, info};
 
 use crate::protocol::PROTOCOL;
 

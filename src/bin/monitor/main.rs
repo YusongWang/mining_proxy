@@ -8,8 +8,8 @@ use std::net::ToSocketAddrs;
 use anyhow::Result;
 use clap::{crate_name, crate_version};
 use hex::FromHex;
-use log::info;
 use openssl::aes::AesKey;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
     );
 
     if let Err(err) = res {
-        log::warn!("加密服务断开: {}", err);
+        tracing::warn!("加密服务断开: {}", err);
     }
 
     Ok(())

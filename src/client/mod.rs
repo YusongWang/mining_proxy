@@ -16,7 +16,6 @@ pub mod tls;
 
 use anyhow::bail;
 use hex::FromHex;
-use log::debug;
 use native_tls::TlsConnector;
 use rand::prelude::SliceRandom;
 use serde::Serialize;
@@ -28,6 +27,7 @@ use std::{
     time::Duration,
 };
 use tokio_native_tls::TlsStream;
+use tracing::debug;
 
 use anyhow::Result;
 use tokio::{
@@ -143,7 +143,7 @@ pub fn get_pool_random_stream(
         let mut tcp = match address.to_socket_addrs() {
             Ok(t) => t,
             Err(_) => {
-                log::error!("矿池地址格式化失败");
+                tracing::error!("矿池地址格式化失败");
                 continue;
             }
         };
@@ -180,7 +180,7 @@ pub fn get_pool_stream(
         let mut tcp = match address.to_socket_addrs() {
             Ok(t) => t,
             Err(_) => {
-                log::error!("矿池地址格式化失败 {}", address);
+                tracing::error!("矿池地址格式化失败 {}", address);
                 continue;
             }
         };
@@ -220,7 +220,7 @@ pub async fn get_pool_stream_with_tls(
         let mut tcp = match address.to_socket_addrs() {
             Ok(t) => t,
             Err(_) => {
-                log::error!("矿池地址格式化失败 {}", address);
+                tracing::error!("矿池地址格式化失败 {}", address);
                 continue;
             }
         };
@@ -363,7 +363,7 @@ where
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
     #[cfg(debug_assertions)]
-    log::debug!(
+    tracing::debug!(
         "write_to_socket ------Worker : {}  Send Rpc {:?}",
         worker,
         String::from_utf8(rpc.clone())?
@@ -387,7 +387,7 @@ where W: AsyncWrite {
     rpc.push(b'\n');
 
     #[cfg(debug_assertions)]
-    log::debug!(
+    tracing::debug!(
         "0 ------Worker : {}  Send Rpc {}",
         worker,
         String::from_utf8(rpc.to_vec())?
@@ -1204,7 +1204,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("dev {}", e);
+                    tracing::error!("dev {}", e);
                 }
             };
         } else {
@@ -1215,7 +1215,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("dev {}", e);
+                    tracing::error!("dev {}", e);
                 }
             };
         }
@@ -1254,7 +1254,7 @@ where
                             return Some(());
                         }
                         Err(e) => {
-                            log::error!("agent :{}", e);
+                            tracing::error!("agent :{}", e);
                         }
                     };
                 } else {
@@ -1265,7 +1265,7 @@ where
                             return Some(());
                         }
                         Err(e) => {
-                            log::error!("agent :{}", e);
+                            tracing::error!("agent :{}", e);
                         }
                     };
                 }
@@ -1304,7 +1304,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("fee :{}", e);
+                    tracing::error!("fee :{}", e);
                     return None;
                 }
             };
@@ -1316,7 +1316,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("agent :{}", e);
+                    tracing::error!("agent :{}", e);
                     return None;
                 }
             };
@@ -1431,7 +1431,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("dev {}", e);
+                    tracing::error!("dev {}", e);
                 }
             };
         } else {
@@ -1442,7 +1442,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    log::error!("dev {}", e);
+                    tracing::error!("dev {}", e);
                 }
             };
         }
@@ -1479,7 +1479,7 @@ where
                     return Some(());
                 }
                 Err(e) => {
-                    //log::error!("fee :{}", e);
+                    //tracing::error!("fee :{}", e);
                     return None;
                 }
             };
@@ -1492,7 +1492,7 @@ where
                 }
                 Err(e) => {
                     //debug!("agent :{}", e);
-                    //log::error!("fee :{}", e);
+                    //tracing::error!("fee :{}", e);
                     return None;
                 }
             };
@@ -2157,7 +2157,7 @@ pub async fn submit_fee_hashrate(
         match crate::client::get_pool_stream(&config.share_address) {
             Some((stream, addr)) => (stream, addr),
             None => {
-                log::error!("所有TCP矿池均不可链接。请修改后重试");
+                tracing::error!("所有TCP矿池均不可链接。请修改后重试");
                 bail!("所有TCP矿池均不可链接。请修改后重试");
             }
         };

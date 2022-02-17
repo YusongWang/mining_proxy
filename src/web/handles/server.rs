@@ -96,7 +96,7 @@ pub async fn crate_app(
     match config.check() {
         Ok(_) => {}
         Err(err) => {
-            log::error!("配置错误 {}", err);
+            tracing::error!("配置错误 {}", err);
             return Ok(web::Json(Response::<String> {
                 code: 40000,
                 message: format!("配置错误 {}", err),
@@ -130,7 +130,7 @@ pub async fn crate_app(
                 match serde_yaml::from_str(&configs) {
                     Ok(s) => s,
                     Err(e) => {
-                        log::error!("{}", e);
+                        tracing::error!("{}", e);
                         vec![]
                     }
                 };

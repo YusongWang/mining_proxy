@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::info;
+use tracing::info;
 
 use tokio::{
     io::{split, BufReader},
@@ -28,12 +28,12 @@ pub async fn accept_tcp_with_tls(
     let listener = match TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
         Err(_) => {
-            log::info!("本地端口被占用 {}", address);
+            tracing::info!("本地端口被占用 {}", address);
             std::process::exit(1);
         }
     };
 
-    log::info!("本地SSL端口{} 启动成功!!!", &address);
+    tracing::info!("本地SSL端口{} 启动成功!!!", &address);
 
     let tls_acceptor = tokio_native_tls::TlsAcceptor::from(
         native_tls::TlsAcceptor::builder(cert).build()?,

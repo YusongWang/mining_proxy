@@ -1,10 +1,10 @@
 use anyhow::Result;
-use log::info;
 use tokio::{
     io::{split, BufReader},
     net::{TcpListener, TcpStream},
     sync::mpsc::UnboundedSender,
 };
+use tracing::info;
 
 use crate::{
     state::{State, Worker},
@@ -23,12 +23,12 @@ pub async fn accept_en_tcp(
     let listener = match TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
         Err(_) => {
-            log::info!("本地端口被占用 {}", address);
+            tracing::info!("本地端口被占用 {}", address);
             std::process::exit(1);
         }
     };
 
-    log::info!("本地TCP加密协议端口{}启动成功!!!", &address);
+    tracing::info!("本地TCP加密协议端口{}启动成功!!!", &address);
     loop {
         let (stream, addr) = listener.accept().await?;
 
