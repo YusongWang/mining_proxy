@@ -240,7 +240,7 @@ where
                             info!("中转抽水回合");
 
                             //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            if let Ok(job_res) = job_recv.recv().await {
+                            if let Some(job_res) = unsend_fee_job.pop_back() {
                                 job_rpc.result = job_res.clone();
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
@@ -264,10 +264,10 @@ where
                         }
                     }
                 }
+            },
+            Ok(job)=  job_recv.recv() => {
+                unsend_fee_job.push_back(job);
             }
-            // Ok(job)=  job_recv.recv() => {
-            //     unsend_fee_job.push_back(job);
-            // }
         }
     }
 }

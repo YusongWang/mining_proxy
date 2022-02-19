@@ -1,7 +1,7 @@
 build : 
-	cargo build  --features nofee --release --target=x86_64-unknown-linux-musl
+	cargo build  --release --target=x86_64-unknown-linux-musl
 ag_build : 
-	cargo build  --features agent --release --target=x86_64-unknown-linux-musl
+	cargo build  --release --target=x86_64-unknown-linux-musl
 strip : 
 	strip ./target/x86_64-unknown-linux-musl/release/mining_proxy && strip ./target/x86_64-unknown-linux-musl/release/encrypt
 upx : 

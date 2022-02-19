@@ -29,7 +29,6 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
 
     let recv = proxy.recv.clone();
     let job_send = proxy.job_send.clone();
-    let job_recv = proxy.job_recv.clone();
 
     loop {
         select! {
@@ -52,10 +51,9 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
                         buf
                     );
 
-
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let mut job_res = job_rpc.get_job_result().unwrap();
-                        job_send.try_send(job_res);
+                        job_send.send(job_res).await;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         tracing::debug!(result_rpc = ?result_rpc,"ProxyFee 线程获得操作结果 {:?}",result_rpc.result);
                     }
@@ -63,15 +61,10 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
             },
             Ok(json_rpc) = recv.recv() => {
                 tracing::debug!(json=?json_rpc,"获得抽水任务");
-                //let rpc = json_rpc;
-
                 if let crate::client::FEE::PROXYFEE(mut rpc) = json_rpc {
                     rpc.set_worker_name(&worker_name);
                     write_to_socket_byte(&mut proxy_w, rpc.to_vec()?, &worker_name).await?
                 }
-            },
-            Ok(json_rpc) = job_recv.recv() => {
-                tracing::debug!(json=?json_rpc,"自消费一个");
             }
         }
     }
