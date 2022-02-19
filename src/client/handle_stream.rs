@@ -242,21 +242,21 @@ where
                             info!("中转抽水回合");
 
                             //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            // if let Some((_,job_res)) = unsend_fee_job.pop_lru() {
-                            //     job_rpc.result = job_res.clone();
-                            //     let job_id = job_rpc.get_job_id().unwrap();
-                            //     tracing::debug!(job_id = ?job_id,"Set the devfee Job");
-                            //     fee_job.push(job_id);
-                            //     dbg!(&fee_job);
-                            // }
-
-                            if let Ok(job_res) = job_recv.recv().await{
+                            if let Some((_,job_res)) = unsend_fee_job.pop_lru() {
                                 job_rpc.result = job_res.clone();
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                                 fee_job.push(job_id);
                                 dbg!(&fee_job);
                             }
+
+                            // if let Ok(job_res) = job_recv.recv().await{
+                            //     job_rpc.result = job_res.clone();
+                            //     let job_id = job_rpc.get_job_id().unwrap();
+                            //     tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                            //     fee_job.push(job_id);
+                            //     dbg!(&fee_job);
+                            // }
                         }
 
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;

@@ -223,6 +223,11 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     } else {
         cert = Identity::from_pkcs12(der, "mypass")?;
     }
+    let worker_name = config.share_name.clone();
+
+    let (mut proxy_lines, mut proxy_w) =
+        mining_proxy::client::proxy_pool_login(&config, worker_name.clone())
+            .await?;
 
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     let (send, recv) = async_channel::bounded::<FEE>(10);
@@ -237,6 +242,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         recv,
         job_recv,
         job_send,
+        proxy_write: Arc::new(proxy_w),
     });
 
     let res = tokio::try_join!(
@@ -246,7 +252,11 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         //     cert
         // ),
         //send_to_parent(worker_rx, &config),
-        mining_proxy::client::fee::fee(Arc::clone(&proxy)),
+        mining_proxy::client::fee::fee(
+            Arc::clone(&proxy),
+            proxy_lines,
+            worker_name.clone(),
+        ),
     );
 
     if let Err(err) = res {

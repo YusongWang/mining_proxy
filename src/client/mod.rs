@@ -835,7 +835,7 @@ pub async fn submit_develop_hashrate(
 }
 
 // new -----------------------------------------------------------------
-async fn proxy_pool_login(
+pub async fn proxy_pool_login(
     config: &Settings, hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
@@ -881,7 +881,7 @@ async fn proxy_pool_login(
     Ok((proxy_lines, proxy_w))
 }
 
-async fn lines_unwrap(
+pub async fn lines_unwrap(
     res: Result<Option<String>, std::io::Error>, worker_name: &String,
     form_name: &str,
 ) -> Result<String> {
@@ -904,7 +904,7 @@ async fn lines_unwrap(
     buffer
 }
 
-async fn seagment_unwrap<W>(
+pub async fn seagment_unwrap<W>(
     pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
     worker_name: &String,
 ) -> Result<Vec<u8>>

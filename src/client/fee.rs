@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::{
+    io::{AsyncRead, AsyncWrite, BufReader, Lines},
+    net::TcpStream,
     select,
     sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
@@ -13,22 +15,18 @@ use crate::{
     util::config::Settings,
 };
 
-use super::proxy_pool_login;
-
-pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
-    let config: Settings;
-    {
-        let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
-        config = rconfig.clone();
-    }
-
-    let worker_name = config.share_name.clone();
-
-    let (mut proxy_lines, mut proxy_w) =
-        proxy_pool_login(&config, worker_name.clone()).await?;
-
+pub async fn fee(
+    proxy: Arc<Proxy>,
+    mut proxy_lines: Lines<
+        BufReader<tokio::io::ReadHalf<tokio::net::TcpStream>>,
+    >,
+    worker_name: String,
+) -> Result<()> {
     let recv = proxy.recv.clone();
     let job_send = proxy.job_send.clone();
+    let mut proxy_w = Arc::clone(&proxy.proxy_write);
+    let mut proxy_w = Arc::get_mut(&mut proxy_w).unwrap();
+    //let mut proxy_w = *proxy_w;
 
     loop {
         select! {
