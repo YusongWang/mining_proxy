@@ -65,7 +65,7 @@ fn main() -> Result<()> {
     // 设置日志的时间格式 参考: https://docs.rs/tracing-subscriber/0.3.3/tracing_subscriber/fmt/struct.SubscriberBuilder.html#method.with_timer
     let format = tracing_subscriber::fmt::format()
         .with_level(true)
-        .with_target(true)
+        //.with_target(true)
         .with_timer(LocalTimer);
 
     // 初始化并设置日志格式(定制和筛选日志)
@@ -255,23 +255,22 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     let (send, recv) = async_channel::bounded::<FEE>(10);
+    //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
+    let (job_send, job_recv) = async_channel::bounded::<Vec<String>>(10);
 
-    let fee_job: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(Vec::new()));
-    let dev_fee_job: Arc<RwLock<Vec<String>>> =
-        Arc::new(RwLock::new(Vec::new()));
     let mconfig = Arc::new(RwLock::new(config));
 
     let proxy = Arc::new(mining_proxy::proxy::Proxy {
-        fee_job,
-        dev_fee_job,
         config: mconfig,
         send,
         recv,
+        job_recv,
+        job_send,
     });
 
     let res = tokio::try_join!(
         accept_tcp(Arc::clone(&proxy)),
-        // accept_en_tcp(),
+        accept_en_tcp(Arc::clone(&proxy)),
         // accept_tcp_with_tls(
         //     cert
         // ),

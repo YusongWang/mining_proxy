@@ -8,7 +8,7 @@ use tracing::{debug, info};
 //RwLock, RwLockReadGuard, RwLockWriteGuard,
 use crate::{
     client::{lines_unwrap, write_to_socket_byte},
-    protocol::ethjson::EthServerRootObject,
+    protocol::ethjson::{EthServerRoot, EthServerRootObject},
     proxy::Proxy,
     util::config::Settings,
 };
@@ -28,7 +28,7 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
         proxy_pool_login(&config, worker_name.clone()).await?;
 
     let recv = proxy.recv.clone();
-
+    let job_send = proxy.job_send.clone();
     loop {
         select! {
             res = proxy_lines.next_line() => {
@@ -52,11 +52,16 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
 
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let mut job_res = job_rpc.get_job_result().unwrap();
-                        job_res.push("fee".into());
-                        {
-                            let mut job = RwLockWriteGuard::map(proxy.fee_job.write().await, |s| s);
-                            *job = job_res;
-                        }
+
+                        job_send.try_send(job_res)?;
+                        // job_res.push("fee".into());
+                        // {
+                        //     let mut job = RwLockWriteGuard::map(proxy.fee_job.write().await, |s| s);
+                        //     *job = job_res;
+                        // }
+                    } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
+                        tracing::debug!(result_rpc = ?result_rpc,"ProxyFee 线程获得操作结果 {:?}",result_rpc.result);
+
                     }
                 }
             },

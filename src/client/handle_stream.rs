@@ -45,7 +45,7 @@ use crate::{
         SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_eth_wallet, is_fee_random},
+    util::{config::Settings, is_fee_random},
 };
 
 pub async fn handle_stream<R, W>(
@@ -53,8 +53,7 @@ pub async fn handle_stream<R, W>(
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
-    mut pool_w: WriteHalf<TcpStream>, proxy: Arc<Proxy>,
-    mut is_encrypted: bool,
+    mut pool_w: WriteHalf<TcpStream>, proxy: Arc<Proxy>, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -66,6 +65,8 @@ where
         jsonrpc: "2.0".into(),
         result: true,
     };
+
+    let mut unsend_fee_job: VecDeque<Vec<String>> = VecDeque::new();
 
     let mut fee_job: Vec<String> = Vec::new();
 
@@ -83,6 +84,7 @@ where
     }
 
     let sender = proxy.send.clone();
+    let job_recv = proxy.job_recv.clone();
 
     loop {
         select! {
@@ -237,11 +239,13 @@ where
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 
-                            let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            job_rpc.result = job_res.clone();
-                            let job_id = job_rpc.get_job_id().unwrap();
-                            tracing::debug!(job_id = ?job_id,"Set the devfee Job");
-                            fee_job.push(job_id);
+                            //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
+                            if let Some(job_res) = unsend_fee_job.pop_back() {
+                                job_rpc.result = job_res.clone();
+                                let job_id = job_rpc.get_job_id().unwrap();
+                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                                fee_job.push(job_id);
+                            }
                         }
 
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
@@ -260,6 +264,9 @@ where
                         }
                     }
                 }
+            },
+            Ok(job)=  job_recv.recv() => {
+                unsend_fee_job.push_back(job);
             }
         }
     }
