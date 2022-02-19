@@ -39,7 +39,7 @@ impl std::fmt::Debug for dyn EthClientObject + Send + Sync {
             "rpc_id: {} method: {} params {} ",
             self.get_id(),
             self.get_method(),
-            self.get_job_id()?
+            self.get_job_id().unwrap()
         )
     }
 }
