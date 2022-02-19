@@ -68,7 +68,7 @@ where
         result: true,
     };
 
-    let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(20);
+    let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(1);
 
     let mut fee_job: Vec<String> = Vec::new();
 
