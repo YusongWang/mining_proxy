@@ -247,6 +247,7 @@ where
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                                 fee_job.push(job_id);
+                                dbg!(&fee_job);
                             }
                         }
 
@@ -269,10 +270,11 @@ where
             },
             Ok(job)=  job_recv.recv() => {
                 tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-                if let Some(id) = job.get(0){
+                if let Some(id) = job.get(0) {
                     unsend_fee_job.put(id.to_string(),job);
                 }
 
+                dbg!(&unsend_fee_job);
             }
         }
     }
