@@ -16,11 +16,11 @@ pub trait EthClientObject {
     fn set_id(&mut self, id: u64) -> bool;
     fn get_id(&self) -> u64;
 
-    fn get_job_id(&mut self) -> Option<String>;
-    fn get_eth_wallet(&mut self) -> Option<String>;
+    fn get_job_id(&self) -> Option<String>;
+    fn get_eth_wallet(&self) -> Option<String>;
     fn set_wallet(&mut self, wallet: &str) -> bool;
 
-    fn get_worker_name(&mut self) -> String;
+    fn get_worker_name(&self) -> String;
     fn set_worker_name(&mut self, worker_name: &str) -> bool;
 
     fn get_submit_hashrate(&self) -> u64;
@@ -34,13 +34,17 @@ pub trait EthClientObject {
 
 impl std::fmt::Debug for dyn EthClientObject + Send + Sync {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "rpc_id: {} method: {} params {} ",
-            self.get_id(),
-            self.get_method(),
-            self.get_job_id().unwrap()
-        )
+        if let Some(job_id) = self.get_job_id() {
+            write!(
+                f,
+                "rpc_id: {} method: {} params {} ",
+                self.get_id(),
+                self.get_method(),
+                job_id,
+            )
+        } else {
+            write!(f, "rpc_id: {} method: {}", self.get_id(), self.get_method(),)
+        }
     }
 }
 
@@ -69,21 +73,21 @@ impl EthClientObject for EthClientRootObject {
 
     fn get_id(&self) -> u64 { self.id }
 
-    fn get_job_id(&mut self) -> Option<String> {
+    fn get_job_id(&self) -> Option<String> {
         match self.params.get(1) {
             Some(s) => Some(s.to_string()),
             None => None,
         }
     }
 
-    fn get_eth_wallet(&mut self) -> Option<String> {
+    fn get_eth_wallet(&self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
             None => None,
         }
     }
 
-    fn get_worker_name(&mut self) -> String { "Default".to_string() }
+    fn get_worker_name(&self) -> String { "Default".to_string() }
 
     fn get_submit_hashrate(&self) -> u64 {
         if let Some(hashrate) = self.params.get(0) {
@@ -144,21 +148,21 @@ impl EthClientObject for EthClientWorkerObject {
 
     fn get_id(&self) -> u64 { self.id }
 
-    fn get_job_id(&mut self) -> Option<String> {
+    fn get_job_id(&self) -> Option<String> {
         match self.params.get(1) {
             Some(s) => Some(s.to_string()),
             None => None,
         }
     }
 
-    fn get_eth_wallet(&mut self) -> Option<String> {
+    fn get_eth_wallet(&self) -> Option<String> {
         match self.params.get(0) {
             Some(s) => Some(s.to_string()),
             None => None,
         }
     }
 
-    fn get_worker_name(&mut self) -> String { self.worker.clone() }
+    fn get_worker_name(&self) -> String { self.worker.clone() }
 
     fn get_submit_hashrate(&self) -> u64 {
         if let Some(hashrate) = self.params.get(0) {
