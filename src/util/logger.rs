@@ -181,9 +181,9 @@ pub fn init() {
         }
     }
 
-    // let file_appender = tracing_appender::rolling::daily("/tmp",
-    // "tracing.log"); let (non_blocking, _guard) =
-    // tracing_appender::non_blocking(file_appender);
+    let file_appender =
+        tracing_appender::rolling::daily("./logs/", "AProxy.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     // 设置日志输出时的格式，例如，是否包含日志级别、是否包含日志来源位置、
     // 设置日志的时间格式 参考: https://docs.rs/tracing-subscriber/0.3.3/tracing_subscriber/fmt/struct.SubscriberBuilder.html#method.with_timer
@@ -197,9 +197,9 @@ pub fn init() {
     // 初始化并设置日志格式(定制和筛选日志)
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(Level::TRACE)
-        .with_writer(io::stdout) // 写入标准输出
-        //.with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
-        //.with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
+        //.with_writer(io::stdout) // 写入标准输出
+        .with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
+        .with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
         .event_format(format)
         .finish();
 
