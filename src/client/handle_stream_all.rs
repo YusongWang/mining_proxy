@@ -2,6 +2,10 @@ use std::io::Error;
 
 use crate::protocol::{
     eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
+    ethjson::{
+        login, new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_login,
+        new_eth_submit_work,
+    },
     stratum::{
         StraumErrorResult, StraumMiningNotify, StraumMiningSet,
         StraumResultBool, StraumRoot,
@@ -28,21 +32,13 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
-        ethjson::{
-            EthServer, EthServerRoot, EthServerRootObject,
-            EthServerRootObjectBool, EthServerRootObjectError,
-            EthServerRootObjectJsonRpc,
-        },
-        rpc::eth::{
-            Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue,
-            ServerSideJob,
-        },
+        ethjson::{EthServer, EthServerRoot, EthServerRootObject},
         stratum::StraumResult,
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
         PROTOCOL, SUBSCRIBE,
     },
     state::Worker,
-    util::{config::Settings, get_eth_wallet, is_fee_random},
+    util::{config::Settings, get_eth_wallet},
 };
 
 use super::write_to_socket;
@@ -79,171 +75,6 @@ where
     buffer
 }
 
-pub async fn login<W>(
-    worker: &mut Worker, w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
-    config: &Settings,
-) -> Result<String>
-where
-    W: AsyncWrite,
-{
-    if let Some(wallet) = rpc.get_eth_wallet() {
-        //rpc.set_id(CLIENT_LOGIN);
-        let mut temp_worker = wallet.clone();
-        let split = wallet.split(".").collect::<Vec<&str>>();
-        if split.len() > 1 {
-            worker.login(
-                temp_worker.clone(),
-                split.get(1).unwrap().to_string(),
-                wallet.clone(),
-            );
-            let temp_full_wallet =
-                config.share_wallet.clone() + "." + split[1].clone();
-            // 抽取全部替换钱包
-            rpc.set_wallet(&temp_full_wallet);
-            *worker_name = temp_worker;
-            write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await?;
-            Ok(temp_full_wallet)
-        } else {
-            temp_worker.push_str(".");
-            temp_worker = temp_worker + rpc.get_worker_name().as_str();
-            worker.login(
-                temp_worker.clone(),
-                rpc.get_worker_name(),
-                wallet.clone(),
-            );
-            *worker_name = temp_worker.clone();
-            Ok(temp_worker)
-        }
-    } else {
-        bail!("请求登录出错。可能收到暴力攻击");
-    }
-}
-
-async fn new_eth_submit_login<W>(
-    worker: &mut Worker, w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
-    config: &Settings,
-) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    if let Some(wallet) = rpc.get_eth_wallet() {
-        rpc.set_id(CLIENT_LOGIN);
-        let mut temp_worker = wallet.clone();
-        let mut split = wallet.split(".").collect::<Vec<&str>>();
-        if split.len() > 1 {
-            worker.login(
-                temp_worker.clone(),
-                split.get(1).unwrap().to_string(),
-                wallet.clone(),
-            );
-            let temp_full_wallet =
-                config.share_wallet.clone() + "." + split[1].clone();
-            // 抽取全部替换钱包
-            rpc.set_wallet(&temp_full_wallet);
-            *worker_name = temp_worker;
-        } else {
-            temp_worker.push_str(".");
-            temp_worker = temp_worker + rpc.get_worker_name().as_str();
-            worker.login(
-                temp_worker.clone(),
-                rpc.get_worker_name(),
-                wallet.clone(),
-            );
-            *worker_name = temp_worker;
-            // 抽取全部替换钱包
-            rpc.set_wallet(&config.share_wallet);
-        }
-
-        write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
-    } else {
-        bail!("请求登录出错。可能收到暴力攻击");
-    }
-}
-
-async fn new_eth_submit_work<W, W2>(
-    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
-    worker_w: &mut WriteHalf<W2>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
-    config: &Settings, state: &mut State,
-) -> Result<()>
-where
-    W: AsyncWrite,
-    W2: AsyncWrite,
-{
-    rpc.set_id(CLIENT_SUBMITWORK);
-    write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
-}
-
-async fn new_eth_submit_hashrate<W>(
-    worker: &mut Worker, w: &mut WriteHalf<W>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
-) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    worker.new_submit_hashrate(rpc);
-    rpc.set_id(CLIENT_SUBHASHRATE);
-    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
-}
-
-async fn seagment_unwrap<W>(
-    pool_w: &mut WriteHalf<W>, res: std::io::Result<Option<Vec<u8>>>,
-    worker_name: &String,
-) -> Result<Vec<u8>>
-where
-    W: AsyncWrite,
-{
-    let byte_buffer = match res {
-        Ok(buf) => match buf {
-            Some(buf) => Ok(buf),
-            None => {
-                match pool_w.shutdown().await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        tracing::error!("Error Shutdown Socket {:?}", e);
-                    }
-                }
-                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
-            }
-        },
-        Err(e) => {
-            match pool_w.shutdown().await {
-                Ok(_) => {}
-                Err(e) => {
-                    tracing::error!("Error Shutdown Socket {:?}", e);
-                }
-            }
-            bail!("矿工：{} {}", worker_name, e);
-        }
-    };
-
-    byte_buffer
-}
-
-async fn new_eth_get_work<W>(
-    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &String,
-) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    rpc.set_id(CLIENT_GETWORK);
-    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
-}
-
-async fn new_subscribe<W>(
-    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
-    worker_name: &String,
-) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    rpc.set_id(SUBSCRIBE);
-    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
-}
-
 // pub fn new_job_diff_change(
 //     diff: &mut u64,
 //     rpc: &EthServerRootObject,
@@ -268,60 +99,6 @@ where
 
 //     true
 // }
-
-async fn buf_parse_to_string<W>(
-    w: &mut WriteHalf<W>, buffer: &[u8],
-) -> Result<String>
-where W: AsyncWrite {
-    let buf = match String::from_utf8(buffer.to_vec()) {
-        Ok(s) => Ok(s),
-        Err(_) => {
-            //tracing::warn!("无法解析的字符串{:?}", buffer);
-            match w.shutdown().await {
-                Ok(_) => {
-                    //tracing::warn!("端口可能被恶意扫描: {}", buf);
-                }
-                Err(e) => {
-                    tracing::error!("Error Shutdown Socket {:?}", e);
-                }
-            };
-            bail!("端口可能被恶意扫描。也可能是协议被加密了。");
-        }
-    };
-
-    buf
-    // tracing::warn!("端口可能被恶意扫描: {}", buf);
-    // bail!("端口可能被恶意扫描。");
-}
-
-pub async fn write_rpc<W, T>(
-    encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String,
-    iv: String,
-) -> Result<()>
-where
-    W: AsyncWrite,
-    T: Serialize,
-{
-    if encrypt {
-        write_encrypt_socket(w, &rpc, &worker, key, iv).await
-    } else {
-        write_to_socket(w, &rpc, &worker).await
-    }
-}
-
-pub async fn write_string<W>(
-    encrypt: bool, w: &mut WriteHalf<W>, rpc: &str, worker: &String,
-    key: String, iv: String,
-) -> Result<()>
-where
-    W: AsyncWrite,
-{
-    if encrypt {
-        write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
-    } else {
-        write_to_socket_string(w, &rpc, &worker).await
-    }
-}
 
 async fn develop_pool_login(
     hostname: String,
@@ -464,8 +241,8 @@ pub async fn handle_stream<R, W>(
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
-    mut pool_w: WriteHalf<TcpStream>, config: &Settings, mut state: State,
-    is_encrypted: bool,
+    mut pool_w: WriteHalf<TcpStream>, config: &Settings,
+    mut is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -627,7 +404,7 @@ where
                                 "eth_submitWork" => {
                                     eth_server_result.id = rpc_id;
                                     worker.share_index_add();
-                                    new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
+                                    //new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
                                     write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     Ok(())
                                 },
@@ -722,8 +499,6 @@ where
 
                 #[cfg(debug_assertions)]
                 debug!("<--------------------<  矿池 {} #{:?}",worker_name, buffer);
-
-
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
                 for buf in buffer {

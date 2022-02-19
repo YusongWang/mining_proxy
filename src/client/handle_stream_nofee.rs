@@ -117,7 +117,7 @@ async fn new_eth_submit_work<W, W2>(
     worker: &mut Worker, pool_w: &mut WriteHalf<W>,
     worker_w: &mut WriteHalf<W2>,
     rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
-    config: &Settings, state: &mut State,
+    config: &Settings,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -415,8 +415,7 @@ pub async fn handle_stream<R, W, R1, W1>(
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<R1>>,
-    mut pool_w: WriteHalf<W1>, config: &Settings, mut state: State,
-    is_encrypted: bool,
+    mut pool_w: WriteHalf<W1>, config: &Settings, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
@@ -580,7 +579,7 @@ where
                                 "eth_submitWork" => {
                                     eth_server_result.id = rpc_id;
                                     worker.share_index_add();
-                                    new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
+                                    new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
                                     write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     Ok(())
                                 },

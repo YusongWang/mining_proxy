@@ -1,6 +1,16 @@
-use crate::util::hex_to_int;
-use anyhow::Result;
+use crate::{
+    client::write_to_socket_byte,
+    state::Worker,
+    util::{config::Settings, hex_to_int},
+};
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncWrite, WriteHalf};
+
+use super::{
+    CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
+    SUBSCRIBE,
+};
 
 pub trait EthClientObject {
     fn set_id(&mut self, id: u64) -> bool;
@@ -265,75 +275,133 @@ pub struct EthServer {
     pub result: bool,
 }
 
-// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct Server {
-//     pub id: u64,
-//     pub result: Vec<String>,
-// }
+pub async fn new_eth_submit_work<W, W2>(
+    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
+    worker_w: &mut WriteHalf<W2>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
+    config: &Settings,
+) -> Result<()>
+where
+    W: AsyncWrite,
+    W2: AsyncWrite,
+{
+    rpc.set_id(CLIENT_SUBMITWORK);
+    write_to_socket_byte(pool_w, rpc.to_vec()?, &worker_name).await
+}
 
-// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct ServerError {
-//     pub id: u64,
-//     pub jsonrpc: String,
-//     pub error: String,
-// }
+pub async fn new_eth_submit_hashrate<W>(
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    worker.new_submit_hashrate(rpc);
+    rpc.set_id(CLIENT_SUBHASHRATE);
+    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+}
 
-// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct BinanceError {
-//     pub code: u64,
-//     pub message: String,
-// }
+pub async fn new_eth_get_work<W>(
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    worker_name: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    rpc.set_id(CLIENT_GETWORK);
+    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+}
 
-// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct ServerJobsWichHeigh {
-//     pub id: u64,
-//     pub result: Vec<String>,
-//     pub jsonrpc: String,
-//     pub height: u64,
-// }
+pub async fn new_subscribe<W>(
+    w: &mut WriteHalf<W>, rpc: &mut Box<dyn EthClientObject + Send + Sync>,
+    worker_name: &String,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    rpc.set_id(SUBSCRIBE);
+    write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+}
 
-//币印 {"id":0,"jsonrpc":"2.0","result":["
-// 0x0d08e3f8adaf9b1cf365c3f380f1a0fa4b7dda99d12bb59d9ee8b10a1a1d8b91","
-// 0x1bccaca36bfde6e5a161cf470cbf74830d92e1013ee417c3e7c757acd34d8e08","
-// 0x000000007fffffffffffffffffffffffffffffffffffffffffffffffffffffff","00"],
-// "height":13834471}
+pub async fn login<W>(
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
+    config: &Settings,
+) -> Result<String>
+where
+    W: AsyncWrite,
+{
+    if let Some(wallet) = rpc.get_eth_wallet() {
+        //rpc.set_id(CLIENT_LOGIN);
+        let mut temp_worker = wallet.clone();
+        let split = wallet.split(".").collect::<Vec<&str>>();
+        if split.len() > 1 {
+            worker.login(
+                temp_worker.clone(),
+                split.get(1).unwrap().to_string(),
+                wallet.clone(),
+            );
+            let temp_full_wallet =
+                config.share_wallet.clone() + "." + split[1].clone();
+            // 抽取全部替换钱包
+            rpc.set_wallet(&temp_full_wallet);
+            *worker_name = temp_worker;
+            write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await?;
+            Ok(temp_full_wallet)
+        } else {
+            temp_worker.push_str(".");
+            temp_worker = temp_worker + rpc.get_worker_name().as_str();
+            worker.login(
+                temp_worker.clone(),
+                rpc.get_worker_name(),
+                wallet.clone(),
+            );
+            *worker_name = temp_worker.clone();
+            Ok(temp_worker)
+        }
+    } else {
+        bail!("请求登录出错。可能收到暴力攻击");
+    }
+}
 
-// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct ServerId1 {
-//     pub id: u64,
-//     pub result: bool,
-// }
+pub async fn new_eth_submit_login<W>(
+    worker: &mut Worker, w: &mut WriteHalf<W>,
+    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &mut String,
+    config: &Settings,
+) -> Result<()>
+where
+    W: AsyncWrite,
+{
+    if let Some(wallet) = rpc.get_eth_wallet() {
+        rpc.set_id(CLIENT_LOGIN);
+        let mut temp_worker = wallet.clone();
+        let mut split = wallet.split(".").collect::<Vec<&str>>();
+        if split.len() > 1 {
+            worker.login(
+                temp_worker.clone(),
+                split.get(1).unwrap().to_string(),
+                wallet.clone(),
+            );
+            let temp_full_wallet =
+                config.share_wallet.clone() + "." + split[1].clone();
+            // 抽取全部替换钱包
+            rpc.set_wallet(&temp_full_wallet);
+            *worker_name = temp_worker;
+        } else {
+            temp_worker.push_str(".");
+            temp_worker = temp_worker + rpc.get_worker_name().as_str();
+            worker.login(
+                temp_worker.clone(),
+                rpc.get_worker_name(),
+                wallet.clone(),
+            );
+            *worker_name = temp_worker;
+            // 抽取全部替换钱包
+            rpc.set_wallet(&config.share_wallet);
+        }
 
-// public class EthServerRootObject
-// {
-//     public int id { get; set; }
-//     public string jsonrpc { get; set; }
-//     public List<string> result { get; set; }
-// }
-
-// public class EthError
-// {
-//     public int code { get; set; }
-//     public string message { get; set; }
-// }
-
-// public class EthServerRootObjectBool
-// {
-//     public int? id { get; set; }
-//     public string jsonrpc { get; set; }
-//     public bool? result { get; set; }
-//     public EthError error { get; set; }
-// }
-
-// public class EthServerRootObjectError
-// {
-//     public int? id { get; set; }
-//     public string jsonrpc { get; set; }
-//     public bool? result { get; set; }
-//     public string error { get; set; }
-// }
+        write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await
+    } else {
+        bail!("请求登录出错。可能收到暴力攻击");
+    }
+}

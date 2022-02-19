@@ -1,21 +1,23 @@
 use anyhow::Result;
+use std::sync::Arc;
 use tracing::info;
 
 use tokio::{
     io::{split, BufReader},
     net::{TcpListener, TcpStream},
-    sync::mpsc::UnboundedSender,
+    sync::{mpsc::UnboundedSender, RwLockReadGuard},
 };
 
-use crate::{
-    state::{State, Worker},
-    util::config::Settings,
-};
+use crate::{proxy::Proxy, state::Worker, util::config::Settings};
 
 use super::*;
-pub async fn accept_tcp(
-    worker_queue: UnboundedSender<Worker>, config: Settings, state: State,
-) -> Result<()> {
+pub async fn accept_tcp(proxy: Arc<Proxy>) -> Result<()> {
+    let config: Settings;
+    {
+        let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
+        config = rconfig.clone();
+    }
+
     if config.tcp_port == 0 {
         return Ok(());
     }
@@ -34,32 +36,14 @@ pub async fn accept_tcp(
     loop {
         let (stream, addr) = listener.accept().await?;
 
-        let config = config.clone();
-        let workers = worker_queue.clone();
-        let state = state.clone();
-        state
-            .online
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-
+        let p = Arc::clone(&proxy);
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
-            match transfer(
-                &mut worker,
-                workers.clone(),
-                stream,
-                &config,
-                state.clone(),
-            )
-            .await
-            {
+            match transfer(p, &mut worker, stream).await {
                 Ok(_) => {
-                    state
-                        .online
-                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                     if worker.is_online() {
                         worker.offline();
-                        workers.send(worker);
                     } else {
                         info!("IP: {} 下线", addr);
                     }
@@ -67,15 +51,11 @@ pub async fn accept_tcp(
                 Err(e) => {
                     if worker.is_online() {
                         worker.offline();
-                        workers.send(worker);
+
                         info!("IP: {} 下线原因 {}", addr, e);
                     } else {
                         debug!("IP: {} 恶意链接: {}", addr, e);
                     }
-
-                    state
-                        .online
-                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                 }
             }
         });
@@ -83,67 +63,62 @@ pub async fn accept_tcp(
 }
 
 async fn transfer(
-    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
-    tcp_stream: TcpStream, config: &Settings, state: State,
+    proxy: Arc<Proxy>, worker: &mut Worker, tcp_stream: TcpStream,
 ) -> Result<()> {
     let (worker_r, worker_w) = split(tcp_stream);
     let worker_r = BufReader::new(worker_r);
+
+    let mut share_pool: Vec<String> = Vec::new();
+    {
+        let config = RwLockReadGuard::map(proxy.config.read().await, |s| s);
+        share_pool = config.share_address.to_vec();
+    }
+
     let (stream_type, pools) =
-        match crate::client::get_pool_ip_and_type(&config) {
+        match crate::client::get_pool_ip_and_type_from_vec(&share_pool) {
             Ok(pool) => pool,
             Err(_) => {
                 bail!("未匹配到矿池 或 均不可链接。请修改后重试");
             }
         };
 
-    if config.share == 0 {
-        handle_tcp_pool(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            state,
-            false,
-        )
-        .await
-    } else if config.share == 1 {
-        if config.share_alg == 99 {
-            handle_tcp_random(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                false,
-            )
-            .await
-        } else {
-            handle_tcp_pool_timer(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                false,
-            )
-            .await
-        }
-    } else {
-        handle_tcp_pool_all(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &config,
-            state,
-            false,
-        )
-        .await
-    }
+    handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, false).await
+
+    // if config.share == 0 {
+    //     handle_tcp_pool(
+    //         worker,
+    //         worker_queue,
+    //         worker_r,
+    //         worker_w,
+    //         &pools,
+    //         &config,
+    //         false,
+    //     )
+    //     .await
+    // } else if config.share == 1 {
+    //     // if config.share_alg == 99 {
+
+    //     // } else {
+    //     //     handle_tcp_pool_timer(
+    //     //         worker,
+    //     //         worker_queue,
+    //     //         worker_r,
+    //     //         worker_w,
+    //     //         &pools,
+    //     //         &config,
+    //     //         false,
+    //     //     )
+    //     //     .await
+    //     // }
+    // } else {
+    //     handle_tcp_pool_all(
+    //         worker,
+    //         worker_queue,
+    //         worker_r,
+    //         worker_w,
+    //         &config,
+    //         false,
+    //     )
+    //     .await
+    // }
 }

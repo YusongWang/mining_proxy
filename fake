@@ -3,7 +3,7 @@
 {"id":1,"method":"eth_submitLogin","params":["0xb0B91c95D2D0ebD0C85bA14B0547668a198b9dbD","x"],"worker":"local.eth1.0"}
 
 {"id":5,"method":"eth_getWork","params":[]}
-{"id":40,"method":"eth_submitWork", "params": ["0x204ba90a90af46b7", "0x7fe8c911cdc1a932420169509a110558ce35a322729ce1e109791ddbcfc3f73b", "0x8d25e003c5e48daf37c91514e660855775f7506d3c7f8f4a80b304f5ca664fcd"]}
+{"id":40,"method":"eth_submitWork", "params": ["0x204ba90a90af46b7", "0x62e80ccfbb1176f1634e41ddd44cbd3b24f206a0234d23bd59a4aedf51295933", "0xc9cd51c19378d3bb11feaad7d61380eefdc0fce624a53360af71c8277e41add9"]}
 
 
 {"id":1,"method":"eth_submitLogin","worker":"eth1.0","params":["0x46a0c59f5376b9017F6403A8A68658BC47cB56D5.2080s","x"],"jsonrpc":"2.0"}

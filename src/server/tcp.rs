@@ -33,14 +33,14 @@ use crate::{
 pub struct Tcp {
     config: Settings,
     sender: UnboundedSender<Worker>,
-    state: State,
+    
     listener: TcpListener,
 }
 
 impl Tcp {
     pub async fn new(
         config: Settings,
-        state: State,
+        
         sender: UnboundedSender<Worker>,
     ) -> Result<Self> {
         //检查本地端口。
@@ -395,7 +395,7 @@ async fn transfer(
     worker_queue: UnboundedSender<Worker>,
     mut tcp_stream: TcpStream,
     config: &Settings,
-    state: State,
+    
 ) -> Result<()> {
     let (worker_r, worker_w) = tcp_stream.split();
     //let worker_r = BufReader::new(worker_r);
@@ -458,7 +458,7 @@ async fn tcphandle_tcp_pool(
     worker_w: WriteHalf<'_>,
     pools: &Vec<String>,
     config: &Settings,
-    state: State,
+    
     is_encrypted: bool,
 ) -> Result<()> {
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
@@ -491,7 +491,7 @@ async fn tcphandle_tcp_pool(
 //     mut worker_w: WriteHalf<'_>,
 //     mut pool_stream: Pin<Box<dyn T>>,
 //     config: &Settings,
-//     mut state: State,
+//     mut 
 //     is_encrypted: bool,
 // ) -> Result<()>
 // where

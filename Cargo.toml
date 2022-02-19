@@ -27,7 +27,6 @@ hex = "0.4.3"
 # sentry-log = "0.23.0"
 fern = "0.5"
 async-channel = "1.6.1"
-lru = "0.7.2"
 openssl-sys = "0.9"
 openssl = { version = "0.10"}
 #prettytable-rs = "^0.8"

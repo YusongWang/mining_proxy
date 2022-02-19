@@ -40,6 +40,7 @@ pub fn init() {
 
 pub mod client;
 pub mod protocol;
+pub mod proxy;
 pub mod state;
 pub mod util;
 pub mod web;

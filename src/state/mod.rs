@@ -181,36 +181,6 @@ impl Worker {
     }
 }
 
-pub type State = Arc<GlobalState>;
-
-pub struct GlobalState {
-    pub online: AtomicU32,
-    pub proxy_share: AtomicU64,
-    pub proxy_accept: AtomicU64,
-    pub proxy_reject: AtomicU64,
-    pub develop_share: AtomicU64,
-    pub develop_accept: AtomicU64,
-    pub develop_reject: AtomicU64,
-}
-
-impl GlobalState {
-    pub fn new() -> Self {
-        GlobalState {
-            online: AtomicU32::new(0),
-            proxy_share: AtomicU64::new(0),
-            proxy_accept: AtomicU64::new(0),
-            proxy_reject: AtomicU64::new(0),
-            develop_share: AtomicU64::new(0),
-            develop_accept: AtomicU64::new(0),
-            develop_reject: AtomicU64::new(0),
-        }
-    }
-}
-
-impl Default for GlobalState {
-    fn default() -> Self { Self::new() }
-}
-
 #[test]
 fn test_new_work() {
     let w = Worker::default();

@@ -11,14 +11,10 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
 
-use crate::{
-    state::{State, Worker},
-    util::config::Settings,
-};
+use crate::{state::Worker, util::config::Settings};
 
 pub async fn accept_tcp_with_tls(
     worker_queue: UnboundedSender<Worker>, config: Settings, cert: Identity,
-    state: State,
 ) -> Result<()> {
     if config.ssl_port == 0 {
         return Ok(());
@@ -46,11 +42,6 @@ pub async fn accept_tcp_with_tls(
 
         let config = config.clone();
         let acceptor = tls_acceptor.clone();
-        let state = state.clone();
-
-        state
-            .online
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         tokio::spawn(async move {
             // 矿工状态管理
@@ -61,14 +52,10 @@ pub async fn accept_tcp_with_tls(
                 stream,
                 acceptor,
                 &config,
-                state.clone(),
             )
             .await
             {
                 Ok(_) => {
-                    state
-                        .online
-                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                     if worker.is_online() {
                         worker.offline();
                         workers.send(worker);
@@ -84,10 +71,6 @@ pub async fn accept_tcp_with_tls(
                     } else {
                         debug!("IP: {} 恶意链接断开: {}", addr, e);
                     }
-
-                    state
-                        .online
-                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                 }
             }
         });
@@ -97,7 +80,7 @@ pub async fn accept_tcp_with_tls(
 async fn transfer_ssl(
     worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
     tcp_stream: TcpStream, tls_acceptor: tokio_native_tls::TlsAcceptor,
-    config: &Settings, state: State,
+    config: &Settings,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
@@ -118,36 +101,33 @@ async fn transfer_ssl(
             worker_w,
             &pools,
             &config,
-            state,
             false,
         )
         .await
     } else if config.share == 1 {
-        if config.share_alg == 99 {
-            handle_tcp_random(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                false,
-            )
-            .await
-        } else {
-            handle_tcp_pool_timer(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                false,
-            )
-            .await
-        }
+        //if config.share_alg == 99 {
+        handle_tcp_pool(
+            worker,
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            false,
+        )
+        .await
+        // } else {
+        //     handle_tcp_pool_timer(
+        //         worker,
+        //         worker_queue,
+        //         worker_r,
+        //         worker_w,
+        //         &pools,
+        //         &config,
+        //         false,
+        //     )
+        //     .await
+        // }
     } else {
         handle_tcp_pool_all(
             worker,
@@ -155,7 +135,6 @@ async fn transfer_ssl(
             worker_r,
             worker_w,
             &config,
-            state,
             false,
         )
         .await

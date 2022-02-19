@@ -6,14 +6,11 @@ use tokio::{
 };
 use tracing::info;
 
-use crate::{
-    state::{State, Worker},
-    util::config::Settings,
-};
+use crate::{state::Worker, util::config::Settings};
 
 use super::*;
 pub async fn accept_en_tcp(
-    worker_sender: UnboundedSender<Worker>, config: Settings, state: State,
+    worker_sender: UnboundedSender<Worker>, config: Settings,
 ) -> Result<()> {
     if config.encrypt_port == 0 {
         return Ok(());
@@ -34,28 +31,14 @@ pub async fn accept_en_tcp(
 
         let config = config.clone();
         let workers = worker_sender.clone();
-        let state = state.clone();
-        state
-            .online
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         // 在这里初始化矿工信息。传入spawn. 然后退出的时候再进行矿工下线通知。
 
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
-            match transfer(
-                &mut worker,
-                workers.clone(),
-                stream,
-                &config,
-                state.clone(),
-            )
-            .await
+            match transfer(&mut worker, workers.clone(), stream, &config).await
             {
                 Ok(_) => {
-                    state
-                        .online
-                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                     if worker.is_online() {
                         worker.offline();
                         workers.send(worker);
@@ -71,10 +54,6 @@ pub async fn accept_en_tcp(
                     } else {
                         debug!("IP: {} 恶意链接断开: {}", addr, e);
                     }
-
-                    state
-                        .online
-                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                 }
             }
         });
@@ -83,7 +62,7 @@ pub async fn accept_en_tcp(
 
 async fn transfer(
     worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
-    tcp_stream: TcpStream, config: &Settings, state: State,
+    tcp_stream: TcpStream, config: &Settings,
 ) -> Result<()> {
     let (worker_r, worker_w) = split(tcp_stream);
     let worker_r = BufReader::new(worker_r);
@@ -103,36 +82,33 @@ async fn transfer(
             worker_w,
             &pools,
             &config,
-            state,
             true,
         )
         .await
     } else if config.share == 1 {
-        if config.share_alg == 99 {
-            handle_tcp_random(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                true,
-            )
-            .await
-        } else {
-            handle_tcp_pool_timer(
-                worker,
-                worker_queue,
-                worker_r,
-                worker_w,
-                &pools,
-                &config,
-                state,
-                true,
-            )
-            .await
-        }
+        //if config.share_alg == 99 {
+        handle_tcp_pool(
+            worker,
+            worker_queue,
+            worker_r,
+            worker_w,
+            &pools,
+            &config,
+            false,
+        )
+        .await
+        // } else {
+        //     handle_tcp_pool_timer(
+        //         worker,
+        //         worker_queue,
+        //         worker_r,
+        //         worker_w,
+        //         &pools,
+        //         &config,
+        //         true,
+        //     )
+        //     .await
+        // }
     } else {
         handle_tcp_pool_all(
             worker,
@@ -140,7 +116,6 @@ async fn transfer(
             worker_r,
             worker_w,
             &config,
-            state,
             true,
         )
         .await

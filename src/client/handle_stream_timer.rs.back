@@ -390,7 +390,7 @@ pub async fn handle_stream<R, W>(
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
-    mut pool_w: WriteHalf<TcpStream>, config: &Settings, mut state: State,
+    mut pool_w: WriteHalf<TcpStream>, config: &Settings, mut 
     is_encrypted: bool,
 ) -> Result<()>
 where

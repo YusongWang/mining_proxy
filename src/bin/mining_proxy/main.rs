@@ -4,6 +4,7 @@ mod version {
 use std::io;
 use std::sync::Arc;
 
+use mining_proxy::client::FEE;
 use tokio::sync::RwLock;
 use tracing::instrument;
 use tracing::Level;
@@ -105,11 +106,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-#[instrument]
 async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
-    //logger::init_client(0)?;
-
-    tracing::info!("123123");
     let data: AppState = Arc::new(Mutex::new(HashMap::new()));
 
     match OpenOptions::new()
@@ -217,16 +214,9 @@ fn tokio_main(matches: &ArgMatches<'_>) -> Result<()> {
     Ok(())
 }
 
-#[instrument]
 async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = Settings::new(config_file_name, true)?;
-
-    // logger::init(
-    //     config.name.as_str(),
-    //     config.log_path.clone(),
-    //     config.log_level,
-    // )?;
 
     match config.check() {
         Ok(_) => {}
@@ -263,23 +253,30 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         cert = Identity::from_pkcs12(der, "mypass")?;
     }
 
-    let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-
-    let state = Arc::new(mining_proxy::state::GlobalState::default());
+    //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
+    let (send, recv) = async_channel::bounded::<FEE>(10);
 
     let fee_job: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(Vec::new()));
+    let dev_fee_job: Arc<RwLock<Vec<String>>> =
+        Arc::new(RwLock::new(Vec::new()));
+    let mconfig = Arc::new(RwLock::new(config));
+
+    let proxy = Arc::new(mining_proxy::proxy::Proxy {
+        fee_job,
+        dev_fee_job,
+        config: mconfig,
+        send,
+        recv,
+    });
 
     let res = tokio::try_join!(
-        accept_tcp(worker_tx.clone(), config.clone(), state.clone()),
-        accept_en_tcp(worker_tx.clone(), config.clone(), state.clone()),
-        accept_tcp_with_tls(
-            worker_tx.clone(),
-            config.clone(),
-            cert,
-            state.clone()
-        ),
-        send_to_parent(worker_rx, &config),
-        mining_proxy::client::fee::fee(&config, Arc::clone(&fee_job)),
+        accept_tcp(Arc::clone(&proxy)),
+        // accept_en_tcp(),
+        // accept_tcp_with_tls(
+        //     cert
+        // ),
+        //send_to_parent(worker_rx, &config),
+        mining_proxy::client::fee::fee(Arc::clone(&proxy)),
     );
 
     if let Err(err) = res {
