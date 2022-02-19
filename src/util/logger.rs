@@ -190,6 +190,8 @@ pub fn init() {
     let format = tracing_subscriber::fmt::format()
         .with_level(true)
         .with_target(false)
+        .with_line_number(true)
+        .with_source_location(true)
         .with_timer(LocalTimer);
 
     // 初始化并设置日志格式(定制和筛选日志)

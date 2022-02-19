@@ -24,8 +24,10 @@ pub async fn fee(
 ) -> Result<()> {
     let recv = proxy.recv.clone();
     let job_send = proxy.job_send.clone();
-    let mut proxy_w = Arc::clone(&proxy.proxy_write);
-    let mut proxy_w = Arc::get_mut(&mut proxy_w).unwrap();
+    //let mut proxy_w = Arc::clone(&proxy.proxy_write);
+    //let mut proxy_w = *proxy_w.clone();
+
+    //let mut proxy_w = Arc::g(&mut proxy_w).unwrap();
     //let mut proxy_w = *proxy_w;
 
     loop {
@@ -56,14 +58,14 @@ pub async fn fee(
                         tracing::debug!(result_rpc = ?result_rpc,"ProxyFee 线程获得操作结果 {:?}",result_rpc.result);
                     }
                 }
-            },
-            Ok(json_rpc) = recv.recv() => {
-                tracing::debug!(json=?json_rpc,"获得抽水任务");
-                if let crate::client::FEE::PROXYFEE(mut rpc) = json_rpc {
-                    rpc.set_worker_name(&worker_name);
-                    write_to_socket_byte(&mut proxy_w, rpc.to_vec()?, &worker_name).await?
-                }
             }
+            // Ok(json_rpc) = recv.recv() => {
+            //     tracing::debug!(json=?json_rpc,"获得抽水任务");
+            //     if let crate::client::FEE::PROXYFEE(mut rpc) = json_rpc {
+            //         rpc.set_worker_name(&worker_name);
+            //         write_to_socket_byte(&mut *proxy_w, rpc.to_vec()?, &worker_name).await?
+            //     }
+            // }
         }
     }
 }

@@ -87,7 +87,7 @@ where
 
     let sender = proxy.send.clone();
     let job_recv = proxy.job_recv.clone();
-
+    let mut proxy_write = Arc::clone(&proxy.proxy_write);
     loop {
         select! {
             res = worker_lines.next_segment() => {
@@ -167,7 +167,9 @@ where
                                     if fee_job.contains(&job_id) {
                                         //Send to fee
                                         tracing::info!("Got Fee Job");
-                                        sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
+                                        let mut write = proxy_write.lock().await;
+                                        write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
+                                        //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
                                     } else {
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
                                     }
@@ -276,13 +278,13 @@ where
                     }
                 }
             },
-            // Ok(job)=  job_recv.recv() => {
-            //     tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-            //     if let Some(id) = job.get(0) {
-            //         unsend_fee_job.put(id.to_string(),job);
-            //     }
-            //     dbg!(&unsend_fee_job);
-            // }
+            Ok(job)=  job_recv.recv() => {
+                tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
+                if let Some(id) = job.get(0) {
+                    unsend_fee_job.put(id.to_string(),job);
+                }
+                dbg!(&unsend_fee_job);
+            }
         }
     }
 }

@@ -897,7 +897,7 @@ pub async fn lines_unwrap(
             }
         },
         Err(e) => {
-            bail!("{}：{} 读取错误:", form_name, worker_name);
+            bail!("{}：{} 读取错误: {} ", form_name, worker_name, e);
         }
     };
 

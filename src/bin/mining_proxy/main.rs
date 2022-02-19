@@ -1,22 +1,17 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
-use std::io;
-use std::sync::Arc;
 
 use mining_proxy::client::FEE;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use tracing::Level;
-
-use tracing_subscriber::fmt::format::Writer;
-use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::{self, fmt::time::FormatTime};
 
 use dotenv::dotenv;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs::OpenOptions, io::Read, sync::Mutex};
+use std::{collections::HashMap, fs::OpenOptions, io::Read};
 extern crate openssl_probe;
 
 use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
@@ -28,6 +23,7 @@ use mining_proxy::{
     web::{handles::auth::Claims, AppState, OnlineWorker},
 };
 
+use actix_web_static_files;
 use anyhow::{bail, Result};
 use bytes::BytesMut;
 use clap::{crate_version, ArgMatches};
@@ -40,8 +36,6 @@ use tokio::{
     select,
     sync::mpsc::{self, UnboundedReceiver},
 };
-
-use actix_web_static_files;
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -78,7 +72,7 @@ fn main() -> Result<()> {
 }
 
 async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
-    let data: AppState = Arc::new(Mutex::new(HashMap::new()));
+    let data: AppState = Arc::new(std::sync::Mutex::new(HashMap::new()));
 
     match OpenOptions::new()
         .write(true)
@@ -225,7 +219,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     }
     let worker_name = config.share_name.clone();
 
-    let (mut proxy_lines, mut proxy_w) =
+    let (proxy_lines, proxy_w) =
         mining_proxy::client::proxy_pool_login(&config, worker_name.clone())
             .await?;
 
@@ -242,7 +236,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         recv,
         job_recv,
         job_send,
-        proxy_write: Arc::new(proxy_w),
+        proxy_write: Arc::new(tokio::sync::Mutex::new(proxy_w)),
     });
 
     let res = tokio::try_join!(
