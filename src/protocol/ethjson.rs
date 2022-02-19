@@ -34,7 +34,13 @@ pub trait EthClientObject {
 
 impl std::fmt::Debug for dyn EthClientObject + Send + Sync {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "rpc_id: {} method: {}", self.get_id(), self.get_method())
+        write!(
+            f,
+            "rpc_id: {} method: {} params {} ",
+            self.get_id(),
+            self.get_method(),
+            self.get_job_id()?
+        )
     }
 }
 
