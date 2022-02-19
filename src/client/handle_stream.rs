@@ -12,8 +12,10 @@ use crate::protocol::{
     },
 };
 
+extern crate lru;
 use anyhow::{bail, Result};
 use hex::FromHex;
+use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
 use std::sync::Arc;
 use tracing::{debug, info};
@@ -66,7 +68,7 @@ where
         result: true,
     };
 
-    let mut unsend_fee_job: VecDeque<Vec<String>> = VecDeque::new();
+    let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(5);
 
     let mut fee_job: Vec<String> = Vec::new();
 
@@ -240,7 +242,7 @@ where
                             info!("中转抽水回合");
 
                             //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            if let Some(job_res) = unsend_fee_job.pop_back() {
+                            if let Some((_,job_res)) = unsend_fee_job.pop_lru() {
                                 job_rpc.result = job_res.clone();
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
@@ -266,7 +268,11 @@ where
                 }
             },
             Ok(job)=  job_recv.recv() => {
-                unsend_fee_job.push_back(job);
+                tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
+                if let Some(id) = job.get(0){
+                    unsend_fee_job.put(id.to_string(),job);
+                }
+
             }
         }
     }

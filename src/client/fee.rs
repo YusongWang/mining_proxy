@@ -53,7 +53,7 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
 
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let mut job_res = job_rpc.get_job_result().unwrap();
-                        job_send.send(job_res).await;
+                        job_send.try_send(job_res);
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         tracing::debug!(result_rpc = ?result_rpc,"ProxyFee 线程获得操作结果 {:?}",result_rpc.result);
                     }

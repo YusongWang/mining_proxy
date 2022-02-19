@@ -1,6 +1,7 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
+use std::collections::VecDeque;
 use std::vec;
 
 use anyhow::{bail, Result};
@@ -9,6 +10,7 @@ use clap::{
 };
 use futures::future;
 use serde::{Deserialize, Serialize};
+
 use tokio::io::{
     split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf,
     WriteHalf,
