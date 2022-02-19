@@ -29,6 +29,8 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
 
     let recv = proxy.recv.clone();
     let job_send = proxy.job_send.clone();
+    let job_recv = proxy.job_recv.clone();
+
     loop {
         select! {
             res = proxy_lines.next_line() => {
@@ -50,18 +52,12 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
                         buf
                     );
 
+
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let mut job_res = job_rpc.get_job_result().unwrap();
-
-                        job_send.try_send(job_res)?;
-                        // job_res.push("fee".into());
-                        // {
-                        //     let mut job = RwLockWriteGuard::map(proxy.fee_job.write().await, |s| s);
-                        //     *job = job_res;
-                        // }
+                        job_send.try_send(job_res);
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         tracing::debug!(result_rpc = ?result_rpc,"ProxyFee 线程获得操作结果 {:?}",result_rpc.result);
-
                     }
                 }
             },
@@ -73,7 +69,9 @@ pub async fn fee(proxy: Arc<Proxy>) -> Result<()> {
                     rpc.set_worker_name(&worker_name);
                     write_to_socket_byte(&mut proxy_w, rpc.to_vec()?, &worker_name).await?
                 }
-
+            },
+            Ok(json_rpc) = job_recv.recv() => {
+                tracing::debug!(json=?json_rpc,"自消费一个");
             }
         }
     }

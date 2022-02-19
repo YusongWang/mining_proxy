@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use mining_proxy::client::FEE;
 use tokio::sync::RwLock;
-use tracing::instrument;
+
 use tracing::Level;
 
 use tracing_subscriber::fmt::format::Writer;
@@ -30,7 +30,7 @@ use mining_proxy::{
 
 use anyhow::{bail, Result};
 use bytes::BytesMut;
-use clap::ArgMatches;
+use clap::{crate_version, ArgMatches};
 use human_panic::setup_panic;
 use native_tls::Identity;
 
@@ -49,47 +49,18 @@ fn main() -> Result<()> {
     setup_panic!();
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
+    logger::init();
     mining_proxy::init();
-    struct LocalTimer;
-
-    impl FormatTime for LocalTimer {
-        fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
-            write!(w, "{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
-        }
-    }
-
-    let file_appender = tracing_appender::rolling::daily("/tmp", "tracing.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-
-    // 设置日志输出时的格式，例如，是否包含日志级别、是否包含日志来源位置、
-    // 设置日志的时间格式 参考: https://docs.rs/tracing-subscriber/0.3.3/tracing_subscriber/fmt/struct.SubscriberBuilder.html#method.with_timer
-    let format = tracing_subscriber::fmt::format()
-        .with_level(true)
-        //.with_target(true)
-        .with_timer(LocalTimer);
-
-    // 初始化并设置日志格式(定制和筛选日志)
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
-        .with_writer(io::stdout) // 写入标准输出
-        //.with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
-        //.with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
-        .event_format(format)
-        .finish();
-
-    // let subscriber = FmtSubscriber::builder()
-    //     // all spans/events with a level higher than TRACE (e.g, debug, info,
-    //     // warn, etc.) will be written to stdout.
-    //     .with_timer(tracing_subscriber::fmt::time::uptime())
-    //     .with_max_level(Level::TRACE)
-    //     // completes the builder.
-    //     .finish();
-
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
 
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
+        tracing::info!(
+            "版本: {} commit: {} {}",
+            crate_version!(),
+            version::commit_date(),
+            version::short_sha(),
+        );
+
         actix_web::rt::System::with_tokio_rt(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -256,7 +227,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     let (send, recv) = async_channel::bounded::<FEE>(10);
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-    let (job_send, job_recv) = async_channel::bounded::<Vec<String>>(10);
+    let (job_send, job_recv) = async_channel::bounded::<Vec<String>>(1);
 
     let mconfig = Arc::new(RwLock::new(config));
 

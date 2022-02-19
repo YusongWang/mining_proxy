@@ -13,22 +13,14 @@ use openssl::aes::AesKey;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = mining_proxy::util::get_encrypt_command_matches().await?;
-    // let _guard = sentry::init((
-    //     "https://a9ae2ec4a77c4c03bca2a0c792d5382b@o1095800.ingest.sentry.io/6115709",
-    //     sentry::ClientOptions {
-    //         release: sentry::release_name!(),
-    //         ..Default::default()
-    //     },
-    // ));
 
-    mining_proxy::util::logger::init_client(0)?;
+    mining_proxy::util::logger::init();
 
-    println!(
-        "✅ {}, 版本: {} commit: {} {}",
-        crate_name!(),
+    tracing::info!(
+        "版本: {} commit: {} {}",
         crate_version!(),
         version::commit_date(),
-        version::short_sha()
+        version::short_sha(),
     );
 
     let key = matches.value_of("key").unwrap_or(

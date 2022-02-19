@@ -142,6 +142,16 @@ pub async fn command_matches() -> Result<ArgMatches<'static>> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = command_matches().await?;
+
+    mining_proxy::util::logger::init();
+
+    tracing::info!(
+        "版本: {} commit: {} {}",
+        crate_version!(),
+        version::commit_date(),
+        version::short_sha(),
+    );
+
     let phread = matches.value_of("phread").unwrap_or_else(|| {
         println!("请正确填写本地监听端口 例如: -p 8888");
         std::process::exit(1);

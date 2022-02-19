@@ -648,16 +648,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
 
 [[package]]
-name = "fern"
-version = "0.5.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e69ab0d5aca163e388c3a49d284fed6c3d0810700e77c5ae2756a50ec1a4daaa"
-dependencies = [
- "chrono",
- "log",
-]
-
-[[package]]
 name = "firestorm"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1106,7 +1096,6 @@ dependencies = [
  "config",
  "dotenv",
  "ethereum-hexutil",
- "fern",
  "futures",
  "hex",
  "hostname",

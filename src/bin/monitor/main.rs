@@ -14,14 +14,13 @@ use tracing::info;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = mining_proxy::util::get_encrypt_command_matches().await?;
-    mining_proxy::util::logger::init("monitor", "./logs/".into(), 0)?;
+    mining_proxy::util::logger::init();
 
     info!(
-        "✅ {}, 版本: {} commit: {} {}",
-        crate_name!(),
+        "版本: {} commit: {} {}",
         crate_version!(),
         version::commit_date(),
-        version::short_sha()
+        version::short_sha(),
     );
 
     let key = matches.value_of("key").unwrap_or(
