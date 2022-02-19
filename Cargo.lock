@@ -1093,7 +1093,7 @@ dependencies = [
 
 [[package]]
 name = "mining_proxy"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "actix-web",
  "actix-web-grants",
@@ -1130,7 +1130,7 @@ dependencies = [
  "serde_yaml",
  "short-crypt",
  "static-files",
- "time 0.3.7",
+ "time 0.1.44",
  "tokio",
  "tokio-native-tls",
  "tracing",
