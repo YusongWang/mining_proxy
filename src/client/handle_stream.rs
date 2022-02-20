@@ -166,9 +166,13 @@ where
 
                                     if fee_job.contains(&job_id) {
                                         //Send to fee
-                                        tracing::info!("Got Fee Job");
-                                        let mut write = proxy_write.lock().await;
-                                        write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
+                                        tracing::info!(worker_name = ? worker_name,"Got Fee Job");
+                                        json_rpc.set_worker_name(&config.share_name.clone());
+                                        {
+                                            let mut write = proxy_write.lock().await;
+                                            write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
+                                        }
+
                                         //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
                                     } else {
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
