@@ -69,9 +69,13 @@ where
         result: true,
     };
 
-    let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(1);
+    // 中转服务器提供人抽水代码
+    //let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(3);
+    let mut unsend_fee_job: VecDeque<Vec<String>> = VecDeque::new();
 
     let mut fee_job: Vec<String> = Vec::new();
+
+    // TODO 开发者抽水代码
 
     //最后一次发送的rpc_id
     let mut rpc_id = 0;
@@ -87,7 +91,7 @@ where
     }
 
     let mut chan = proxy.chan.clone();
-    let job_recv = proxy.job_recv.clone();
+
     let mut proxy_write = Arc::clone(&proxy.proxy_write);
     loop {
         select! {
@@ -249,8 +253,8 @@ where
                             info!("中转抽水回合");
 
                             //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            if let Some((_,job_res)) = unsend_fee_job.pop_lru() {
-                                job_rpc.result = job_res.clone();
+                            if let Some(job_res) = unsend_fee_job.pop_back() {
+                                job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                                 fee_job.push(job_id);
@@ -286,9 +290,13 @@ where
             },
             Some(job)=  chan.next() => {
                 tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-                if let Some(id) = job.get(0) {
-                    unsend_fee_job.put(id.to_string(),job);
+                //if let Some(id) = job.get(0)
+                if unsend_fee_job.len() == 2 {
+                    unsend_fee_job.pop_front();
                 }
+
+                unsend_fee_job.push_back(job);
+                //}
                 dbg!(&unsend_fee_job);
             }
         }
