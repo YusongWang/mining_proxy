@@ -28,6 +28,7 @@ tokio-native-tls = "0.3.0"
 #fern = "0.5"
 lru = "0.7.2"
 async-channel = "1.6.1"
+broadcaster = "1.0.0"
 openssl = {version = "0.10"}
 openssl-sys = "0.9"
 #prettytable-rs = "^0.8"

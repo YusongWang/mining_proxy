@@ -14,6 +14,7 @@ use crate::protocol::{
 
 extern crate lru;
 use anyhow::{bail, Result};
+use futures::StreamExt;
 use hex::FromHex;
 use lru::LruCache;
 use openssl::symm::{decrypt, Cipher};
@@ -85,7 +86,7 @@ where
         worker_lines = worker_r.split(b'\n');
     }
 
-    let sender = proxy.send.clone();
+    let mut chan = proxy.chan.clone();
     let job_recv = proxy.job_recv.clone();
     let mut proxy_write = Arc::clone(&proxy.proxy_write);
     loop {
@@ -283,7 +284,7 @@ where
                     }
                 }
             },
-            Ok(job)=  job_recv.recv() => {
+            Some(job)=  chan.next() => {
                 tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
                 if let Some(id) = job.get(0) {
                     unsend_fee_job.put(id.to_string(),job);

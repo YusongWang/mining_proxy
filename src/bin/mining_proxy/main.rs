@@ -2,6 +2,7 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
+use broadcaster::BroadcastChannel;
 use mining_proxy::client::FEE;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -224,7 +225,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             .await?;
 
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-    let (send, recv) = async_channel::bounded::<FEE>(10);
+    let mut chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
+
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     let (job_send, job_recv) = async_channel::bounded::<Vec<String>>(1);
 
@@ -232,8 +234,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let proxy = Arc::new(mining_proxy::proxy::Proxy {
         config: mconfig,
-        send,
-        recv,
+        chan,
         job_recv,
         job_send,
         proxy_write: Arc::new(tokio::sync::Mutex::new(proxy_w)),
