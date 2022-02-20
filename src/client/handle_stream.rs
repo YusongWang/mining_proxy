@@ -253,7 +253,7 @@ where
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                                 fee_job.push(job_id);
-                                dbg!(&fee_job);
+                                //dbg!(&fee_job);
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"没有任务可以分配了");
                             }
