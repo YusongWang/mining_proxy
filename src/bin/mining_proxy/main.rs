@@ -225,7 +225,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             .await?;
 
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-    let mut chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
+    let chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
 
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     let (job_send, job_recv) = async_channel::bounded::<Vec<String>>(1);

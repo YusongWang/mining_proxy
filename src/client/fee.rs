@@ -22,8 +22,8 @@ pub async fn fee(
     >,
     worker_name: String,
 ) -> Result<()> {
-    //let chan = proxy.chan.clone();
-    let job_send = proxy.job_send.clone();
+    let mut chan = proxy.chan.clone();
+    //let job_send = proxy.job_send.clone();
     //let mut proxy_w = Arc::clone(&proxy.proxy_write);
     //let mut proxy_w = *proxy_w.clone();
 
@@ -53,7 +53,7 @@ pub async fn fee(
 
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_res = job_rpc.get_job_result().unwrap();
-                        job_send.try_send(job_res);
+                        chan.send(&job_res).await?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         tracing::debug!(result_rpc = ?result_rpc,"ProxyFee 线程获得操作结果 {:?}",result_rpc.result);
                     }
