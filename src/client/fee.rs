@@ -53,7 +53,12 @@ pub async fn fee(
 
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_res = job_rpc.get_job_result().unwrap();
-                        chan.send(&job_res).await?;
+                        //chan.send(&job_res).await?;
+                        {
+                            let mut job = RwLockWriteGuard::map(proxy.job.write().await, |f| &mut f);
+                            *job.push_back(job_res);
+                        }
+
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         tracing::debug!(result_rpc = ?result_rpc,"ProxyFee 线程获得操作结果 {:?}",result_rpc.result);
                     }

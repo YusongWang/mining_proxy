@@ -235,6 +235,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let proxy = Arc::new(mining_proxy::proxy::Proxy {
         config: mconfig,
         chan,
+        job: Arc::new(RwLock::new(VecDeque::new())),
         job_recv,
         job_send,
         proxy_write: Arc::new(tokio::sync::Mutex::new(proxy_w)),
