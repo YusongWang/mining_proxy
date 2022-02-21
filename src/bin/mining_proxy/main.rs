@@ -4,7 +4,9 @@ mod version {
 
 use broadcaster::BroadcastChannel;
 use mining_proxy::client::FEE;
+use std::collections::VecDeque;
 use std::sync::Arc;
+
 use tokio::sync::RwLock;
 
 use tracing_subscriber::{self, fmt::time::FormatTime};
@@ -223,36 +225,39 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let (proxy_lines, proxy_w) =
         mining_proxy::client::proxy_pool_login(&config, worker_name.clone())
             .await?;
+    let (dev_lines, dev_w) =
+        mining_proxy::client::dev_pool_login("DevFee".into()).await?;
 
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     let chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
+    let dev_chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
 
-    //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
+    // 旷工状态发送队列
+    let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
+
+    // Job发送队列
     let (job_send, job_recv) = async_channel::bounded::<Vec<String>>(1);
 
-    let mconfig = Arc::new(RwLock::new(config));
-
+    let mconfig = config.clone();
     let proxy = Arc::new(mining_proxy::proxy::Proxy {
-        config: mconfig,
-        chan,
+        config: Arc::new(RwLock::new(config)),
+        worker_tx,
+        chan: chan.clone(),
+        dev_chan: dev_chan.clone(),
         job: Arc::new(RwLock::new(VecDeque::new())),
         job_recv,
         job_send,
         proxy_write: Arc::new(tokio::sync::Mutex::new(proxy_w)),
+        dev_write: Arc::new(tokio::sync::Mutex::new(dev_w)),
     });
 
     let res = tokio::try_join!(
         accept_tcp(Arc::clone(&proxy)),
-        accept_en_tcp(Arc::clone(&proxy)),
-        // accept_tcp_with_tls(
-        //     cert
-        // ),
-        //send_to_parent(worker_rx, &config),
-        mining_proxy::client::fee::fee(
-            Arc::clone(&proxy),
-            proxy_lines,
-            worker_name.clone(),
-        ),
+        //accept_en_tcp(Arc::clone(&proxy)),
+        accept_tcp_with_tls(Arc::clone(&proxy), cert),
+        send_to_parent(worker_rx, &mconfig),
+        mining_proxy::client::fee::fee(chan, proxy_lines, worker_name.clone(),),
+        mining_proxy::client::fee::fee(dev_chan, dev_lines, "DevFee".into(),),
     );
 
     if let Err(err) = res {

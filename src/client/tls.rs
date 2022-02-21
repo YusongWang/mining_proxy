@@ -4,6 +4,7 @@ use tracing::info;
 use tokio::{
     io::{split, BufReader},
     net::{TcpListener, TcpStream},
+    sync::RwLockReadGuard,
 };
 extern crate native_tls;
 use native_tls::Identity;
@@ -11,11 +12,17 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
 
-use crate::{state::Worker, util::config::Settings};
+use crate::{proxy::Proxy, state::Worker, util::config::Settings};
 
 pub async fn accept_tcp_with_tls(
-    worker_queue: UnboundedSender<Worker>, config: Settings, cert: Identity,
+    proxy: Arc<Proxy>, cert: Identity,
 ) -> Result<()> {
+    let config: Settings;
+    {
+        let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
+        config = rconfig.clone();
+    }
+
     if config.ssl_port == 0 {
         return Ok(());
     }
@@ -34,31 +41,22 @@ pub async fn accept_tcp_with_tls(
     let tls_acceptor = tokio_native_tls::TlsAcceptor::from(
         native_tls::TlsAcceptor::builder(cert).build()?,
     );
+
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
-        //info!("😄 accept connection from {}", addr);
-        let workers = worker_queue.clone();
-
-        let config = config.clone();
         let acceptor = tls_acceptor.clone();
+
+        let p = Arc::clone(&proxy);
 
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
-            match transfer_ssl(
-                &mut worker,
-                workers.clone(),
-                stream,
-                acceptor,
-                &config,
-            )
-            .await
-            {
+            match transfer_ssl(p, &mut worker, stream, acceptor).await {
                 Ok(_) => {
                     if worker.is_online() {
                         worker.offline();
-                        workers.send(worker);
+                        //workers.send(worker);
                     } else {
                         info!("IP: {} 断开", addr);
                     }
@@ -66,7 +64,7 @@ pub async fn accept_tcp_with_tls(
                 Err(e) => {
                     if worker.is_online() {
                         worker.offline();
-                        workers.send(worker);
+                        //workers.send(worker);
                         info!("IP: {} 断开原因 {}", addr, e);
                     } else {
                         debug!("IP: {} 恶意链接断开: {}", addr, e);
@@ -78,65 +76,71 @@ pub async fn accept_tcp_with_tls(
 }
 
 async fn transfer_ssl(
-    worker: &mut Worker, worker_queue: UnboundedSender<Worker>,
-    tcp_stream: TcpStream, tls_acceptor: tokio_native_tls::TlsAcceptor,
-    config: &Settings,
+    proxy: Arc<Proxy>, worker: &mut Worker, tcp_stream: TcpStream,
+    tls_acceptor: tokio_native_tls::TlsAcceptor,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
     let worker_r = BufReader::new(worker_r);
+    let mut share_pool: Vec<String> = Vec::new();
+    {
+        let config = RwLockReadGuard::map(proxy.config.read().await, |s| s);
+        share_pool = config.share_address.to_vec();
+    }
 
     let (stream_type, pools) =
-        match crate::client::get_pool_ip_and_type(&config) {
+        match crate::client::get_pool_ip_and_type_from_vec(&share_pool) {
             Ok(pool) => pool,
             Err(_) => {
                 bail!("未匹配到矿池 或 均不可链接。请修改后重试");
             }
         };
-    if config.share == 0 {
-        handle_tcp_pool(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            false,
-        )
-        .await
-    } else if config.share == 1 {
-        //if config.share_alg == 99 {
-        handle_tcp_pool(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &pools,
-            &config,
-            false,
-        )
-        .await
-        // } else {
-        //     handle_tcp_pool_timer(
-        //         worker,
-        //         worker_queue,
-        //         worker_r,
-        //         worker_w,
-        //         &pools,
-        //         &config,
-        //         false,
-        //     )
-        //     .await
-        // }
-    } else {
-        handle_tcp_pool_all(
-            worker,
-            worker_queue,
-            worker_r,
-            worker_w,
-            &config,
-            false,
-        )
-        .await
-    }
+
+    // if config.share == 0 {
+    //     handle_tcp_pool(
+    //         worker,
+    //         worker_queue,
+    //         worker_r,
+    //         worker_w,
+    //         &pools,
+    //         &config,
+    //         false,
+    //     )
+    //     .await
+    // } else if config.share == 1 {
+    //if config.share_alg == 99 {
+    // handle_tcp_pool(
+    //     worker,
+    //     worker_queue,
+    //     worker_r,
+    //     worker_w,
+    //     &pools,
+    //     &config,
+    //     false,
+    // )
+    // .await
+    handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, false).await
+    // } else {
+    //     handle_tcp_pool_timer(
+    //         worker,
+    //         worker_queue,
+    //         worker_r,
+    //         worker_w,
+    //         &pools,
+    //         &config,
+    //         false,
+    //     )
+    //     .await
+    // }
+    // } else {
+    //     handle_tcp_pool_all(
+    //         worker,
+    //         worker_queue,
+    //         worker_r,
+    //         worker_w,
+    //         &config,
+    //         false,
+    //     )
+    //     .await
+    // }
 }

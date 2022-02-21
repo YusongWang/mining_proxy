@@ -881,6 +881,60 @@ pub async fn proxy_pool_login(
     Ok((proxy_lines, proxy_w))
 }
 
+pub async fn dev_pool_login(
+    hostname: String,
+) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
+    //TODO 这里要兼容SSL矿池
+    // let (_, pools) = match crate::client::get_pool_ip_and_type_from_vec(
+    //     &config.share_address,
+    // ) {
+    //     Ok((stream, addr)) => (stream, addr),
+    //     Err(e) => {
+    //         tracing::error!("所有TCP矿池均不可链接。请修改后重试");
+    //         bail!("所有TCP矿池均不可链接。请修改后重试");
+    //     }
+    // };
+
+    let pools = vec![
+        "tcp://asia2.ethermine.org:4444".to_string(),
+        "tcp://asia1.ethermine.org:4444".to_string(),
+        "tcp://asia2.ethermine.org:14444".to_string(),
+        "tcp://asia2.ethermine.org:14444".to_string(),
+    ];
+
+    let (stream, _) = match crate::client::get_pool_stream(&pools) {
+        Some((stream, addr)) => (stream, addr),
+        None => {
+            bail!("所有TCP矿池均不可链接。请修改后重试");
+        }
+    };
+
+    let outbound = TcpStream::from_std(stream)?;
+    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+    let proxy_r = tokio::io::BufReader::new(proxy_r);
+    let mut proxy_lines = proxy_r.lines();
+
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![
+            "0xBC9fB4fD559217715d090975D5fF8FcDFc172345".into(),
+            "x".into(),
+        ],
+        worker: hostname.clone(),
+    };
+
+    match write_to_socket(&mut proxy_w, &login, &hostname).await {
+        Ok(_) => {}
+        Err(e) => {
+            tracing::error!("Error writing Socket {:?}", login);
+            return Err(e);
+        }
+    }
+
+    Ok((proxy_lines, proxy_w))
+}
+
 pub async fn lines_unwrap(
     res: Result<Option<String>, std::io::Error>, worker_name: &String,
     form_name: &str,

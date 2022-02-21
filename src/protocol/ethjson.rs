@@ -341,6 +341,7 @@ pub async fn login<W>(
 where
     W: AsyncWrite,
 {
+    rpc.set_id(CLIENT_LOGIN);
     if let Some(wallet) = rpc.get_eth_wallet() {
         //rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
@@ -354,7 +355,7 @@ where
             let temp_full_wallet =
                 config.share_wallet.clone() + "." + split[1].clone();
             // 抽取全部替换钱包
-            rpc.set_wallet(&temp_full_wallet);
+            //rpc.set_wallet(&temp_full_wallet);
             *worker_name = temp_worker;
             write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await?;
             Ok(temp_full_wallet)
@@ -367,6 +368,7 @@ where
                 wallet.clone(),
             );
             *worker_name = temp_worker.clone();
+            write_to_socket_byte(w, rpc.to_vec()?, &worker_name).await?;
             Ok(temp_worker)
         }
     } else {

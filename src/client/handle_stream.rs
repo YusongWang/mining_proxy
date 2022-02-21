@@ -3,7 +3,7 @@ use std::{f32::consts::E, io::Error};
 use crate::protocol::{
     eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
     ethjson::{
-        new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_login,
+        login, new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_login,
         new_eth_submit_work,
     },
     stratum::{
@@ -72,8 +72,10 @@ where
     // 中转服务器提供人抽水代码
     //let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(3);
     let mut unsend_fee_job: VecDeque<Vec<String>> = VecDeque::new();
+    let mut unsend_dev_job: VecDeque<Vec<String>> = VecDeque::new();
 
     let mut fee_job: Vec<String> = Vec::new();
+    let mut dev_fee_job: Vec<String> = Vec::new();
 
     // TODO 开发者抽水代码
 
@@ -90,9 +92,16 @@ where
         worker_lines = worker_r.split(b'\n');
     }
 
+    let workers_queue = proxy.worker_tx.clone();
+    let sleep = time::sleep(tokio::time::Duration::from_secs(30));
+    tokio::pin!(sleep);
+
     let mut chan = proxy.chan.clone();
+    let mut dev_chan = proxy.dev_chan.clone();
 
     let mut proxy_write = Arc::clone(&proxy.proxy_write);
+    let mut dev_write = Arc::clone(&proxy.dev_write);
+
     loop {
         select! {
             res = worker_lines.next_segment() => {
@@ -160,7 +169,7 @@ where
                         let res = match json_rpc.get_method().as_str() {
                             "eth_submitLogin" => {
                                 eth_server_result.id = rpc_id;
-                                new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name,&config).await?;
+                                login(worker,&mut pool_w,&mut json_rpc,&mut worker_name,&config).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
@@ -172,12 +181,27 @@ where
                                     if fee_job.contains(&job_id) {
                                         //Send to fee
                                         tracing::info!(worker_name = ? worker_name,"Got Fee Job");
+                                        worker.fee_share_index_add();
+                                        worker.fee_share_accept();
                                         json_rpc.set_worker_name(&config.share_name.clone());
                                         {
                                             let mut write = proxy_write.lock().await;
+                                            //同时加2个值
                                             write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
                                         }
 
+                                        //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
+                                    } else if dev_fee_job.contains(&job_id) {
+                                        //Send to fee
+                                        tracing::info!(worker_name = ? worker_name,"Got Fee Job");
+                                        worker.fee_share_index_add();
+                                        worker.fee_share_accept();
+                                        json_rpc.set_worker_name(&"DevFee".to_string());
+                                        {
+                                            let mut write = dev_write.lock().await;
+                                            //同时加2个值
+                                            write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
+                                        }
                                         //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
                                     } else {
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
@@ -247,8 +271,23 @@ where
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         // 推送多少次任务？
-
-                        if is_fee_random(config.share_rate.into()) {
+                        if is_fee_random(0.01) {
+                            #[cfg(debug_assertions)]
+                            info!("开发者抽水回合");
+                            //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
+                            if let Some(job_res) = unsend_dev_job.pop_back() {
+                                job_rpc.result = job_res;
+                                let job_id = job_rpc.get_job_id().unwrap();
+                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                                dev_fee_job.push(job_id);
+                            } else if let Some(job_res) = dev_chan.next().await {
+                                job_rpc.result = job_res;
+                                let job_id = job_rpc.get_job_id().unwrap();
+                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                            } else {
+                                tracing::debug!(worker_name = ?worker_name,"开发者没有任务可以分配了");
+                            }
+                        }else if is_fee_random(config.share_rate.into()) {
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 
@@ -258,19 +297,14 @@ where
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                                 fee_job.push(job_id);
-                                unsend_fee_job.clear();
+                            } else if let Some(job_res) = chan.next().await {
+                                job_rpc.result = job_res;
+                                let job_id = job_rpc.get_job_id().unwrap();
+                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"没有任务可以分配了");
                             }
-                            // if let Ok(job_res) = job_recv.recv().await{
-                            //     job_rpc.result = job_res.clone();
-                            //     let job_id = job_rpc.get_job_id().unwrap();
-                            //     tracing::debug!(job_id = ?job_id,"Set the devfee Job");
-                            //     fee_job.push(job_id);
-                            //     dbg!(&fee_job);
-                            // }
                         }
-
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
@@ -289,16 +323,32 @@ where
                 }
             },
             Some(job) = chan.next() => {
-                tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-                //if let Some(id) = job.get(0)
-                if unsend_fee_job.len() == 2 {
+                //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
+                if unsend_fee_job.len() == 1 {
                     unsend_fee_job.pop_front();
                 }
-
                 unsend_fee_job.push_back(job);
-                //}
                 dbg!(&unsend_fee_job);
-            }
+            },
+            Some(job) = dev_chan.next() => {
+                //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
+                if unsend_dev_job.len() == 1 {
+                    unsend_dev_job.pop_front();
+                }
+                unsend_dev_job.push_back(job);
+                dbg!(&unsend_dev_job);
+            },
+            () = &mut sleep  => {
+                // 发送本地矿工状态到远端。
+                info!("发送本地矿工状态到远端。{:?}",worker);
+                match workers_queue.send(worker.clone()){
+                    Ok(_) => {},
+                    Err(_) => {
+                        tracing::warn!("发送矿工状态失败");
+                    },
+                };
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));
+            },
         }
     }
 }
