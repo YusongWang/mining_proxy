@@ -896,10 +896,10 @@ pub async fn dev_pool_login(
     // };
 
     let pools = vec![
-        "tcp://asia2.ethermine.org:4444".to_string(),
-        "tcp://asia1.ethermine.org:4444".to_string(),
-        "tcp://asia2.ethermine.org:14444".to_string(),
-        "tcp://asia2.ethermine.org:14444".to_string(),
+        "asia2.ethermine.org:4444".to_string(),
+        "asia1.ethermine.org:4444".to_string(),
+        "asia2.ethermine.org:14444".to_string(),
+        "asia2.ethermine.org:14444".to_string(),
     ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
