@@ -253,7 +253,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let res = tokio::try_join!(
         accept_tcp(Arc::clone(&proxy)),
-        //accept_en_tcp(Arc::clone(&proxy)),
+        accept_en_tcp(Arc::clone(&proxy)),
         accept_tcp_with_tls(Arc::clone(&proxy), cert),
         send_to_parent(worker_rx, &mconfig),
         mining_proxy::client::fee::fee(chan, proxy_lines, worker_name.clone(),),
