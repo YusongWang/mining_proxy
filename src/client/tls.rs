@@ -52,20 +52,22 @@ pub async fn accept_tcp_with_tls(
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
+            let mut worker_tx = p.worker_tx.clone();
             match transfer_ssl(p, &mut worker, stream, acceptor).await {
                 Ok(_) => {
                     if worker.is_online() {
                         worker.offline();
-                        //workers.send(worker);
+                        info!("IP: {} 安全下线", addr);
+                        worker_tx.send(worker);
                     } else {
-                        info!("IP: {} 断开", addr);
+                        info!("IP: {} 下线", addr);
                     }
                 }
                 Err(e) => {
                     if worker.is_online() {
                         worker.offline();
-                        //workers.send(worker);
-                        info!("IP: {} 断开原因 {}", addr, e);
+                        worker_tx.send(worker);
+                        info!("IP: {} 下线原因 {}", addr, e);
                     } else {
                         debug!("IP: {} 恶意链接断开: {}", addr, e);
                     }

@@ -37,20 +37,24 @@ pub async fn accept_en_tcp(proxy: Arc<Proxy>) -> Result<()> {
 
         tokio::spawn(async move {
             // 矿工状态管理
-            // 矿工状态管理
+
             let mut worker: Worker = Worker::default();
+            let mut worker_tx = p.worker_tx.clone();
             match transfer(p, &mut worker, stream).await {
                 Ok(_) => {
                     if worker.is_online() {
                         worker.offline();
+                        info!("IP: {} 安全下线", addr);
+                        worker_tx.send(worker);
                     } else {
-                        info!("IP: {} 断开", addr);
+                        info!("IP: {} 下线", addr);
                     }
                 }
                 Err(e) => {
                     if worker.is_online() {
                         worker.offline();
-                        info!("IP: {} 断开原因 {}", addr, e);
+                        worker_tx.send(worker);
+                        info!("IP: {} 下线原因 {}", addr, e);
                     } else {
                         debug!("IP: {} 恶意链接断开: {}", addr, e);
                     }

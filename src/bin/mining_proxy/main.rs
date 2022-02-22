@@ -123,7 +123,9 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
     };
 
     let tcp_data = data.clone();
-    tokio::spawn(async move { recv_from_child(tcp_data).await });
+
+    //tokio::spawn(async move { recv_from_child(tcp_data).await });
+
     let port: i32 = match std::env::var("MINING_PROXY_WEB_PORT") {
         Ok(p) => p.parse().unwrap(),
         Err(_) => 8888,
@@ -235,18 +237,15 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     // 旷工状态发送队列
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
-    // Job发送队列
-    let (job_send, job_recv) = async_channel::bounded::<Vec<String>>(1);
-
     let mconfig = config.clone();
     let proxy = Arc::new(mining_proxy::proxy::Proxy {
         config: Arc::new(RwLock::new(config)),
         worker_tx,
         chan: chan.clone(),
         dev_chan: dev_chan.clone(),
-        job: Arc::new(RwLock::new(VecDeque::new())),
-        job_recv,
-        job_send,
+        // job: Arc::new(RwLock::new(VecDeque::new())),
+        // job_recv,
+        // job_send,
         proxy_write: Arc::new(tokio::sync::Mutex::new(proxy_w)),
         dev_write: Arc::new(tokio::sync::Mutex::new(dev_w)),
     });
@@ -255,7 +254,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         accept_tcp(Arc::clone(&proxy)),
         accept_en_tcp(Arc::clone(&proxy)),
         accept_tcp_with_tls(Arc::clone(&proxy), cert),
-        send_to_parent(worker_rx, &mconfig),
+        //send_to_parent(worker_rx, &mconfig),
         mining_proxy::client::fee::fee(chan, proxy_lines, worker_name.clone(),),
         mining_proxy::client::fee::fee(dev_chan, dev_lines, "DevFee".into(),),
     );

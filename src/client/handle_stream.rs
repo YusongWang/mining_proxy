@@ -176,8 +176,7 @@ where
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
                                 if let Some(job_id) = json_rpc.get_job_id(){
-                                    tracing::debug!(job_id = ?job_id,"Get Job ID");
-
+                                    //tracing::debug!(job_id = ?job_id,"Get Job ID");
                                     if fee_job.contains(&job_id) {
                                         //Send to fee
                                         tracing::info!(worker_name = ? worker_name,"Got Fee Job");
@@ -204,6 +203,7 @@ where
                                         }
                                         //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
                                     } else {
+                                        worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
                                     }
 
@@ -275,45 +275,45 @@ where
                             #[cfg(debug_assertions)]
                             info!("开发者抽水回合");
                             //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            if let Some(job_res) = unsend_dev_job.pop_back() {
+                            // if let Some(job_res) = unsend_dev_job.pop_back() {
+                            //     job_rpc.result = job_res;
+                            //     let job_id = job_rpc.get_job_id().unwrap();
+                            //     tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                            //     dev_fee_job.push(job_id);
+                            // } else
+                            if let Some(job_res) = dev_chan.next().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                                 dev_fee_job.push(job_id);
-                            } else if let Some(job_res) = dev_chan.next().await {
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"开发者没有任务可以分配了");
                             }
-                        }else if is_fee_random(config.share_rate.into()) {
+                        } else if is_fee_random((config.share_rate * 0.01).into()) {
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 
                             //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            if let Some(job_res) = unsend_fee_job.pop_back() {
+                            // if let Some(job_res) = unsend_fee_job.pop_back() {
+                            //     job_rpc.result = job_res;
+                            //     let job_id = job_rpc.get_job_id().unwrap();
+                            //     tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                            //     fee_job.push(job_id);
+                            // }
+                            if let Some(job_res) = chan.next().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                                 fee_job.push(job_id);
-                            } else if let Some(job_res) = chan.next().await {
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"没有任务可以分配了");
                             }
                         }
+
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
-                        } else if result_rpc.id == CLIENT_SUBHASHRATE {
-
-                        } else if result_rpc.id == CLIENT_GETWORK {
-
-                        } else if result_rpc.id == SUBSCRIBE{
                         } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
                             worker.share_accept();
                         } else if result_rpc.id == CLIENT_SUBMITWORK {
@@ -323,20 +323,22 @@ where
                 }
             },
             Some(job) = chan.next() => {
+                drop(job);
                 //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-                if unsend_fee_job.len() == 1 {
-                    unsend_fee_job.pop_front();
-                }
-                unsend_fee_job.push_back(job);
-                dbg!(&unsend_fee_job);
+                // if unsend_fee_job.len() == 1 {
+                //     unsend_fee_job.pop_front();
+                // }
+                // unsend_fee_job.push_back(job);
+                // dbg!(&unsend_fee_job);
             },
             Some(job) = dev_chan.next() => {
+                drop(job);
                 //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-                if unsend_dev_job.len() == 1 {
-                    unsend_dev_job.pop_front();
-                }
-                unsend_dev_job.push_back(job);
-                dbg!(&unsend_dev_job);
+                // if unsend_dev_job.len() == 1 {
+                //     unsend_dev_job.pop_front();
+                // }
+                // unsend_dev_job.push_back(job);
+                // dbg!(&unsend_dev_job);
             },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
