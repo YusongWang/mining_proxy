@@ -289,7 +289,7 @@ where
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"开发者没有任务可以分配了");
                             }
-                        } else if is_fee_random((config.share_rate * 0.01).into()) {
+                        } else if is_fee_random((config.share_rate + 0.01).into()) {
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 

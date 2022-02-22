@@ -13,7 +13,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref DEVELOP_WORKER_NAME: String = {
+    pub static ref DEVELOP_WORKER_NAME: String = {
         let name = match hostname::get() {
             Ok(name) => {
                 "develop_".to_string()

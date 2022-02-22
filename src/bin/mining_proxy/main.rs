@@ -227,8 +227,10 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let (proxy_lines, proxy_w) =
         mining_proxy::client::proxy_pool_login(&config, worker_name.clone())
             .await?;
-    let (dev_lines, dev_w) =
-        mining_proxy::client::dev_pool_login("DevFee".into()).await?;
+    let (dev_lines, dev_w) = mining_proxy::client::dev_pool_login(
+        mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+    )
+    .await?;
 
     //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
     let chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
