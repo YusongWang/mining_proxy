@@ -1,6 +1,6 @@
 use std::{f32::consts::E, io::Error};
 
-use crate::protocol::{
+use crate::{protocol::{
     eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
     ethjson::{
         login, new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_login,
@@ -10,7 +10,7 @@ use crate::protocol::{
         StraumErrorResult, StraumMiningNotify, StraumMiningSet,
         StraumResultBool, StraumRoot,
     },
-};
+}, DEVELOP_WORKER_NAME};
 
 extern crate lru;
 use anyhow::{bail, Result};
@@ -195,7 +195,7 @@ where
                                         tracing::info!(worker_name = ? worker_name,"Got Fee Job");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
-                                        json_rpc.set_worker_name(&"DevFee".to_string());
+                                        json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         {
                                             let mut write = dev_write.lock().await;
                                             //同时加2个值
