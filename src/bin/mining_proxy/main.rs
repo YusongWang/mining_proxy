@@ -270,7 +270,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             dev_chan,
             dev_lines,
             dev_w,
-            "DevFee".into(),
+            mining_proxy::DEVELOP_WORKER_NAME.to_string(),
         ),
     );
 
