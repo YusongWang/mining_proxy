@@ -178,7 +178,7 @@ where
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&config.share_name.clone());
                                         {
-                                            let mut write = proxy_write.lock().await;
+                                            let mut write = dev_write.lock().await;
                                             //同时加2个值
                                             write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
                                         }
@@ -191,7 +191,7 @@ where
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         {
-                                            let mut write = dev_write.lock().await;
+                                            let mut write = proxy_write.lock().await;
                                             //同时加2个值
                                             write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
                                         }
@@ -265,10 +265,9 @@ where
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         // 推送多少次任务？
-                        if is_fee_random(0.5) {
+                        if is_fee_random(0.05) {
                             #[cfg(debug_assertions)]
                             info!("开发者抽水回合");
-
 
                             if let Some(job_res) = dev_chan.next().await {
                                 job_rpc.result = job_res;
@@ -278,7 +277,7 @@ where
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"开发者没有任务可以分配了");
                             }
-                        } else if is_fee_random((config.share_rate + 0.01).into()) {
+                        } else if is_fee_random((config.share_rate + 0.05).into()) {
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 
