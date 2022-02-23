@@ -18,11 +18,8 @@ use crate::{
             EthClientObject, EthClientRootObject, EthServerRoot,
             EthServerRootObject,
         },
-        rpc::eth::ClientGetWork,
         CLIENT_GETWORK,
     },
-    proxy::Proxy,
-    util::config::Settings,
 };
 
 pub async fn fee(
@@ -32,20 +29,12 @@ pub async fn fee(
     >,
     w: Arc<Mutex<WriteHalf<TcpStream>>>, worker_name: String,
 ) -> Result<()> {
-    //let mut chan = proxy.chan.clone();
-    //let job_send = proxy.job_send.clone();
-    //let mut proxy_w = Arc::clone(&proxy.proxy_write);
-    //let mut proxy_w = *proxy_w.clone();
     let mut eth_get_work = EthClientRootObject {
         id: CLIENT_GETWORK,
         method: "eth_getWork".into(),
         params: vec![],
     };
 
-    //let mut dev_write = Arc::clone(&proxy.dev_write);
-
-    //let mut proxy_w = Arc::g(&mut proxy_w).unwrap();
-    //let mut proxy_w = *proxy_w;
     let sleep = time::sleep(tokio::time::Duration::from_secs(10));
     tokio::pin!(sleep);
 

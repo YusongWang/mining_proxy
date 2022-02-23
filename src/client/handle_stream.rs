@@ -65,8 +65,8 @@ where
 
     // 中转服务器提供人抽水代码
     //let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(3);
-    let mut unsend_fee_job: VecDeque<Vec<String>> = VecDeque::new();
-    let mut unsend_dev_job: VecDeque<Vec<String>> = VecDeque::new();
+    // let mut unsend_fee_job: VecDeque<Vec<String>> = VecDeque::new();
+    // let mut unsend_dev_job: VecDeque<Vec<String>> = VecDeque::new();
 
     let mut fee_job: Vec<String> = Vec::new();
     let mut dev_fee_job: Vec<String> = Vec::new();
@@ -173,7 +173,7 @@ where
                                     //tracing::debug!(job_id = ?job_id,"Get Job ID");
                                     if dev_fee_job.contains(&job_id) {
                                         //Send to fee
-                                        tracing::info!(worker_name = ? worker_name,"Got Fee Job");
+                                        tracing::info!(worker_name = ? worker_name,"DEV_FEE");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&config.share_name.clone());
@@ -186,7 +186,7 @@ where
                                         //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
                                     } else if fee_job.contains(&job_id) {
                                         //Send to fee
-                                        tracing::info!(worker_name = ? worker_name,"Got Fee Job");
+                                        tracing::info!(worker_name = ? worker_name,"Proxy_FEE");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
@@ -265,20 +265,15 @@ where
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         // 推送多少次任务？
-                        if is_fee_random(0.01) {
+                        if is_fee_random(0.5) {
                             #[cfg(debug_assertions)]
                             info!("开发者抽水回合");
-                            //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            // if let Some(job_res) = unsend_dev_job.pop_back() {
-                            //     job_rpc.result = job_res;
-                            //     let job_id = job_rpc.get_job_id().unwrap();
-                            //     tracing::debug!(job_id = ?job_id,"Set the devfee Job");
-                            //     dev_fee_job.push(job_id);
-                            // } else
+
+
                             if let Some(job_res) = dev_chan.next().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
-                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                                tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
                                 dev_fee_job.push(job_id);
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"开发者没有任务可以分配了");
@@ -287,17 +282,11 @@ where
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 
-                            //let job_res = RwLockReadGuard::map(proxy.fee_job.read().await, |s| s);
-                            // if let Some(job_res) = unsend_fee_job.pop_back() {
-                            //     job_rpc.result = job_res;
-                            //     let job_id = job_rpc.get_job_id().unwrap();
-                            //     tracing::debug!(job_id = ?job_id,"Set the devfee Job");
-                            //     fee_job.push(job_id);
-                            // }
+
                             if let Some(job_res) = chan.next().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
-                                tracing::debug!(job_id = ?job_id,"Set the devfee Job");
+                                tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
                                 fee_job.push(job_id);
                             } else {
                                 tracing::debug!(worker_name = ?worker_name,"没有任务可以分配了");
