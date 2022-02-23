@@ -171,7 +171,7 @@ where
                                 eth_server_result.id = rpc_id;
                                 if let Some(job_id) = json_rpc.get_job_id(){
                                     //tracing::debug!(job_id = ?job_id,"Get Job ID");
-                                    if fee_job.contains(&job_id) {
+                                    if dev_fee_job.contains(&job_id) {
                                         //Send to fee
                                         tracing::info!(worker_name = ? worker_name,"Got Fee Job");
                                         worker.fee_share_index_add();
@@ -184,7 +184,7 @@ where
                                         }
 
                                         //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
-                                    } else if dev_fee_job.contains(&job_id) {
+                                    } else if fee_job.contains(&job_id) {
                                         //Send to fee
                                         tracing::info!(worker_name = ? worker_name,"Got Fee Job");
                                         worker.fee_share_index_add();
