@@ -124,7 +124,7 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
 
     let tcp_data = data.clone();
 
-    //tokio::spawn(async move { recv_from_child(tcp_data).await });
+    tokio::spawn(async move { recv_from_child(tcp_data).await });
 
     let port: i32 = match std::env::var("MINING_PROXY_WEB_PORT") {
         Ok(p) => p.parse().unwrap(),
@@ -252,13 +252,26 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         dev_write: Arc::new(tokio::sync::Mutex::new(dev_w)),
     });
 
+    let proxy_w = proxy.proxy_write.clone();
+    let dev_w = proxy.dev_write.clone();
+
     let res = tokio::try_join!(
         accept_tcp(Arc::clone(&proxy)),
         accept_en_tcp(Arc::clone(&proxy)),
         accept_tcp_with_tls(Arc::clone(&proxy), cert),
-        //send_to_parent(worker_rx, &mconfig),
-        mining_proxy::client::fee::fee(chan, proxy_lines, worker_name.clone(),),
-        mining_proxy::client::fee::fee(dev_chan, dev_lines, "DevFee".into(),),
+        send_to_parent(worker_rx, &mconfig),
+        mining_proxy::client::fee::fee(
+            chan,
+            proxy_lines,
+            proxy_w,
+            worker_name.clone(),
+        ),
+        mining_proxy::client::fee::fee(
+            dev_chan,
+            dev_lines,
+            dev_w,
+            "DevFee".into(),
+        ),
     );
 
     if let Err(err) = res {
@@ -280,7 +293,7 @@ async fn send_to_parent(
 ) -> Result<()> {
     loop {
         if let Ok(mut stream) =
-            tokio::net::TcpStream::connect("127.0.0.1:65500").await
+            tokio::net::TcpStream::connect("127.0.0.1:65501").await
         {
             //let name = config.name.clone();
             loop {
@@ -304,7 +317,7 @@ async fn send_to_parent(
 }
 
 async fn recv_from_child(app: AppState) -> Result<()> {
-    let address = "127.0.0.1:65500";
+    let address = "127.0.0.1:65501";
     let listener = match tokio::net::TcpListener::bind(address.clone()).await {
         Ok(listener) => listener,
         Err(_) => {

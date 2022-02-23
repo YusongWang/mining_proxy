@@ -1,16 +1,19 @@
 use std::{f32::consts::E, io::Error};
 
-use crate::{protocol::{
-    eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
-    ethjson::{
-        login, new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_login,
-        new_eth_submit_work,
+use crate::{
+    protocol::{
+        eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
+        ethjson::{
+            login, new_eth_get_work, new_eth_submit_hashrate,
+            new_eth_submit_login, new_eth_submit_work,
+        },
+        stratum::{
+            StraumErrorResult, StraumMiningNotify, StraumMiningSet,
+            StraumResultBool, StraumRoot,
+        },
     },
-    stratum::{
-        StraumErrorResult, StraumMiningNotify, StraumMiningSet,
-        StraumResultBool, StraumRoot,
-    },
-}, DEVELOP_WORKER_NAME};
+    DEVELOP_WORKER_NAME,
+};
 
 extern crate lru;
 use anyhow::{bail, Result};
@@ -35,17 +38,8 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
-        ethjson::{
-            EthServer, EthServerRoot, EthServerRootObject,
-            EthServerRootObjectBool, EthServerRootObjectError,
-            EthServerRootObjectJsonRpc,
-        },
-        rpc::eth::{
-            Server, ServerId1, ServerJobsWithHeight, ServerRootErrorValue,
-            ServerSideJob,
-        },
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
-        SUBSCRIBE,
+        ethjson::{EthServerRoot, EthServerRootObject},
+        CLIENT_LOGIN, CLIENT_SUBMITWORK,
     },
     state::Worker,
     util::{config::Settings, is_fee_random},
@@ -99,8 +93,8 @@ where
     let mut chan = proxy.chan.clone();
     let mut dev_chan = proxy.dev_chan.clone();
 
-    let mut proxy_write = Arc::clone(&proxy.proxy_write);
-    let mut dev_write = Arc::clone(&proxy.dev_write);
+    let proxy_write = Arc::clone(&proxy.proxy_write);
+    let dev_write = Arc::clone(&proxy.dev_write);
 
     loop {
         select! {
