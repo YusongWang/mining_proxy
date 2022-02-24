@@ -79,6 +79,7 @@ where
     // 包装为封包格式。
     let mut pool_lines = pool_r.lines();
     let mut worker_lines;
+    let mut send_job = Vec::new();
 
     if is_encrypted {
         worker_lines = worker_r.split(SPLIT);
@@ -270,6 +271,9 @@ where
                             if let Some(job_res) = dev_chan.next().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
+                                if send_job.contains(&job_id) {
+                                    continue;
+                                }
                                 tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
                                 dev_fee_job.push(job_id);
                             } else {
@@ -283,6 +287,9 @@ where
                             if let Some(job_res) = chan.next().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
+                                if send_job.contains(&job_id) {
+                                    continue;
+                                }
                                 tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
                                 fee_job.push(job_id);
                             } else {
@@ -290,6 +297,13 @@ where
                             }
                         }
 
+
+                        let job_id = job_rpc.get_job_id().unwrap();
+                        if send_job.contains(&job_id) {
+                            continue;
+                        }
+
+                        send_job.push(job_id);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
