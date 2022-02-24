@@ -5,7 +5,7 @@ use crate::{
         eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
         ethjson::{
             login, new_eth_get_work, new_eth_submit_hashrate,
-            new_eth_submit_login, new_eth_submit_work,
+            new_eth_submit_work,
         },
         stratum::{
             StraumErrorResult, StraumMiningNotify, StraumMiningSet,
@@ -176,20 +176,18 @@ where
                                         tracing::info!(worker_name = ? worker_name,"DEV_FEE");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
-                                        json_rpc.set_worker_name(&config.share_name.clone());
+                                        json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         {
                                             let mut write = dev_write.lock().await;
                                             //同时加2个值
                                             write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
                                         }
-
-                                        //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
                                     } else if fee_job.contains(&job_id) {
                                         //Send to fee
                                         tracing::info!(worker_name = ? worker_name,"Proxy_FEE");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
-                                        json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
+                                        json_rpc.set_worker_name(&config.share_name.clone());
                                         {
                                             let mut write = proxy_write.lock().await;
                                             //同时加2个值
