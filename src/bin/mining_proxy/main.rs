@@ -1,15 +1,20 @@
+#![feature(path_try_exists)]
+
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
 use broadcaster::BroadcastChannel;
-use mining_proxy::client::FEE;
-use std::collections::VecDeque;
+use tracing::Level;
+
 use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use tracing_subscriber::{self, fmt::time::FormatTime};
+use tracing_subscriber::{
+    self,
+    fmt::{format::Writer, time::FormatTime},
+};
 
 use dotenv::dotenv;
 use jsonwebtoken::{decode, DecodingKey, Validation};
@@ -46,7 +51,40 @@ fn main() -> Result<()> {
     setup_panic!();
     openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
-    logger::init();
+    //logger::init();
+
+    if std::fs::try_exists("./logs/").is_err() {
+        std::fs::create_dir("./logs/")?;
+    }
+
+    struct LocalTimer;
+    impl FormatTime for LocalTimer {
+        fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
+            write!(w, "{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
+        }
+    }
+
+    let file_appender =
+        tracing_appender::rolling::daily("./logs/", "mining_proxy");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    // 设置日志输出时的格式，例如，是否包含日志级别、是否包含日志来源位置、
+    // 设置日志的时间格式 参考: https://docs.rs/tracing-subscriber/0.3.3/tracing_subscriber/fmt/struct.SubscriberBuilder.html#method.with_timer
+    let format = tracing_subscriber::fmt::format()
+        .with_level(true)
+        .with_target(false)
+        .with_line_number(true)
+        .with_source_location(true)
+        .with_timer(LocalTimer);
+
+    // 初始化并设置日志格式(定制和筛选日志)
+    tracing_subscriber::fmt()
+        .with_max_level(Level::TRACE)
+        //.with_writer(io::stdout) // 写入标准输出
+        .with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
+        .with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
+        .event_format(format)
+        .init();
     mining_proxy::init();
 
     let matches = mining_proxy::util::get_app_command_matches()?;

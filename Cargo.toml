@@ -53,7 +53,7 @@ static-files = "0.2.1"
 time = "*"
 tracing = "0.1.30"
 tracing-appender = "0.2.0"
-tracing-subscriber = {version = "0.3.3"}
+tracing-subscriber = { version = "0.3.3" }
 
 [build-dependencies]
 actix-web-static-files = {version = "3.0.5", git = "https://github.com/enaut/actix-web-static-files.git"}

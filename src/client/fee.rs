@@ -15,7 +15,7 @@ use crate::{
     client::{lines_unwrap, write_to_socket_byte},
     protocol::{
         ethjson::{
-            EthClientObject, EthClientRootObject, EthServerRoot,
+            EthClientObject, EthClientRootObject, EthServer, EthServerRoot,
             EthServerRootObject,
         },
         CLIENT_GETWORK,
@@ -41,7 +41,26 @@ pub async fn fee(
     loop {
         select! {
             res = proxy_lines.next_line() => {
-                let buffer = lines_unwrap(res,&worker_name,"矿池").await?;
+                let buffer = match lines_unwrap(res,&worker_name,"矿池").await {
+                    Ok(buf) => buf,
+                    Err(_) => {
+
+                        info!(worker_name = ?worker_name,"退出了。重新登录到池!!");
+                        let (new_lines, dev_w) = crate::client::dev_pool_login(
+                            crate::DEVELOP_WORKER_NAME.to_string(),
+                        ).await?;
+
+                        {
+                            let mut write = w.lock().await;
+                            //同时加2个值
+                            *write = dev_w;
+                        }
+                        proxy_lines = new_lines;
+                        info!(worker_name = ?worker_name,"重新登录成功!!");
+
+                        continue;
+                    },
+                };
 
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
@@ -52,18 +71,18 @@ pub async fn fee(
                         continue;
                     }
 
-                    #[cfg(debug_assertions)]
-                    tracing::info!(
-                        "1    ---- Worker : {}  Send Rpc {}",
-                        worker_name,
-                        buf
-                    );
-
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_res = job_rpc.get_job_result().unwrap();
                         chan.send(&job_res).await?;
-                    } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
-                        tracing::debug!(worker_name = ?worker_name,result_rpc = ?result_rpc," 线程获得操作结果 {:?}",result_rpc.result);
+                    } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
+                        if result_rpc.result == false {
+                            // let message = match String::from_utf8(&buf){
+                            //     Ok(message) => message,
+                            //     Err(_) => "".into(),
+                            // };
+
+                            tracing::debug!(worker_name = ?worker_name,rpc = ?buf," 线程获得操作结果 {:?}",result_rpc.result);
+                        }
                     }
                 }
             },
@@ -77,13 +96,6 @@ pub async fn fee(
 
                 sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
             },
-            // Ok(json_rpc) = recv.recv() => {
-            //     tracing::debug!(json=?json_rpc,"获得抽水任务");
-            //     if let crate::client::FEE::PROXYFEE(mut rpc) = json_rpc {
-            //         rpc.set_worker_name(&worker_name);
-            //         write_to_socket_byte(&mut *proxy_w, rpc.to_vec()?, &worker_name).await?
-            //     }
-            // }
         }
     }
 }

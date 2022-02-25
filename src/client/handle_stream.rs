@@ -5,7 +5,7 @@ use crate::{
         eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
         ethjson::{
             login, new_eth_get_work, new_eth_submit_hashrate,
-            new_eth_submit_work,
+            new_eth_submit_work, EthServer,
         },
         stratum::{
             StraumErrorResult, StraumMiningNotify, StraumMiningSet,
@@ -305,7 +305,7 @@ where
 
                         send_job.push(job_id);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                    } else if let Ok(result_rpc) = serde_json::from_str::<EthServerRoot>(&buf) {
+                    } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
                         } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     client::write_to_socket_byte,
     state::Worker,

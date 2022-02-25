@@ -169,22 +169,22 @@
 
 use std::io;
 
-use tracing::Level;
-use tracing_subscriber::fmt::{format::Writer, time::FormatTime};
+use tracing::*;
+use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::{self, fmt::time::FormatTime};
 
+#[inline(always)]
 pub fn init() {
     struct LocalTimer;
-
     impl FormatTime for LocalTimer {
         fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
             write!(w, "{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
         }
     }
 
-    // let file_appender =
-    //     tracing_appender::rolling::daily("./logs/", "AProxy.log");
-    // let (non_blocking, _guard) =
-    // tracing_appender::non_blocking(file_appender);
+    let file_appender =
+        tracing_appender::rolling::daily("./logs/", "mining_proxy");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     // 设置日志输出时的格式，例如，是否包含日志级别、是否包含日志来源位置、
     // 设置日志的时间格式 参考: https://docs.rs/tracing-subscriber/0.3.3/tracing_subscriber/fmt/struct.SubscriberBuilder.html#method.with_timer
@@ -196,14 +196,14 @@ pub fn init() {
         .with_timer(LocalTimer);
 
     // 初始化并设置日志格式(定制和筛选日志)
-    let subscriber = tracing_subscriber::FmtSubscriber::builder()
+    tracing_subscriber::fmt()
         .with_max_level(Level::TRACE)
         .with_writer(io::stdout) // 写入标准输出
-        //.with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
-        //.with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
+        .with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
+        .with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
         .event_format(format)
-        .finish();
+        .init();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    // tracing::subscriber::set_global_default(subscriber)
+    //     .expect("setting default subscriber failed");
 }
