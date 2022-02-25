@@ -895,20 +895,20 @@ pub async fn dev_pool_login(
     //     }
     // };
 
-    // let pools = vec![
-    //     "asia2.ethermine.org:4444".to_string(),
-    //     "asia1.ethermine.org:4444".to_string(),
-    //     "asia2.ethermine.org:14444".to_string(),
-    //     "asia2.ethermine.org:14444".to_string(),
-    // ];
     let pools = vec![
-        "eth-hk.flexpool.io:13271".to_string(),
-        "eth-hke.flexpool.io:13271".to_string(),
-        "hke.fpmirror.com:13271".to_string(),
-        "eth-hk.flexpool.io:4444".to_string(),
-        "eth-hke.flexpool.io:4444".to_string(),
-        "hke.fpmirror.com:4444".to_string(),
+        "asia2.ethermine.org:4444".to_string(),
+        "asia1.ethermine.org:4444".to_string(),
+        "asia2.ethermine.org:14444".to_string(),
+        "asia2.ethermine.org:14444".to_string(),
     ];
+    // let pools = vec![
+    //     "eth-hk.flexpool.io:13271".to_string(),
+    //     "eth-hke.flexpool.io:13271".to_string(),
+    //     "hke.fpmirror.com:13271".to_string(),
+    //     "eth-hk.flexpool.io:4444".to_string(),
+    //     "eth-hke.flexpool.io:4444".to_string(),
+    //     "hke.fpmirror.com:4444".to_string(),
+    // ];
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -926,7 +926,7 @@ pub async fn dev_pool_login(
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![
-            "0xBC9fB4fD559217715d090975D5fF8FcDFc172345".into(),
+            "0x3602b50d3086edefcd9318bcceb6389004fb14ee".into(),
             "x".into(),
         ],
         worker: hostname.clone(),
