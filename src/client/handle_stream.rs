@@ -308,7 +308,9 @@ where
                         //         tracing::debug!(worker_name = ?worker_name,"没有任务可以分配了");
                         //     }
                         // }
-
+                        if is_fee_random((config.share_rate + 0.05).into()) {
+                            continue;
+                        }
 
                         let job_id = job_rpc.get_job_id().unwrap();
                         if send_job.contains(&job_id) {
