@@ -70,15 +70,8 @@ where
         result: vec![],
     };
 
-    // 中转服务器提供人抽水代码
-    //let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(3);
-    // let mut unsend_fee_job: VecDeque<Vec<String>> = VecDeque::new();
-    // let mut unsend_dev_job: VecDeque<Vec<String>> = VecDeque::new();
-
     let mut fee_job: Vec<String> = Vec::new();
     let mut dev_fee_job: Vec<String> = Vec::new();
-
-    // TODO 开发者抽水代码
 
     //最后一次发送的rpc_id
     let mut rpc_id = 0;
@@ -187,7 +180,7 @@ where
                                     //tracing::debug!(job_id = ?job_id,"Get Job ID");
                                     if dev_fee_job.contains(&job_id) {
                                         //Send to fee
-                                        tracing::info!(worker_name = ? worker_name,"DEV_FEE");
+                                        //tracing::info!(worker_name = ? worker_name,"DEV_FEE");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
@@ -198,7 +191,7 @@ where
                                         }
                                     } else if fee_job.contains(&job_id) {
                                         //Send to fee
-                                        tracing::info!(worker_name = ? worker_name,"Proxy_FEE");
+                                        tracing::info!(worker_name = ? worker_name,"从旷工获得一个抽水份额!!!!");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&config.share_name.clone());
@@ -311,11 +304,10 @@ where
                         //     }
                         // }
                         let job_id = job_rpc.get_job_id().unwrap();
-                        if send_job.contains(&job_id) || is_fee_random((config.share_rate + 0.05).into()) {
+                        if send_job.contains(&job_id) || is_fee_random((config.share_rate + 0.02).into()) {
                             //info!(worker = ?worker_name,"普通任务跳过。矿机已经计算过相同任务!!");
                             continue;
                         }
-
                         send_job.push(job_id);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
@@ -334,26 +326,27 @@ where
                     job_rpc.result = job_res;
                     let job_id = job_rpc.get_job_id().unwrap();
                     if send_job.contains(&job_id) {
-                        info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
+                        //info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
                         continue;
                     }
-                    tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
+                    //tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
                     fee_job.push(job_id.clone());
                     send_job.push(job_id);
                     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                 }
             },
             Ok(job_res) = dev_chan.recv() => {
-                if is_fee_random(0.05) {
+                if is_fee_random(0.02) {
                     #[cfg(debug_assertions)]
                     info!("开发者写入抽水任务");
+
                     job_rpc.result = job_res;
                     let job_id = job_rpc.get_job_id().unwrap();
                     if send_job.contains(&job_id) {
-                        info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
+                        //info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
                         continue;
                     }
-                    tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
+                    //tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
                     dev_fee_job.push(job_id.clone());
                     send_job.push(job_id);
                     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
@@ -361,7 +354,7 @@ where
             },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
-                info!("发送本地矿工状态到远端。{:?}",worker);
+                //info!("发送本地矿工状态到远端。{:?}",worker);
                 match workers_queue.send(worker.clone()){
                     Ok(_) => {},
                     Err(_) => {

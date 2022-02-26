@@ -372,8 +372,8 @@ async fn server(
 
         res.online = online;
         if res.online >= 1 {
-            res.share_index = share_index;
-            res.accept_index = accept_index;
+            res.share_index = share_index + fee_share_index;
+            res.accept_index = accept_index + fee_accept_index;
             res.reject_index = reject_index;
             res.fee_accept_index = fee_accept_index;
             res.fee_share_index = fee_share_index;

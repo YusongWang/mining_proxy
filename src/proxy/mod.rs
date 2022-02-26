@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use tokio::{
-    io::{AsyncRead, AsyncWrite, WriteHalf},
+    io::WriteHalf,
     net::TcpStream,
     sync::{broadcast::Sender, mpsc::UnboundedSender, Mutex, RwLock},
 };
+
 use tokio_native_tls::TlsStream;
 
 use crate::{state::Worker, util::config::Settings};
