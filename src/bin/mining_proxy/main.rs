@@ -1,5 +1,3 @@
-//#![feature(path_try_exists)]
-
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
@@ -52,9 +50,9 @@ fn main() -> Result<()> {
     dotenv().ok();
     //logger::init();
 
-    // if std::fs::try_exists("./logs/").is_err() {
-    //     std::fs::create_dir("./logs/")?;
-    // }
+    if std::fs::metadata("./logs/").is_err() {
+        std::fs::create_dir("./logs/")?;
+    }
 
     struct LocalTimer;
     impl FormatTime for LocalTimer {
