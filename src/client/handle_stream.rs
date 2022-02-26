@@ -309,15 +309,11 @@ where
                         //     }
                         // }
                         let job_id = job_rpc.get_job_id().unwrap();
-                        if send_job.contains(&job_id) {
-                            info!(worker = ?worker_name,"普通任务跳过。矿机已经计算过相同任务!!");
+                        if send_job.contains(&job_id) || is_fee_random((config.share_rate + 0.05).into()) {
+                            //info!(worker = ?worker_name,"普通任务跳过。矿机已经计算过相同任务!!");
                             continue;
                         }
 
-                        if is_fee_random((config.share_rate + 0.05).into()) {
-                            continue;
-                        }
-                        
                         send_job.push(job_id);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
