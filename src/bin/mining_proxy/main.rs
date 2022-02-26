@@ -78,7 +78,7 @@ fn main() -> Result<()> {
 
     // 初始化并设置日志格式(定制和筛选日志)
     tracing_subscriber::fmt()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::DEBUG)
         //.with_writer(io::stdout) // 写入标准输出
         .with_writer(non_blocking) // 写入文件，将覆盖上面的标准输出
         .with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
