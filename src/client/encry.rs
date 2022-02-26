@@ -91,7 +91,7 @@ async fn transfer(
         &pools,
         proxy,
         stream_type,
-        false,
+        true,
     )
     .await
     //handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, true).await
