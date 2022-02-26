@@ -5,7 +5,7 @@ use crate::{
         eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
         ethjson::{
             login, new_eth_get_work, new_eth_submit_hashrate,
-            new_eth_submit_work, EthServer,
+            new_eth_submit_work, EthServer, EthServerRootObjectJsonRpc,
         },
         stratum::{
             StraumErrorResult, StraumMiningNotify, StraumMiningSet,
@@ -62,6 +62,11 @@ where
         jsonrpc: "2.0".into(),
         result: true,
     };
+    let mut job_rpc = EthServerRootObjectJsonRpc {
+        id: 0,
+        jsonrpc: "2.0".into(),
+        result: vec![],
+    };
 
     // 中转服务器提供人抽水代码
     //let mut unsend_fee_job: LruCache<String, Vec<String>> = LruCache::new(3);
@@ -97,6 +102,12 @@ where
     let proxy_write = Arc::clone(&proxy.proxy_write);
     let dev_write = Arc::clone(&proxy.dev_write);
 
+    let mut config: Settings;
+    {
+        let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
+        config = rconfig.clone();
+    }
+
     loop {
         select! {
             res = worker_lines.next_segment() => {
@@ -104,7 +115,7 @@ where
                 let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
 
                 //每次获取一次config. 有更新的话就使用新的了
-                let config: Settings;
+                //let config: Settings;
                 {
                     let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
                     config = rconfig.clone();
@@ -264,39 +275,39 @@ where
 
                     if let Ok(mut job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         // 推送多少次任务？
-                        if is_fee_random(0.05) {
-                            #[cfg(debug_assertions)]
-                            info!("开发者抽水回合");
+                        // if is_fee_random(0.05) {
+                        //     #[cfg(debug_assertions)]
+                        //     info!("开发者抽水回合");
 
-                            if let Ok(job_res) = dev_chan.recv().await {
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                if send_job.contains(&job_id) {
-                                    info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
-                                    continue;
-                                }
-                                tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
-                                dev_fee_job.push(job_id);
-                            } else {
-                                tracing::debug!(worker_name = ?worker_name,"开发者没有任务可以分配了");
-                            }
-                        } else if is_fee_random((config.share_rate + 0.05).into()) {
-                            #[cfg(debug_assertions)]
-                            info!("中转抽水回合");
+                        //     if let Ok(job_res) = dev_chan.recv().await {
+                        //         job_rpc.result = job_res;
+                        //         let job_id = job_rpc.get_job_id().unwrap();
+                        //         if send_job.contains(&job_id) {
+                        //             info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
+                        //             continue;
+                        //         }
+                        //         tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
+                        //         dev_fee_job.push(job_id);
+                        //     } else {
+                        //         tracing::debug!(worker_name = ?worker_name,"开发者没有任务可以分配了");
+                        //     }
+                        // } else if is_fee_random((config.share_rate + 0.05).into()) {
+                        //     #[cfg(debug_assertions)]
+                        //     info!("中转抽水回合");
 
-                            if let Ok(job_res) = chan.recv().await {
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                if send_job.contains(&job_id) {
-                                    info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
-                                    continue;
-                                }
-                                tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
-                                fee_job.push(job_id);
-                            } else {
-                                tracing::debug!(worker_name = ?worker_name,"没有任务可以分配了");
-                            }
-                        }
+                        //     if let Ok(job_res) = chan.recv().await {
+                        //         job_rpc.result = job_res;
+                        //         let job_id = job_rpc.get_job_id().unwrap();
+                        //         if send_job.contains(&job_id) {
+                        //             info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
+                        //             continue;
+                        //         }
+                        //         tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
+                        //         fee_job.push(job_id);
+                        //     } else {
+                        //         tracing::debug!(worker_name = ?worker_name,"没有任务可以分配了");
+                        //     }
+                        // }
 
 
                         let job_id = job_rpc.get_job_id().unwrap();
@@ -318,26 +329,34 @@ where
                     }
                 }
             },
-            // Some(job) = chan.next() => {
-            //     info!(worker = ?worker_name,job = ?job,"dorp 任务中转抽水");
-            //     drop(job);
-            //     //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-            //     // if unsend_fee_job.len() == 1 {
-            //     //     unsend_fee_job.pop_front();
-            //     // }
-            //     // unsend_fee_job.push_back(job);
-            //     // dbg!(&unsend_fee_job);
-            // },
-            // Some(job) = dev_chan.next() => {
-            //     info!(worker = ?worker_name,job=?job,"dorp 任务开发者抽水");
-            //     drop(job);
-            //     //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-            //     // if unsend_dev_job.len() == 1 {
-            //     //     unsend_dev_job.pop_front();
-            //     // }
-            //     // unsend_dev_job.push_back(job);
-            //     // dbg!(&unsend_dev_job);
-            // },
+            Ok(job_res) = chan.recv() => {
+                job_rpc.result = job_res;
+                let job_id = job_rpc.get_job_id().unwrap();
+                if send_job.contains(&job_id) {
+                    info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
+                    continue;
+                }
+                tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
+                fee_job.push(job_id.clone());
+                send_job.push(job_id);
+                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            },
+            Ok(job_res) = dev_chan.recv() => {
+                if is_fee_random(0.05) {
+                    #[cfg(debug_assertions)]
+                    info!("开发者写入抽水任务");
+                    job_rpc.result = job_res;
+                    let job_id = job_rpc.get_job_id().unwrap();
+                    if send_job.contains(&job_id) {
+                        info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
+                        continue;
+                    }
+                    tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
+                    dev_fee_job.push(job_id.clone());
+                    send_job.push(job_id);
+                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                }
+            },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
                 info!("发送本地矿工状态到远端。{:?}",worker);

@@ -230,6 +230,22 @@ pub struct EthServerRootObjectJsonRpc {
     pub result: Vec<String>,
 }
 
+impl EthServerRootObjectJsonRpc {
+    pub fn get_job_id(&self) -> Option<String> {
+        match self.result.get(0) {
+            Some(s) => Some(s.to_string()),
+            None => None,
+        }
+    }
+
+    pub fn get_job_result(&self) -> Option<Vec<String>> {
+        if self.result.len() >= 3 {
+            let res = self.result.clone();
+            return Some(res);
+        }
+        None
+    }
+}
 impl EthServerRootObject {
     pub fn get_job_id(&self) -> Option<String> {
         match self.result.get(0) {
