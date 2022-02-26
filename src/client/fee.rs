@@ -19,7 +19,7 @@ use crate::{
         CLIENT_GETWORK,
     },
 };
-use tracing::{debug, info};
+use tracing::debug;
 
 pub async fn fee_ssl(
     chan: Sender<Vec<String>>,

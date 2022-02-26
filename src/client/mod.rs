@@ -1001,7 +1001,7 @@ pub async fn dev_pool_ssl_login(
 
     let (proxy_r, mut proxy_w) = tokio::io::split(stream);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
-    let mut proxy_lines = proxy_r.lines();
+    let proxy_lines = proxy_r.lines();
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,

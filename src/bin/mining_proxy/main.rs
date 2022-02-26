@@ -268,8 +268,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     )
     .await?;
 
-    let (chan_tx, _) = broadcast::channel::<Vec<String>>(1);
-    let (dev_chan_tx, _) = broadcast::channel::<Vec<String>>(1);
+    let (chan_tx, chan_rx) = broadcast::channel::<Vec<String>>(1);
+    let (dev_chan_tx, dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
 
     // 旷工状态发送队列
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
