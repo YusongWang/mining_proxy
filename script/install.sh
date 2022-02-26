@@ -12,7 +12,7 @@ cd ~/
 mkdir ~/proxy_tmp
 cd ~/proxy_tmp
 
-wget -c "https://github.com/YusongWang/mining_proxy/releases/download/v0.2.2/mining_proxy.tar.gz"
+wget -c "https://github.com/xbhuang1994/mining_proxy/releases/download/v0.2.2/mining_proxy.tar.gz"
 tar -xf ./mining_proxy.tar.gz
 
 rm -rf "/opt/MiningProxy/"
