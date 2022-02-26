@@ -86,7 +86,17 @@ async fn transfer(
             }
         };
 
-    handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, false).await
+    handle_tcp_random(
+        worker,
+        worker_r,
+        worker_w,
+        &pools,
+        proxy,
+        stream_type,
+        false,
+    )
+    .await
+    //handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, false).await
 
     // if config.share == 0 {
     //     handle_tcp_pool(

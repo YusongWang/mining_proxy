@@ -5,6 +5,7 @@ pub mod handle_stream;
 pub mod handle_stream_all;
 pub mod handle_stream_nofee;
 
+mod connect;
 pub mod monitor;
 pub mod pools;
 pub mod tcp;
@@ -23,8 +24,9 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use tokio_native_tls::TlsStream;
 
-use tracing::debug;
+use tracing::{debug, info};
 
 use anyhow::Result;
 use tokio::{
@@ -60,22 +62,30 @@ pub fn get_pool_ip_and_type(
 ) -> Result<(i32, Vec<String>)> {
     //FIX 兼容SSL
     if !config.pool_address.is_empty() {
+        let mut pro = TCP;
         let address = config.pool_address.clone();
         let mut pools = vec![];
         for addr in address.iter() {
             let new_pool_url: Vec<&str> = addr.split("//").collect();
             if let Some(protocol) = new_pool_url.get(0) {
                 let p = protocol.to_string().to_lowercase();
-                if p != "tcp:" {
-                    //println!("不支持的服务类型 {}",*protocol);
+                if p != "tcp:" && p != "ssl:" {
                     bail!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
+                }
+
+                if p == "tcp:" {
+                    pro = TCP;
+                }
+
+                if p == "ssl:" {
+                    pro = SSL;
                 }
             }
             if let Some(url) = new_pool_url.get(1) {
                 pools.push(url.to_string());
             };
         }
-        Ok((TCP, pools))
+        Ok((pro, pools))
     } else {
         bail!("中转池地址设置存在错误请检查");
     }
@@ -86,21 +96,32 @@ pub fn get_pool_ip_and_type_from_vec(
 ) -> Result<(i32, Vec<String>)> {
     //FIX 兼容SSL
     if !config.is_empty() {
+        let mut pro = TCP;
+
         let address = config.clone();
         let mut pools = vec![];
         for addr in address.iter() {
             let new_pool_url: Vec<&str> = addr.split("//").collect();
             if let Some(protocol) = new_pool_url.get(0) {
                 let p = protocol.to_string().to_lowercase();
-                if p != "tcp:" {
+                if p != "tcp:" && p != "ssl:" {
                     bail!("代理矿池{} 不支持的服务类型 {}", addr, *protocol);
+                }
+
+                if p == "tcp:" {
+                    pro = TCP;
+                }
+
+                if p == "ssl:" {
+                    pro = SSL;
                 }
             }
             if let Some(url) = new_pool_url.get(1) {
                 pools.push(url.to_string());
             };
         }
-        Ok((TCP, pools))
+
+        Ok((pro, pools))
     } else {
         bail!("中转池地址设置存在错误请检查");
     }
@@ -213,7 +234,7 @@ pub fn get_pool_stream(
 }
 
 pub async fn get_pool_stream_with_tls(
-    pool_tcp_address: &Vec<String>, _name: String,
+    pool_tcp_address: &Vec<String>,
 ) -> Option<(
     tokio_native_tls::TlsStream<tokio::net::TcpStream>,
     SocketAddr,
@@ -249,12 +270,6 @@ pub async fn get_pool_stream_with_tls(
         };
 
         std_stream.set_nonblocking(true).unwrap();
-        // std_stream
-        //     .set_read_timeout(Some(Duration::from_millis(1)))
-        //     .expect("读取超时");
-        // std_stream
-        //     .set_write_timeout(Some(Duration::from_millis(1)))
-        //     .expect("读取超时");
 
         let stream = match TcpStream::from_std(std_stream) {
             Ok(stream) => stream,
@@ -519,33 +534,59 @@ pub async fn handle_tcp_random<R, W>(
     worker: &mut Worker,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     worker_w: WriteHalf<W>, pools: &Vec<String>, proxy: Arc<Proxy>,
-    is_encrypted: bool,
+    stream_type: i32, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let (outbound, _) = match crate::client::get_pool_stream(&pools) {
-        Some((stream, addr)) => (stream, addr),
-        None => {
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
+    if stream_type == TCP {
+        let (outbound, _) = match crate::client::get_pool_stream(&pools) {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
-    let stream = TcpStream::from_std(outbound)?;
-    let (pool_r, pool_w) = tokio::io::split(stream);
-    let pool_r = tokio::io::BufReader::new(pool_r);
+        let stream = tokio::net::TcpStream::from_std(outbound)?;
+        let (pool_r, pool_w) = tokio::io::split(stream);
+        let pool_r = tokio::io::BufReader::new(pool_r);
 
-    handle_stream::handle_stream(
-        worker,
-        worker_r,
-        worker_w,
-        pool_r,
-        pool_w,
-        proxy,
-        is_encrypted,
-    )
-    .await
+        handle_stream::handle_stream(
+            worker,
+            worker_r,
+            worker_w,
+            pool_r,
+            pool_w,
+            proxy,
+            is_encrypted,
+        )
+        .await
+    } else if stream_type == SSL {
+        let (stream, _) =
+            match crate::client::get_pool_stream_with_tls(&pools).await {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    bail!("所有TCP矿池均不可链接。请修改后重试");
+                }
+            };
+
+        let (pool_r, pool_w) = tokio::io::split(stream);
+        let pool_r = tokio::io::BufReader::new(pool_r);
+
+        handle_stream::handle_stream(
+            worker,
+            worker_r,
+            worker_w,
+            pool_r,
+            pool_w,
+            proxy,
+            is_encrypted,
+        )
+        .await
+    } else {
+        panic!("达到了无法达到的分支");
+    }
 }
 
 // pub async fn handle_tcp_timer<R, W>(
@@ -839,15 +880,16 @@ pub async fn proxy_pool_login(
     config: &Settings, hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
-    let (_, pools) = match crate::client::get_pool_ip_and_type_from_vec(
-        &config.share_address,
-    ) {
-        Ok((stream, addr)) => (stream, addr),
-        Err(e) => {
-            tracing::error!("所有TCP矿池均不可链接。请修改后重试");
-            bail!("所有TCP矿池均不可链接。请修改后重试");
-        }
-    };
+    let (stream_type, pools) =
+        match crate::client::get_pool_ip_and_type_from_vec(
+            &config.share_address,
+        ) {
+            Ok((stream, addr)) => (stream, addr),
+            Err(e) => {
+                tracing::error!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
     let (stream, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -855,7 +897,6 @@ pub async fn proxy_pool_login(
             bail!("所有TCP矿池均不可链接。请修改后重试");
         }
     };
-
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
@@ -881,25 +922,12 @@ pub async fn proxy_pool_login(
     Ok((proxy_lines, proxy_w))
 }
 
-pub async fn dev_pool_login(
+pub async fn dev_pool_tcp_login(
     hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    //TODO 这里要兼容SSL矿池
-    // let (_, pools) = match crate::client::get_pool_ip_and_type_from_vec(
-    //     &config.share_address,
-    // ) {
-    //     Ok((stream, addr)) => (stream, addr),
-    //     Err(e) => {
-    //         tracing::error!("所有TCP矿池均不可链接。请修改后重试");
-    //         bail!("所有TCP矿池均不可链接。请修改后重试");
-    //     }
-    // };
-
     let pools = vec![
         "asia2.ethermine.org:4444".to_string(),
         "asia1.ethermine.org:4444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
-        "asia2.ethermine.org:14444".to_string(),
     ];
     // let pools = vec![
     //     "eth-hk.flexpool.io:13271".to_string(),
@@ -917,8 +945,61 @@ pub async fn dev_pool_login(
         }
     };
 
-    let outbound = TcpStream::from_std(stream)?;
-    let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
+    let (proxy_r, mut proxy_w) =
+        tokio::io::split(tokio::net::TcpStream::from_std(stream)?);
+    let proxy_r = tokio::io::BufReader::new(proxy_r);
+    let mut proxy_lines = proxy_r.lines();
+
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![
+            "0x3602b50d3086edefcd9318bcceb6389004fb14ee".into(),
+            "x".into(),
+        ],
+        worker: hostname.clone(),
+    };
+
+    match write_to_socket(&mut proxy_w, &login, &hostname).await {
+        Ok(_) => {}
+        Err(e) => {
+            tracing::error!("Error writing Socket {:?}", login);
+            return Err(e);
+        }
+    }
+
+    Ok((proxy_lines, proxy_w))
+}
+
+pub async fn dev_pool_ssl_login(
+    hostname: String,
+) -> Result<(
+    Lines<BufReader<ReadHalf<tokio_native_tls::TlsStream<TcpStream>>>>,
+    WriteHalf<TlsStream<TcpStream>>,
+)> {
+    let pools = vec![
+        "asia2.ethermine.org:5555".to_string(),
+        "asia1.ethermine.org:5555".to_string(),
+    ];
+
+    // let pools = vec![
+    //     "eth-hk.flexpool.io:13271".to_string(),
+    //     "eth-hke.flexpool.io:13271".to_string(),
+    //     "hke.fpmirror.com:13271".to_string(),
+    //     "eth-hk.flexpool.io:4444".to_string(),
+    //     "eth-hke.flexpool.io:4444".to_string(),
+    //     "hke.fpmirror.com:4444".to_string(),
+    // ];
+
+    let (stream, _) =
+        match crate::client::get_pool_stream_with_tls(&pools).await {
+            Some((stream, addr)) => (stream, addr),
+            None => {
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
+
+    let (proxy_r, mut proxy_w) = tokio::io::split(stream);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let mut proxy_lines = proxy_r.lines();
 

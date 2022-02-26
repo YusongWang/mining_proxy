@@ -121,7 +121,16 @@ async fn transfer_ssl(
     //     false,
     // )
     // .await
-    handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, false).await
+    handle_tcp_random(
+        worker,
+        worker_r,
+        worker_w,
+        &pools,
+        proxy,
+        stream_type,
+        false,
+    )
+    .await
     // } else {
     //     handle_tcp_pool_timer(
     //         worker,

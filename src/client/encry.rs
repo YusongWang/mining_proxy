@@ -84,5 +84,15 @@ async fn transfer(
             }
         };
 
-    handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, true).await
+    handle_tcp_random(
+        worker,
+        worker_r,
+        worker_w,
+        &pools,
+        proxy,
+        stream_type,
+        false,
+    )
+    .await
+    //handle_tcp_random(worker, worker_r, worker_w, &pools, proxy, true).await
 }

@@ -17,17 +17,17 @@ use crate::{
 
 extern crate lru;
 use anyhow::{bail, Result};
-use futures::StreamExt;
+
 use hex::FromHex;
-use lru::LruCache;
+
 use openssl::symm::{decrypt, Cipher};
 use std::sync::Arc;
 use tracing::{debug, info};
 
 use tokio::{
     io::{
-        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader,
-        Lines, ReadHalf, WriteHalf,
+        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, Lines, ReadHalf,
+        WriteHalf,
     },
     net::TcpStream,
     select,
@@ -45,16 +45,18 @@ use crate::{
     util::{config::Settings, is_fee_random},
 };
 
-pub async fn handle_stream<R, W>(
+pub async fn handle_stream<R, W, PR, PW>(
     worker: &mut Worker,
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
-    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
-    mut pool_w: WriteHalf<TcpStream>, proxy: Arc<Proxy>, is_encrypted: bool,
+    pool_r: tokio::io::BufReader<tokio::io::ReadHalf<PR>>,
+    mut pool_w: WriteHalf<PW>, proxy: Arc<Proxy>, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
     W: AsyncWrite,
+    PR: AsyncRead,
+    PW: AsyncWrite,
 {
     let mut worker_name: String = String::new();
     let mut eth_server_result = EthServerRoot {
@@ -328,7 +330,7 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
-                if is_fee_random((config.share_rate + 0.05).into()) {
+                if is_fee_random((config.share_rate).into()) {
                     job_rpc.result = job_res;
                     let job_id = job_rpc.get_job_id().unwrap();
                     if send_job.contains(&job_id) {

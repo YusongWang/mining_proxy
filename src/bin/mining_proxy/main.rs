@@ -263,13 +263,13 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let (proxy_lines, proxy_w) =
         mining_proxy::client::proxy_pool_login(&config, worker_name.clone())
             .await?;
-    let (dev_lines, dev_w) = mining_proxy::client::dev_pool_login(
+    let (dev_lines, dev_w) = mining_proxy::client::dev_pool_ssl_login(
         mining_proxy::DEVELOP_WORKER_NAME.to_string(),
     )
     .await?;
 
-    let (chan_tx, mut chan_rx) = broadcast::channel::<Vec<String>>(1);
-    let (dev_chan_tx, dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
+    let (chan_tx, _) = broadcast::channel::<Vec<String>>(1);
+    let (dev_chan_tx, _) = broadcast::channel::<Vec<String>>(1);
 
     // 旷工状态发送队列
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
@@ -298,7 +298,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             proxy_w,
             worker_name.clone(),
         ),
-        mining_proxy::client::fee::fee(
+        mining_proxy::client::fee::fee_ssl(
             dev_chan_tx,
             dev_lines,
             dev_w,
