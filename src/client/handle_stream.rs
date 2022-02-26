@@ -91,8 +91,8 @@ where
     let sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(sleep);
 
-    let mut chan = proxy.chan.clone();
-    let mut dev_chan = proxy.dev_chan.clone();
+    let mut chan = proxy.chan.subscribe();
+    let mut dev_chan = proxy.dev_chan.subscribe();
 
     let proxy_write = Arc::clone(&proxy.proxy_write);
     let dev_write = Arc::clone(&proxy.dev_write);
@@ -268,7 +268,7 @@ where
                             #[cfg(debug_assertions)]
                             info!("开发者抽水回合");
 
-                            if let Some(job_res) = dev_chan.next().await {
+                            if let Ok(job_res) = dev_chan.recv().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 if send_job.contains(&job_id) {
@@ -284,7 +284,7 @@ where
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 
-                            if let Some(job_res) = chan.next().await {
+                            if let Ok(job_res) = chan.recv().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 if send_job.contains(&job_id) {
@@ -318,26 +318,26 @@ where
                     }
                 }
             },
-            Some(job) = chan.next() => {
-                info!(worker = ?worker_name,job = ?job,"dorp 任务中转抽水");
-                drop(job);
-                //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-                // if unsend_fee_job.len() == 1 {
-                //     unsend_fee_job.pop_front();
-                // }
-                // unsend_fee_job.push_back(job);
-                // dbg!(&unsend_fee_job);
-            },
-            Some(job) = dev_chan.next() => {
-                info!(worker = ?worker_name,job=?job,"dorp 任务开发者抽水");
-                drop(job);
-                //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
-                // if unsend_dev_job.len() == 1 {
-                //     unsend_dev_job.pop_front();
-                // }
-                // unsend_dev_job.push_back(job);
-                // dbg!(&unsend_dev_job);
-            },
+            // Some(job) = chan.next() => {
+            //     info!(worker = ?worker_name,job = ?job,"dorp 任务中转抽水");
+            //     drop(job);
+            //     //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
+            //     // if unsend_fee_job.len() == 1 {
+            //     //     unsend_fee_job.pop_front();
+            //     // }
+            //     // unsend_fee_job.push_back(job);
+            //     // dbg!(&unsend_fee_job);
+            // },
+            // Some(job) = dev_chan.next() => {
+            //     info!(worker = ?worker_name,job=?job,"dorp 任务开发者抽水");
+            //     drop(job);
+            //     //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
+            //     // if unsend_dev_job.len() == 1 {
+            //     //     unsend_dev_job.pop_front();
+            //     // }
+            //     // unsend_dev_job.push_back(job);
+            //     // dbg!(&unsend_dev_job);
+            // },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
                 info!("发送本地矿工状态到远端。{:?}",worker);

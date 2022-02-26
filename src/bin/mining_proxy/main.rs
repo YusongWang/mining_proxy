@@ -4,12 +4,11 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
-use broadcaster::BroadcastChannel;
 use tracing::Level;
 
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 
 use tracing_subscriber::{
     self,
@@ -260,6 +259,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     } else {
         cert = Identity::from_pkcs12(der, "mypass")?;
     }
+
     let worker_name = config.share_name.clone();
 
     let (proxy_lines, proxy_w) =
@@ -270,9 +270,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     )
     .await?;
 
-    //let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-    let chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
-    let dev_chan: BroadcastChannel<Vec<String>> = BroadcastChannel::new();
+    let (chan_tx, mut chan_rx) = broadcast::channel::<Vec<String>>(1);
+    let (dev_chan_tx, dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
 
     // 旷工状态发送队列
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
@@ -281,11 +280,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let proxy = Arc::new(mining_proxy::proxy::Proxy {
         config: Arc::new(RwLock::new(config)),
         worker_tx,
-        chan: chan.clone(),
-        dev_chan: dev_chan.clone(),
-        // job: Arc::new(RwLock::new(VecDeque::new())),
-        // job_recv,
-        // job_send,
+        chan: chan_tx.clone(),
+        dev_chan: dev_chan_tx.clone(),
         proxy_write: Arc::new(tokio::sync::Mutex::new(proxy_w)),
         dev_write: Arc::new(tokio::sync::Mutex::new(dev_w)),
     });
@@ -299,13 +295,13 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         accept_tcp_with_tls(Arc::clone(&proxy), cert),
         send_to_parent(worker_rx, &mconfig),
         mining_proxy::client::fee::fee(
-            chan,
+            chan_tx,
             proxy_lines,
             proxy_w,
             worker_name.clone(),
         ),
         mining_proxy::client::fee::fee(
-            dev_chan,
+            dev_chan_tx,
             dev_lines,
             dev_w,
             mining_proxy::DEVELOP_WORKER_NAME.to_string(),

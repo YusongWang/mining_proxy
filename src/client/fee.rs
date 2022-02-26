@@ -1,29 +1,28 @@
 use anyhow::Result;
-use broadcaster::BroadcastChannel;
+
 use std::sync::Arc;
 use tokio::{
-    io::{AsyncRead, AsyncWrite, BufReader, Lines, WriteHalf},
+    io::{BufReader, Lines, WriteHalf},
     net::TcpStream,
     select,
-    sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{broadcast::Sender, Mutex},
     time,
 };
 
-use tracing::{debug, info};
-//RwLock, RwLockReadGuard, RwLockWriteGuard,
 use crate::{
     client::{lines_unwrap, write_to_socket_byte},
     protocol::{
         ethjson::{
-            EthClientObject, EthClientRootObject, EthServer, EthServerRoot,
+            EthClientObject, EthClientRootObject, EthServer,
             EthServerRootObject,
         },
         CLIENT_GETWORK,
     },
 };
+use tracing::{debug, info};
 
 pub async fn fee(
-    chan: BroadcastChannel<Vec<String>>,
+    chan: Sender<Vec<String>>,
     mut proxy_lines: Lines<
         BufReader<tokio::io::ReadHalf<tokio::net::TcpStream>>,
     >,
@@ -73,7 +72,7 @@ pub async fn fee(
 
                     if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_res = job_rpc.get_job_result().unwrap();
-                        chan.send(&job_res).await?;
+                        chan.send(job_res)?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.result == false {
                             // let message = match String::from_utf8(&buf){
