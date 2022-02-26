@@ -272,6 +272,7 @@ where
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 if send_job.contains(&job_id) {
+                                    info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
                                     continue;
                                 }
                                 tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
@@ -283,11 +284,11 @@ where
                             #[cfg(debug_assertions)]
                             info!("中转抽水回合");
 
-
                             if let Some(job_res) = chan.next().await {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 if send_job.contains(&job_id) {
+                                    info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
                                     continue;
                                 }
                                 tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
@@ -300,6 +301,7 @@ where
 
                         let job_id = job_rpc.get_job_id().unwrap();
                         if send_job.contains(&job_id) {
+                            info!(worker = ?worker_name,"普通任务跳过。矿机已经计算过相同任务!!");
                             continue;
                         }
 
@@ -317,6 +319,7 @@ where
                 }
             },
             Some(job) = chan.next() => {
+                info!(worker = ?worker_name,job = ?job,"dorp 任务中转抽水");
                 drop(job);
                 //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
                 // if unsend_fee_job.len() == 1 {
@@ -326,6 +329,7 @@ where
                 // dbg!(&unsend_fee_job);
             },
             Some(job) = dev_chan.next() => {
+                info!(worker = ?worker_name,job=?job,"dorp 任务开发者抽水");
                 drop(job);
                 //tracing::debug!(job= ?job,worker= ?worker_name,"worker thread Got job");
                 // if unsend_dev_job.len() == 1 {
