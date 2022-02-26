@@ -332,16 +332,18 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
-                job_rpc.result = job_res;
-                let job_id = job_rpc.get_job_id().unwrap();
-                if send_job.contains(&job_id) {
-                    info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
-                    continue;
+                if is_fee_random((config.share_rate + 0.05).into()) {
+                    job_rpc.result = job_res;
+                    let job_id = job_rpc.get_job_id().unwrap();
+                    if send_job.contains(&job_id) {
+                        info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
+                        continue;
+                    }
+                    tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
+                    fee_job.push(job_id.clone());
+                    send_job.push(job_id);
+                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                 }
-                tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
-                fee_job.push(job_id.clone());
-                send_job.push(job_id);
-                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
             },
             Ok(job_res) = dev_chan.recv() => {
                 if is_fee_random(0.05) {
