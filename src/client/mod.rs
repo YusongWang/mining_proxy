@@ -181,7 +181,7 @@ pub fn get_pool_random_stream(
 
         let std_stream = match std::net::TcpStream::connect_timeout(
             &addr,
-            Duration::new(5, 0),
+            Duration::new(60, 0),
         ) {
             Ok(stream) => stream,
             Err(_) => {
@@ -218,7 +218,7 @@ pub fn get_pool_stream(
 
         let std_stream = match std::net::TcpStream::connect_timeout(
             &addr,
-            Duration::new(20, 0),
+            Duration::new(60, 0),
         ) {
             Ok(stream) => stream,
             Err(_) => {
@@ -259,7 +259,7 @@ pub async fn get_pool_stream_with_tls(
 
         let std_stream = match std::net::TcpStream::connect_timeout(
             &addr,
-            Duration::new(5, 0),
+            Duration::new(60, 0),
         ) {
             Ok(straem) => straem,
             Err(_) => {
@@ -977,27 +977,27 @@ pub async fn dev_pool_ssl_login(
     Lines<BufReader<ReadHalf<tokio_native_tls::TlsStream<TcpStream>>>>,
     WriteHalf<TlsStream<TcpStream>>,
 )> {
-    let pools = vec![
-        "asia2.ethermine.org:5555".to_string(),
-        "asia1.ethermine.org:5555".to_string(),
-    ];
-
     // let pools = vec![
-    //     "eth-hk.flexpool.io:22271".to_string(),
-    //     "eth-hke.flexpool.io:22271".to_string(),
-    //     "hke.fpmirror.com:22271".to_string(),
-    //     "eth-sg.flexpool.io:22271".to_string(),
-    //     "eth-hk.flexpool.io:5555".to_string(),
-    //     "eth-hke.flexpool.io:5555".to_string(),
-    //     "hke.fpmirror.com:5555".to_string(),
-    //     "eth-sg.flexpool.io:5555".to_string(),
+    //     "asia2.ethermine.org:5555".to_string(),
+    //     "asia1.ethermine.org:5555".to_string(),
     // ];
+
+    let pools = vec![
+        "eth-hk.flexpool.io:22271".to_string(),
+        "eth-hke.flexpool.io:22271".to_string(),
+        "hke.fpmirror.com:22271".to_string(),
+        "eth-sg.flexpool.io:22271".to_string(),
+        "eth-hk.flexpool.io:5555".to_string(),
+        "eth-hke.flexpool.io:5555".to_string(),
+        "hke.fpmirror.com:5555".to_string(),
+        "eth-sg.flexpool.io:5555".to_string(),
+    ];
 
     let (stream, _) =
         match crate::client::get_pool_stream_with_tls(&pools).await {
             Some((stream, addr)) => (stream, addr),
             None => {
-                bail!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有矿池均不可链接。请修改后重试");
             }
         };
 
@@ -1009,7 +1009,7 @@ pub async fn dev_pool_ssl_login(
         id: CLIENT_LOGIN,
         method: "eth_submitLogin".into(),
         params: vec![
-            "0x3602b50d3086edefcd9318bcceb6389004fb14ee".into(),
+            "0xBC9fB4fD559217715d090975D5fF8FcDFc172345".into(),
             "x".into(),
         ],
         worker: hostname.clone(),
