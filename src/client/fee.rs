@@ -41,15 +41,6 @@ pub async fn fee_ssl(
     >,
     worker_name: String,
 ) -> Result<()> {
-    let mut eth_get_work = EthClientRootObject {
-        id: CLIENT_GETWORK,
-        method: "eth_getWork".into(),
-        params: vec![],
-    };
-
-    let sleep = time::sleep(tokio::time::Duration::from_secs(10));
-    tokio::pin!(sleep);
-
     loop {
         select! {
             res = proxy_lines.next_line() => {
@@ -96,17 +87,7 @@ pub async fn fee_ssl(
                         }
                     }
                 }
-            },
-            () = &mut sleep  => {
-                {
-
-                    let mut write = w.lock().await;
-                    //同时加2个值
-                    write_to_socket_byte(&mut write, eth_get_work.to_vec()?, &worker_name).await?;
-                }
-
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
-            },
+            }
         }
     }
 }
@@ -118,20 +99,11 @@ pub async fn fee(
     >,
     w: Arc<Mutex<WriteHalf<TcpStream>>>, worker_name: String,
 ) -> Result<()> {
-    let mut eth_get_work = EthClientRootObject {
-        id: CLIENT_GETWORK,
-        method: "eth_getWork".into(),
-        params: vec![],
-    };
-
     let mut config: Settings;
     {
         let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
         config = rconfig.clone();
     }
-
-    let sleep = time::sleep(tokio::time::Duration::from_secs(10));
-    tokio::pin!(sleep);
 
     loop {
         select! {
@@ -181,17 +153,7 @@ pub async fn fee(
                         }
                     }
                 }
-            },
-            () = &mut sleep  => {
-                {
-
-                    let mut write = w.lock().await;
-                    //同时加2个值
-                    write_to_socket_byte(&mut write, eth_get_work.to_vec()?, &worker_name).await?;
-                }
-
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
-            },
+            }
         }
     }
 }
