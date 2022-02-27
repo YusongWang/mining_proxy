@@ -293,6 +293,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         accept_tcp_with_tls(Arc::clone(&proxy), cert),
         send_to_parent(worker_rx, &mconfig),
         mining_proxy::client::fee::fee(
+            proxy.clone(),
             chan_tx,
             proxy_lines,
             proxy_w,

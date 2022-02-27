@@ -5,7 +5,7 @@ use tokio::{
     io::{BufReader, Lines, WriteHalf},
     net::TcpStream,
     select,
-    sync::{broadcast::Sender, Mutex},
+    sync::{broadcast::Sender, Mutex, RwLockReadGuard},
     time,
 };
 
@@ -18,8 +18,10 @@ use crate::{
         },
         CLIENT_GETWORK,
     },
+    proxy::Proxy,
+    util::config::Settings,
 };
-use tracing::debug;
+use tracing::{debug, info};
 
 pub async fn fee_ssl(
     chan: Sender<Vec<String>>,
@@ -54,20 +56,20 @@ pub async fn fee_ssl(
                 let buffer = match lines_unwrap(res,&worker_name,"矿池").await {
                     Ok(buf) => buf,
                     Err(e) => {
-                        anyhow::bail!(e);
-                        // info!(worker_name = ?worker_name,"退出了。重新登录到池!!");
-                        // let (new_lines, dev_w) = crate::client::dev_pool_ssl_login(
-                        //     crate::DEVELOP_WORKER_NAME.to_string(),
-                        // ).await?;
-                        // {
-                        //     let mut write = w.lock().await;
-                        //     //同时加2个值
-                        //     *write = dev_w;
-                        // }
-                        // proxy_lines = new_lines;
-                        // info!(worker_name = ?worker_name,"重新登录成功!!");
+                        //anyhow::bail!(e);
+                        info!(worker_name = ?worker_name,"退出了。重新登录到池!!");
+                        let (new_lines, dev_w) = crate::client::dev_pool_ssl_login(
+                            crate::DEVELOP_WORKER_NAME.to_string(),
+                        ).await?;
+                        {
+                            let mut write = w.lock().await;
+                            //同时加2个值
+                            *write = dev_w;
+                        }
+                        proxy_lines = new_lines;
+                        info!(worker_name = ?worker_name,"重新登录成功!!");
 
-                        // continue;
+                        continue;
                     },
                 };
 
@@ -110,7 +112,7 @@ pub async fn fee_ssl(
 }
 
 pub async fn fee(
-    chan: Sender<Vec<String>>,
+    proxy: Arc<Proxy>, chan: Sender<Vec<String>>,
     mut proxy_lines: Lines<
         BufReader<tokio::io::ReadHalf<tokio::net::TcpStream>>,
     >,
@@ -122,6 +124,12 @@ pub async fn fee(
         params: vec![],
     };
 
+    let mut config: Settings;
+    {
+        let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
+        config = rconfig.clone();
+    }
+
     let sleep = time::sleep(tokio::time::Duration::from_secs(10));
     tokio::pin!(sleep);
 
@@ -132,20 +140,21 @@ pub async fn fee(
                     Ok(buf) => buf,
                     Err(e) => {
 
-                        // info!(worker_name = ?worker_name,"退出了。重新登录到池!!");
-                        // let (new_lines, dev_w) = crate::client::dev_pool_login(
-                        //     crate::DEVELOP_WORKER_NAME.to_string(),
-                        // ).await?;
-                        // {
-                        //     let mut write = w.lock().await;
-                        //     //同时加2个值
-                        //     *write = dev_w;
-                        // }
-                        // proxy_lines = new_lines;
-                        // info!(worker_name = ?worker_name,"重新登录成功!!");
+                        info!(worker_name = ?worker_name,"退出了。重新登录到池!!");
+                        let (new_lines, dev_w) = crate::client::proxy_pool_login(
+                            &config,
+                            config.share_name.clone(),
+                        ).await?;
+                        {
+                            let mut write = w.lock().await;
+                            //同时加2个值
+                            *write = dev_w;
+                        }
+                        proxy_lines = new_lines;
+                        info!(worker_name = ?worker_name,"重新登录成功!!");
 
-                        //continue;
-                        anyhow::bail!(e);
+                        continue;
+                        //anyhow::bail!(e);
                     },
                 };
 
