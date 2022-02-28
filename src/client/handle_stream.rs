@@ -76,6 +76,9 @@ where
     //最后一次发送的rpc_id
     let mut rpc_id = 0;
 
+    // 如果任务时重复的，就等待一次下次发送
+    //let mut dev_send_idx = 0;
+
     // 包装为封包格式。
     let mut pool_lines = pool_r.lines();
     let mut worker_lines;
@@ -181,8 +184,8 @@ where
                                     if dev_fee_job.contains(&job_id) {
                                         //Send to fee
                                         //tracing::info!(worker_name = ? worker_name,"DEV_FEE");
-                                        worker.fee_share_index_add();
-                                        worker.fee_share_accept();
+                                        // worker.fee_share_index_add();
+                                        // worker.fee_share_accept();
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         {
                                             let mut write = dev_write.lock().await;
@@ -326,10 +329,12 @@ where
                     job_rpc.result = job_res;
                     let job_id = job_rpc.get_job_id().unwrap();
                     if send_job.contains(&job_id) {
-                        //info!(worker = ?worker_name,"中转抽水任务跳过。矿机已经计算过相同任务!!");
                         continue;
                     }
-                    //tracing::debug!(job_id = ?job_id,"Set the ProxyFee Job");
+                    if dev_fee_job.contains(&job_id) {
+                        continue;
+                    }
+
                     fee_job.push(job_id.clone());
                     send_job.push(job_id);
                     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
@@ -346,6 +351,10 @@ where
                         //info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
                         continue;
                     }
+                    if fee_job.contains(&job_id) {
+                        continue;
+                    }
+
                     //tracing::debug!(job_id = ?job_id,"Set the DevFee Job");
                     dev_fee_job.push(job_id.clone());
                     send_job.push(job_id);
