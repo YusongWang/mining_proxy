@@ -294,6 +294,7 @@ where
             Ok(job_res) = chan.recv() => {
                 if is_fee_random((config.share_rate).into()) {
                     job_rpc.result = job_res;
+                    job_rpc.result.push("1".into());
                     let job_id = job_rpc.get_job_id().unwrap();
                     if send_job.contains(&job_id) {
                         fee_job.push(job_id.clone());
@@ -316,6 +317,7 @@ where
                     info!("开发者写入抽水任务");
 
                     job_rpc.result = job_res;
+                    job_rpc.result.push("2".into());
                     let job_id = job_rpc.get_job_id().unwrap();
                     if send_job.contains(&job_id) {
                         //info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");

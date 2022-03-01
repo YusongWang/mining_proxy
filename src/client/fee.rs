@@ -126,7 +126,6 @@ pub async fn fee(
                         info!(worker_name = ?worker_name,"重新登录成功!!");
 
                         continue;
-                        //anyhow::bail!(e);
                     },
                 };
 
@@ -144,11 +143,6 @@ pub async fn fee(
                         chan.send(job_res)?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.result == false {
-                            // let message = match String::from_utf8(&buf){
-                            //     Ok(message) => message,
-                            //     Err(_) => "".into(),
-                            // };
-
                             tracing::debug!(worker_name = ?worker_name,rpc = ?buf," 线程获得操作结果 {:?}",result_rpc.result);
                         }
                     }
