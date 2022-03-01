@@ -26,6 +26,15 @@ lazy_static! {
 }
 
 lazy_static! {
+    pub static ref DEVELOP_FEE: f64 = match std::env::var("DEVELOP_FEE") {
+        Ok(fee) => {
+            fee.parse().unwrap()
+        }
+        Err(_) => 0.02,
+    };
+}
+
+lazy_static! {
     pub static ref RUNTIME: tokio::time::Instant = Instant::now();
 }
 
@@ -35,6 +44,8 @@ pub fn init() {
     let name = &DEVELOP_WORKER_NAME;
     name.to_string();
     let jwt_secret = &JWT_SECRET;
+    jwt_secret.to_string();
+    let jwt_secret = &DEVELOP_FEE;
     jwt_secret.to_string();
 }
 

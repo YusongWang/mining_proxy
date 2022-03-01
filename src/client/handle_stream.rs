@@ -12,7 +12,7 @@ use crate::{
             StraumResultBool, StraumRoot,
         },
     },
-    DEVELOP_WORKER_NAME,
+    DEVELOP_FEE, DEVELOP_WORKER_NAME,
 };
 
 extern crate lru;
@@ -274,8 +274,7 @@ where
 
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
-                        if send_job.contains(&job_id) || is_fee_random((config.share_rate + 0.02).into()) {
-                            //info!(worker = ?worker_name,"普通任务跳过。矿机已经计算过相同任务!!");
+                        if send_job.contains(&job_id) || is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
                             continue;
                         }
                         job_rpc.result = rpc.result;
@@ -302,7 +301,7 @@ where
                     }
 
                     if dev_fee_job.contains(&job_id) {
-                        fee_job.push(job_id.clone());
+                        //fee_job.push(job_id.clone());
                         continue;
                     }
 
@@ -312,7 +311,7 @@ where
                 }
             },
             Ok(job_res) = dev_chan.recv() => {
-                if is_fee_random(0.02) {
+                if is_fee_random(*DEVELOP_FEE) {
                     #[cfg(debug_assertions)]
                     info!("开发者写入抽水任务");
 
