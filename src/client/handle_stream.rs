@@ -301,8 +301,11 @@ where
                         continue;
                     }
 
+                    if fee_job.contains(&job_id) {
+                        continue;
+                    }
+
                     if dev_fee_job.contains(&job_id) {
-                        //fee_job.push(job_id.clone());
                         continue;
                     }
 
@@ -329,6 +332,10 @@ where
                     if fee_job.contains(&job_id) {
                         // 拿走
                         dev_fee_job.push(job_id.clone());
+                        continue;
+                    }
+
+                    if dev_fee_job.contains(&job_id) {
                         continue;
                     }
 
