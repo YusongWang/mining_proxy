@@ -23,6 +23,7 @@ use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
 
 use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
+    protocol::ethjson::EthClientObject,
     state::Worker,
     util::{config::Settings, logger},
     web::{handles::auth::Claims, AppState, OnlineWorker},
@@ -271,6 +272,10 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let (chan_tx, chan_rx) = broadcast::channel::<Vec<String>>(1);
     let (dev_chan_tx, dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
 
+    let (tx, rx) = mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+    let (dev_tx, dev_rx) =
+        mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+
     // 旷工状态发送队列
     let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
@@ -279,13 +284,10 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         config: Arc::new(RwLock::new(config)),
         worker_tx,
         chan: chan_tx.clone(),
+        tx,
+        dev_tx,
         dev_chan: dev_chan_tx.clone(),
-        proxy_write: Arc::new(tokio::sync::Mutex::new(proxy_w)),
-        dev_write: Arc::new(tokio::sync::Mutex::new(dev_w)),
     });
-
-    let proxy_w = proxy.proxy_write.clone();
-    let dev_w = proxy.dev_write.clone();
 
     let res = tokio::try_join!(
         accept_tcp(Arc::clone(&proxy)),
@@ -293,6 +295,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         accept_tcp_with_tls(Arc::clone(&proxy), cert),
         send_to_parent(worker_rx, &mconfig),
         mining_proxy::client::fee::fee(
+            rx,
             proxy.clone(),
             chan_tx,
             proxy_lines,
@@ -300,6 +303,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             worker_name.clone(),
         ),
         mining_proxy::client::fee::fee_ssl(
+            dev_rx,
             dev_chan_tx,
             dev_lines,
             dev_w,

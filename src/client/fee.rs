@@ -24,6 +24,7 @@ use crate::{
 use tracing::{debug, info};
 
 pub async fn fee_ssl(
+    mut rx: tokio::sync::mpsc::Receiver<Box<dyn EthClientObject + Send + Sync>>,
     chan: Sender<Vec<String>>,
     mut proxy_lines: tokio::io::Lines<
         tokio::io::BufReader<
@@ -32,12 +33,8 @@ pub async fn fee_ssl(
             >,
         >,
     >,
-    w: Arc<
-        tokio::sync::Mutex<
-            tokio::io::WriteHalf<
-                tokio_native_tls::TlsStream<tokio::net::TcpStream>,
-            >,
-        >,
+    mut w: tokio::io::WriteHalf<
+        tokio_native_tls::TlsStream<tokio::net::TcpStream>,
     >,
     worker_name: String,
 ) -> Result<()> {
@@ -52,14 +49,12 @@ pub async fn fee_ssl(
                         let (new_lines, dev_w) = crate::client::dev_pool_ssl_login(
                             crate::DEVELOP_WORKER_NAME.to_string(),
                         ).await?;
-                        {
-                            let mut write = w.lock().await;
-                            //同时加2个值
-                            *write = dev_w;
-                        }
+
+                        //同时加2个值
+                        w = dev_w;
+
                         proxy_lines = new_lines;
                         info!(worker_name = ?worker_name,"重新登录成功!!");
-
                         continue;
                     },
                 };
@@ -83,17 +78,21 @@ pub async fn fee_ssl(
                         }
                     }
                 }
+            },
+            Some(mut job_rpc) = rx.recv() => {
+                write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             }
         }
     }
 }
 
 pub async fn fee(
+    mut rx: tokio::sync::mpsc::Receiver<Box<dyn EthClientObject + Send + Sync>>,
     proxy: Arc<Proxy>, chan: Sender<Vec<String>>,
     mut proxy_lines: Lines<
         BufReader<tokio::io::ReadHalf<tokio::net::TcpStream>>,
     >,
-    w: Arc<Mutex<WriteHalf<TcpStream>>>, worker_name: String,
+    mut w: WriteHalf<TcpStream>, worker_name: String,
 ) -> Result<()> {
     let mut config: Settings;
     {
@@ -113,11 +112,9 @@ pub async fn fee(
                             &config,
                             config.share_name.clone(),
                         ).await?;
-                        {
-                            let mut write = w.lock().await;
-                            //同时加2个值
-                            *write = dev_w;
-                        }
+
+                        //同时加2个值
+                        w = dev_w;
                         proxy_lines = new_lines;
                         info!(worker_name = ?worker_name,"重新登录成功!!");
 
@@ -143,6 +140,9 @@ pub async fn fee(
                         }
                     }
                 }
+            },
+            Some(mut job_rpc) = rx.recv() => {
+                write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             }
         }
     }

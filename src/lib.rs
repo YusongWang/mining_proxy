@@ -45,8 +45,8 @@ pub fn init() {
     name.to_string();
     let jwt_secret = &JWT_SECRET;
     jwt_secret.to_string();
-    let jwt_secret = &DEVELOP_FEE;
-    jwt_secret.to_string();
+    let dev_fee = &DEVELOP_FEE;
+    dev_fee.to_string();
 }
 
 pub mod client;

@@ -92,14 +92,11 @@ where
     }
 
     let workers_queue = proxy.worker_tx.clone();
-    let sleep = time::sleep(tokio::time::Duration::from_secs(30));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(60));
     tokio::pin!(sleep);
 
     let mut chan = proxy.chan.subscribe();
     let mut dev_chan = proxy.dev_chan.subscribe();
-
-    let proxy_write = Arc::clone(&proxy.proxy_write);
-    let dev_write = Arc::clone(&proxy.dev_write);
 
     let mut config: Settings;
     {
@@ -115,10 +112,10 @@ where
 
                 //每次获取一次config. 有更新的话就使用新的了
                 //let config: Settings;
-                {
-                    let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
-                    config = rconfig.clone();
-                }
+                // {
+                //     let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
+                //     config = rconfig.clone();
+                // }
 
                 if is_encrypted {
                     let key = Vec::from_hex(config.key.clone()).unwrap();
@@ -184,20 +181,22 @@ where
 
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
-                                        {
-                                            let mut write = dev_write.lock().await;
-                                            //同时加2个值
-                                            write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
-                                        }
+                                        // {
+                                        //     let mut write = dev_write.lock().await;
+                                        //     //同时加2个值
+                                        //     write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
+                                        // }
                                     } else if fee_job.contains(&job_id) {
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
+
                                         json_rpc.set_worker_name(&config.share_name.clone());
-                                        {
-                                            let mut write = proxy_write.lock().await;
-                                            //同时加2个值
-                                            write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
-                                        }
+
+                                        // {
+                                        //     let mut write = proxy_write.lock().await;
+                                        //     //同时加2个值
+                                        //     write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
+                                        // }
                                     } else {
                                         worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
@@ -285,7 +284,7 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
-                if is_fee_random((config.share_rate).into()) {
+                if is_fee_random(config.share_rate.into()) {
                     job_rpc.result = job_res;
                     job_rpc.result.push("1".into());
                     let job_id = job_rpc.get_job_id().unwrap();
@@ -350,7 +349,7 @@ where
                         tracing::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(30));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
             },
         }
     }
