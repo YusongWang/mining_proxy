@@ -198,7 +198,6 @@ where
                                             //同时加2个值
                                             write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
                                         }
-
                                     } else {
                                         worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
