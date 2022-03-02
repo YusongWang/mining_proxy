@@ -296,16 +296,18 @@ where
                     job_rpc.result = job_res;
                     job_rpc.result.push("1".into());
                     let job_id = job_rpc.get_job_id().unwrap();
-                    if send_job.contains(&job_id) {
-                        fee_job.push(job_id.clone());
-                        continue;
-                    }
+
 
                     if fee_job.contains(&job_id) {
                         continue;
                     }
 
                     if dev_fee_job.contains(&job_id) {
+                        continue;
+                    }
+
+                    if send_job.contains(&job_id) {
+                        fee_job.push(job_id.clone());
                         continue;
                     }
 
@@ -322,12 +324,7 @@ where
                     job_rpc.result = job_res;
                     job_rpc.result.push("2".into());
                     let job_id = job_rpc.get_job_id().unwrap();
-                    if send_job.contains(&job_id) {
-                        //info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
-                        // 拿走
-                        dev_fee_job.push(job_id.clone());
-                        continue;
-                    }
+
 
                     if fee_job.contains(&job_id) {
                         // 拿走
@@ -339,6 +336,13 @@ where
                         continue;
                     }
 
+                    if send_job.contains(&job_id) {
+                        //info!(worker = ?worker_name,"开发者抽水任务跳过。矿机已经计算过相同任务!!");
+                        // 拿走
+                        dev_fee_job.push(job_id.clone());
+                        continue;
+                    }
+                    
                     dev_fee_job.push(job_id.clone());
                     send_job.push(job_id);
                     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
