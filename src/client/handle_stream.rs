@@ -181,12 +181,8 @@ where
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
                                 if let Some(job_id) = json_rpc.get_job_id(){
-                                    //tracing::debug!(job_id = ?job_id,"Get Job ID");
+
                                     if dev_fee_job.contains(&job_id) {
-                                        //Send to fee
-                                        //tracing::info!(worker_name = ? worker_name,"DEV_FEE");
-                                        // worker.fee_share_index_add();
-                                        // worker.fee_share_accept();
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         {
                                             let mut write = dev_write.lock().await;
@@ -194,8 +190,6 @@ where
                                             write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
                                         }
                                     } else if fee_job.contains(&job_id) {
-                                        //Send to fee
-                                        tracing::info!(worker_name = ? worker_name,"从旷工获得一个抽水份额!!!!");
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&config.share_name.clone());
@@ -204,7 +198,7 @@ where
                                             //同时加2个值
                                             write_to_socket_byte(&mut write, json_rpc.to_vec()?, &worker_name).await?
                                         }
-                                        //sender.try_send(crate::client::FEE::PROXYFEE(json_rpc))?;
+
                                     } else {
                                         worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
@@ -342,7 +336,7 @@ where
                         dev_fee_job.push(job_id.clone());
                         continue;
                     }
-                    
+
                     dev_fee_job.push(job_id.clone());
                     send_job.push(job_id);
                     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
