@@ -98,6 +98,9 @@ where
     let mut chan = proxy.chan.subscribe();
     let mut dev_chan = proxy.dev_chan.subscribe();
 
+    let mut tx = proxy.tx.clone();
+    let mut dev_tx = proxy.dev_tx.clone();
+
     let mut config: Settings;
     {
         let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
@@ -181,6 +184,7 @@ where
 
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
+                                        dev_tx.send(json_rpc).await?;
                                         // {
                                         //     let mut write = dev_write.lock().await;
                                         //     //同时加2个值
@@ -191,7 +195,7 @@ where
                                         worker.fee_share_accept();
 
                                         json_rpc.set_worker_name(&config.share_name.clone());
-
+                                        tx.send(json_rpc).await?;
                                         // {
                                         //     let mut write = proxy_write.lock().await;
                                         //     //同时加2个值

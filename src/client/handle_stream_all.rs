@@ -54,12 +54,6 @@ where
         Ok(res) => match res {
             Some(buf) => Ok(buf),
             None => {
-                // match w.shutdown().await {
-                //     Ok(_) => {}
-                //     Err(e) => {
-                //         tracing::error!("Error Worker Shutdown Socket {:?}",
-                // e);     }
-                // };
                 bail!("{}：{} 主动断开 ", form_name, worker_name);
             }
         },
