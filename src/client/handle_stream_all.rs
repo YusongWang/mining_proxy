@@ -60,15 +60,11 @@ where
                 //         tracing::error!("Error Worker Shutdown Socket {:?}",
                 // e);     }
                 // };
-                bail!(
-                    "{}：{}  读取到字节0. 矿池主动断开 ",
-                    form_name,
-                    worker_name
-                );
+                bail!("{}：{} 主动断开 ", form_name, worker_name);
             }
         },
         Err(e) => {
-            bail!("{}：{} 读取错误:", form_name, worker_name);
+            bail!("{}：{} 错误: {}", form_name, worker_name, e);
         }
     };
 

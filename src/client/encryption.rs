@@ -73,7 +73,8 @@ async fn transfer(
                             bail!("矿机下线了")
                         }
                     },
-                    Err(e) => {pool_w.shutdown().await; bail!("读取超时了 矿机下线了: {}",e)},
+                    Err(e) => {pool_w.shutdown().await;
+                        bail!("读取超时了 矿机下线了: {}",e)},
                 };
 
                 #[cfg(debug_assertions)]

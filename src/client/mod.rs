@@ -1034,11 +1034,7 @@ pub async fn lines_unwrap(
         Ok(res) => match res {
             Some(buf) => Ok(buf),
             None => {
-                bail!(
-                    "{}：{}  读取到字节0. 矿池主动断开 ",
-                    form_name,
-                    worker_name
-                );
+                bail!("{}：{} 矿池主动断开 ", form_name, worker_name);
             }
         },
         Err(e) => {
@@ -1066,7 +1062,7 @@ where
                         tracing::error!("Error Shutdown Socket {:?}", e);
                     }
                 }
-                bail!("矿工：{}  读取到字节0.矿工主动断开 ", worker_name);
+                bail!("矿工：{} 主动断开", worker_name);
             }
         },
         Err(e) => {
