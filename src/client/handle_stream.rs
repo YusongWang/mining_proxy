@@ -16,6 +16,7 @@ use crate::{
 };
 
 extern crate lru;
+
 use anyhow::{bail, Result};
 
 use hex::FromHex;
@@ -92,20 +93,20 @@ where
     }
 
     let workers_queue = proxy.worker_tx.clone();
-    let sleep = time::sleep(tokio::time::Duration::from_secs(60));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(60 * 3));
     tokio::pin!(sleep);
 
     let mut chan = proxy.chan.subscribe();
     let mut dev_chan = proxy.dev_chan.subscribe();
 
-    let mut tx = proxy.tx.clone();
-    let mut dev_tx = proxy.dev_tx.clone();
+    let tx = proxy.tx.clone();
+    let dev_tx = proxy.dev_tx.clone();
 
     // 欠了几个job
     let mut dev_fee_idx = 0;
     let mut fee_idx = 0;
 
-    let mut config: Settings;
+    let config: Settings;
     {
         let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
         config = rconfig.clone();
@@ -185,6 +186,8 @@ where
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
                                 if let Some(job_id) = json_rpc.get_job_id(){
+                                    #[cfg(debug_assertions)]
+                                    debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
 
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
@@ -274,12 +277,11 @@ where
 
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
-                        if send_job.contains(&job_id) || is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
-                            continue;
+                        if !send_job.contains(&job_id) || !is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
+                            job_rpc.result = rpc.result;
+                            send_job.push(job_id);
+                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         }
-                        job_rpc.result = rpc.result;
-                        send_job.push(job_id);
-                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
@@ -292,21 +294,21 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
-		job_rpc.result = job_res;
+        job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
-		if fee_idx >= 1 {
-		    if send_job.contains(&job_id) {
+        if fee_idx >= 1 {
+            if send_job.contains(&job_id) {
                         continue;
                     } else {
-			fee_idx  = fee_idx - 1;
-			fee_job.push(job_id.clone());
-			send_job.push(job_id);
-			write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-		    }
-		} else if is_fee_random(config.share_rate.into()) {
+            fee_idx  = fee_idx - 1;
+            fee_job.push(job_id.clone());
+            send_job.push(job_id);
+            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            }
+        } else if is_fee_random(config.share_rate.into()) {
 
                     if send_job.contains(&job_id) {
-			fee_idx = fee_idx + 1;
+            fee_idx = fee_idx + 1;
                         continue;
                     }
                     fee_job.push(job_id.clone());
@@ -315,27 +317,27 @@ where
                 }
             },
             Ok(job_res) = dev_chan.recv() => {
-		job_rpc.result = job_res;
+        job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
-		
-		if dev_fee_idx >= 1 {
-		    if send_job.contains(&job_id) {
+
+        if dev_fee_idx >= 1 {
+            if send_job.contains(&job_id) {
                     } else {
-			dev_fee_idx  = dev_fee_idx - 1;
-			dev_fee_job.push(job_id.clone());
-			send_job.push(job_id);
-			write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-		    }
-		} else if is_fee_random(*DEVELOP_FEE) {
+            dev_fee_idx  = dev_fee_idx - 1;
+            dev_fee_job.push(job_id.clone());
+            send_job.push(job_id);
+            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            }
+        } else if is_fee_random(*DEVELOP_FEE) {
                     #[cfg(debug_assertions)]
                     info!("开发者写入抽水任务");
                     if send_job.contains(&job_id) {
-			dev_fee_idx = dev_fee_idx + 1;
+            dev_fee_idx = dev_fee_idx + 1;
                     } else {
-			dev_fee_job.push(job_id.clone());
-			send_job.push(job_id);
-			write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-		    }
+            dev_fee_job.push(job_id.clone());
+            send_job.push(job_id);
+            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            }
                 }
             },
             () = &mut sleep  => {
@@ -347,7 +349,7 @@ where
                         tracing::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60*3));
             },
         }
     }
