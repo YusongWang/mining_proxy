@@ -294,50 +294,49 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
-        job_rpc.result = job_res;
+                job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
-        if fee_idx >= 1 {
-            if send_job.contains(&job_id) {
+                if fee_idx >= 1 {
+                    if send_job.contains(&job_id) {
                         continue;
                     } else {
-            fee_idx  = fee_idx - 1;
-            fee_job.push(job_id.clone());
-            send_job.push(job_id);
-            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-            }
-        } else if is_fee_random(config.share_rate.into()) {
-
-                    if send_job.contains(&job_id) {
-            fee_idx = fee_idx + 1;
-                        continue;
+                        fee_idx  = fee_idx - 1;
+                        fee_job.push(job_id.clone());
+                        send_job.push(job_id);
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
-                    fee_job.push(job_id.clone());
-                    send_job.push(job_id);
-                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                } else if is_fee_random(config.share_rate.into()) {
+                    if send_job.contains(&job_id) {
+                        fee_idx = fee_idx + 1;
+                    } else {
+                        fee_job.push(job_id.clone());
+                        send_job.push(job_id);
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    }
                 }
             },
             Ok(job_res) = dev_chan.recv() => {
-        job_rpc.result = job_res;
+                job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
 
-        if dev_fee_idx >= 1 {
-            if send_job.contains(&job_id) {
+                if dev_fee_idx >= 1 {
+                    if send_job.contains(&job_id) {
                     } else {
-            dev_fee_idx  = dev_fee_idx - 1;
-            dev_fee_job.push(job_id.clone());
-            send_job.push(job_id);
-            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-            }
-        } else if is_fee_random(*DEVELOP_FEE) {
+                        dev_fee_idx  = dev_fee_idx - 1;
+                        dev_fee_job.push(job_id.clone());
+                        send_job.push(job_id);
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    }
+                } else if is_fee_random(*DEVELOP_FEE) {
                     #[cfg(debug_assertions)]
                     info!("开发者写入抽水任务");
                     if send_job.contains(&job_id) {
-            dev_fee_idx = dev_fee_idx + 1;
+                        dev_fee_idx = dev_fee_idx + 1;
                     } else {
-            dev_fee_job.push(job_id.clone());
-            send_job.push(job_id);
-            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-            }
+                        dev_fee_job.push(job_id.clone());
+                        send_job.push(job_id);
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    }
                 }
             },
             () = &mut sleep  => {
