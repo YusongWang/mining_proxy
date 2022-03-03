@@ -86,16 +86,12 @@ pub async fn fee_ssl(
     }
 }
 
-pub async fn fee<R, W>(
+pub async fn fee(
     mut rx: tokio::sync::mpsc::Receiver<Box<dyn EthClientObject + Send + Sync>>,
     proxy: Arc<Proxy>, chan: Sender<Vec<String>>,
     mut proxy_lines: Lines<BufReader<tokio::io::ReadHalf<TcpStream>>>,
     mut w: WriteHalf<TcpStream>, worker_name: String,
-) -> Result<()>
-where
-    R: AsyncRead,
-    W: AsyncWrite,
-{
+) -> Result<()> {
     let mut config: Settings;
     {
         let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
@@ -175,7 +171,7 @@ where
 
 //                         info!(worker_name =
 // ?worker_name,"退出了。重新登录到池!!");                         let
-// (new_lines, dev_w) = crate::client::proxy_pool_login(                        
+// (new_lines, dev_w) = crate::client::proxy_pool_login(
 // &config,                             config.share_name.clone(),
 //                         ).await?;
 
@@ -198,11 +194,11 @@ where
 //                     }
 
 //                     if let Ok(job_rpc) =
-// serde_json::from_str::<EthServerRootObject>(&buf) {                         
-// let job_res = job_rpc.get_job_result().unwrap();                         
+// serde_json::from_str::<EthServerRootObject>(&buf) {
+// let job_res = job_rpc.get_job_result().unwrap();
 // chan.send(job_res)?;                     } else if let Ok(result_rpc) =
 // serde_json::from_str::<EthServer>(&buf) {                         if
-// result_rpc.result == false {                             
+// result_rpc.result == false {
 // tracing::debug!(worker_name = ?worker_name,rpc = ?buf," 线程获得操作结果
 // {:?}",result_rpc.result);                         }
 //                     }
