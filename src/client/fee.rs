@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use std::sync::Arc;
 use tokio::{
-    io::{BufReader, Lines, WriteHalf},
+    io::{AsyncRead, AsyncWrite, BufReader, Lines, WriteHalf},
     net::TcpStream,
     select,
     sync::{broadcast::Sender, Mutex, RwLockReadGuard},
@@ -86,14 +86,16 @@ pub async fn fee_ssl(
     }
 }
 
-pub async fn fee(
+pub async fn fee<R, W>(
     mut rx: tokio::sync::mpsc::Receiver<Box<dyn EthClientObject + Send + Sync>>,
     proxy: Arc<Proxy>, chan: Sender<Vec<String>>,
-    mut proxy_lines: Lines<
-        BufReader<tokio::io::ReadHalf<tokio::net::TcpStream>>,
-    >,
-    mut w: WriteHalf<TcpStream>, worker_name: String,
-) -> Result<()> {
+    mut proxy_lines: Lines<BufReader<tokio::io::ReadHalf<R>>>,
+    mut w: WriteHalf<W>, worker_name: String,
+) -> Result<()>
+where
+    R: AsyncRead,
+    W: AsyncWrite,
+{
     let mut config: Settings;
     {
         let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);

@@ -256,11 +256,6 @@ where
             },
             res = pool_lines.next_line() => {
                 let buffer = lines_unwrap(res,&worker_name,"矿池").await?;
-                let config: Settings;
-                {
-                    let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
-                    config = rconfig.clone();
-                }
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
 
@@ -279,7 +274,7 @@ where
 
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
-                        if !send_job.contains(&job_id) || !is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
+                        if !send_job.contains(&job_id) || is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
                             job_rpc.result = rpc.result;
                             send_job.push(job_id);
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
@@ -300,7 +295,6 @@ where
                 let job_id = job_rpc.get_job_id().unwrap();
                 if fee_idx >= 1 {
                     if send_job.contains(&job_id) {
-                        continue;
                     } else {
                         fee_idx  = fee_idx - 1;
                         fee_job.push(job_id.clone());
@@ -309,7 +303,8 @@ where
                     }
                 } else if is_fee_random(config.share_rate.into()) {
                     if send_job.contains(&job_id) {
-                        fee_idx = fee_idx + 1;
+                        //fee_idx = fee_idx + 1;
+                        fee_job.push(job_id.clone());
                     } else {
                         fee_job.push(job_id.clone());
                         send_job.push(job_id);
@@ -323,6 +318,8 @@ where
 
                 if dev_fee_idx >= 1 {
                     if send_job.contains(&job_id) {
+                        dev_fee_idx  = dev_fee_idx - 1;
+                        dev_fee_job.push(job_id.clone());
                     } else {
                         dev_fee_idx  = dev_fee_idx - 1;
                         dev_fee_job.push(job_id.clone());
@@ -333,7 +330,8 @@ where
                     #[cfg(debug_assertions)]
                     info!("开发者写入抽水任务");
                     if send_job.contains(&job_id) {
-                        dev_fee_idx = dev_fee_idx + 1;
+                        //dev_fee_idx = dev_fee_idx + 1;
+                        dev_fee_job.push(job_id.clone());
                     } else {
                         dev_fee_job.push(job_id.clone());
                         send_job.push(job_id);
