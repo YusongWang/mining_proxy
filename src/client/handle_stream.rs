@@ -233,10 +233,12 @@ where
                                 Ok(())
                             },
                             _ => {
-                                tracing::warn!("Not found method {:?}",json_rpc);
-                                eth_server_result.id = rpc_id;
-                                write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
-                                Ok(())
+                                // tracing::warn!("Not found method {:?}",json_rpc);
+                                // eth_server_result.id = rpc_id;
+                                // write_to_socket_byte(&mut pool_w,buffer.to_vec(),&mut worker_name).await?;
+                                pool_w.shutdown().await?;
+                                worker_w.shutdown().await?;
+                                return Ok(());
                             },
                         };
 
