@@ -288,7 +288,7 @@ where
                 let job_id = job_rpc.get_job_id().unwrap();
 
                 if fee_idx > 0 {
-                    if !send_job.contains(&job_id) {
+                    if !send_job.contains(&job_id) && !dev_fee_job.contains(&job_id){
                         #[cfg(debug_assertions)]
                         debug!("{} 发送抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                         fee_idx -= 1;
@@ -318,7 +318,7 @@ where
                 job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
                 if dev_fee_idx > 0 {
-                    if !send_job.contains(&job_id) {
+                    if !send_job.contains(&job_id) && !fee_job.contains(&job_id) {
                         #[cfg(debug_assertions)]
                         debug!("{} 发送开发者任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                         dev_fee_idx -= 1;
