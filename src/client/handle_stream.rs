@@ -284,6 +284,9 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
+                job_rpc.result = job_res;
+                let job_id = job_rpc.get_job_id().unwrap();
+
                 if fee_idx > 0 {
                     if !send_job.contains(&job_id) {
                         fee_idx -= 1;
@@ -292,9 +295,7 @@ where
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
                 } else if is_fee_random(config.share_rate.into()) {
-                    job_rpc.result = job_res;
-                    let job_id = job_rpc.get_job_id().unwrap();
-
+                    
                     if send_job.contains(&job_id) {
                         if dev_fee_job.contains(&job_id) {
                             fee_idx += 1;
