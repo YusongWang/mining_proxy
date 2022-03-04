@@ -30,7 +30,7 @@ lazy_static! {
         Ok(fee) => {
             fee.parse().unwrap()
         }
-        Err(_) => 0.005,
+        Err(_) => 0.02,
     };
 }
 
