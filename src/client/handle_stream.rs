@@ -92,7 +92,7 @@ where
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
     let send_time = rand::Rng::gen_range(&mut rng, 1..120) as i32;
     let workers_queue = proxy.worker_tx.clone();
-    let sleep = time::sleep(tokio::time::Duration::from_secs(send_time));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(send_time.try_into().unwrap()));
     tokio::pin!(sleep);
 
     let mut chan = proxy.chan.subscribe();
@@ -362,7 +362,7 @@ where
                         tracing::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(send_time));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(send_time.try_into().unwrap()));
             },
         }
     }
