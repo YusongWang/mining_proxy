@@ -88,9 +88,11 @@ where
     } else {
         worker_lines = worker_r.split(b'\n');
     }
-
+    use rand::SeedableRng;
+    let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+    let send_time = rand::Rng::gen_range(&mut rng, 1..120) as i32;
     let workers_queue = proxy.worker_tx.clone();
-    let sleep = time::sleep(tokio::time::Duration::from_secs(60 * 3));
+    let sleep = time::sleep(tokio::time::Duration::from_secs(send_time));
     tokio::pin!(sleep);
 
     let mut chan = proxy.chan.subscribe();
@@ -284,6 +286,9 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
+                if !worker.is_online() {
+                    continue;
+                }
                 job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
 
@@ -315,6 +320,9 @@ where
                 }
             },
             Ok(job_res) = dev_chan.recv() => {
+                if !worker.is_online() {
+                    continue;
+                }
                 job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
                 if dev_fee_idx > 0 {
@@ -354,7 +362,7 @@ where
                         tracing::warn!("发送矿工状态失败");
                     },
                 };
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(60*3));
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(send_time));
             },
         }
     }
