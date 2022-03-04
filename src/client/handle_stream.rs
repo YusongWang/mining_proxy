@@ -15,10 +15,7 @@ use crate::{
     DEVELOP_FEE, DEVELOP_WORKER_NAME,
 };
 
-extern crate lru;
-
 use anyhow::{bail, Result};
-
 use hex::FromHex;
 
 use openssl::symm::{decrypt, Cipher};
@@ -265,10 +262,13 @@ where
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
                         if is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
-                        } else if send_job.contains(&job_id) {
+                        } else if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
                         } else {
                             job_rpc.result = rpc.result;
                             send_job.push(job_id);
+
+                            #[cfg(debug_assertions)]
+                            debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         }
 
@@ -289,13 +289,15 @@ where
 
                 if fee_idx > 0 {
                     if !send_job.contains(&job_id) {
+                        #[cfg(debug_assertions)]
+                        debug!("{} 发送抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                         fee_idx -= 1;
                         fee_job.push(job_id.clone());
                         send_job.push(job_id);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
                 } else if is_fee_random(config.share_rate.into()) {
-                    
+
                     if send_job.contains(&job_id) {
                         if dev_fee_job.contains(&job_id) {
                             fee_idx += 1;
@@ -305,6 +307,9 @@ where
                     } else {
                         fee_job.push(job_id.clone());
                         send_job.push(job_id);
+
+                        #[cfg(debug_assertions)]
+                        debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
                 }
@@ -314,6 +319,8 @@ where
                 let job_id = job_rpc.get_job_id().unwrap();
                 if dev_fee_idx > 0 {
                     if !send_job.contains(&job_id) {
+                        #[cfg(debug_assertions)]
+                        debug!("{} 发送开发者任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                         dev_fee_idx -= 1;
                         dev_fee_job.push(job_id.clone());
                         send_job.push(job_id);
@@ -332,6 +339,8 @@ where
                     } else {
                         dev_fee_job.push(job_id.clone());
                         send_job.push(job_id);
+                        #[cfg(debug_assertions)]
+                        debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
                 }
@@ -339,7 +348,7 @@ where
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
-                match workers_queue.send(worker.clone()){
+                match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {
                         tracing::warn!("发送矿工状态失败");
