@@ -264,11 +264,14 @@ where
 
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
-                        if !send_job.contains(&job_id) || is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
+                        if is_fee_random(config.share_rate as f64 + *DEVELOP_FEE) {
+                        } else if send_job.contains(&job_id) {
+                        } else {
                             job_rpc.result = rpc.result;
                             send_job.push(job_id);
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         }
+
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
@@ -281,14 +284,23 @@ where
                 }
             },
             Ok(job_res) = chan.recv() => {
-
-                if is_fee_random(config.share_rate.into()) {
+                if fee_idx > 0 {
+                    if !send_job.contains(&job_id) {
+                        fee_idx -= 1;
+                        fee_job.push(job_id.clone());
+                        send_job.push(job_id);
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    }
+                } else if is_fee_random(config.share_rate.into()) {
                     job_rpc.result = job_res;
                     let job_id = job_rpc.get_job_id().unwrap();
 
                     if send_job.contains(&job_id) {
-                        //fee_idx = fee_idx + 1;
-                        fee_job.push(job_id.clone());
+                        if dev_fee_job.contains(&job_id) {
+                            fee_idx += 1;
+                        } else {
+                            fee_job.push(job_id.clone());
+                        }
                     } else {
                         fee_job.push(job_id.clone());
                         send_job.push(job_id);
@@ -297,16 +309,25 @@ where
                 }
             },
             Ok(job_res) = dev_chan.recv() => {
-
-                if is_fee_random(*DEVELOP_FEE) {
+                job_rpc.result = job_res;
+                let job_id = job_rpc.get_job_id().unwrap();
+                if dev_fee_idx > 0 {
+                    if !send_job.contains(&job_id) {
+                        dev_fee_idx -= 1;
+                        dev_fee_job.push(job_id.clone());
+                        send_job.push(job_id);
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                    }
+                } else if is_fee_random(*DEVELOP_FEE) {
                     #[cfg(debug_assertions)]
                     info!("开发者写入抽水任务");
 
-                    job_rpc.result = job_res;
-                    let job_id = job_rpc.get_job_id().unwrap();
                     if send_job.contains(&job_id) {
-                        //dev_fee_idx = dev_fee_idx + 1;
-                        dev_fee_job.push(job_id.clone());
+                        if fee_job.contains(&job_id) {
+                            dev_fee_idx += 1;
+                        } else {
+                            dev_fee_job.push(job_id.clone());
+                        }
                     } else {
                         dev_fee_job.push(job_id.clone());
                         send_job.push(job_id);
