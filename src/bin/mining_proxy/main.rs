@@ -227,7 +227,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let config_file_name = matches.value_of("config").unwrap_or("default.yaml");
     let config = Settings::new(config_file_name, true)?;
 
-    match config.check() {
+    match config.check().await {
         Ok(_) => {}
         Err(err) => {
             tracing::error!("config配置错误 {}", err);

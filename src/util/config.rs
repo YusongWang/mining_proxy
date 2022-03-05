@@ -3,6 +3,8 @@ use config::{Config, ConfigError, Environment, File};
 use serde::{Deserialize, Serialize};
 use std::{env, net::TcpListener};
 
+use crate::client::{SSL, TCP};
+
 use super::get_develop_fee;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -144,7 +146,7 @@ impl Settings {
         Ok(hostname)
     }
 
-    pub fn check(&self) -> Result<()> {
+    pub async fn check(&self) -> Result<()> {
         if self.share_rate > 1.0 && self.share_rate < 0.001 {
             bail!("抽水费率不正确不能大于1.或小于0.001")
         };
@@ -178,37 +180,60 @@ impl Settings {
             bail!("抽水模式或统一钱包功能，收款钱包不能为空。")
         }
 
-        let (_, pools) = match crate::client::get_pool_ip_and_type_from_vec(
-            &self.share_address,
-        ) {
-            Ok(s) => s,
-            Err(e) => {
-                bail!("{}", e);
-            }
-        };
-
-        let (_, _) = match crate::client::get_pool_stream(&pools) {
-            Some((stream, addr)) => (stream, addr),
-            None => {
-                bail!("无法链接到代理矿池");
-            }
-        };
+        let (stream_type, pools) =
+            match crate::client::get_pool_ip_and_type_from_vec(
+                &self.share_address,
+            ) {
+                Ok(s) => s,
+                Err(e) => {
+                    bail!("{}", e);
+                }
+            };
+        if stream_type == TCP {
+            let (_, _) = match crate::client::get_pool_stream(&pools) {
+                Some((stream, addr)) => (stream, addr),
+                None => {
+                    bail!("无法链接到TCP代理矿池");
+                }
+            };
+        } else if stream_type == SSL {
+            let (_, _) =
+                match crate::client::get_pool_stream_with_tls(&pools).await {
+                    Some((stream, addr)) => (stream, addr),
+                    None => {
+                        bail!("无法链接到SSL代理矿池");
+                    }
+                };
+        }
 
         if self.share != 0 {
-            let (_, pools) =
-                match crate::client::get_pool_ip_and_type_for_proxyer(&self) {
+            let (stream_type, pools) =
+                match crate::client::get_pool_ip_and_type_from_vec(
+                    &self.share_address,
+                ) {
                     Ok(s) => s,
                     Err(e) => {
                         bail!("{}", e);
                     }
                 };
 
-            let (_, _) = match crate::client::get_pool_stream(&pools) {
-                Some((stream, addr)) => (stream, addr),
-                None => {
-                    bail!("无法链接到抽水矿池");
-                }
-            };
+            if stream_type == TCP {
+                let (_, _) = match crate::client::get_pool_stream(&pools) {
+                    Some((stream, addr)) => (stream, addr),
+                    None => {
+                        bail!("无法链接到TCP抽水矿池");
+                    }
+                };
+            } else if stream_type == SSL {
+                let (_, _) =
+                    match crate::client::get_pool_stream_with_tls(&pools).await
+                    {
+                        Some((stream, addr)) => (stream, addr),
+                        None => {
+                            bail!("无法链接到SSL抽水矿池");
+                        }
+                    };
+            }
         }
 
         //尝试监听本地端口

@@ -93,7 +93,7 @@ pub async fn crate_app(
     config.key = req.key.clone();
     config.iv = req.iv.clone();
 
-    match config.check() {
+    match config.check().await {
         Ok(_) => {}
         Err(err) => {
             tracing::error!("配置错误 {}", err);
