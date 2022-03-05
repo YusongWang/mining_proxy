@@ -269,7 +269,7 @@ where
                     }
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
-                        if !is_fee_random(((config.share_rate + (config.share_rate*0.2)) as f64 + *DEVELOP_FEE).into()){
+                        if !is_fee_random(((config.share_rate + (config.share_rate*0.1)) as f64 + *DEVELOP_FEE).into()){
                             if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
                                 continue;
                             } else {
@@ -310,7 +310,7 @@ where
                         fee_job.push(job_id.clone());
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
-                } else if is_fee_random(((config.share_rate +(config.share_rate*0.2)) as f64 + *DEVELOP_FEE).into()) {
+                } else if is_fee_random(((config.share_rate +(config.share_rate*0.1)) as f64 + *DEVELOP_FEE).into()) {
                     if send_job.contains(&job_id) {
                         #[cfg(debug_assertions)]
                         debug!("{} 拿走一个抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
@@ -332,7 +332,7 @@ where
                 }
                 job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
-                if is_fee_random(*DEVELOP_FEE+(*DEVELOP_FEE*0.2)) {
+                if is_fee_random(*DEVELOP_FEE+(*DEVELOP_FEE*0.3)) {
                     if send_job.contains(&job_id) {
                         #[cfg(debug_assertions)]
                         debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx = ?dev_fee_idx,"拿走一个普通任务");
