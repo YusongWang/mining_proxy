@@ -340,7 +340,7 @@ where
                             dev_fee_idx += 1;
                         } else {
                             #[cfg(debug_assertions)]
-                            debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx =? dev_fee_idx "拿走一个普通抽水任务");
+                            debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx = ?dev_fee_idx,"拿走一个普通抽水任务");
                             dev_fee_job.push(job_id.clone());
                         }
                     } else {
