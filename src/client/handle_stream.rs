@@ -320,7 +320,7 @@ where
                         debug!("{} 拿走一个抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                         fee_job.push(job_id.clone());
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                    }else if dev_fee_job.contains(&job_id) {
+                    } else if dev_fee_job.contains(&job_id) {
                         fee_idx +=1;
                     } else {
                         fee_job.push(job_id.clone());
