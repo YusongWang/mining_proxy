@@ -178,7 +178,9 @@ impl Settings {
             bail!("抽水模式或统一钱包功能，收款钱包不能为空。")
         }
 
-        let (_, pools) = match crate::client::get_pool_ip_and_type(&self) {
+        let (_, pools) = match crate::client::get_pool_ip_and_type_from_vec(
+            &self.share_address,
+        ) {
             Ok(s) => s,
             Err(e) => {
                 bail!("{}", e);
