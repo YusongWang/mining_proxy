@@ -5,7 +5,7 @@ mod version {
 use std::net::ToSocketAddrs;
 
 use anyhow::Result;
-use clap::{crate_name, crate_version};
+use clap::crate_version;
 use hex::FromHex;
 
 use openssl::aes::AesKey;
@@ -13,9 +13,8 @@ use openssl::aes::AesKey;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = mining_proxy::util::get_encrypt_command_matches().await?;
-
     mining_proxy::util::logger::init();
-
+    
     tracing::info!(
         "版本: {} commit: {} {}",
         crate_version!(),

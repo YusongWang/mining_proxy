@@ -25,7 +25,7 @@ use mining_proxy::{
     client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
     protocol::ethjson::EthClientObject,
     state::Worker,
-    util::{config::Settings, logger},
+    util::config::Settings,
     web::{handles::auth::Claims, AppState, OnlineWorker},
 };
 

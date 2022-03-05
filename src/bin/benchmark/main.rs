@@ -1,7 +1,7 @@
 mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
-use std::collections::VecDeque;
+
 use std::vec;
 
 use anyhow::{bail, Result};
