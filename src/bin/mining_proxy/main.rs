@@ -235,8 +235,6 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         }
     };
 
-    println!("{}",(config.share_rate + (config.share_rate*0.2)) as f64 + *DEVELOP_FEE);
-    
     let p12 = match File::open(config.p12_path.clone()).await {
         Ok(f) => Some(f),
         Err(_) => None,
