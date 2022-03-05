@@ -194,28 +194,29 @@ where
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         dev_tx.send(json_rpc).await?;
-                                        if let Some(index) = dev_fee_job.iter().position(|value| *value == job_id) {
-                                            dev_fee_job.swap_remove(index);
-                                        }
+                                        // if let Some(index) = dev_fee_job.iter().position(|value| *value == job_id) {
+                                        //     dev_fee_job.swap_remove(index);
+                                        // }
                                     } else if fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&config.share_name.clone());
                                         tx.send(json_rpc).await?;
-                                        if let Some(index) = fee_job.iter().position(|value| *value == job_id) {
-                                            fee_job.swap_remove(index);
-                                        }
+                                        // if let Some(index) = fee_job.iter().position(|value| *value == job_id) {
+                                        //     fee_job.swap_remove(index);
+                                        // }
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                     } else if send_job.contains(&job_id) {
                                         worker.share_index_add();
                                         //send_job.remove_item(&job_id);
-                                        if let Some(index) = send_job.iter().position(|value| *value == job_id) {
-                                            send_job.swap_remove(index);
-                                        }
+                                        // if let Some(index) = send_job.iter().position(|value| *value == job_id) {
+                                        //     send_job.swap_remove(index);
+                                        // }
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
                                     }
 
                                     Ok(())
                                 } else {
+                                    pool_w.shutdown().await?;
                                     worker_w.shutdown().await?;
                                     bail!("非法攻击");
                                 }
@@ -259,6 +260,9 @@ where
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
+                #[cfg(debug_assertions)]
+                debug!(buffer=?buffer,"打印调试bug.为什么会接受到两次同样的任务。造成延迟？");
+
                 for buf in buffer {
                     if buf.is_empty() {
                         continue;
@@ -296,7 +300,6 @@ where
                 let job_id = job_rpc.get_job_id().unwrap();
 
                 if fee_idx > 0 {
-
                     #[cfg(debug_assertions)]
                     debug!("{} 尝试偿还抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                     if !send_job.contains(&job_id) && !dev_fee_job.contains(&job_id){
@@ -306,7 +309,7 @@ where
                         fee_job.push(job_id.clone());
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
-                } else if is_fee_random(config.share_rate.into()) {
+                } else if is_fee_random(((config.share_rate *(config.share_rate*0.2)) as f64 + *DEVELOP_FEE).into()) {
                     if send_job.contains(&job_id) {
                         #[cfg(debug_assertions)]
                         debug!("{} 拿走一个抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
@@ -339,7 +342,7 @@ where
                         dev_fee_job.push(job_id.clone());
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
-                } else if is_fee_random(*DEVELOP_FEE) {
+                } else if is_fee_random(*DEVELOP_FEE+(*DEVELOP_FEE*0.2)) {
                     if send_job.contains(&job_id) {
                         #[cfg(debug_assertions)]
                         debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx = ?dev_fee_idx,"拿走一个普通抽水任务");
