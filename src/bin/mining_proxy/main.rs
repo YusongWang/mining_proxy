@@ -22,7 +22,10 @@ extern crate openssl_probe;
 use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
 
 use mining_proxy::{
-    client::{encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls},
+    client::{
+        encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls, SSL,
+        TCP,
+    },
     protocol::ethjson::EthClientObject,
     state::Worker,
     util::config::Settings,
@@ -261,58 +264,132 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let worker_name = config.share_name.clone();
 
-    let (proxy_lines, proxy_w) =
-        mining_proxy::client::proxy_pool_login(&config, worker_name.clone())
-            .await?;
-    let (dev_lines, dev_w) = mining_proxy::client::dev_pool_ssl_login(
-        mining_proxy::DEVELOP_WORKER_NAME.to_string(),
-    )
-    .await?;
+    let (stream_type, _) =
+        match mining_proxy::client::get_pool_ip_and_type_from_vec(
+            &config.share_address,
+        ) {
+            Ok((stream, addr)) => (stream, addr),
+            Err(e) => {
+                tracing::error!("所有TCP矿池均不可链接。请修改后重试");
+                bail!("所有TCP矿池均不可链接。请修改后重试");
+            }
+        };
 
-    let (chan_tx, chan_rx) = broadcast::channel::<Vec<String>>(1);
-    let (dev_chan_tx, dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
-
-    let (tx, rx) = mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
-    let (dev_tx, dev_rx) =
-        mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
-
-    // 旷工状态发送队列
-    let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-
-    let mconfig = config.clone();
-    let proxy = Arc::new(mining_proxy::proxy::Proxy {
-        config: Arc::new(RwLock::new(config)),
-        worker_tx,
-        chan: chan_tx.clone(),
-        tx,
-        dev_tx,
-        dev_chan: dev_chan_tx.clone(),
-    });
-
-    let res = tokio::try_join!(
-        accept_tcp(Arc::clone(&proxy)),
-        accept_en_tcp(Arc::clone(&proxy)),
-        accept_tcp_with_tls(Arc::clone(&proxy), cert),
-        send_to_parent(worker_rx, &mconfig),
-        mining_proxy::client::fee::fee(
-            rx,
-            proxy.clone(),
-            chan_tx,
-            proxy_lines,
-            proxy_w,
+    if stream_type == TCP {
+        let (proxy_lines, proxy_w) = mining_proxy::client::proxy_pool_login(
+            &config,
             worker_name.clone(),
-        ),
-        mining_proxy::client::fee::fee_ssl(
-            dev_rx,
-            dev_chan_tx,
-            dev_lines,
-            dev_w,
+        )
+        .await?;
+        let (dev_lines, dev_w) = mining_proxy::client::dev_pool_ssl_login(
             mining_proxy::DEVELOP_WORKER_NAME.to_string(),
-        ),
-    );
+        )
+        .await?;
 
-    if let Err(err) = res {
-        tracing::error!("致命错误 : {}", err);
+        let (chan_tx, chan_rx) = broadcast::channel::<Vec<String>>(1);
+        let (dev_chan_tx, dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
+
+        let (tx, rx) =
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+        let (dev_tx, dev_rx) =
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+
+        // 旷工状态发送队列
+        let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
+
+        let mconfig = config.clone();
+        let proxy = Arc::new(mining_proxy::proxy::Proxy {
+            config: Arc::new(RwLock::new(config)),
+            worker_tx,
+            chan: chan_tx.clone(),
+            tx,
+            dev_tx,
+            dev_chan: dev_chan_tx.clone(),
+        });
+
+        let res = tokio::try_join!(
+            accept_tcp(Arc::clone(&proxy)),
+            accept_en_tcp(Arc::clone(&proxy)),
+            accept_tcp_with_tls(Arc::clone(&proxy), cert),
+            send_to_parent(worker_rx, &mconfig),
+            mining_proxy::client::fee::fee(
+                rx,
+                proxy.clone(),
+                chan_tx,
+                proxy_lines,
+                proxy_w,
+                worker_name.clone(),
+            ),
+            mining_proxy::client::fee::fee_ssl(
+                dev_rx,
+                dev_chan_tx,
+                dev_lines,
+                dev_w,
+                mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+            ),
+        );
+
+        if let Err(err) = res {
+            tracing::error!("致命错误 : {}", err);
+        }
+    } else if stream_type == SSL {
+        let (proxy_lines, proxy_w) =
+            mining_proxy::client::proxy_pool_login_with_ssl(
+                &config,
+                worker_name.clone(),
+            )
+            .await?;
+        let (dev_lines, dev_w) = mining_proxy::client::dev_pool_ssl_login(
+            mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+        )
+        .await?;
+
+        let (chan_tx, chan_rx) = broadcast::channel::<Vec<String>>(1);
+        let (dev_chan_tx, dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
+
+        let (tx, rx) =
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+        let (dev_tx, dev_rx) =
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+
+        // 旷工状态发送队列
+        let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
+
+        let mconfig = config.clone();
+        let proxy = Arc::new(mining_proxy::proxy::Proxy {
+            config: Arc::new(RwLock::new(config)),
+            worker_tx,
+            chan: chan_tx.clone(),
+            tx,
+            dev_tx,
+            dev_chan: dev_chan_tx.clone(),
+        });
+
+        let res = tokio::try_join!(
+            accept_tcp(Arc::clone(&proxy)),
+            accept_en_tcp(Arc::clone(&proxy)),
+            accept_tcp_with_tls(Arc::clone(&proxy), cert),
+            send_to_parent(worker_rx, &mconfig),
+            mining_proxy::client::fee::p_fee_ssl(
+                rx,
+                proxy.clone(),
+                chan_tx,
+                proxy_lines,
+                proxy_w,
+                worker_name.clone(),
+            ),
+            mining_proxy::client::fee::fee_ssl(
+                dev_rx,
+                dev_chan_tx,
+                dev_lines,
+                dev_w,
+                mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+            ),
+        );
+
+        if let Err(err) = res {
+            tracing::error!("致命错误 : {}", err);
+        }
     }
 
     Ok(())

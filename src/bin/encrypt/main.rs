@@ -14,7 +14,7 @@ use openssl::aes::AesKey;
 async fn main() -> Result<()> {
     let matches = mining_proxy::util::get_encrypt_command_matches().await?;
     mining_proxy::util::logger::init();
-    
+
     tracing::info!(
         "版本: {} commit: {} {}",
         crate_version!(),
