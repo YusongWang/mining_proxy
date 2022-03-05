@@ -304,9 +304,12 @@ where
                 let job_id = job_rpc.get_job_id().unwrap();
 
                 if fee_idx > 0 {
+
+                    #[cfg(debug_assertions)]
+                    debug!("{} 尝试偿还抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                     if !send_job.contains(&job_id) && !dev_fee_job.contains(&job_id){
                         #[cfg(debug_assertions)]
-                        debug!("{} 发送抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
+                        debug!("{} 偿还成功 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                         fee_idx -= 1;
                         fee_job.push(job_id.clone());
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
@@ -314,7 +317,7 @@ where
                 } else if is_fee_random(config.share_rate.into()) {
                     if send_job.contains(&job_id) {
                         #[cfg(debug_assertions)]
-                        debug!("{} 发送抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
+                        debug!("{} 拿走一个抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
                         fee_job.push(job_id.clone());
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }else if dev_fee_job.contains(&job_id) {
@@ -334,6 +337,9 @@ where
                 job_rpc.result = job_res;
                 let job_id = job_rpc.get_job_id().unwrap();
                 if dev_fee_idx > 0 {
+                    #[cfg(debug_assertions)]
+                    debug!("{} 尝试偿还开发者任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
+
                     if !send_job.contains(&job_id) && !fee_job.contains(&job_id) {
                         #[cfg(debug_assertions)]
                         debug!("{} 发送开发者任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);

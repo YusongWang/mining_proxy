@@ -271,7 +271,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             Ok((stream, addr)) => (stream, addr),
             Err(e) => {
                 tracing::error!("所有TCP矿池均不可链接。请修改后重试");
-                bail!("所有TCP矿池均不可链接。请修改后重试");
+                return Ok(());
             }
         };
 

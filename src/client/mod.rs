@@ -97,7 +97,6 @@ pub fn get_pool_ip_and_type_from_vec(
     //FIX 兼容SSL
     if !config.is_empty() {
         let mut pro = TCP;
-
         let address = config.clone();
         let mut pools = vec![];
         for addr in address.iter() {
