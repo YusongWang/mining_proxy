@@ -96,12 +96,10 @@ where R: AsyncRead {
         if len == 0 {
             println!("客户端下线");
             return Ok(());
-            //panic!("客户端下线");
         }
         let jobs = String::from_utf8(buf[0..len].to_vec()).unwrap();
-
         if let Ok(job) = serde_json::from_str::<Server>(&jobs) {
-            println!("Got Message {:?}", job);
+
             if let Some(id) = job.result.get(0) {
                 if job_queue.contains(id) {
                     println!("任务重复 : {}", id);
