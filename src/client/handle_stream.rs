@@ -335,13 +335,12 @@ where
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                     }
                 } else if is_fee_random(*DEVELOP_FEE) {
-                    #[cfg(debug_assertions)]
-                    info!("开发者写入抽水任务");
-
                     if send_job.contains(&job_id) {
                         if fee_job.contains(&job_id) {
                             dev_fee_idx += 1;
                         } else {
+                            #[cfg(debug_assertions)]
+                            debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx =? dev_fee_idx "拿走一个普通抽水任务");
                             dev_fee_job.push(job_id.clone());
                         }
                     } else {
