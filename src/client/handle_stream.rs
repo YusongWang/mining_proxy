@@ -270,9 +270,11 @@ where
 
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
-                        if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
-                            continue;
-                        } else if is_fee_random(((config.share_rate) as f64 + *DEVELOP_FEE).into()){
+                        if is_fee_random(((config.share_rate) as f64 + *DEVELOP_FEE).into()){
+                            // if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
+                            //     continue;
+                            // } else
+
                         } else {
                             job_rpc.result = rpc.result;
                             send_job.push(job_id);
