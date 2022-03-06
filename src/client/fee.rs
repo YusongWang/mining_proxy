@@ -38,6 +38,16 @@ pub async fn fee_ssl(
     >,
     worker_name: String,
 ) -> Result<()> {
+
+    let mut get_work = EthClientRootObject {
+        id: CLIENT_GETWORK,
+        method: "eth_getWork".into(),
+        params: vec![],
+    };
+
+    let sleep = time::sleep(tokio::time::Duration::from_secs(5));
+    tokio::pin!(sleep);
+
     loop {
         select! {
             res = proxy_lines.next_line() => {
@@ -81,7 +91,11 @@ pub async fn fee_ssl(
             },
             Some(mut job_rpc) = rx.recv() => {
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
-            }
+            },
+            () = &mut sleep  => {
+                write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
+            },
         }
     }
 }
@@ -97,6 +111,14 @@ pub async fn fee(
         let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
         config = rconfig.clone();
     }
+    let mut get_work = EthClientRootObject {
+        id: CLIENT_GETWORK,
+        method: "eth_getWork".into(),
+        params: vec![],
+    };
+
+    let sleep = time::sleep(tokio::time::Duration::from_secs(5));
+    tokio::pin!(sleep);
 
     loop {
         select! {
@@ -141,7 +163,11 @@ pub async fn fee(
             },
             Some(mut job_rpc) = rx.recv() => {
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
-            }
+            },
+            () = &mut sleep  => {
+                write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
+            },
         }
     }
 }
@@ -166,7 +192,14 @@ pub async fn p_fee_ssl(
         let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
         config = rconfig.clone();
     }
+    let mut get_work = EthClientRootObject {
+        id: CLIENT_GETWORK,
+        method: "eth_getWork".into(),
+        params: vec![],
+    };
 
+    let sleep = time::sleep(tokio::time::Duration::from_secs(5));
+    tokio::pin!(sleep);
     loop {
         select! {
             res = proxy_lines.next_line() => {
@@ -210,7 +243,11 @@ pub async fn p_fee_ssl(
             },
             Some(mut job_rpc) = rx.recv() => {
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
-            }
+            },
+            () = &mut sleep  => {
+                write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
+                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
+            },
         }
     }
 }
