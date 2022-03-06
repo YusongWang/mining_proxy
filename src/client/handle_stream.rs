@@ -272,7 +272,7 @@ where
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         if is_fee_random(*DEVELOP_FEE){
                             if let Ok(job_res) = dev_chan.recv().await {
-                                job_rpc.result = job_res.result;
+                                job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 dev_fee_job.push(job_id.clone());
                                 #[cfg(debug_assertions)]
@@ -281,7 +281,7 @@ where
                             }
                         } else if is_fee_random(((config.share_rate +(config.share_rate*0.1)) as f64 + *DEVELOP_FEE).into()) {
                             if let Ok(job_res) = chan.recv().await {
-                                job_rpc.result = job_res.result;
+                                job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 fee_job.push(job_id.clone());
                                 #[cfg(debug_assertions)]
