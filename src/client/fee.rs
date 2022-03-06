@@ -38,7 +38,6 @@ pub async fn fee_ssl(
     >,
     worker_name: String,
 ) -> Result<()> {
-
     let mut get_work = EthClientRootObject {
         id: CLIENT_GETWORK,
         method: "eth_getWork".into(),

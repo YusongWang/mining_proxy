@@ -90,9 +90,10 @@ where
     } else {
         worker_lines = worker_r.split(b'\n');
     }
+
     use rand::SeedableRng;
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
-    let send_time = rand::Rng::gen_range(&mut rng, 1..120) as u64;
+    let send_time = rand::Rng::gen_range(&mut rng, 1..360) as u64;
     let workers_queue = proxy.worker_tx.clone();
     let sleep = time::sleep(tokio::time::Duration::from_secs(send_time));
     tokio::pin!(sleep);
@@ -104,9 +105,9 @@ where
     let dev_tx = proxy.dev_tx.clone();
 
     // 欠了几个job
-    let mut dev_fee_idx = 0;
-    let mut fee_idx = 0;
-    let mut idx = 0;
+    // let mut dev_fee_idx = 0;
+    // let mut fee_idx = 0;
+    // let mut idx = 0;
 
     let mut wait_job = VecDeque::new();
     let mut wait_dev_job = VecDeque::new();
@@ -255,7 +256,7 @@ where
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
-                //#[cfg(debug_assertions)]
+                #[cfg(debug_assertions)]
                 debug!(buffer=?buffer,"打印调试bug.为什么会接受到两次同样的任务。造成延迟？");
 
                 for buf in buffer {
@@ -263,13 +264,13 @@ where
                         continue;
                     }
 
-                    if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
+                    if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         if is_fee_random(*DEVELOP_FEE) {
                             if let Some(job_res) = wait_dev_job.pop_back() {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 dev_fee_job.push(job_id.clone());
-                                //#[cfg(debug_assertions)]
+                                #[cfg(debug_assertions)]
                                 debug!("{} 发送开发者3任务 #{:?}",worker_name, job_rpc);
                                 write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             }
@@ -286,7 +287,7 @@ where
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 fee_job.push(job_id.clone());
-                                //#[cfg(debug_assertions)]
+                                #[cfg(debug_assertions)]
                                 debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
                                 write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             }
@@ -294,7 +295,7 @@ where
                             job_rpc.result = rpc.result;
                             let job_id = job_rpc.get_job_id().unwrap();
                             send_job.push(job_id);
-                            //#[cfg(debug_assertions)]
+                            #[cfg(debug_assertions)]
                             debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         }
@@ -402,7 +403,7 @@ where
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
-                tracing::warn!(job_idx = ?job_idx,"当前共发送多少任务?");
+                //tracing::warn!(job_idx = ?job_idx,"当前共发送多少任务?");
                 match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {
