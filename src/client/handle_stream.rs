@@ -269,17 +269,16 @@ where
                     }
                     if let Ok(mut rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
                         let job_id = rpc.get_job_id().unwrap();
-                        if !is_fee_random(((config.share_rate + (config.share_rate*0.1)) as f64 + *DEVELOP_FEE).into()){
-                            if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
-                                continue;
-                            } else {
-                                job_rpc.result = rpc.result;
-                                send_job.push(job_id);
+                        if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
+                            continue;
+                        } else if !is_fee_random(((config.share_rate) as f64 + *DEVELOP_FEE).into()){
+                        } else {
+                            job_rpc.result = rpc.result;
+                            send_job.push(job_id);
 
-                                #[cfg(debug_assertions)]
-                                debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                            }
+                            #[cfg(debug_assertions)]
+                            debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
+                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                         }
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
