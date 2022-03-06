@@ -378,12 +378,6 @@ where
 {
     let mut rpc = serde_json::to_vec(&rpc)?;
     rpc.push(b'\n');
-    #[cfg(debug_assertions)]
-    tracing::debug!(
-        "write_to_socket ------Worker : {}  Send Rpc {:?}",
-        worker,
-        String::from_utf8(rpc.clone())?
-    );
 
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
