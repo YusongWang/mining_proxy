@@ -198,26 +198,17 @@ where
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         dev_tx.send(json_rpc).await?;
-                                        if let Some(index) = dev_fee_job.iter().position(|value| *value == job_id) {
-                                            dev_fee_job.swap_remove(index);
-                                        }
                                     } else if fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&config.share_name.clone());
                                         tx.send(json_rpc).await?;
-                                        if let Some(index) = fee_job.iter().position(|value| *value == job_id) {
-                                            fee_job.swap_remove(index);
-                                        }
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                     } else if send_job.contains(&job_id) {
                                         worker.share_index_add();
-                                        //send_job.remove_item(&job_id);
-                                        if let Some(index) = send_job.iter().position(|value| *value == job_id) {
-                                            send_job.swap_remove(index);
-                                        }
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
                                     }
 
+                                    
                                     Ok(())
                                 } else {
                                     pool_w.shutdown().await?;
