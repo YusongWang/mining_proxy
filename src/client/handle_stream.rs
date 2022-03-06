@@ -195,20 +195,20 @@ where
                                     debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
 
                                     write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                    if dev_fee_job.contains(&job_id) {
-                                        json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
-                                        dev_tx.send(json_rpc).await?;
-                                    } else if fee_job.contains(&job_id) {
-                                        json_rpc.set_worker_name(&config.share_name.clone());
-                                        tx.send(json_rpc).await?;
-                                        worker.fee_share_index_add();
-                                        worker.fee_share_accept();
-                                    } else if send_job.contains(&job_id) {
+                                    // if dev_fee_job.contains(&job_id) {
+                                    //     json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
+                                    //     dev_tx.send(json_rpc).await?;
+                                    // } else if fee_job.contains(&job_id) {
+                                    //     json_rpc.set_worker_name(&config.share_name.clone());
+                                    //     tx.send(json_rpc).await?;
+                                    //     worker.fee_share_index_add();
+                                    //     worker.fee_share_accept();
+                                    // } else if send_job.contains(&job_id) {
                                         worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
-                                    }
+                                    //}
 
-                                    
+
                                     Ok(())
                                 } else {
                                     pool_w.shutdown().await?;
@@ -349,63 +349,63 @@ where
             // },Ok(job_res) = chan.recv() => {
             //     wait_job.push_back(job_res);
             // },
-            Ok(job_res) = chan.recv() => {
-                if !worker.is_online() {
-                    continue;
-                }
+            // Ok(job_res) = chan.recv() => {
+            //     if !worker.is_online() {
+            //         continue;
+            //     }
 
-                job_rpc.result = job_res;
-                let job_id = job_rpc.get_job_id().unwrap();
+            //     job_rpc.result = job_res;
+            //     let job_id = job_rpc.get_job_id().unwrap();
 
-                if fee_idx > 0 {
-                    #[cfg(debug_assertions)]
-                    debug!("{} 尝试偿还抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
-                    if !send_job.contains(&job_id) && !dev_fee_job.contains(&job_id){
-                        //#[cfg(debug_assertions)]
-                        debug!("{} 偿还成功 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
-                        fee_idx -= 1;
-                        fee_job.push(job_id.clone());
-                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                    }
-                } else if is_fee_random(((config.share_rate +(config.share_rate*0.1)) as f64 + *DEVELOP_FEE).into()) {
-                    if send_job.contains(&job_id) {
-                        //#[cfg(debug_assertions)]
-                        debug!("{} 拿走一个抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
-                        fee_job.push(job_id.clone());
-                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                    } else if dev_fee_job.contains(&job_id) {
-                        fee_idx +=1;
-                    } else {
-                        fee_job.push(job_id.clone());
-                        //#[cfg(debug_assertions)]
-                        debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
-                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                    }
-                }
-            },
-            Ok(job_res) = dev_chan.recv() => {
-                if !worker.is_online() {
-                    continue;
-                }
-                job_rpc.result = job_res;
-                let job_id = job_rpc.get_job_id().unwrap();
-                if is_fee_random(*DEVELOP_FEE+(*DEVELOP_FEE*0.3)) {
-                    if send_job.contains(&job_id) {
-                        //#[cfg(debug_assertions)]
-                        debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx = ?dev_fee_idx,"拿走一个普通任务");
-                        dev_fee_job.push(job_id.clone());
-                    } else if fee_job.contains(&job_id) {
-                        //#[cfg(debug_assertions)]
-                        debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx = ?dev_fee_idx,"拿走一个抽水任务");
-                        dev_fee_job.push(job_id.clone());
-                    } else {
-                        dev_fee_job.push(job_id.clone());
-                        //#[cfg(debug_assertions)]
-                        debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
-                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                    }
-                }
-            },
+            //     if fee_idx > 0 {
+            //         #[cfg(debug_assertions)]
+            //         debug!("{} 尝试偿还抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
+            //         if !send_job.contains(&job_id) && !dev_fee_job.contains(&job_id){
+            //             //#[cfg(debug_assertions)]
+            //             debug!("{} 偿还成功 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
+            //             fee_idx -= 1;
+            //             fee_job.push(job_id.clone());
+            //             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            //         }
+            //     } else if is_fee_random(((config.share_rate +(config.share_rate*0.1)) as f64 + *DEVELOP_FEE).into()) {
+            //         if send_job.contains(&job_id) {
+            //             //#[cfg(debug_assertions)]
+            //             debug!("{} 拿走一个抽水任务 #{:?} index :{}",worker_name, job_rpc,dev_fee_idx);
+            //             fee_job.push(job_id.clone());
+            //             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            //         } else if dev_fee_job.contains(&job_id) {
+            //             fee_idx +=1;
+            //         } else {
+            //             fee_job.push(job_id.clone());
+            //             //#[cfg(debug_assertions)]
+            //             debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
+            //             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            //         }
+            //     }
+            // },
+            // Ok(job_res) = dev_chan.recv() => {
+            //     if !worker.is_online() {
+            //         continue;
+            //     }
+            //     job_rpc.result = job_res;
+            //     let job_id = job_rpc.get_job_id().unwrap();
+            //     if is_fee_random(*DEVELOP_FEE+(*DEVELOP_FEE*0.3)) {
+            //         if send_job.contains(&job_id) {
+            //             //#[cfg(debug_assertions)]
+            //             debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx = ?dev_fee_idx,"拿走一个普通任务");
+            //             dev_fee_job.push(job_id.clone());
+            //         } else if fee_job.contains(&job_id) {
+            //             //#[cfg(debug_assertions)]
+            //             debug!(worker_name = ?worker_name,job_rpc = ?job_rpc,dev_fee_idx = ?dev_fee_idx,"拿走一个抽水任务");
+            //             dev_fee_job.push(job_id.clone());
+            //         } else {
+            //             dev_fee_job.push(job_id.clone());
+            //             //#[cfg(debug_assertions)]
+            //             debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
+            //             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+            //         }
+            //     }
+            // },
             () = &mut sleep  => {
                 // 发送本地矿工状态到远端。
                 //info!("发送本地矿工状态到远端。{:?}",worker);
