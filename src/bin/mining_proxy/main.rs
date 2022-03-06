@@ -29,7 +29,8 @@ use mining_proxy::{
     protocol::ethjson::EthClientObject,
     state::Worker,
     util::config::Settings,
-    web::{handles::auth::Claims, AppState, OnlineWorker}, DEVELOP_FEE,
+    web::{handles::auth::Claims, AppState, OnlineWorker},
+    DEVELOP_FEE,
 };
 
 use actix_web_static_files;
