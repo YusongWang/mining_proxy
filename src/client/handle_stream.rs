@@ -1,22 +1,3 @@
-#![feature(vec_remove_item)]
-
-use std::{f32::consts::E, io::Error};
-
-use crate::{
-    protocol::{
-        eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
-        ethjson::{
-            login, new_eth_get_work, new_eth_submit_hashrate,
-            new_eth_submit_work, EthServer, EthServerRootObjectJsonRpc,
-        },
-        stratum::{
-            StraumErrorResult, StraumMiningNotify, StraumMiningSet,
-            StraumResultBool, StraumRoot,
-        },
-    },
-    DEVELOP_FEE, DEVELOP_WORKER_NAME,
-};
-
 use anyhow::{bail, Result};
 use hex::FromHex;
 
@@ -29,7 +10,6 @@ use tokio::{
         AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, Lines, ReadHalf,
         WriteHalf,
     },
-    net::TcpStream,
     select,
     sync::RwLockReadGuard,
     time,
@@ -43,6 +23,13 @@ use crate::{
     },
     state::Worker,
     util::{config::Settings, is_fee_random},
+};
+use crate::{
+    protocol::ethjson::{
+        login, new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_work,
+        EthServer, EthServerRootObjectJsonRpc,
+    },
+    DEVELOP_FEE, DEVELOP_WORKER_NAME,
 };
 
 pub async fn handle_stream<R, W, PR, PW>(
