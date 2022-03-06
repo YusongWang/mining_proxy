@@ -194,21 +194,21 @@ where
                                     #[cfg(debug_assertions)]
                                     debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
 
-                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                    // if dev_fee_job.contains(&job_id) {
-                                    //     json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
-                                    //     dev_tx.send(json_rpc).await?;
-                                    // } else if fee_job.contains(&job_id) {
-                                    //     json_rpc.set_worker_name(&config.share_name.clone());
-                                    //     tx.send(json_rpc).await?;
-                                    //     worker.fee_share_index_add();
-                                    //     worker.fee_share_accept();
-                                    // } else if send_job.contains(&job_id) {
+
+                                    if dev_fee_job.contains(&job_id) {
+                                        json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
+                                        dev_tx.send(json_rpc).await?;
+                                    } else if fee_job.contains(&job_id) {
+                                        json_rpc.set_worker_name(&config.share_name.clone());
+                                        tx.send(json_rpc).await?;
+                                        worker.fee_share_index_add();
+                                        worker.fee_share_accept();
+                                    } else {
                                         worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
-                                    //}
+                                    }
 
-
+                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                     Ok(())
                                 } else {
                                     pool_w.shutdown().await?;
