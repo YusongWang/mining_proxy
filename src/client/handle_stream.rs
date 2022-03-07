@@ -1,7 +1,6 @@
 use anyhow::{bail, Result};
 use hex::FromHex;
 
-use openssl::symm::{decrypt, Cipher};
 use std::sync::Arc;
 use tracing::{debug, info};
 
@@ -118,43 +117,43 @@ where
                 //     config = rconfig.clone();
                 // }
 
-                if is_encrypted {
-                    let key = Vec::from_hex(config.key.clone()).unwrap();
-                    let iv = Vec::from_hex(config.iv.clone()).unwrap();
-                    let cipher = Cipher::aes_256_cbc();
+                // if is_encrypted {
+                //     let key = Vec::from_hex(config.key.clone()).unwrap();
+                //     let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                //     let cipher = Cipher::aes_256_cbc();
 
-                    buf_bytes = match base64::decode(&buf_bytes[..]) {
-                        Ok(buffer) => buffer,
-                        Err(e) => {
-                            tracing::error!("{}",e);
-                            match pool_w.shutdown().await  {
-                                Ok(_) => {},
-                                Err(_) => {
-                                    tracing::error!("Error Shutdown Socket {:?}",e);
-                                },
-                            };
-                            bail!("解密矿机请求失败{}",e);
-                        },
-                    };
+                //     buf_bytes = match base64::decode(&buf_bytes[..]) {
+                //         Ok(buffer) => buffer,
+                //         Err(e) => {
+                //             tracing::error!("{}",e);
+                //             match pool_w.shutdown().await  {
+                //                 Ok(_) => {},
+                //                 Err(_) => {
+                //                     tracing::error!("Error Shutdown Socket {:?}",e);
+                //                 },
+                //             };
+                //             bail!("解密矿机请求失败{}",e);
+                //         },
+                //     };
 
-                    buf_bytes = match decrypt(
-                        cipher,
-                        &key,
-                        Some(&iv),
-                        &buf_bytes[..]) {
-                            Ok(s) => s,
-                            Err(e) => {
-                                tracing::warn!("加密报文解密失败");
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        tracing::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                bail!("解密矿机请求失败{}",e);
-                        },
-                    };
-                }
+                //     buf_bytes = match decrypt(
+                //         cipher,
+                //         &key,
+                //         Some(&iv),
+                //         &buf_bytes[..]) {
+                //             Ok(s) => s,
+                //             Err(e) => {
+                //                 tracing::warn!("加密报文解密失败");
+                //                 match pool_w.shutdown().await  {
+                //                     Ok(_) => {},
+                //                     Err(e) => {
+                //                         tracing::error!("Error Shutdown Socket {:?}",e);
+                //                     },
+                //                 };
+                //                 bail!("解密矿机请求失败{}",e);
+                //         },
+                //     };
+                // }
 
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);

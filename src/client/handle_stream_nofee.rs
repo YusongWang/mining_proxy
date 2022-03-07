@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use hex::FromHex;
 use tracing::{debug, info};
 
-use openssl::symm::{decrypt, Cipher};
+//use openssl::symm::{decrypt, Cipher};
 extern crate rand;
 
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
@@ -253,11 +253,11 @@ where
     W: AsyncWrite,
     T: Serialize,
 {
-    if encrypt {
-        write_encrypt_socket(w, &rpc, &worker, key, iv).await
-    } else {
-        write_to_socket(w, &rpc, &worker).await
-    }
+    // if encrypt {
+    //     //write_encrypt_socket(w, &rpc, &worker, key, iv).await
+    // } else {
+    write_to_socket(w, &rpc, &worker).await
+    //}
 }
 
 pub async fn write_string<W>(
@@ -267,11 +267,11 @@ pub async fn write_string<W>(
 where
     W: AsyncWrite,
 {
-    if encrypt {
-        write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
-    } else {
-        write_to_socket_string(w, &rpc, &worker).await
-    }
+    // if encrypt {
+    //     //write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
+    // } else {
+    write_to_socket_string(w, &rpc, &worker).await
+    //}
 }
 
 async fn develop_pool_login(
@@ -495,43 +495,43 @@ where
                 //let start = std::time::Instant::now();
                 let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
 
-                if is_encrypted {
-                    let key = Vec::from_hex(config.key.clone()).unwrap();
-                    let iv = Vec::from_hex(config.iv.clone()).unwrap();
-                    let cipher = Cipher::aes_256_cbc();
+                // if is_encrypted {
+                //     let key = Vec::from_hex(config.key.clone()).unwrap();
+                //     let iv = Vec::from_hex(config.iv.clone()).unwrap();
+                //     let cipher = Cipher::aes_256_cbc();
 
-                    buf_bytes = match base64::decode(&buf_bytes[..]) {
-                        Ok(buffer) => buffer,
-                        Err(e) => {
-                            tracing::error!("{}",e);
-                            match pool_w.shutdown().await  {
-                                Ok(_) => {},
-                                Err(_) => {
-                                    tracing::error!("Error Shutdown Socket {:?}",e);
-                                },
-                            };
-                            bail!("解密矿机请求失败{}",e);
-                        },
-                    };
+                //     buf_bytes = match base64::decode(&buf_bytes[..]) {
+                //         Ok(buffer) => buffer,
+                //         Err(e) => {
+                //             tracing::error!("{}",e);
+                //             match pool_w.shutdown().await  {
+                //                 Ok(_) => {},
+                //                 Err(_) => {
+                //                     tracing::error!("Error Shutdown Socket {:?}",e);
+                //                 },
+                //             };
+                //             bail!("解密矿机请求失败{}",e);
+                //         },
+                //     };
 
-                    buf_bytes = match decrypt(
-                        cipher,
-                        &key,
-                        Some(&iv),
-                        &buf_bytes[..]) {
-                            Ok(s) => s,
-                            Err(e) => {
-                                tracing::warn!("加密报文解密失败");
-                                match pool_w.shutdown().await  {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        tracing::error!("Error Shutdown Socket {:?}",e);
-                                    },
-                                };
-                                bail!("解密矿机请求失败{}",e);
-                        },
-                    };
-                }
+                //     buf_bytes = match decrypt(
+                //         cipher,
+                //         &key,
+                //         Some(&iv),
+                //         &buf_bytes[..]) {
+                //             Ok(s) => s,
+                //             Err(e) => {
+                //                 tracing::warn!("加密报文解密失败");
+                //                 match pool_w.shutdown().await  {
+                //                     Ok(_) => {},
+                //                     Err(e) => {
+                //                         tracing::error!("Error Shutdown Socket {:?}",e);
+                //                     },
+                //                 };
+                //                 bail!("解密矿机请求失败{}",e);
+                //         },
+                //     };
+                // }
 
 
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');

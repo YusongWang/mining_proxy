@@ -1,5 +1,5 @@
 pub mod encry;
-pub mod encryption;
+
 pub mod fee;
 pub mod handle_stream;
 pub mod handle_stream_all;
@@ -19,14 +19,13 @@ use serde::Serialize;
 use std::{
     collections::VecDeque,
     fmt::Debug,
-    io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs},
     sync::Arc,
     time::Duration,
 };
 use tokio_native_tls::TlsStream;
 
-use tracing::{debug, info};
+use tracing::debug;
 
 use anyhow::Result;
 use tokio::{
@@ -312,62 +311,62 @@ pub async fn get_pool_stream_with_tls(
     None
 }
 
-pub async fn write_encrypt_socket<W, T>(
-    w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String, iv: String,
-) -> Result<()>
-where
-    W: AsyncWrite,
-    T: Serialize,
-{
-    let key = Vec::from_hex(key).unwrap();
-    let iv = Vec::from_hex(iv).unwrap();
+// pub async fn write_encrypt_socket<W, T>(
+//     w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String, iv: String,
+// ) -> Result<()>
+// where
+//     W: AsyncWrite,
+//     T: Serialize,
+// {
+//     let key = Vec::from_hex(key).unwrap();
+//     let iv = Vec::from_hex(iv).unwrap();
 
-    let rpc = serde_json::to_vec(&rpc)?;
-    let cipher = openssl::symm::Cipher::aes_256_cbc();
+//     let rpc = serde_json::to_vec(&rpc)?;
+//     let cipher = openssl::symm::Cipher::aes_256_cbc();
 
-    let rpc =
-        openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+//     let rpc =
+//         openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
-    let base64 = base64::encode(&rpc[..]);
-    let mut rpc = base64.as_bytes().to_vec();
-    rpc.push(crate::SPLIT);
+//     let base64 = base64::encode(&rpc[..]);
+//     let mut rpc = base64.as_bytes().to_vec();
+//     rpc.push(crate::SPLIT);
 
-    let write_len = w.write(&rpc).await?;
-    if write_len == 0 {
-        bail!(
-            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
-            worker
-        );
-    }
-    Ok(())
-}
+//     let write_len = w.write(&rpc).await?;
+//     if write_len == 0 {
+//         bail!(
+//             "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+//             worker
+//         );
+//     }
+//     Ok(())
+// }
 
-pub async fn write_encrypt_socket_string<W>(
-    w: &mut WriteHalf<W>, rpc: &str, worker: &String, key: String, iv: String,
-) -> Result<()>
-where W: AsyncWrite {
-    let key = Vec::from_hex(key).unwrap();
-    let iv = Vec::from_hex(iv).unwrap();
+// pub async fn write_encrypt_socket_string<W>(
+//     w: &mut WriteHalf<W>, rpc: &str, worker: &String, key: String, iv:
+// String, ) -> Result<()>
+// where W: AsyncWrite {
+//     let key = Vec::from_hex(key).unwrap();
+//     let iv = Vec::from_hex(iv).unwrap();
 
-    let rpc = rpc.as_bytes().to_vec();
-    let cipher = openssl::symm::Cipher::aes_256_cbc();
-    //let data = b"Some Crypto String";
-    let rpc =
-        openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
+//     let rpc = rpc.as_bytes().to_vec();
+//     let cipher = openssl::symm::Cipher::aes_256_cbc();
+//     //let data = b"Some Crypto String";
+//     let rpc =
+//         openssl::symm::encrypt(cipher, &key, Some(&iv), &rpc[..]).unwrap();
 
-    let base64 = base64::encode(&rpc[..]);
-    let mut rpc = base64.as_bytes().to_vec();
-    rpc.push(crate::SPLIT);
+//     let base64 = base64::encode(&rpc[..]);
+//     let mut rpc = base64.as_bytes().to_vec();
+//     rpc.push(crate::SPLIT);
 
-    let write_len = w.write(&rpc).await?;
-    if write_len == 0 {
-        bail!(
-            "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
-            worker
-        );
-    }
-    Ok(())
-}
+//     let write_len = w.write(&rpc).await?;
+//     if write_len == 0 {
+//         bail!(
+//             "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
+//             worker
+//         );
+//     }
+//     Ok(())
+// }
 
 pub async fn write_to_socket<W, T>(
     w: &mut WriteHalf<W>, rpc: &T, worker: &String,
@@ -1164,11 +1163,11 @@ where
     W: AsyncWrite,
     T: Serialize,
 {
-    if encrypt {
-        write_encrypt_socket(w, &rpc, &worker, key, iv).await
-    } else {
-        write_to_socket(w, &rpc, &worker).await
-    }
+    //if encrypt {
+    //    write_encrypt_socket(w, &rpc, &worker, key, iv).await
+    // } else {
+    write_to_socket(w, &rpc, &worker).await
+    // }
 }
 
 pub async fn write_string<W>(
@@ -1178,11 +1177,11 @@ pub async fn write_string<W>(
 where
     W: AsyncWrite,
 {
-    if encrypt {
-        write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
-    } else {
-        write_to_socket_string(w, &rpc, &worker).await
-    }
+    // if encrypt {
+    //     write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
+    // } else {
+    write_to_socket_string(w, &rpc, &worker).await
+    //}
 }
 
 //中转费率及开发者费率

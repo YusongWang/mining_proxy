@@ -17,7 +17,6 @@ use dotenv::dotenv;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs::OpenOptions, io::Read};
-extern crate openssl_probe;
 
 use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
 
@@ -51,7 +50,7 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 fn main() -> Result<()> {
     setup_panic!();
-    openssl_probe::init_ssl_cert_env_vars();
+    //openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
     //logger::init();
 
@@ -310,7 +309,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
-            accept_en_tcp(Arc::clone(&proxy)),
+            //accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert),
             send_to_parent(worker_rx, &mconfig),
             mining_proxy::client::fee::fee(
@@ -368,7 +367,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
-            accept_en_tcp(Arc::clone(&proxy)),
+            //accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert),
             send_to_parent(worker_rx, &mconfig),
             mining_proxy::client::fee::p_fee_ssl(
