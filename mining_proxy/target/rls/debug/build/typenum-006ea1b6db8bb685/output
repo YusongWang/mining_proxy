@@ -1,2 +1,0 @@
-cargo:rustc-env=TYPENUM_BUILD_CONSTS=/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/build/typenum-006ea1b6db8bb685/out/consts.rs
-cargo:rustc-env=TYPENUM_BUILD_OP=/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/build/typenum-006ea1b6db8bb685/out/op.rs

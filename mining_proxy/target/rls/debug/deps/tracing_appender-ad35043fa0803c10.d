@@ -1,9 +1,0 @@
-/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/tracing_appender-ad35043fa0803c10.rmeta: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/non_blocking.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/rolling.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/worker.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/sync.rs
-
-/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/tracing_appender-ad35043fa0803c10.d: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/non_blocking.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/rolling.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/worker.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/sync.rs
-
-/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/lib.rs:
-/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/non_blocking.rs:
-/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/rolling.rs:
-/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/worker.rs:
-/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/tracing-appender-0.2.1/src/sync.rs:
