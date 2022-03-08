@@ -1,0 +1,10 @@
+/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/httparse-0613133ef40a7fac.rmeta: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/iter.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/macros.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/mod.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/sse42.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/avx2.rs
+
+/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/httparse-0613133ef40a7fac.d: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/iter.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/macros.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/mod.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/sse42.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/avx2.rs
+
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/lib.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/iter.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/macros.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/mod.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/sse42.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/httparse-1.6.0/src/simd/avx2.rs:

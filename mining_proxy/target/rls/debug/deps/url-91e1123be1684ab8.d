@@ -1,0 +1,11 @@
+/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/url-91e1123be1684ab8.rmeta: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/host.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/origin.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/parser.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/path_segments.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/slicing.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/quirks.rs
+
+/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/url-91e1123be1684ab8.d: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/host.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/origin.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/parser.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/path_segments.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/slicing.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/quirks.rs
+
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/lib.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/host.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/origin.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/parser.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/path_segments.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/slicing.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/url-2.2.2/src/quirks.rs:

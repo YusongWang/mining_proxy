@@ -1,0 +1,10 @@
+/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/version_check-d6af4946adda8de1.rmeta: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/version.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/channel.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/date.rs
+
+/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/libversion_check-d6af4946adda8de1.rlib: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/version.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/channel.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/date.rs
+
+/Users/yusong/works/rust_works/mining_proxy/mining_proxy/target/rls/debug/deps/version_check-d6af4946adda8de1.d: /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/lib.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/version.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/channel.rs /Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/date.rs
+
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/lib.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/version.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/channel.rs:
+/Users/yusong/.cargo/registry/src/mirrors.ustc.edu.cn-61ef6e0cd06fb9b8/version_check-0.9.4/src/date.rs:
