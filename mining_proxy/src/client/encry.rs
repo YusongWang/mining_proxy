@@ -2,7 +2,7 @@ use anyhow::Result;
 use tokio::{
     io::{split, BufReader},
     net::{TcpListener, TcpStream},
-    sync::{mpsc::UnboundedSender, RwLockReadGuard},
+    sync::RwLockReadGuard,
 };
 use tracing::info;
 

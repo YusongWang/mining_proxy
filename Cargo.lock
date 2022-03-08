@@ -1418,7 +1418,7 @@ dependencies = [
  "serde_millis",
  "serde_yaml",
  "static-files",
- "time 0.1.43",
+ "time 0.3.7",
  "tokio",
  "tokio-native-tls",
  "tracing",

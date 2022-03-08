@@ -23,7 +23,10 @@ use std::{collections::HashMap, fs::OpenOptions, io::Read};
 use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
 
 use mining_proxy::{
-    client::{tcp::accept_tcp, tls::accept_tcp_with_tls, SSL, TCP},
+    client::{
+        encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls, SSL,
+        TCP,
+    },
     protocol::ethjson::EthClientObject,
     state::Worker,
     util::config::Settings,
@@ -304,7 +307,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
-            //accept_en_tcp(Arc::clone(&proxy)),
+            accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert),
             send_to_parent(worker_rx, &mconfig),
             mining_proxy::client::fee::fee(
@@ -362,7 +365,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
-            //accept_en_tcp(Arc::clone(&proxy)),
+            accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert),
             send_to_parent(worker_rx, &mconfig),
             mining_proxy::client::fee::p_fee_ssl(
