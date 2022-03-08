@@ -3,8 +3,7 @@ build = "build.rs"
 edition = "2021"
 name = "proxy"
 version = "0.1.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "A simple Eth Proxy\n一个简单的矿工代理工具\n本工具是开放软件，任何人都可以免费下载和使用。\n请遵循本地法律的情况下使用。如非法使用由软件使用人承担一切责任\n"
 
 [dependencies]
 actix-web = "4.0.1"

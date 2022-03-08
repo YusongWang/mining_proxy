@@ -2,6 +2,8 @@ mod version {
     include!(concat!(env!("OUT_DIR"), "/version.rs"));
 }
 
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+
 use tracing::Level;
 
 use std::sync::Arc;
@@ -40,8 +42,6 @@ use tokio::{
     select,
     sync::mpsc::{self, UnboundedReceiver},
 };
-
-include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 fn main() -> Result<()> {
     setup_panic!();
