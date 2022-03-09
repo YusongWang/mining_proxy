@@ -38,48 +38,6 @@ pub fn get_app_command_matches() -> Result<ArgMatches<'static>> {
     Ok(matches)
 }
 
-pub async fn get_encrypt_command_matches() -> Result<ArgMatches<'static>> {
-    let matches = App::new(format!(
-        "{}, 版本: {}",
-        crate_name!(),
-        crate_version!() /* version::commit_date(),
-                          * version::short_sha() */
-    ))
-    .version(crate_version!())
-    //.author(crate_authors!("\n"))
-    .about(crate_description!())
-    .arg(
-        Arg::with_name("key")
-            .short("k")
-            .long("key")
-            .help("指定加密秘钥")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("iv")
-            .short("i")
-            .long("iv")
-            .help("指定向量")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("port")
-            .short("p")
-            .long("port")
-            .help("本地监听端口")
-            .takes_value(true),
-    )
-    .arg(
-        Arg::with_name("server")
-            .short("s")
-            .long("server")
-            .help("服务器监听端口")
-            .takes_value(true),
-    )
-    .get_matches();
-    Ok(matches)
-}
-
 fn parse_hex_digit(c: char) -> Option<i64> {
     match c {
         '0' => Some(0),

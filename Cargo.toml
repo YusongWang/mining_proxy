@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "mining_proxy",
+    "encrypt",
     "proxy"
 ]

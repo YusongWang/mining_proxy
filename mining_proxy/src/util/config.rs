@@ -183,7 +183,7 @@ impl Settings {
         Ok(())
     }
 
-    pub async fn check_net_work(&self)  -> Result<()> {
+    pub async fn check_net_work(&self) -> Result<()> {
         let (stream_type, pools) =
             match crate::client::get_pool_ip_and_type_from_vec(
                 &self.share_address,

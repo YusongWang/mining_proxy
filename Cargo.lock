@@ -660,6 +660,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "encrypt"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "base64 0.13.0",
+ "clap",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "ethereum-hexutil"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,16 +1,12 @@
 use aes_gcm::aead::{Aead, NewAead};
 use aes_gcm::{Aes256Gcm, Key, Nonce}; // Or `Aes128Gcm`
 use anyhow::{bail, Result};
-use hex::FromHex;
 
 use std::sync::Arc;
 use tracing::{debug, info};
 
 use tokio::{
-    io::{
-        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, Lines, ReadHalf,
-        WriteHalf,
-    },
+    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     select,
     sync::RwLockReadGuard,
     time,
