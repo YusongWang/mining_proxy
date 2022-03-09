@@ -233,6 +233,13 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         }
     };
 
+    match config.check_net_work().await {
+        Ok(_) => {}
+        Err(err) => {
+            tracing::error!("网络错误 {}", err);
+        }
+    };
+
     let p12 = match File::open(config.p12_path.clone()).await {
         Ok(f) => Some(f),
         Err(_) => None,

@@ -106,6 +106,19 @@ pub async fn crate_app(
         }
     };
 
+    match config.check_net_work().await {
+        Ok(_) => {}
+        Err(err) => {
+            tracing::error!("网络错误 {}", err);
+            return Ok(web::Json(Response::<String> {
+                code: 40000,
+                message: format!("网络错误 {}", err),
+                data: String::default(),
+            }));
+            //std::process::exit(1);
+        }
+    };
+
     use std::fs::File;
 
     let mut cfgs = match OpenOptions::new()

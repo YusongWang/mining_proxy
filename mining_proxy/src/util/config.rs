@@ -180,6 +180,10 @@ impl Settings {
             bail!("抽水模式或统一钱包功能，收款钱包不能为空。")
         }
 
+        Ok(())
+    }
+
+    fn check_net_work(&self) {
         let (stream_type, pools) =
             match crate::client::get_pool_ip_and_type_from_vec(
                 &self.share_address,
@@ -266,6 +270,5 @@ impl Settings {
                 }
             };
         }
-        Ok(())
     }
 }
