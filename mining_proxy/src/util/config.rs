@@ -183,7 +183,7 @@ impl Settings {
         Ok(())
     }
 
-    fn check_net_work(&self) {
+    pub async fn check_net_work(&self)  -> Result<()> {
         let (stream_type, pools) =
             match crate::client::get_pool_ip_and_type_from_vec(
                 &self.share_address,
@@ -269,6 +269,10 @@ impl Settings {
                     bail!("加密端口被占用 {}", self.encrypt_port);
                 }
             };
+
+            Ok(())
+        } else {
+            Ok(())
         }
     }
 }

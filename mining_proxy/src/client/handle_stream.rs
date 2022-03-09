@@ -1,3 +1,5 @@
+use aes_gcm::aead::{Aead, NewAead};
+use aes_gcm::{Aes256Gcm, Key, Nonce}; // Or `Aes128Gcm`
 use anyhow::{bail, Result};
 use hex::FromHex;
 
@@ -154,6 +156,47 @@ where
                 //         },
                 //     };
                 // }
+
+                if is_encrypted {
+                    let key = config.key.clone();
+                    let iv = config.iv.clone();
+                    buf_bytes = match base64::decode(&buf_bytes[..]) {
+                        Ok(buffer) => buffer,
+                        Err(e) => {
+                            tracing::error!("{}",e);
+                            match pool_w.shutdown().await  {
+                                Ok(_) => {},
+                                Err(_) => {
+                                    tracing::error!("Error Shutdown Socket {:?}",e);
+                                },
+                            };
+                            bail!("解密矿机请求失败{}",e);
+                        },
+                    };
+                    //GenericArray::from(&buf_bytes[..]);
+                    //let cipher = Aes128::new(&cipherkey);
+                    let key = Key::from_slice(key.as_bytes());
+                    let cipher = Aes256Gcm::new(key);
+
+                    let nonce = Nonce::from_slice(iv.as_bytes()); // 96-bits; unique per message
+
+                    // let ciphertext = cipher.encrypt(nonce, b"plaintext message".as_ref())
+                    //     .expect("encryption failure!"); // NOTE: handle this error to avoid panics!
+
+                    buf_bytes = match cipher.decrypt(nonce, buf_bytes.as_ref()){
+                        Ok(s) => s,
+                        Err(e) => {
+                            tracing::warn!("加密报文解密失败");
+                            match pool_w.shutdown().await  {
+                                Ok(_) => {},
+                                Err(e) => {
+                                    tracing::error!("Error Shutdown Socket {:?}",e);
+                                },
+                            };
+                            bail!("解密矿机请求失败{}",e);
+                        },
+                    };
+                }
 
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);

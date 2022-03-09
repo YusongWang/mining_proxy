@@ -20,7 +20,6 @@ clap = "2.34.0"
 config = "0.11"
 dotenv = "0.15.0"
 ethereum-hexutil = "0.2.3"
-#futures = "0.3.17"
 hex = "0.4.3"
 hostname = "0.3.1"
 human-panic = "1.0.3"
@@ -28,9 +27,6 @@ jsonwebtoken = "7"
 lazy_static = "1.4.0"
 native-tls = "0.2.8"
 num_enum = "0.5.6"
-# openssl = {version = "0.10"}
-# openssl-probe = "0.1.5"
-# openssl-sys = "0.9"
 rand = "0.8.3"
 rand_chacha = "0.3.1"
 serde = {version = "1.0.130", features = ["derive"]}
@@ -38,7 +34,6 @@ serde_derive = "1.0.0"
 serde_json = "1.0"
 serde_millis = "0.1.1"
 serde_yaml = "0.8.23"
-# short-crypt = "1.0.25"
 static-files = "0.2.1"
 time = "*"
 tokio = {version = "1.17.0", features = ["full"]}
@@ -46,7 +41,7 @@ tokio-native-tls = "0.3.0"
 tracing = "0.1.30"
 tracing-appender = "0.2.0"
 tracing-subscriber = "0.3.3"
-
+aes-gcm = "0.9.4"
 
 [build-dependencies]
 actix-web-static-files = {version = "3.0.5", git = "https://github.com/enaut/actix-web-static-files.git"}
