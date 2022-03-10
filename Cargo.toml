@@ -2,6 +2,5 @@
 members = [
     "core",
     "encrypt",
-    "mining_proxy_web",
     "mining_proxy"
 ]

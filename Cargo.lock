@@ -1196,48 +1196,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mining_proxy_web"
-version = "0.2.4"
-dependencies = [
- "actix-web",
- "actix-web-grants",
- "actix-web-static-files",
- "anyhow",
- "async-channel",
- "base64 0.13.0",
- "bytes",
- "cfg-if",
- "chrono",
- "clap",
- "config",
- "core",
- "dotenv",
- "ethereum-hexutil",
- "hex",
- "hostname",
- "human-panic",
- "jsonwebtoken",
- "lazy_static",
- "native-tls",
- "num_enum",
- "rand",
- "rand_chacha",
- "serde 1.0.136",
- "serde_derive",
- "serde_json",
- "serde_millis",
- "serde_yaml",
- "static-files",
- "time 0.1.43",
- "tokio",
- "tokio-native-tls",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "vergen",
-]
-
-[[package]]
 name = "miniz_oxide"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
