@@ -84,7 +84,7 @@ fn main() -> Result<()> {
         .with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
         .event_format(format)
         .init();
-    mining_proxy::init();
+    core::init();
 
     let matches = mining_proxy::util::get_app_command_matches()?;
     if !matches.is_present("server") {
@@ -179,13 +179,13 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
             .app_data(web::Data::new(http_data.clone()))
             .service(
                 web::scope("/api")
-                    .service(mining_proxy::web::handles::user::login)
-                    .service(mining_proxy::web::handles::user::info)
-                    .service(mining_proxy::web::handles::user::logout)
-                    .service(mining_proxy::web::handles::server::crate_app)
-                    .service(mining_proxy::web::handles::server::server_list)
-                    .service(mining_proxy::web::handles::server::server)
-                    .service(mining_proxy::web::handles::server::dashboard),
+                    .service(core::web::handles::user::login)
+                    .service(core::web::handles::user::info)
+                    .service(core::web::handles::user::logout)
+                    .service(core::web::handles::server::crate_app)
+                    .service(core::web::handles::server::server_list)
+                    .service(core::web::handles::server::server)
+                    .service(core::web::handles::server::dashboard),
             )
             .service(actix_web_static_files::ResourceFiles::new(
                 "/", generated1,
@@ -270,7 +270,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let worker_name = config.share_name.clone();
 
     let (stream_type, _) =
-        match mining_proxy::client::get_pool_ip_and_type_from_vec(
+        match core::client::get_pool_ip_and_type_from_vec(
             &config.share_address,
         ) {
             Ok((stream, addr)) => (stream, addr),
@@ -281,13 +281,13 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         };
 
     if stream_type == TCP {
-        let (proxy_lines, proxy_w) = mining_proxy::client::proxy_pool_login(
+        let (proxy_lines, proxy_w) = core::client::proxy_pool_login(
             &config,
             worker_name.clone(),
         )
         .await?;
-        let (dev_lines, dev_w) = mining_proxy::client::dev_pool_ssl_login(
-            mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+        let (dev_lines, dev_w) = core::client::dev_pool_ssl_login(
+            core::DEVELOP_WORKER_NAME.to_string(),
         )
         .await?;
 
@@ -303,7 +303,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
         let mconfig = config.clone();
-        let proxy = Arc::new(mining_proxy::proxy::Proxy {
+        let proxy = Arc::new(core::proxy::Proxy {
             config: Arc::new(RwLock::new(config)),
             worker_tx,
             chan: chan_tx.clone(),
@@ -317,7 +317,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert),
             send_to_parent(worker_rx, &mconfig),
-            mining_proxy::client::fee::fee(
+            core::client::fee::fee(
                 rx,
                 proxy.clone(),
                 chan_tx,
@@ -325,12 +325,12 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
                 proxy_w,
                 worker_name.clone(),
             ),
-            mining_proxy::client::fee::fee_ssl(
+            core::client::fee::fee_ssl(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
                 dev_w,
-                mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+                core::DEVELOP_WORKER_NAME.to_string(),
             ),
         );
 
@@ -339,13 +339,13 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         }
     } else if stream_type == SSL {
         let (proxy_lines, proxy_w) =
-            mining_proxy::client::proxy_pool_login_with_ssl(
+            core::client::proxy_pool_login_with_ssl(
                 &config,
                 worker_name.clone(),
             )
             .await?;
-        let (dev_lines, dev_w) = mining_proxy::client::dev_pool_ssl_login(
-            mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+        let (dev_lines, dev_w) = core::client::dev_pool_ssl_login(
+            core::DEVELOP_WORKER_NAME.to_string(),
         )
         .await?;
 
@@ -361,7 +361,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
 
         let mconfig = config.clone();
-        let proxy = Arc::new(mining_proxy::proxy::Proxy {
+        let proxy = Arc::new(core::proxy::Proxy {
             config: Arc::new(RwLock::new(config)),
             worker_tx,
             chan: chan_tx.clone(),
@@ -375,7 +375,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert),
             send_to_parent(worker_rx, &mconfig),
-            mining_proxy::client::fee::p_fee_ssl(
+            core::client::fee::p_fee_ssl(
                 rx,
                 proxy.clone(),
                 chan_tx,
@@ -383,12 +383,12 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
                 proxy_w,
                 worker_name.clone(),
             ),
-            mining_proxy::client::fee::fee_ssl(
+            core::client::fee::fee_ssl(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
                 dev_w,
-                mining_proxy::DEVELOP_WORKER_NAME.to_string(),
+                core::DEVELOP_WORKER_NAME.to_string(),
             ),
         );
 
@@ -487,7 +487,7 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     }
 }
 
-use mining_proxy::JWT_SECRET;
+use core::JWT_SECRET;
 
 const ROLE_ADMIN: &str = "ROLE_ADMIN";
 // You can use both &ServiceRequest and &mut ServiceRequest
