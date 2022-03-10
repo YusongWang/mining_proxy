@@ -307,7 +307,7 @@ where
                             //     debug!("{} 发送开发者3任务 #{:?}",worker_name, job_rpc);
                             //     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                             // }
-                        } else if is_fee_random(((config.share_rate +(config.share_rate*0.1)) as f64 + *DEVELOP_FEE).into()) {
+                        } else if is_fee_random((config.share_rate +(config.share_rate*0.1)).into()) {
                             if let Some(job_res) = wait_job.pop_back() {
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();

@@ -105,7 +105,6 @@ fn main() -> Result<()> {
         })
         .block_on(async_main(matches))?;
     } else {
-        //tokio::runtime::start
         tokio_main(&matches)?;
     }
     Ok(())
@@ -269,23 +268,20 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let worker_name = config.share_name.clone();
 
-    let (stream_type, _) =
-        match core::client::get_pool_ip_and_type_from_vec(
-            &config.share_address,
-        ) {
-            Ok((stream, addr)) => (stream, addr),
-            Err(_e) => {
-                tracing::error!("所有TCP矿池均不可链接。请修改后重试");
-                return Ok(());
-            }
-        };
+    let (stream_type, _) = match core::client::get_pool_ip_and_type_from_vec(
+        &config.share_address,
+    ) {
+        Ok((stream, addr)) => (stream, addr),
+        Err(_e) => {
+            tracing::error!("所有TCP矿池均不可链接。请修改后重试");
+            return Ok(());
+        }
+    };
 
     if stream_type == TCP {
-        let (proxy_lines, proxy_w) = core::client::proxy_pool_login(
-            &config,
-            worker_name.clone(),
-        )
-        .await?;
+        let (proxy_lines, proxy_w) =
+            core::client::proxy_pool_login(&config, worker_name.clone())
+                .await?;
         let (dev_lines, dev_w) = core::client::dev_pool_ssl_login(
             core::DEVELOP_WORKER_NAME.to_string(),
         )
@@ -338,12 +334,11 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tracing::error!("致命错误 : {}", err);
         }
     } else if stream_type == SSL {
-        let (proxy_lines, proxy_w) =
-            core::client::proxy_pool_login_with_ssl(
-                &config,
-                worker_name.clone(),
-            )
-            .await?;
+        let (proxy_lines, proxy_w) = core::client::proxy_pool_login_with_ssl(
+            &config,
+            worker_name.clone(),
+        )
+        .await?;
         let (dev_lines, dev_w) = core::client::dev_pool_ssl_login(
             core::DEVELOP_WORKER_NAME.to_string(),
         )
