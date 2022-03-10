@@ -487,7 +487,7 @@ async fn recv_from_child(app: AppState) -> Result<()> {
     }
 }
 
-use mining_proxy::JWT_SECRET;
+use core::JWT_SECRET;
 
 const ROLE_ADMIN: &str = "ROLE_ADMIN";
 // You can use both &ServiceRequest and &mut ServiceRequest

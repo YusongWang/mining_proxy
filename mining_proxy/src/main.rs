@@ -86,7 +86,7 @@ fn main() -> Result<()> {
         .init();
     core::init();
 
-    let matches = mining_proxy::util::get_app_command_matches()?;
+    let matches = core::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         tracing::info!(
             "版本: {} commit: {} {}",
@@ -135,7 +135,7 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
                             }
                         };
                     for config in configs {
-                        match mining_proxy::util::run_server(&config) {
+                        match core::util::run_server(&config) {
                             Ok(child) => {
                                 let online = OnlineWorker {
                                     child,
