@@ -549,6 +549,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "core"
+version = "0.2.4"
+dependencies = [
+ "actix-web",
+ "actix-web-grants",
+ "actix-web-static-files",
+ "aes-gcm",
+ "anyhow",
+ "async-channel",
+ "base64 0.13.0",
+ "bytes",
+ "cfg-if",
+ "chrono",
+ "clap",
+ "config",
+ "dotenv",
+ "ethereum-hexutil",
+ "hex",
+ "hostname",
+ "human-panic",
+ "jsonwebtoken",
+ "lazy_static",
+ "native-tls",
+ "num_enum",
+ "rand",
+ "rand_chacha",
+ "serde 1.0.136",
+ "serde_derive",
+ "serde_json",
+ "serde_millis",
+ "serde_yaml",
+ "static-files",
+ "time 0.1.43",
+ "tokio",
+ "tokio-native-tls",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "vergen",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1118,7 +1160,6 @@ dependencies = [
  "actix-web",
  "actix-web-grants",
  "actix-web-static-files",
- "aes-gcm",
  "anyhow",
  "async-channel",
  "base64 0.13.0",
@@ -1127,6 +1168,7 @@ dependencies = [
  "chrono",
  "clap",
  "config",
+ "core",
  "dotenv",
  "ethereum-hexutil",
  "hex",
@@ -1145,6 +1187,48 @@ dependencies = [
  "serde_yaml",
  "static-files",
  "time 0.3.7",
+ "tokio",
+ "tokio-native-tls",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "vergen",
+]
+
+[[package]]
+name = "mining_proxy_web"
+version = "0.2.4"
+dependencies = [
+ "actix-web",
+ "actix-web-grants",
+ "actix-web-static-files",
+ "anyhow",
+ "async-channel",
+ "base64 0.13.0",
+ "bytes",
+ "cfg-if",
+ "chrono",
+ "clap",
+ "config",
+ "core",
+ "dotenv",
+ "ethereum-hexutil",
+ "hex",
+ "hostname",
+ "human-panic",
+ "jsonwebtoken",
+ "lazy_static",
+ "native-tls",
+ "num_enum",
+ "rand",
+ "rand_chacha",
+ "serde 1.0.136",
+ "serde_derive",
+ "serde_json",
+ "serde_millis",
+ "serde_yaml",
+ "static-files",
+ "time 0.1.43",
  "tokio",
  "tokio-native-tls",
  "tracing",
@@ -1479,48 +1563,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7342d5883fbccae1cc37a2353b09c87c9b0f3afd73f5fb9bba687a1f733b029"
 dependencies = [
  "unicode-xid",
-]
-
-[[package]]
-name = "proxy"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "actix-web-grants",
- "actix-web-static-files",
- "anyhow",
- "async-channel",
- "base64 0.13.0",
- "bytes",
- "cfg-if",
- "chrono",
- "clap",
- "config",
- "dotenv",
- "ethereum-hexutil",
- "hex",
- "hostname",
- "human-panic",
- "jsonwebtoken",
- "lazy_static",
- "mining_proxy",
- "native-tls",
- "num_enum",
- "rand",
- "rand_chacha",
- "serde 1.0.136",
- "serde_derive",
- "serde_json",
- "serde_millis",
- "serde_yaml",
- "static-files",
- "time 0.3.7",
- "tokio",
- "tokio-native-tls",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "vergen",
 ]
 
 [[package]]

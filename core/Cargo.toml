@@ -1,12 +1,12 @@
 [package]
-build = "build.rs"
 authors = ["YusongWang admin@wangyusong.com"]
 description = "A simple Eth Proxy\n一个简单的矿工代理工具\n本工具是开放软件，任何人都可以免费下载和使用。\n请遵循本地法律的情况下使用。如非法使用由软件使用人承担一切责任\n"
-edition = "2021"
-name = "mining_proxy"
+edition = "2018"
+name = "core"
 version = "0.2.4"
 
 [dependencies]
+#actix-web = "4.0.0-rc.2"
 actix-web = "4.0.1"
 actix-web-grants = "3.0.0-beta.6"
 actix-web-static-files = {version = "3.0.5", git = "https://github.com/enaut/actix-web-static-files.git"}
@@ -20,7 +20,6 @@ clap = "2.34.0"
 config = "0.11"
 dotenv = "0.15.0"
 ethereum-hexutil = "0.2.3"
-core = {path = "../core"}
 hex = "0.4.3"
 hostname = "0.3.1"
 human-panic = "1.0.3"
@@ -42,8 +41,14 @@ tokio-native-tls = "0.3.0"
 tracing = "0.1.30"
 tracing-appender = "0.2.0"
 tracing-subscriber = "0.3.3"
+aes-gcm = "0.9.4"
 
 [build-dependencies]
 actix-web-static-files = {version = "3.0.5", git = "https://github.com/enaut/actix-web-static-files.git"}
 static-files = "0.2.1"
 vergen = "0.1"
+
+[profile.release]
+lto = true
+opt-level = "s"
+panic = 'abort'

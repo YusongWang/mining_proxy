@@ -22,7 +22,7 @@ use std::{collections::HashMap, fs::OpenOptions, io::Read};
 
 use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
 
-use mining_proxy::{
+use core::{
     client::{
         encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls, SSL,
         TCP,

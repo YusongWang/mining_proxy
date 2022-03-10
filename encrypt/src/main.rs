@@ -11,8 +11,6 @@ use tokio::try_join;
 async fn main() -> Result<()> {
     let matches = get_encrypt_command_matches().await?;
 
-    //mining_proxy::util::logger::init_client(0)?;
-
     println!("{}, 版本: {}", crate_name!(), crate_version!(),);
 
     let key = matches
