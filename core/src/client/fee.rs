@@ -47,6 +47,8 @@ pub async fn fee_ssl(
     let sleep = time::sleep(tokio::time::Duration::from_secs(5));
     tokio::pin!(sleep);
 
+    let mut share_job_idx = 0;
+
     loop {
         select! {
             res = proxy_lines.next_line() => {
@@ -89,6 +91,9 @@ pub async fn fee_ssl(
                 }
             },
             Some(mut job_rpc) = rx.recv() => {
+                share_job_idx+=1;
+                job_rpc.set_id(share_job_idx);
+                tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             },
             () = &mut sleep  => {
@@ -118,6 +123,7 @@ pub async fn fee(
 
     let sleep = time::sleep(tokio::time::Duration::from_secs(5));
     tokio::pin!(sleep);
+    let mut share_job_idx = 0;
 
     loop {
         select! {
@@ -161,6 +167,9 @@ pub async fn fee(
                 }
             },
             Some(mut job_rpc) = rx.recv() => {
+                share_job_idx+=1;
+                job_rpc.set_id(share_job_idx);
+                tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             },
             () = &mut sleep  => {
@@ -196,6 +205,7 @@ pub async fn p_fee_ssl(
         method: "eth_getWork".into(),
         params: vec![],
     };
+    let mut share_job_idx = 0;
 
     let sleep = time::sleep(tokio::time::Duration::from_secs(5));
     tokio::pin!(sleep);
@@ -241,6 +251,9 @@ pub async fn p_fee_ssl(
                 }
             },
             Some(mut job_rpc) = rx.recv() => {
+                share_job_idx+=1;
+                job_rpc.set_id(share_job_idx);
+                tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             },
             () = &mut sleep  => {
