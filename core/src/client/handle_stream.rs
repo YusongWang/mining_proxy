@@ -195,7 +195,8 @@ where
                 }
 
                 #[cfg(debug_assertions)]
-                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, buf_bytes);
+                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, String::from_utf8(buf_bytes.clone()).unwrap());
+
                 let buf_bytes = buf_bytes.split(|c| *c == b'\n');
                 for buffer in buf_bytes {
                     if buffer.is_empty() {
