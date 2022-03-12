@@ -242,16 +242,39 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         }
     };
 
-    let p12 = match File::open(config.p12_path.clone()).await {
-        Ok(f) => {
-            tracing::info!("读取到自定义证书 {}", config.p12_path);
-            Some(f)
-        }
-        Err(_) => {
-            tracing::info!("未读取到证书 {},使用默认证书", config.p12_path);
-            None
-        }
-    };
+    // let cert = match std::fs::File::open(config.pem_path.clone()).await {
+    //     Ok(f) => {
+    //         tracing::info!("读取到自定义证书: {}", config.pem_path);
+    //         // let cert = certs(&mut std::io::BufReader::new(f))
+    //         // .map_err(|_| {
+    //         //     // std::io::Error::new(
+    //         //     //     std::io::ErrorKind::InvalidInput,
+    //         //     //     "{} pem证书失败,请使用正确的pem证书!!!",
+    //         //     // )
+    //         //     bail!("{} pem证书失败,请使用正确的pem证书!!!")
+    //         // })
+    //         // .map(|mut certs| certs.drain(..).map(Certificate).collect();
+    //         load_certs()
+
+    //         Some(f)
+    //     }
+    //     Err(_) => {
+    //         tracing::info!("未读取到证书: {},使用默认证书", config.pem_path);
+    //         None
+    //     }
+    // };
+
+    // let key = match File::open(config.key_path.clone()).await {
+    //     Ok(f) => {
+    //         tracing::info!("读取到自定义证书: {}", config.key_path);
+
+    //         Some(f)
+    //     }
+    //     Err(_) => {
+    //         tracing::info!("未读取到证书: {},使用默认证书", config.key_path);
+    //         None
+    //     }
+    // };
 
     let mode = if config.share == 0 {
         "纯代理模式"
@@ -262,27 +285,6 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     };
 
     tracing::info!("名称 {} 当前启动模式为: {}", config.name, mode);
-    // let cert;
-    // tracing::info!("名称 {} 当前启动模式为: {}", config.name, mode);
-    // let der = include_bytes!("identity.p12");
-    // if let Some(mut p12) = p12 {
-    //     let mut buffer = BytesMut::with_capacity(10240);
-    //     let read_key_len = p12.read_buf(&mut buffer).await?;
-
-    //     let der = match Certificate::from_der(&buffer[0..read_key_len]) {
-    //         Ok(cert) => cert.to_der()?,
-    //         Err(e) => {
-    //             tracing::error!("解析pem证书错误{}", e);
-    //             println!("解析pem证书错误 {}", e);
-    //             std::process::exit(1);
-    //         }
-    //     };
-
-    //     tracing::info!("读取到自定义证书{}", config.p12_path);
-    //     cert = Identity::from_pkcs12(&der,
-    // config.p12_pass.clone().as_str())?; } else {
-    //     cert = Identity::from_pkcs12(der, "mypass")?;
-    // }
 
     let worker_name = config.share_name.clone();
 
@@ -290,14 +292,46 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         &config.share_address,
     ) {
         Ok((stream, addr)) => (stream, addr),
-        Err(_e) => {
-            tracing::error!("所有TCP矿池均不可链接。请修改后重试");
+        Err(e) => {
+            tracing::error!("Share_address 矿池参数格式化失败。无法启动 {}", e);
             return Ok(());
         }
     };
 
-    let certs = load_certs(Path::new("./cert.pem"))?;
-    let mut keys = load_keys(Path::new("./key.pem"))?;
+    let certs = match load_certs(Path::new(&config.pem_path)) {
+        Ok(cert) => {
+            tracing::info!(
+                "自定义SSL证书 {} 格式正确。使用此证书.",
+                config.pem_path
+            );
+            cert
+        }
+        Err(_) => {
+            tracing::error!(
+                "自定义SSL证书 {} 未找到或格式不正确.将使用默认证书",
+                config.pem_path
+            );
+            panic!("未找到默认证书pem");
+        }
+    };
+
+    let mut keys = match load_keys(Path::new(&config.key_path)) {
+        Ok(key) => {
+            tracing::info!(
+                "自定义秘钥key {} 格式正确。使用此秘钥。",
+                config.key_path
+            );
+            key
+        }
+        Err(_) => {
+            tracing::error!(
+                "自定义秘钥key {} 未找到或格式不正确.将使用默认证书",
+                config.key_path
+            );
+            panic!("未找到默认Key");
+            //let key_pem = include_bytes!("key.pem");
+        }
+    };
 
     let cert_config = rustls::ServerConfig::builder()
         .with_safe_defaults()

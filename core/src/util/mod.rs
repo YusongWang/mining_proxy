@@ -329,11 +329,15 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .env("PROXY_SHARE_NAME", config.share_name.to_string())
         .env("PROXY_SHARE", config.share.to_string())
         .env(
-            "PROXY_P12_PATH",
+            "PROXY_PEM_PATH",
             exe_path.to_str().expect("无法转换路径为字符串").to_string()
-                + config.p12_path.as_str(),
+                + config.pem_path.as_str(),
         )
-        .env("PROXY_P12_PASS", "mypass".to_string())
+        .env(
+            "PROXY_KEY_PATH",
+            exe_path.to_str().expect("无法转换路径为字符串").to_string()
+                + config.pem_path.as_str(),
+        )
         .env("PROXY_KEY", config.key.to_string())
         .env("PROXY_IV", config.iv.to_string());
 

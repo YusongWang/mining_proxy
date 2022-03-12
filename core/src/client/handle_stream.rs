@@ -217,9 +217,11 @@ where
                             },
                             "eth_submitWork" => {
                                 eth_server_result.id = rpc_id;
-                                if let Some(job_id) = json_rpc.get_job_id(){
+                                if let Some(job_id) = json_rpc.get_job_id() {
                                     #[cfg(debug_assertions)]
                                     debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
+                                    let mut json_rpc = Box::new(EthClientWorkerObject{ id: json_rpc.get_id(), method: json_rpc.get_method(), params: json_rpc.get_params(), worker: worker_name.clone()});
+
 
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());

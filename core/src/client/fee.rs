@@ -93,7 +93,7 @@ pub async fn fee_ssl(
             Some(mut job_rpc) = rx.recv() => {
                 share_job_idx+=1;
                 job_rpc.set_id(share_job_idx);
-                tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
+                //tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             },
             () = &mut sleep  => {
@@ -169,7 +169,7 @@ pub async fn fee(
             Some(mut job_rpc) = rx.recv() => {
                 share_job_idx+=1;
                 job_rpc.set_id(share_job_idx);
-                tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
+                //tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             },
             () = &mut sleep  => {
@@ -253,7 +253,7 @@ pub async fn p_fee_ssl(
             Some(mut job_rpc) = rx.recv() => {
                 share_job_idx+=1;
                 job_rpc.set_id(share_job_idx);
-                tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
+                //tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
                 write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?
             },
             () = &mut sleep  => {

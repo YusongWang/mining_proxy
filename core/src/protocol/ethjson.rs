@@ -29,6 +29,8 @@ pub trait EthClientObject {
     fn get_method(&self) -> String;
     fn is_protocol_eth_statum(&self) -> bool;
 
+    fn get_params(&self) -> Vec<String>;
+
     fn to_vec(&mut self) -> Result<Vec<u8>>;
 }
 
@@ -70,6 +72,8 @@ impl EthClientObject for EthClientRootObject {
         self.id = id;
         true
     }
+
+    fn get_params(&self) -> Vec<String> { self.params.clone() }
 
     fn get_id(&self) -> u64 { self.id }
 
@@ -147,6 +151,8 @@ impl EthClientObject for EthClientWorkerObject {
     }
 
     fn get_id(&self) -> u64 { self.id }
+
+    fn get_params(&self) -> Vec<String> { self.params.clone() }
 
     fn get_job_id(&self) -> Option<String> {
         match self.params.get(1) {
@@ -302,10 +308,9 @@ pub struct EthServer {
 }
 
 pub async fn new_eth_submit_work<W, W2>(
-    worker: &mut Worker, pool_w: &mut WriteHalf<W>,
-    worker_w: &mut WriteHalf<W2>,
-    rpc: &mut Box<dyn EthClientObject + Send + Sync>, worker_name: &String,
-    config: &Settings,
+    _worker: &mut Worker, pool_w: &mut WriteHalf<W>,
+    _worker_w: &mut WriteHalf<W2>, rpc: &mut Box<EthClientWorkerObject>,
+    worker_name: &String, _config: &Settings,
 ) -> Result<()>
 where
     W: AsyncWrite,
