@@ -301,45 +301,69 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let certs = match load_certs(Path::new(&config.pem_path)) {
         Ok(cert) => {
             tracing::info!(
-                "自定义SSL证书 {} 格式正确。使用此证书.",
+                "自定义SSL证书 {} 读取成功。使用此证书.",
                 config.pem_path
             );
             cert
         }
         Err(_) => {
+            // tracing::error!(
+            //     "自定义SSL证书 {} 未找到或格式不正确.将使用默认证书",
+            //     config.pem_path
+            // );
+            //panic!("未找到默认证书pem");
+
             tracing::error!(
-                "自定义SSL证书 {} 未找到或格式不正确.将使用默认证书",
+                "自定义SSL证书 {} 读取失败。请设置证书。未设置程序将退出。。",
                 config.pem_path
             );
-            panic!("未找到默认证书pem");
+            std::process::exit(1);
         }
     };
 
     let mut keys = match load_keys(Path::new(&config.key_path)) {
         Ok(key) => {
             tracing::info!(
-                "自定义秘钥key {} 格式正确。使用此秘钥。",
+                "自定义秘钥key {} 读取成功。使用此秘钥。",
                 config.key_path
             );
             key
         }
         Err(_) => {
+            // tracing::error!(
+            //     "自定义秘钥key {} 未找到或格式不正确.将使用默认证书",
+            //     config.key_path
+            // );
             tracing::error!(
-                "自定义秘钥key {} 未找到或格式不正确.将使用默认证书",
+                "自定义秘钥key {} 读取失败。请设置证书。未设置程序将退出。。",
                 config.key_path
             );
-            panic!("未找到默认Key");
+            std::process::exit(1);
+            //panic!("未找到默认Key");
             //let key_pem = include_bytes!("key.pem");
         }
     };
 
-    let cert_config = rustls::ServerConfig::builder()
+    let cert_config = match rustls::ServerConfig::builder()
         .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(certs, keys.remove(0))
         .map_err(|err| {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, err)
-        })?;
+        }) {
+            Ok(conf) => {
+                tracing::info!(
+                    "自定义SSL证书 {} 格式正确。使用此证书作为SSL证书",
+                    config.pem_path
+                );
+                conf
+            },
+            Err(e) => {
+                tracing::error!("证书格式化失败。 请修改证书: {}",e);
+
+                std::process::exit(1);
+            },
+        };
 
     if stream_type == TCP {
         let (proxy_lines, proxy_w) =
