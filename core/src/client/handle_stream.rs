@@ -251,7 +251,8 @@ where
                             },
                             "eth_getWork" => {
                                 new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                eth_server_result.id = rpc_id;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
                             _ => {
