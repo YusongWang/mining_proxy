@@ -1,4 +1,6 @@
 use anyhow::Result;
+
+use tokio_rustls::rustls::ServerConfig;
 use tracing::info;
 
 use tokio::{
@@ -6,16 +8,16 @@ use tokio::{
     net::{TcpListener, TcpStream},
     sync::RwLockReadGuard,
 };
-extern crate native_tls;
-use native_tls::Identity;
-use tokio::sync::mpsc::UnboundedSender;
+//extern crate native_tls;
+// use native_tls::Identity;
+// use tokio::sync::mpsc::UnboundedSender;
+use tokio_rustls::TlsAcceptor;
 
 use super::*;
-
 use crate::{proxy::Proxy, state::Worker, util::config::Settings};
 
 pub async fn accept_tcp_with_tls(
-    proxy: Arc<Proxy>, cert: Identity,
+    proxy: Arc<Proxy>, cert: ServerConfig,
 ) -> Result<()> {
     let config: Settings;
     {
@@ -38,9 +40,10 @@ pub async fn accept_tcp_with_tls(
 
     tracing::info!("本地SSL端口{} 启动成功!!!", &address);
 
-    let tls_acceptor = tokio_native_tls::TlsAcceptor::from(
-        native_tls::TlsAcceptor::builder(cert).build()?,
-    );
+    // let tls_acceptor = tokio_native_tls::TlsAcceptor::from(
+    //     native_tls::TlsAcceptor::builder(cert).build()?,
+    // );
+    let tls_acceptor = TlsAcceptor::from(Arc::new(cert));
 
     loop {
         // Asynchronously wait for an inbound TcpStream.
@@ -79,12 +82,12 @@ pub async fn accept_tcp_with_tls(
 
 async fn transfer_ssl(
     proxy: Arc<Proxy>, worker: &mut Worker, tcp_stream: TcpStream,
-    tls_acceptor: tokio_native_tls::TlsAcceptor,
+    tls_acceptor: TlsAcceptor,
 ) -> Result<()> {
     let client_stream = tls_acceptor.accept(tcp_stream).await?;
     let (worker_r, worker_w) = split(client_stream);
     let worker_r = BufReader::new(worker_r);
-    let mut pool_address: Vec<String> = Vec::new();
+    let pool_address: Vec<String>;
     {
         let config = RwLockReadGuard::map(proxy.config.read().await, |s| s);
         pool_address = config.pool_address.to_vec();

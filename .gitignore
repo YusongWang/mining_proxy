@@ -10,3 +10,4 @@ logs
 *.ntvs*
 *.njsproj
 *.sln
+*.pem

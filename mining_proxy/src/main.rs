@@ -4,9 +4,11 @@ mod version {
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
-use tracing::Level;
+use rustls_pemfile::{certs, rsa_private_keys};
+use tokio_rustls::rustls::{self, Certificate, PrivateKey};
 
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
+use tracing::Level;
 
 use tokio::sync::{broadcast, RwLock};
 
@@ -37,7 +39,7 @@ use anyhow::{bail, Result};
 use bytes::BytesMut;
 use clap::{crate_version, ArgMatches};
 use human_panic::setup_panic;
-use native_tls::Identity;
+//use native_tls::{Certificate, Identity};
 
 use tokio::{
     fs::File,
@@ -241,8 +243,14 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     };
 
     let p12 = match File::open(config.p12_path.clone()).await {
-        Ok(f) => Some(f),
-        Err(_) => None,
+        Ok(f) => {
+            tracing::info!("读取到自定义证书 {}", config.p12_path);
+            Some(f)
+        }
+        Err(_) => {
+            tracing::info!("未读取到证书 {},使用默认证书", config.p12_path);
+            None
+        }
     };
 
     let mode = if config.share == 0 {
@@ -253,19 +261,28 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         "统一钱包模式"
     };
 
-    let cert;
     tracing::info!("名称 {} 当前启动模式为: {}", config.name, mode);
-    let der = include_bytes!("identity.p12");
-    if let Some(mut p12) = p12 {
-        let mut buffer = BytesMut::with_capacity(10240);
-        let read_key_len = p12.read_buf(&mut buffer).await?;
-        cert = Identity::from_pkcs12(
-            &buffer[0..read_key_len],
-            config.p12_pass.clone().as_str(),
-        )?;
-    } else {
-        cert = Identity::from_pkcs12(der, "mypass")?;
-    }
+    // let cert;
+    // tracing::info!("名称 {} 当前启动模式为: {}", config.name, mode);
+    // let der = include_bytes!("identity.p12");
+    // if let Some(mut p12) = p12 {
+    //     let mut buffer = BytesMut::with_capacity(10240);
+    //     let read_key_len = p12.read_buf(&mut buffer).await?;
+
+    //     let der = match Certificate::from_der(&buffer[0..read_key_len]) {
+    //         Ok(cert) => cert.to_der()?,
+    //         Err(e) => {
+    //             tracing::error!("解析pem证书错误{}", e);
+    //             println!("解析pem证书错误 {}", e);
+    //             std::process::exit(1);
+    //         }
+    //     };
+
+    //     tracing::info!("读取到自定义证书{}", config.p12_path);
+    //     cert = Identity::from_pkcs12(&der,
+    // config.p12_pass.clone().as_str())?; } else {
+    //     cert = Identity::from_pkcs12(der, "mypass")?;
+    // }
 
     let worker_name = config.share_name.clone();
 
@@ -278,6 +295,17 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             return Ok(());
         }
     };
+
+    let certs = load_certs(Path::new("./cert.pem"))?;
+    let mut keys = load_keys(Path::new("./key.pem"))?;
+
+    let cert_config = rustls::ServerConfig::builder()
+        .with_safe_defaults()
+        .with_no_client_auth()
+        .with_single_cert(certs, keys.remove(0))
+        .map_err(|err| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, err)
+        })?;
 
     if stream_type == TCP {
         let (proxy_lines, proxy_w) =
@@ -312,7 +340,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
             accept_en_tcp(Arc::clone(&proxy)),
-            accept_tcp_with_tls(Arc::clone(&proxy), cert),
+            accept_tcp_with_tls(Arc::clone(&proxy), cert_config),
             send_to_parent(worker_rx, &mconfig),
             core::client::fee::fee(
                 rx,
@@ -369,7 +397,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
             accept_en_tcp(Arc::clone(&proxy)),
-            accept_tcp_with_tls(Arc::clone(&proxy), cert),
+            accept_tcp_with_tls(Arc::clone(&proxy), cert_config),
             send_to_parent(worker_rx, &mconfig),
             core::client::fee::p_fee_ssl(
                 rx,
@@ -512,4 +540,23 @@ async fn extract(req: &mut ServiceRequest) -> Result<Vec<String>, Error> {
     } else {
         Ok(vec![])
     }
+}
+
+fn load_certs(path: &Path) -> std::io::Result<Vec<Certificate>> {
+    certs(&mut std::io::BufReader::new(std::fs::File::open(path)?))
+        .map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid cert",
+            )
+        })
+        .map(|mut certs| certs.drain(..).map(Certificate).collect())
+}
+
+fn load_keys(path: &Path) -> std::io::Result<Vec<PrivateKey>> {
+    rsa_private_keys(&mut std::io::BufReader::new(std::fs::File::open(path)?))
+        .map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid key")
+        })
+        .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
 }

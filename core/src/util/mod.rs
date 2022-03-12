@@ -331,7 +331,7 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .env(
             "PROXY_P12_PATH",
             exe_path.to_str().expect("无法转换路径为字符串").to_string()
-                + "/identity.p12",
+                + config.p12_path.as_str(),
         )
         .env("PROXY_P12_PASS", "mypass".to_string())
         .env("PROXY_KEY", config.key.to_string())
