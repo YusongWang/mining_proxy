@@ -1,10 +1,3 @@
-use std::fmt::Display;
-
-use crate::{
-    client::write_to_socket_byte,
-    state::Worker,
-    util::{config::Settings, hex_to_int},
-};
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncWrite, WriteHalf};
@@ -12,6 +5,11 @@ use tokio::io::{AsyncWrite, WriteHalf};
 use super::{
     CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
     SUBSCRIBE,
+};
+use crate::{
+    client::write_to_socket_byte,
+    state::Worker,
+    util::{config::Settings, hex_to_int},
 };
 
 pub trait EthClientObject {

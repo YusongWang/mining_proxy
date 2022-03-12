@@ -5,8 +5,6 @@ pub mod handle_stream;
 pub mod handle_stream_all;
 pub mod handle_stream_nofee;
 
-mod connect;
-pub mod monitor;
 pub mod pools;
 pub mod tcp;
 pub mod tls;
