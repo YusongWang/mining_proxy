@@ -4,13 +4,13 @@ pub mod fee;
 pub mod handle_stream;
 pub mod handle_stream_all;
 pub mod handle_stream_nofee;
-
+pub mod monitor;
 pub mod pools;
 pub mod tcp;
 pub mod tls;
 
 use anyhow::bail;
-use hex::FromHex;
+
 use native_tls::TlsConnector;
 use rand::prelude::SliceRandom;
 use serde::Serialize;
