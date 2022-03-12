@@ -106,7 +106,7 @@ impl EthClientObject for EthClientRootObject {
     }
 
     fn set_worker_name(&mut self, worker_name: &str) -> bool {
-        self.params[0] = worker_name.to_string();
+        //self.params[0] = worker_name.to_string();
         true
     }
 

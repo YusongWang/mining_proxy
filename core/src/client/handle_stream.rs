@@ -221,7 +221,6 @@ where
                                     #[cfg(debug_assertions)]
                                     debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
 
-
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         dev_tx.send(json_rpc).await?;
