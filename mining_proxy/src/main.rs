@@ -351,19 +351,19 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         .map_err(|err| {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, err)
         }) {
-            Ok(conf) => {
-                tracing::info!(
-                    "自定义SSL证书 {} 格式正确。使用此证书作为SSL证书",
-                    config.pem_path
-                );
-                conf
-            },
-            Err(e) => {
-                tracing::error!("证书格式化失败。 请修改证书: {}",e);
+        Ok(conf) => {
+            tracing::info!(
+                "自定义SSL证书 {} 格式正确。使用此证书作为SSL证书",
+                config.pem_path
+            );
+            conf
+        }
+        Err(e) => {
+            tracing::error!("证书格式化失败。 请修改证书: {}", e);
 
-                std::process::exit(1);
-            },
-        };
+            std::process::exit(1);
+        }
+    };
 
     if stream_type == TCP {
         let (proxy_lines, proxy_w) =
