@@ -36,14 +36,13 @@ use core::{
 };
 
 use anyhow::{bail, Result};
-use bytes::BytesMut;
+
 use clap::{crate_version, ArgMatches};
 use human_panic::setup_panic;
 //use native_tls::{Certificate, Identity};
 
 use tokio::{
-    fs::File,
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     select,
     sync::mpsc::{self, UnboundedReceiver},
 };
