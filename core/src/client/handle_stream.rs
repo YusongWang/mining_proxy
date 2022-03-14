@@ -92,6 +92,8 @@ where
     let tx = proxy.tx.clone();
     let dev_tx = proxy.dev_tx.clone();
 
+    // 当前Job高度。
+    let mut job_hight = 0;
     // 欠了几个job
     // let mut dev_fee_idx = 0;
     // let mut fee_idx = 0;
@@ -303,28 +305,26 @@ where
                         // 增加索引
                         worker.send_job()?;
 
-                        if is_fee_random(*DEVELOP_FEE) {
+                        if is_fee(worker.total_send_idx,(*DEVELOP_FEE + (*DEVELOP_FEE*0.1)).into()) {
                             debug!("进入开发者抽水回合");
-                            //if let Some(job_res) = wait_dev_job.pop_back() {
-                            if let Ok(job_res) =  dev_chan.recv().await {
+                            if let Some(job_res) = wait_dev_job.pop_back() {
+                            //if let Ok(job_res) =  dev_chan.recv().await {
+                                worker.send_develop_job()?;
                                 debug!("获取开发者抽水任务成功 {:?}",&job_res);
                                 //let temp = rpc.result.clone();
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
-                                if !send_job.contains(&job_id) && !fee_job.contains(&job_id) {
-                                    worker.send_develop_job()?;
-                                    dev_fee_job.push(job_id.clone());
-                                    #[cfg(debug_assertions)]
-                                    debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
-                                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                    continue;
-                                } else {
-                                    debug!("获取任务已经发送过 idx++");
-                                }
+
+                                dev_fee_job.push(job_id.clone());
+                                #[cfg(debug_assertions)]
+                                debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
+                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                continue;
                             }
-                        } else if is_fee(worker.total_send_idx,(config.share_rate +(config.share_rate*0.1)).into()) {
-                            //if let Some(job_res) = wait_job.pop_back() {
-                            if let Ok(job_res) =  chan.recv().await {
+                        } else if is_fee(worker.total_send_idx,(config.share_rate + (config.share_rate*0.1)).into()) {
+                            if let Some(job_res) = wait_job.pop_back() {
+                            //if let Ok(job_res) =  chan.recv().await {
+                                worker.send_fee_job()?;
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
                                 fee_job.push(job_id.clone());
@@ -335,8 +335,14 @@ where
                             }
                         }
 
-
+                        //TODO Job diff 处理。如果接收到的任务已经过期。就跳过此任务分配。等待下次任务分配。
                         job_rpc.result = rpc.result;
+                        let hi = job_rpc.get_hight();
+                        if hi != 0 && job_hight != hi {
+
+                            debug!(worker=?worker,hight=?hi,"高度已经改变.");
+                            continue;
+                        }
                         let job_id = job_rpc.get_job_id().unwrap();
                         send_job.push(job_id);
                         #[cfg(debug_assertions)]
@@ -344,33 +350,6 @@ where
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
 
 
-                        // if is_fee_random((config.share_rate).into()){
-                        //     // 和抽水一样。如果欠了Job.就给他还回去。
-                        //     if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
-                        //         continue;
-                        //     } else  {
-                        //         if idx >= 1 {
-                        //             idx -= 1;
-                        //             job_rpc.result = rpc.result;
-                        //             send_job.push(job_id);
-                        //             //#[cfg(debug_assertions)]
-                        //             debug!("{} 发送普通任务 #{:?} 欠了{}个任务",worker_name, job_rpc,idx);
-                        //             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        //         }
-                        //     }
-                        // } else {
-                        //     if send_job.contains(&job_id) || fee_job.contains(&job_id) || dev_fee_job.contains(&job_id) {
-                        //         idx +=1;
-                        //         continue;
-                        //     } else {
-                        //         job_rpc.result = rpc.result;
-                        //         send_job.push(job_id);
-
-                        //         //#[cfg(debug_assertions)]
-                        //         debug!("{} 发送普通任务 #{:?} 欠了{}个任务",worker_name, job_rpc,idx);
-                        //         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                        //     }
-                        // }
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
@@ -383,8 +362,24 @@ where
                 }
             },
             Ok(job_res) = dev_chan.recv() => {
+                job_rpc.result = job_res.clone();
+                let hi = job_rpc.get_hight();
+                if hi != 0 && job_hight != hi {
+                    debug!(worker=?worker,hight=?hi,"开发者 高度已经改变.");
+                    wait_dev_job.clear();
+                    wait_job.clear();
+                    job_hight = hi;
+                }
                 wait_dev_job.push_back(job_res);
             },Ok(job_res) = chan.recv() => {
+                job_rpc.result = job_res.clone();
+                let hi = job_rpc.get_hight();
+                if hi != 0 && job_hight != hi {
+                    debug!(worker=?worker,hight=?hi,"中转 高度已经改变.");
+                    wait_dev_job.clear();
+                    wait_job.clear();
+                    job_hight = hi;
+                }
                 wait_job.push_back(job_res);
             },
             // Ok(job_res) = chan.recv() => {

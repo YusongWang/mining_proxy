@@ -434,9 +434,9 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
 
         let (tx, rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(3);
         let (dev_tx, dev_rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(3);
 
         // 旷工状态发送队列
         let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();

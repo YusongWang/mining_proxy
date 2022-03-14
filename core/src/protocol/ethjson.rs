@@ -249,6 +249,30 @@ impl EthServerRootObjectJsonRpc {
         }
         None
     }
+
+    pub fn get_hight(&self) -> u64 {
+        let job_hight = match self.result.get(3) {
+            Some(hight) => {
+                if hight.contains("0x") {
+                    if let Some(h) = hex_to_int(&hight[2..hight.len()]) {
+                        h as u64
+                    } else if let Some(h) = hex_to_int(&hight[..]) {
+                        h as u64
+                    } else {
+                        0
+                    }
+                } else {
+                    if let Some(h) = hex_to_int(&hight[..]) {
+                        h as u64
+                    } else {
+                        0
+                    }
+                }
+            }
+            None => 0,
+        };
+        job_hight
+    }
 }
 impl EthServerRootObject {
     pub fn get_job_id(&self) -> Option<String> {
