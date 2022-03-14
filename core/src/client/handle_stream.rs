@@ -12,6 +12,7 @@ use tokio::{
     time,
 };
 
+use crate::util::is_fee;
 use crate::{
     client::*,
     protocol::{
@@ -62,8 +63,11 @@ where
     let mut rpc_id = 0;
 
     // 如果任务时重复的，就等待一次下次发送
-    //let mut dev_send_idx = 0;
+    let mut dev_send_idx = 0;
     let mut job_idx = 0;
+
+    //let mut total_send_idx = 0;
+
     // 包装为封包格式。
     let mut pool_lines = pool_r.lines();
     let mut worker_lines;
@@ -222,7 +226,6 @@ where
                                     debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
                                     let mut json_rpc = Box::new(EthClientWorkerObject{ id: json_rpc.get_id(), method: json_rpc.get_method(), params: json_rpc.get_params(), worker: worker.worker_name.clone()});
 
-
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
                                         dev_tx.send(json_rpc).await?;
@@ -290,8 +293,6 @@ where
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
 
                 let buffer: Vec<_> = buffer.split("\n").collect();
-                #[cfg(debug_assertions)]
-                debug!(buffer=?buffer,"打印调试bug.为什么会接受到两次同样的任务。造成延迟？");
 
                 for buf in buffer {
                     if buf.is_empty() {
@@ -299,26 +300,29 @@ where
                     }
 
                     if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
+                        // 增加索引
+                        worker.send_job()?;
+
                         if is_fee_random(*DEVELOP_FEE) {
-                            // if let Some(job_res) = wait_dev_job.pop_back() {
-                            if let Ok(job_res) = dev_chan.recv().await {
+                            debug!("进入开发者抽水回合");
+                            //if let Some(job_res) = wait_dev_job.pop_back() {
+                            if let Ok(job_res) =  dev_chan.recv().await {
+                                debug!("获取开发者抽水任务成功 {:?}",&job_res);
+                                //let temp = rpc.result.clone();
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
-                                dev_fee_job.push(job_id.clone());
-                                #[cfg(debug_assertions)]
-                                debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                                continue;
+                                if !send_job.contains(&job_id) && !fee_job.contains(&job_id) {
+                                    worker.send_develop_job()?;
+                                    dev_fee_job.push(job_id.clone());
+                                    #[cfg(debug_assertions)]
+                                    debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
+                                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    continue;
+                                } else {
+                                    debug!("获取任务已经发送过 idx++");
+                                }
                             }
-                            // if let Ok(job_res) = dev_chan.recv().await {
-                            //     job_rpc.result = job_res;
-                            //     let job_id = job_rpc.get_job_id().unwrap();
-                            //     dev_fee_job.push(job_id.clone());
-                            //     #[cfg(debug_assertions)]
-                            //     debug!("{} 发送开发者3任务 #{:?}",worker_name, job_rpc);
-                            //     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
-                            // }
-                        } else if is_fee_random((config.share_rate +(config.share_rate*0.1)).into()) {
+                        } else if is_fee(worker.total_send_idx,(config.share_rate +(config.share_rate*0.1)).into()) {
                             //if let Some(job_res) = wait_job.pop_back() {
                             if let Ok(job_res) =  chan.recv().await {
                                 job_rpc.result = job_res;
@@ -378,11 +382,11 @@ where
                     }
                 }
             },
-            // Ok(job_res) = dev_chan.recv() => {
-            //     wait_dev_job.push_back(job_res);
-            // },Ok(job_res) = chan.recv() => {
-            //     wait_job.push_back(job_res);
-            // },
+            Ok(job_res) = dev_chan.recv() => {
+                wait_dev_job.push_back(job_res);
+            },Ok(job_res) = chan.recv() => {
+                wait_job.push_back(job_res);
+            },
             // Ok(job_res) = chan.recv() => {
             //     if !worker.is_online() {
             //         continue;

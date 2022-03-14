@@ -80,7 +80,7 @@ pub fn calc_hash_rate(my_hash_rate: u64, share_rate: f32) -> u64 {
 }
 
 // 根据抽水率计算启动多少个线程
-pub fn clac_phread_num(rate: f64) -> u64 { (rate * 1000.0) as u64 }
+pub fn clac_phread_num(rate: f64) -> u128 { (rate * 1000.0) as u128 }
 
 #[test]
 fn test_clac_phread_num() {
@@ -88,7 +88,7 @@ fn test_clac_phread_num() {
     assert_eq!(clac_phread_num(0.08), 80);
 }
 
-pub fn is_fee(idx: u64, fee: f64) -> bool {
+pub fn is_fee(idx: u128, fee: f64) -> bool {
     let rate = clac_phread_num(fee);
 
     idx % (1000 / rate) == 0
@@ -178,7 +178,7 @@ pub fn is_fee_random(mut fee: f64) -> bool {
 //     }
 // }
 
-pub fn fee(idx: u64, config: &Settings, fee: f64) -> bool {
+pub fn fee(idx: u128, config: &Settings, fee: f64) -> bool {
     if config.share_alg == 1 {
         return is_fee(idx, fee);
     } else {

@@ -1,10 +1,8 @@
-use std::sync::{
-    atomic::{AtomicU32, AtomicU64},
-    Arc,
-};
+use std::u128;
 
 extern crate serde_millis;
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use tracing::{debug, info};
@@ -24,6 +22,10 @@ pub struct Worker {
     pub last_subwork_time: Instant,
     pub rpc_id: u64,
     pub hash: u64,
+    pub total_send_idx: u128,
+    pub total_dev_idx: u128,
+    pub total_fee_idx: u128,
+
     pub share_index: u64,
     pub accept_index: u64,
     pub invalid_index: u64,
@@ -46,6 +48,9 @@ impl Worker {
             last_subwork_time: Instant::now(),
             protocol: PROTOCOL::KNOWN,
             hash: 0,
+            total_send_idx: 0,
+            total_fee_idx: 0,
+            total_dev_idx: 0,
             share_index: 0,
             accept_index: 0,
             invalid_index: 0,
@@ -68,6 +73,9 @@ impl Worker {
             hash: 0,
             share_index: 0,
             accept_index: 0,
+            total_send_idx: 0,
+            total_fee_idx: 0,
+            total_dev_idx: 0,
             invalid_index: 0,
             fee_share_index: 0,
             fee_accept_index: 0,
@@ -89,6 +97,21 @@ impl Worker {
         info!("矿工: {} 登录成功", self.worker);
         self.online = true;
         self.clear_state();
+    }
+
+    pub fn send_job(&mut self) -> Result<()> {
+        self.total_send_idx += 1;
+        Ok(())
+    }
+
+    pub fn send_develop_job(&mut self) -> Result<()> {
+        self.total_dev_idx += 1;
+        Ok(())
+    }
+
+    pub fn send_fee_job(&mut self) -> Result<()> {
+        self.total_fee_idx += 1;
+        Ok(())
     }
 
     // 下线
