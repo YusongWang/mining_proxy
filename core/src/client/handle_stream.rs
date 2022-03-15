@@ -305,7 +305,7 @@ where
                         // 增加索引
                         worker.send_job()?;
 
-                        if is_fee_random((*DEVELOP_FEE + (*DEVELOP_FEE*0.1)).into()) {
+                        if is_fee_random(*DEVELOP_FEE.into()) {
                             debug!("进入开发者抽水回合");
                             if let Some(job_res) = wait_dev_job.pop_back() {
                             //if let Ok(job_res) =  dev_chan.recv().await {
@@ -321,7 +321,7 @@ where
                                 write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 continue;
                             }
-                        } else if is_fee_random((config.share_rate + (config.share_rate*0.1)).into()) {
+                        } else if is_fee_random(config.share_rate.into()) {
                             if let Some(job_res) = wait_job.pop_back() {
                             //if let Ok(job_res) =  chan.recv().await {
                                 worker.send_fee_job()?;
@@ -350,7 +350,7 @@ where
                                 continue;
                             }
                         }
-                        
+
                         let job_id = job_rpc.get_job_id().unwrap();
                         send_job.push(job_id);
                         #[cfg(debug_assertions)]
