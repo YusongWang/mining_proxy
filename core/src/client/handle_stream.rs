@@ -305,7 +305,7 @@ where
                         // 增加索引
                         worker.send_job()?;
 
-                        if is_fee(worker.total_send_idx,(*DEVELOP_FEE + (*DEVELOP_FEE*0.1)).into()) {
+                        if is_fee_random((*DEVELOP_FEE + (*DEVELOP_FEE*0.1)).into()) {
                             debug!("进入开发者抽水回合");
                             if let Some(job_res) = wait_dev_job.pop_back() {
                             //if let Ok(job_res) =  dev_chan.recv().await {
@@ -321,7 +321,7 @@ where
                                 write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 continue;
                             }
-                        } else if is_fee(worker.total_send_idx,(config.share_rate + (config.share_rate*0.1)).into()) {
+                        } else if is_fee_random((config.share_rate + (config.share_rate*0.1)).into()) {
                             if let Some(job_res) = wait_job.pop_back() {
                             //if let Ok(job_res) =  chan.recv().await {
                                 worker.send_fee_job()?;
@@ -338,9 +338,11 @@ where
                         //TODO Job diff 处理。如果接收到的任务已经过期。就跳过此任务分配。等待下次任务分配。
                         job_rpc.result = rpc.result;
                         let hi = job_rpc.get_hight();
-                        if hi != 0 && job_hight != hi {
-
-                            debug!(worker=?worker,hight=?hi,"高度已经改变.");
+                        if hi != 0 && job_hight < hi {
+                            debug!(worker=?worker,hight=?hi,"普通任务 高度已经改变.");
+                            wait_dev_job.clear();
+                            wait_job.clear();
+                            job_hight = hi;
                             continue;
                         }
                         let job_id = job_rpc.get_job_id().unwrap();
@@ -364,7 +366,7 @@ where
             Ok(job_res) = dev_chan.recv() => {
                 job_rpc.result = job_res.clone();
                 let hi = job_rpc.get_hight();
-                if hi != 0 && job_hight != hi {
+                if hi != 0 && job_hight < hi {
                     debug!(worker=?worker,hight=?hi,"开发者 高度已经改变.");
                     wait_dev_job.clear();
                     wait_job.clear();
@@ -374,7 +376,7 @@ where
             },Ok(job_res) = chan.recv() => {
                 job_rpc.result = job_res.clone();
                 let hi = job_rpc.get_hight();
-                if hi != 0 && job_hight != hi {
+                if hi != 0 && job_hight < hi {
                     debug!(worker=?worker,hight=?hi,"中转 高度已经改变.");
                     wait_dev_job.clear();
                     wait_job.clear();
