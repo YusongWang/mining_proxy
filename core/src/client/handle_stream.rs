@@ -338,13 +338,19 @@ where
                         //TODO Job diff 处理。如果接收到的任务已经过期。就跳过此任务分配。等待下次任务分配。
                         job_rpc.result = rpc.result;
                         let hi = job_rpc.get_hight();
-                        if hi != 0 && job_hight < hi {
-                            debug!(worker=?worker,hight=?hi,"普通任务 高度已经改变.");
-                            wait_dev_job.clear();
-                            wait_job.clear();
-                            job_hight = hi;
-                            continue;
+                        if hi != 0 {
+                            if job_hight < hi {
+                                debug!(worker=?worker,hight=?hi,"普通任务 高度已经改变.");
+                                wait_dev_job.clear();
+                                wait_job.clear();
+                                job_hight = hi;
+                                continue;
+                            } else if job_hight > hi {
+                                // 陈旧任务.
+                                continue;
+                            }
                         }
+                        
                         let job_id = job_rpc.get_job_id().unwrap();
                         send_job.push(job_id);
                         #[cfg(debug_assertions)]
