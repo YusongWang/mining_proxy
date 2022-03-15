@@ -305,7 +305,9 @@ where
                         // 增加索引
                         worker.send_job()?;
                         if is_fee_random(*DEVELOP_FEE) {
+                            #[cfg(debug_assertions)]
                             debug!("进入开发者抽水回合");
+                            
                             if let Some(job_res) = wait_dev_job.pop_back() {
                             //if let Ok(job_res) =  dev_chan.recv().await {
                                 worker.send_develop_job()?;
