@@ -12,8 +12,6 @@ use tokio::{
     time,
 };
 
-
-
 use crate::{
     client::*,
     protocol::{
@@ -160,46 +158,46 @@ where
                 //     };
                 // }
 
-                if is_encrypted {
-                    let key = config.key.clone();
-                    let iv = config.iv.clone();
-                    buf_bytes = match base64::decode(&buf_bytes[..]) {
-                        Ok(buffer) => buffer,
-                        Err(e) => {
-                            tracing::error!("{}",e);
-                            match pool_w.shutdown().await  {
-                                Ok(_) => {},
-                                Err(_) => {
-                                    tracing::error!("Error Shutdown Socket {:?}",e);
-                                },
-                            };
-                            bail!("解密矿机请求失败{}",e);
-                        },
-                    };
-                    //GenericArray::from(&buf_bytes[..]);
-                    //let cipher = Aes128::new(&cipherkey);
-                    let key = Key::from_slice(key.as_bytes());
-                    let cipher = Aes256Gcm::new(key);
+                // if is_encrypted {
+                //     let key = config.key.clone();
+                //     let iv = config.iv.clone();
+                //     buf_bytes = match base64::decode(&buf_bytes[..]) {
+                //         Ok(buffer) => buffer,
+                //         Err(e) => {
+                //             tracing::error!("{}",e);
+                //             match pool_w.shutdown().await  {
+                //                 Ok(_) => {},
+                //                 Err(_) => {
+                //                     tracing::error!("Error Shutdown Socket {:?}",e);
+                //                 },
+                //             };
+                //             bail!("解密矿机请求失败{}",e);
+                //         },
+                //     };
+                //     //GenericArray::from(&buf_bytes[..]);
+                //     //let cipher = Aes128::new(&cipherkey);
+                //     let key = Key::from_slice(key.as_bytes());
+                //     let cipher = Aes256Gcm::new(key);
 
-                    let nonce = Nonce::from_slice(iv.as_bytes()); // 96-bits; unique per message
+                //     let nonce = Nonce::from_slice(iv.as_bytes()); // 96-bits; unique per message
 
-                    // let ciphertext = cipher.encrypt(nonce, b"plaintext message".as_ref())
-                    //     .expect("encryption failure!"); // NOTE: handle this error to avoid panics!
+                //     // let ciphertext = cipher.encrypt(nonce, b"plaintext message".as_ref())
+                //     //     .expect("encryption failure!"); // NOTE: handle this error to avoid panics!
 
-                    buf_bytes = match cipher.decrypt(nonce, buf_bytes.as_ref()){
-                        Ok(s) => s,
-                        Err(e) => {
-                            tracing::warn!("加密报文解密失败");
-                            match pool_w.shutdown().await  {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    tracing::error!("Error Shutdown Socket {:?}",e);
-                                },
-                            };
-                            bail!("解密矿机请求失败{}",e);
-                        },
-                    };
-                }
+                //     buf_bytes = match cipher.decrypt(nonce, buf_bytes.as_ref()){
+                //         Ok(s) => s,
+                //         Err(e) => {
+                //             tracing::warn!("加密报文解密失败");
+                //             match pool_w.shutdown().await  {
+                //                 Ok(_) => {},
+                //                 Err(e) => {
+                //                     tracing::error!("Error Shutdown Socket {:?}",e);
+                //                 },
+                //             };
+                //             bail!("解密矿机请求失败{}",e);
+                //         },
+                //     };
+                // }
 
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, String::from_utf8(buf_bytes.clone()).unwrap());
@@ -219,7 +217,7 @@ where
                             "eth_submitLogin" => {
                                 eth_server_result.id = rpc_id;
                                 login(worker,&mut pool_w,&mut json_rpc,&mut worker_name,&config).await?;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
                                 Ok(())
                             },
                             "eth_submitWork" => {
@@ -242,7 +240,7 @@ where
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&worker_name,&config).await?;
                                     }
 
-                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
                                     Ok(())
                                 } else {
                                     pool_w.shutdown().await?;
@@ -254,22 +252,21 @@ where
                                 eth_server_result.id = rpc_id;
                                 let mut hash = json_rpc.get_submit_hashrate();
                                 hash = (hash as f64 * (config.hash_rate as f32 / 100.0) as f64) as u64;
-
                                 json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&worker_name).await?;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
                                 Ok(())
                             },
                             "eth_getWork" => {
                                 new_eth_get_work(&mut pool_w,&mut json_rpc,&worker_name).await?;
                                 // eth_server_result.id = rpc_id;
-                                // write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                // write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
                                 Ok(())
                             },
                             "mining.subscribe" =>{ //GMiner
                                 new_eth_get_work(&mut pool_w,&mut json_rpc,&worker_name).await?;
                                 eth_server_result.id = rpc_id;
-                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
                                 Ok(())
                             }
                             _ => {
@@ -325,7 +322,7 @@ where
                                 dev_fee_job.push(job_id.clone());
                                 #[cfg(debug_assertions)]
                                 debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
                                 continue;
                             }
                         } else if is_fee_random(config.share_rate.into()) {
@@ -337,7 +334,7 @@ where
                                 fee_job.push(job_id.clone());
                                 #[cfg(debug_assertions)]
                                 debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
                                 continue;
                             }
                         }
@@ -363,7 +360,7 @@ where
                         send_job.push(job_id);
                         #[cfg(debug_assertions)]
                         debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
-                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
 
 
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {

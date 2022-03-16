@@ -91,8 +91,6 @@ pub async fn crate_app(
     config.share_alg = req.share_alg;
     config.hash_rate = 100;
     config.share_wallet = req.share_wallet.clone();
-    config.key = req.key.clone();
-    config.iv = req.iv.clone();
 
     match config.check().await {
         Ok(_) => {}

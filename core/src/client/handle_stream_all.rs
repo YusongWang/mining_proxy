@@ -388,27 +388,27 @@ where
                                 "eth_submitLogin" => {
                                     eth_server_result.id = rpc_id;
                                     new_eth_submit_login(worker,&mut pool_w,&mut json_rpc,&mut worker_name,&config).await?;
-                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
                                     Ok(())
                                 },
                                 "eth_submitWork" => {
                                     eth_server_result.id = rpc_id;
                                     worker.share_index_add();
                                     //new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config,&mut state).await?;
-                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
                                     Ok(())
                                 },
                                 "eth_submitHashrate" => {
                                     eth_server_result.id = rpc_id;
                                     new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name).await?;
 
                                     Ok(())
                                 },
                                 "eth_getWork" => {
 
                                     new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
-                                    //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                    //write_rpc(is_encrypted,&mut worker_w,eth_server_result,&worker_name).await?;
                                     Ok(())
                                 },
                                 _ => {
@@ -504,7 +504,7 @@ where
                                 job_rpc.id = 0;
                             }
 
-                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                             if result_rpc.id == CLIENT_LOGIN {
 
@@ -550,12 +550,12 @@ where
 
                             worker.logind();
 
-                            //write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                            //write_string(is_encrypted,&mut worker_w,&buf,&worker_name).await?;
                         } else {
                             tracing::error!("致命错误。未找到的协议{:?}",buf);
                         }
 
-                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name).await?;
                     } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
                         if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
 
@@ -573,7 +573,7 @@ where
 
                                 }
 
-                                write_rpc(is_encrypted,&mut worker_w,&result_rpc,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                                write_rpc(is_encrypted,&mut worker_w,&result_rpc,&worker_name).await?;
                             } else if result_rpc.id == CLIENT_LOGIN {
                                 continue;
                             } else {
@@ -586,11 +586,11 @@ where
                         } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
                         } else if let Ok(mut set_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
 
-                            write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                            write_string(is_encrypted,&mut worker_w,&buf,&worker_name).await?;
 
                             continue;
                         }
-                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name,config.key.clone(),config.iv.clone()).await?;
+                        write_string(is_encrypted,&mut worker_w,&buf,&worker_name).await?;
                     }
                 }
             },

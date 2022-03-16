@@ -306,7 +306,6 @@ pub fn get_etc_wallet() -> String { return "".into(); }
 pub fn get_cfx_wallet() -> String { return "".into(); }
 
 pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
-
     let exe = std::env::current_exe().expect("无法获取当前可执行程序路径");
     let exe_path = std::env::current_dir().expect("获取当前可执行程序路径错误");
 
@@ -324,7 +323,7 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .env("PROXY_SHARE_RATE", config.share_rate.to_string())
         .env("PROXY_SHARE_WALLET", config.share_wallet.to_string())
         .env("PROXY_SHARE_ALG", config.share_alg.to_string())
-        .env("PROXY_HASH_RATE",config.hash_rate.to_string())
+        .env("PROXY_HASH_RATE", config.hash_rate.to_string())
         .env("PROXY_COIN", config.coin.to_string())
         .env("PROXY_SHARE_NAME", config.share_name.to_string())
         .env("PROXY_SHARE", config.share.to_string())
@@ -337,10 +336,7 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
             "PROXY_KEY_PATH",
             exe_path.to_str().expect("无法转换路径为字符串").to_string()
                 + config.key_path.as_str(),
-        )
-        .env("PROXY_KEY", config.key.to_string())
-        .env("PROXY_IV", config.iv.to_string());
-
+        );
     match handle.spawn() {
         Ok(t) => Ok(t),
         Err(e) => {

@@ -20,13 +20,11 @@ pub struct Settings {
     pub share_wallet: String,
     pub share_name: String,
     pub share_rate: f32,
-    pub hash_rate:u32,
+    pub hash_rate: u32,
     pub share: u32,
     pub share_alg: u32,
     pub pem_path: String,
     pub key_path: String,
-    pub key: String,
-    pub iv: String,
 }
 
 impl Default for Settings {
@@ -45,9 +43,7 @@ impl Default for Settings {
             share_name: "".into(),
             name: "proxy".into(),
             share_alg: 0,
-            hash_rate:100,
-            key: "0000000000000000000000".into(),
-            iv: "123456".into(),
+            hash_rate: 100,
             pool_address: Vec::new(),
             share_address: Vec::new(),
         }

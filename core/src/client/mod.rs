@@ -1164,8 +1164,7 @@ where W: AsyncWrite {
 }
 
 pub async fn write_rpc<W, T>(
-    encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String, key: String,
-    iv: String,
+    encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -1180,11 +1179,8 @@ where
 
 pub async fn write_string<W>(
     encrypt: bool, w: &mut WriteHalf<W>, rpc: &str, worker: &String,
-    key: String, iv: String,
 ) -> Result<()>
-where
-    W: AsyncWrite,
-{
+where W: AsyncWrite {
     // if encrypt {
     //     write_encrypt_socket_string(w, &rpc, &worker, key, iv).await
     // } else {
