@@ -251,6 +251,9 @@ where
                             },
                             "eth_submitHashrate" => {
                                 eth_server_result.id = rpc_id;
+                                let mut hash = json_rpc.get_submit_hashrate();
+                                hash = hash - (hash  as f32 * config.share_rate) as u64;
+                                json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
@@ -307,7 +310,7 @@ where
                         if is_fee_random(*DEVELOP_FEE) {
                             #[cfg(debug_assertions)]
                             debug!("进入开发者抽水回合");
-                            
+
                             if let Some(job_res) = wait_dev_job.pop_back() {
                             //if let Ok(job_res) =  dev_chan.recv().await {
                                 worker.send_develop_job()?;
