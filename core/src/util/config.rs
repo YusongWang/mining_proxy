@@ -11,15 +11,12 @@ use super::get_develop_fee;
 pub struct Settings {
     pub coin: String,
     pub name: String,
-    pub log_level: u32,
-    pub log_path: String,
+    pub log_level: String,
     pub ssl_port: u32,
     pub tcp_port: u32,
     pub encrypt_port: u32,
-    //pub pool_ssl_address: Vec<String>,
     pub pool_address: Vec<String>,
     pub share_address: Vec<String>,
-    //pub share_ssl_address: Vec<String>,
     pub share_wallet: String,
     pub share_name: String,
     pub share_rate: f32,
@@ -35,12 +32,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            log_level: 6,
-            log_path: "".into(),
-            // pool_ssl_address: Vec::new(),
-            // pool_tcp_address: Vec::new(),
-            // share_tcp_address: Vec::new(),
-            // share_ssl_address: Vec::new(),
+            log_level: "DEBUG".into(),
             coin: "ETH".into(),
             share_wallet: "".into(),
             share_rate: 0.0,

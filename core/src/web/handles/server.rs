@@ -78,8 +78,8 @@ pub async fn crate_app(
 
     config.share_name = req.name.clone();
     config.coin = req.coin.clone();
-    config.log_level = 1;
-    config.log_path = "".into();
+    config.log_level = "DEBUG".into();
+    //config.log_path = "".into();
     config.name = req.name.clone();
     config.pool_address = vec![req.pool_address.clone()];
     config.share_address = vec![req.share_address.clone()];
@@ -89,6 +89,7 @@ pub async fn crate_app(
     config.share = req.share;
     config.share_rate = req.share_rate as f32 / 100.0;
     config.share_alg = req.share_alg;
+    config.hash_rate = 100;
     config.share_wallet = req.share_wallet.clone();
     config.key = req.key.clone();
     config.iv = req.iv.clone();

@@ -316,7 +316,8 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .arg("--server")
         .env("PROXY_NAME", config.name.clone())
         .env("PROXY_LOG_LEVEL", config.log_level.to_string())
-        .env("PROXY_LOG_PATH", config.log_path.clone())
+        //.env("PROXY_LOG_PATH", config.log_path.clone())
+
         .env("PROXY_TCP_PORT", config.tcp_port.to_string())
         .env("PROXY_SSL_PORT", config.ssl_port.to_string())
         .env("PROXY_ENCRYPT_PORT", config.encrypt_port.to_string())
@@ -325,6 +326,7 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .env("PROXY_SHARE_RATE", config.share_rate.to_string())
         .env("PROXY_SHARE_WALLET", config.share_wallet.to_string())
         .env("PROXY_SHARE_ALG", config.share_alg.to_string())
+        .env("PROXY_HASH_RATE",config.hash_rate.to_string())
         .env("PROXY_COIN", config.coin.to_string())
         .env("PROXY_SHARE_NAME", config.share_name.to_string())
         .env("PROXY_SHARE", config.share.to_string())
