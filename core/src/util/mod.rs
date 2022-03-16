@@ -306,7 +306,7 @@ pub fn get_etc_wallet() -> String { return "".into(); }
 pub fn get_cfx_wallet() -> String { return "".into(); }
 
 pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
-    //tokio::process::Command::new(program)
+
     let exe = std::env::current_exe().expect("无法获取当前可执行程序路径");
     let exe_path = std::env::current_dir().expect("获取当前可执行程序路径错误");
 
@@ -316,8 +316,6 @@ pub fn run_server(config: &Settings) -> Result<tokio::process::Child> {
         .arg("--server")
         .env("PROXY_NAME", config.name.clone())
         .env("PROXY_LOG_LEVEL", config.log_level.to_string())
-        //.env("PROXY_LOG_PATH", config.log_path.clone())
-
         .env("PROXY_TCP_PORT", config.tcp_port.to_string())
         .env("PROXY_SSL_PORT", config.ssl_port.to_string())
         .env("PROXY_ENCRYPT_PORT", config.encrypt_port.to_string())

@@ -13,6 +13,7 @@ use tokio::{
 };
 
 
+
 use crate::{
     client::*,
     protocol::{
@@ -252,7 +253,8 @@ where
                             "eth_submitHashrate" => {
                                 eth_server_result.id = rpc_id;
                                 let mut hash = json_rpc.get_submit_hashrate();
-                                hash *= (config.hash_rate / 100) as u64;
+                                hash = (hash as f64 * (config.hash_rate as f32 / 100.0) as f64) as u64;
+
                                 json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
                                 new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&worker_name).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
