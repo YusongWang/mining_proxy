@@ -12,7 +12,7 @@ use tokio::{
     time,
 };
 
-use crate::util::is_fee;
+
 use crate::{
     client::*,
     protocol::{
@@ -209,7 +209,7 @@ where
                         continue;
                     }
 
-                    if let Some(mut json_rpc) = parse(&buffer) {
+                    if let Some(mut json_rpc) = parse(buffer) {
                         #[cfg(debug_assertions)]
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
 
@@ -238,7 +238,7 @@ where
                                         worker.fee_share_accept();
                                     } else {
                                         worker.share_index_add();
-                                        new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&mut worker_name,&config).await?;
+                                        new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&worker_name,&config).await?;
                                     }
 
                                     write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
@@ -252,20 +252,20 @@ where
                             "eth_submitHashrate" => {
                                 eth_server_result.id = rpc_id;
                                 let mut hash = json_rpc.get_submit_hashrate();
-                                hash = hash - (hash  as f32 * config.share_rate) as u64;
+                                hash *= (config.hash_rate / 100) as u64;
                                 json_rpc.set_submit_hashrate(format!("0x{:x}", hash));
-                                new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                new_eth_submit_hashrate(worker,&mut pool_w,&mut json_rpc,&worker_name).await?;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
                             "eth_getWork" => {
-                                new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                new_eth_get_work(&mut pool_w,&mut json_rpc,&worker_name).await?;
                                 // eth_server_result.id = rpc_id;
                                 // write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
                             },
                             "mining.subscribe" =>{ //GMiner
-                                new_eth_get_work(&mut pool_w,&mut json_rpc,&mut worker_name).await?;
+                                new_eth_get_work(&mut pool_w,&mut json_rpc,&worker_name).await?;
                                 eth_server_result.id = rpc_id;
                                 write_rpc(is_encrypted,&mut worker_w,&eth_server_result,&worker_name,config.key.clone(),config.iv.clone()).await?;
                                 Ok(())
