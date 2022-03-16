@@ -14,3 +14,18 @@ tracing-appender = "0.2.0"
 tracing-subscriber = "0.3.3"
 tokio = {version = "1.17.0", features = ["full"]}
 base64 = "0.13.0"
+
+[package.metadata.deb]
+maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
+copyright = "2017, Michael Aaron Murphy <mmstickman@gmail.com>"
+license-file = ["LICENSE", "4"]
+extended-description = """\
+A simple subcommand for the Cargo package manager for \
+building Debian packages from Rust projects."""
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/cargo-deb", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/cargo-deb/README", "644"],
+]
