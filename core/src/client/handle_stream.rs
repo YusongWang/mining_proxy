@@ -1,5 +1,3 @@
-use aes_gcm::aead::{Aead, NewAead};
-use aes_gcm::{Aes256Gcm, Key, Nonce}; // Or `Aes128Gcm`
 use anyhow::{bail, Result};
 
 use std::sync::Arc;
@@ -111,7 +109,7 @@ where
         select! {
             res = worker_lines.next_segment() => {
                 let start = std::time::Instant::now();
-                let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
+                let buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
 
                 //每次获取一次config. 有更新的话就使用新的了
                 //let config: Settings;
@@ -211,7 +209,6 @@ where
                     if let Some(mut json_rpc) = parse(buffer) {
                         #[cfg(debug_assertions)]
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
-
                         rpc_id = json_rpc.get_id();
                         let res = match json_rpc.get_method().as_str() {
                             "eth_submitLogin" => {
@@ -311,14 +308,33 @@ where
                             debug!("进入开发者抽水回合");
 
                             if let Some(job_res) = wait_dev_job.pop_back() {
-                            //if let Ok(job_res) =  dev_chan.recv().await {
+                //if let Ok(job_res) =  dev_chan.recv().await {
+                {
+                    job_rpc.result = job_res.clone();
+                    let hi = job_rpc.get_hight();
+                    if hi != 0 {
+                    if job_hight < hi {
+                        #[cfg(debug_assertions)]
+                        debug!(worker=?worker,hight=?hi,"开发者抽水任务 高度已经改变.");
+                        wait_dev_job.clear();
+                        wait_job.clear();
+                        job_hight = hi;
+                        continue;
+                    } else if job_hight > hi {
+                        // 陈旧任务.
+                            debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
+                        continue;
+                    } else {
+                        debug!(worker=?worker,hight=?hi,job=?job_rpc,"正产分配抽水任务");
+                    }
+                    }
+                }
+
                                 worker.send_develop_job()?;
                                 #[cfg(debug_assertions)]
                                 debug!("获取开发者抽水任务成功 {:?}",&job_res);
-                                //let temp = rpc.result.clone();
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
-
                                 dev_fee_job.push(job_id.clone());
                                 #[cfg(debug_assertions)]
                                 debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
@@ -327,7 +343,30 @@ where
                             }
                         } else if is_fee_random(config.share_rate.into()) {
                             if let Some(job_res) = wait_job.pop_back() {
-                            //if let Ok(job_res) =  chan.recv().await {
+                //if let Ok(job_res) =  chan.recv().await {
+
+
+                {
+                    job_rpc.result = job_res.clone();
+                    let hi = job_rpc.get_hight();
+                    if hi != 0 {
+                    if job_hight < hi {
+                        #[cfg(debug_assertions)]
+                        debug!(worker=?worker,hight=?hi,"抽水任务 高度已经改变.");
+                        wait_dev_job.clear();
+                        wait_job.clear();
+                        job_hight = hi;
+                        continue;
+                    } else if job_hight > hi {
+                        // 陈旧任务.
+                            debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
+                        continue;
+                    }
+                    }
+                }
+
+
+
                                 worker.send_fee_job()?;
                                 job_rpc.result = job_res;
                                 let job_id = job_rpc.get_job_id().unwrap();
@@ -352,6 +391,8 @@ where
                                 continue;
                             } else if job_hight > hi {
                                 // 陈旧任务.
+
+                                                debug!(worker=?worker,hight=?hi,job=?job_rpc,"陈旧的任务。不再分配");
                                 continue;
                             }
                         }

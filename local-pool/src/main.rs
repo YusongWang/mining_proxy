@@ -1,9 +1,8 @@
-
-use std::net::ToSocketAddrs;
 use anyhow::Result;
 use clap::{
     crate_description, crate_name, crate_version, App, Arg, ArgMatches,
 };
+use std::net::ToSocketAddrs;
 
 mod encrypt;
 use encrypt::accept_encrypt_tcp;
@@ -11,7 +10,7 @@ use encrypt::accept_encrypt_tcp;
 #[tokio::main]
 async fn main() -> Result<()> {
     utils::initialize_logger(3);
-    
+
     let matches = get_encrypt_command_matches().await?;
     println!("{}, 版本: {}", crate_name!(), crate_version!(),);
     let port = matches.value_of("port").unwrap_or_else(|| {
@@ -49,9 +48,8 @@ pub async fn get_encrypt_command_matches() -> Result<ArgMatches<'static>> {
     let matches = App::new(format!(
         "{}, 版本: {}",
         crate_name!(),
-        crate_version!()
-	// version::commit_date(),
-        // version::short_sha()
+        crate_version!() /* version::commit_date(),
+                          * version::short_sha() */
     ))
     .version(crate_version!())
     .about(crate_description!())

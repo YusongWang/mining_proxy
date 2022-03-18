@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use tracing::{debug, info};
 
 use tokio::{
-    io::{AsyncBufReadExt},
+    io::AsyncBufReadExt,
     net::{TcpListener, TcpStream},
     select,
 };
@@ -18,15 +18,15 @@ pub async fn accept_encrypt_tcp(port: i32, server: SocketAddr) -> Result<()> {
 
         info!(ip=?addr,"有新机器上线了");
         tokio::spawn(async move {
-	    match transfer(stream, addr).await {
-		Ok(_) => {
-		    info!(ip=?addr,"矿机安全下线");
-		},
-		Err(e) => {
-		    info!(ip=?addr,err = ?e,"矿机下线");
-		}
-	    }
-	});
+            match transfer(stream, addr).await {
+                Ok(_) => {
+                    info!(ip=?addr,"矿机安全下线");
+                }
+                Err(e) => {
+                    info!(ip=?addr,err = ?e,"矿机下线");
+                }
+            }
+        });
     }
 }
 
@@ -48,12 +48,11 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
 
     dbg!(first_pacakge);
     //parse package
-    
+
     //if package not pensend. count+1
 
     //if count == 5 block the IpAddress.
-    
-    
+
     loop {
         select! {
             res = worker_r.next_line() => {
@@ -64,7 +63,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
                     },
                     Err(e) => return Err(anyhow!("读取超时了 矿机下线了: {}",e)),
                 };
-		
+
                 #[cfg(debug_assertions)]
                 debug!("------> :  矿机 -> 矿池  {:?}", buffer);
                 let buffer: Vec<_> = buffer.split("\n").collect();
@@ -72,7 +71,7 @@ async fn transfer(stream: TcpStream, addr: SocketAddr) -> Result<()> {
                     if buf.is_empty() {
                         continue;
                     }
-		    dbg!(buf);
+            dbg!(buf);
                 }
             }
         }

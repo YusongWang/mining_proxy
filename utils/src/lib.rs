@@ -1,6 +1,5 @@
 use crossterm::tty::IsTty;
 
-
 pub fn initialize_logger(verbosity: u8) {
     match verbosity {
         0 => std::env::set_var("RUST_LOG", "info"),
@@ -8,7 +7,7 @@ pub fn initialize_logger(verbosity: u8) {
         2 | 3 => std::env::set_var("RUST_LOG", "trace"),
         _ => std::env::set_var("RUST_LOG", "info"),
     };
-    
+
     // struct LocalTimer;
     // impl FormatTime for LocalTimer {
     //     fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
@@ -16,7 +15,6 @@ pub fn initialize_logger(verbosity: u8) {
     //     }
     // }
 
-    
     // Filter out undesirable logs.
     // let filter = EnvFilter::from_default_env()
     //     .add_directive("mio=off".parse().unwrap())
@@ -29,17 +27,16 @@ pub fn initialize_logger(verbosity: u8) {
 
     // Initialize tracing.
     let _ = tracing_subscriber::fmt()
-    //        .with_env_filter(filter)
+        //        .with_env_filter(filter)
         .with_ansi(std::io::stdout().is_tty())
-    //        .with_writer(move || LogWriter::new(&log_sender))
-	.with_level(verbosity == 3)
-	.with_target(verbosity == 3)
+        //        .with_writer(move || LogWriter::new(&log_sender))
+        .with_level(verbosity == 3)
+        .with_target(verbosity == 3)
         .with_line_number(verbosity == 3)
-    //.with_source_location(verbosity == 3)
+        //.with_source_location(verbosity == 3)
         //.with_timer(LocalTimer)
         .try_init();
 }
-
 
 #[cfg(test)]
 mod tests {
