@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "core",
-    "encrypt",
+    "utils",
+    "protos",
+    "local-pool",
     "monitor",
     "mining_proxy"
 ]

@@ -1,7 +1,5 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, Result};
 use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
-
-pub mod encrypt;
 
 const SPLIT: u8 = b'\n';
 
@@ -27,10 +25,10 @@ where W: AsyncWrite {
     rpc.push(SPLIT);
     let write_len = w.write(&rpc).await?;
     if write_len == 0 {
-        bail!(
+        return Err(anyhow!(
             "旷工: {} 服务器断开连接. 写入失败。远程矿池未连通！",
             worker
-        );
+        ));
     }
     Ok(())
 }

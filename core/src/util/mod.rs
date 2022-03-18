@@ -89,23 +89,24 @@ fn test_clac_phread_num() {
 }
 
 pub fn is_fee(idx: u128, fee: f64) -> bool {
-    let rate = clac_phread_num(fee);
-
-    idx % (1000 / rate) == 0
+    idx % (fee * 1000.0) as u128 == 0
 }
+
 
 #[test]
 fn test_is_fee() {
-    assert_eq!(is_fee(200, 0.005), true);
-    assert_ne!(is_fee(201, 0.005), true);
-    assert_eq!(is_fee(200, 0.1), true);
+    // assert_eq!(is_fee(200, 0.005), true);
+    // assert_ne!(is_fee(201, 0.005), true);
+    // assert_eq!(is_fee(200, 0.1), true);
     let mut idx = 0;
-    for i in 0..100 {
-        if is_fee(i, 0.1) {
+    for i in 0..1000 {
+        if is_fee(i, 1.9) {
+	    println!("{}",i);
             idx += 1;
         }
     }
-    assert_eq!(idx, 10);
+    
+    assert_eq!(idx, 100);
 
     let mut idx = 0;
     for i in 0..1000 {
@@ -121,9 +122,41 @@ fn test_is_fee() {
             idx += 1;
         }
     }
-
     assert_eq!(idx, 1000);
+
+    
+    let mut idx =0;
+    for i in 0..1000 {
+	if is_fee(i,0.22){
+	    println!("{}",i);
+	    idx +=1;
+	}
+    }
+    
+    assert_eq!(idx,220);
+    
+    let mut idx =0;
+    for i in 0..10000 {
+	if is_fee(i,0.5){
+	    idx +=1;
+	}
+    }
+
+    
+    assert_eq!(idx, 5000);
+
+    let mut idx =0;
+    for i in 0..10000 {
+	if is_fee(i,0.8){
+	    idx +=1;
+	}
+    }
+    
+    assert_eq!(idx, 8000);
+
 }
+
+
 
 pub fn is_fee_random(mut fee: f64) -> bool {
     use rand::SeedableRng;
@@ -196,14 +229,8 @@ fn test_fee() {
             i += 1;
         }
     }
-
+    
     assert_eq!(i, 5);
-
-    // for idx in 0..1000 {
-    //     if fee(idx, &config, 0.005) {
-    //         i += 1;
-    //     }
-    // }
 }
 #[test]
 fn test_is_fee_random() {
