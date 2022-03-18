@@ -300,7 +300,7 @@ where
                         continue;
                     }
 
-                    if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(&buf) {
+                    if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(buf) {
                         // 增加索引
                         worker.send_job()?;
                         if is_fee_random(*DEVELOP_FEE) {
@@ -308,29 +308,29 @@ where
                             debug!("进入开发者抽水回合");
 
                 //           if let Some(job_res) = wait_dev_job.pop_back() {
-                if let Ok(job_res) =  dev_chan.recv().await {
-                {
-                    job_rpc.result = job_res.clone();
-                    let hi = job_rpc.get_hight();
-                    if hi != 0 {
-                    if job_hight < hi {
-                        #[cfg(debug_assertions)]
-                        debug!(worker=?worker,hight=?hi,"开发者抽水任务 高度已经改变.");
-                        wait_dev_job.clear();
-                        wait_job.clear();
-                        job_hight = hi;
-                        continue;
-                    } else if job_hight > hi {
-                        // 陈旧任务.
-                        #[cfg(debug_assertions)]
-                        debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
-                        continue;
-                    } else {
-                        #[cfg(debug_assertions)]
-                        debug!(worker=?worker,hight=?hi,job=?job_rpc,"已分配开发者抽水任务");
-                    }
-                    }
-                }
+                            if let Ok(job_res) =  dev_chan.try_recv() {
+                                {
+                                    job_rpc.result = job_res.clone();
+                                    let hi = job_rpc.get_hight();
+                                    if hi != 0 {
+                                        if job_hight < hi {
+                                            #[cfg(debug_assertions)]
+                                            debug!(worker=?worker,hight=?hi,"开发者抽水任务 高度已经改变.");
+                                            wait_dev_job.clear();
+                                            wait_job.clear();
+                                            job_hight = hi;
+                                            continue;
+                                        } else if job_hight > hi {
+                                            // 陈旧任务.
+                                            #[cfg(debug_assertions)]
+                                            debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
+                                            continue;
+                                        } else {
+                                            #[cfg(debug_assertions)]
+                                            debug!(worker=?worker,hight=?hi,job=?job_rpc,"已分配开发者抽水任务");
+                                        }
+                                    }
+                                }
 
                                 worker.send_develop_job()?;
                                 #[cfg(debug_assertions)]
@@ -345,29 +345,26 @@ where
                             }
                         } else if is_fee_random(config.share_rate.into()) {
                             //if let Some(job_res) = wait_job.pop_back() {
-			                    if let Ok(job_res) =  chan.recv().await {
-
-                {
-                    job_rpc.result = job_res.clone();
-                    let hi = job_rpc.get_hight();
-                    if hi != 0 {
-                    if job_hight < hi {
-                        #[cfg(debug_assertions)]
-                        debug!(worker=?worker,hight=?hi,"抽水任务 高度已经改变.");
-                        wait_dev_job.clear();
-                        wait_job.clear();
-                        job_hight = hi;
-                        continue;
-                    } else if job_hight > hi {
-                        // 陈旧任务.
-                        #[cfg(debug_assertions)]
-                        debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
-                        continue;
-                    }
-                    }
-                }
-
-
+			                if let Ok(job_res) =  chan.try_recv() {
+                                {
+                                    job_rpc.result = job_res.clone();
+                                    let hi = job_rpc.get_hight();
+                                    if hi != 0 {
+                                    if job_hight < hi {
+                                        #[cfg(debug_assertions)]
+                                        debug!(worker=?worker,hight=?hi,"抽水任务 高度已经改变.");
+                                        wait_dev_job.clear();
+                                        wait_job.clear();
+                                        job_hight = hi;
+                                        continue;
+                                    } else if job_hight > hi {
+                                        // 陈旧任务.
+                                        #[cfg(debug_assertions)]
+                                        debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
+                                        continue;
+                                    }
+                                    }
+                                }
 
                                 worker.send_fee_job()?;
                                 job_rpc.result = job_res;
@@ -392,13 +389,9 @@ where
                                 continue;
                             } else if job_hight > hi {
                                 // 陈旧任务.
-
-                                                debug!(worker=?worker,hight=?hi,job=?job_rpc,"陈旧的任务。不再分配");
+                                debug!(worker=?worker,hight=?hi,job=?job_rpc,"陈旧的任务。不再分配");
                                 continue;
-                            } else {
-                #[cfg(debug_assertions)]
-                debug!(worker=?worker,hight=?hi,job=?job_rpc,"已分配开发者抽水任务");
-                }
+                            }
                         }
 
                         let job_id = job_rpc.get_job_id().unwrap();
