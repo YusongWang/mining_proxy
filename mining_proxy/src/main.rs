@@ -430,8 +430,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         )
         .await?;
 
-        let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(1);
-        let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
+        let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(3);
+        let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(3);
 
         let (tx, rx) =
             mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(3);
