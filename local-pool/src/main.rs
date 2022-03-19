@@ -1,10 +1,12 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{
     crate_description, crate_name, crate_version, App, Arg, ArgMatches,
 };
 use std::net::ToSocketAddrs;
+use tokio::{io::AsyncWriteExt, net::TcpSocket};
 
 mod encrypt;
+mod server;
 use encrypt::accept_encrypt_tcp;
 
 #[tokio::main]
@@ -36,12 +38,25 @@ async fn main() -> Result<()> {
         }
     };
 
-    let res = tokio::try_join!(accept_encrypt_tcp(port, addr));
+    let res =
+        tokio::try_join!(accept_encrypt_tcp(port, addr), server_tcp(addr));
+
     if let Err(err) = res {
         tracing::info!("加密服务断开: {}", err);
     }
 
     Ok(())
+}
+
+async fn server_tcp(addr: std::net::SocketAddr) -> Result<()> {
+    let socket = TcpSocket::new_v4()?;
+    let mut s = socket.connect(addr).await?;
+
+    s.write_all(b"Hello world").await?;
+    //发送当前钱包地址。后续的任务全部提交给一个钱包。
+    //let (read,write) = s.split();
+
+    return Err(anyhow!("非正常退出"));
 }
 
 pub async fn get_encrypt_command_matches() -> Result<ArgMatches<'static>> {

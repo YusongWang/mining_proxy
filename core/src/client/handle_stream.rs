@@ -17,7 +17,7 @@ use crate::{
         CLIENT_LOGIN, CLIENT_SUBMITWORK,
     },
     state::Worker,
-    util::{config::Settings, is_fee_random},
+    util::{config::Settings, is_fee, is_fee_random},
 };
 use crate::{
     protocol::ethjson::{
@@ -303,7 +303,7 @@ where
                     if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(buf) {
                         // 增加索引
                         worker.send_job()?;
-                        if is_fee_random(*DEVELOP_FEE) {
+                        if is_fee(worker.total_send_idx,*DEVELOP_FEE) {
                             #[cfg(debug_assertions)]
                             debug!("进入开发者抽水回合");
 
@@ -353,12 +353,11 @@ where
                                 write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
                                 continue;
                             }
-                        } else if is_fee_random(config.share_rate.into()) {
+                        } else if is_fee(worker.total_send_idx,config.share_rate.into()) {
                             #[cfg(debug_assertions)]
                             debug!("进入普通抽水回合");
                             if let Some(job_res) = wait_job.pop_back() {
-                            //if let Ok(job_res) =  chan.try_recv() {
-                                
+
                                 job_rpc.result = job_res.clone();
                                 let hi = job_rpc.get_hight();
                                 if hi != 0 {
