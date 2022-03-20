@@ -2,8 +2,6 @@
 members = [
     "core",
     "utils",
-    "protos",
-    "local-pool",
     "monitor",
     "mining_proxy"
 ]

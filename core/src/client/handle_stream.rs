@@ -111,92 +111,6 @@ where
                 let start = std::time::Instant::now();
                 let buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
 
-                //每次获取一次config. 有更新的话就使用新的了
-                //let config: Settings;
-                // {
-                //     let rconfig = RwLockReadGuard::map(proxy.config.read().await, |s| s);
-                //     config = rconfig.clone();
-                // }
-
-                // if is_encrypted {
-                //     let key = Vec::from_hex(config.key.clone()).unwrap();
-                //     let iv = Vec::from_hex(config.iv.clone()).unwrap();
-                //     let cipher = Cipher::aes_256_cbc();
-
-                //     buf_bytes = match base64::decode(&buf_bytes[..]) {
-                //         Ok(buffer) => buffer,
-                //         Err(e) => {
-                //             tracing::error!("{}",e);
-                //             match pool_w.shutdown().await  {
-                //                 Ok(_) => {},
-                //                 Err(_) => {
-                //                     tracing::error!("Error Shutdown Socket {:?}",e);
-                //                 },
-                //             };
-                //             bail!("解密矿机请求失败{}",e);
-                //         },
-                //     };
-
-                //     buf_bytes = match decrypt(
-                //         cipher,
-                //         &key,
-                //         Some(&iv),
-                //         &buf_bytes[..]) {
-                //             Ok(s) => s,
-                //             Err(e) => {
-                //                 tracing::warn!("加密报文解密失败");
-                //                 match pool_w.shutdown().await  {
-                //                     Ok(_) => {},
-                //                     Err(e) => {
-                //                         tracing::error!("Error Shutdown Socket {:?}",e);
-                //                     },
-                //                 };
-                //                 bail!("解密矿机请求失败{}",e);
-                //         },
-                //     };
-                // }
-
-                // if is_encrypted {
-                //     let key = config.key.clone();
-                //     let iv = config.iv.clone();
-                //     buf_bytes = match base64::decode(&buf_bytes[..]) {
-                //         Ok(buffer) => buffer,
-                //         Err(e) => {
-                //             tracing::error!("{}",e);
-                //             match pool_w.shutdown().await  {
-                //                 Ok(_) => {},
-                //                 Err(_) => {
-                //                     tracing::error!("Error Shutdown Socket {:?}",e);
-                //                 },
-                //             };
-                //             bail!("解密矿机请求失败{}",e);
-                //         },
-                //     };
-                //     //GenericArray::from(&buf_bytes[..]);
-                //     //let cipher = Aes128::new(&cipherkey);
-                //     let key = Key::from_slice(key.as_bytes());
-                //     let cipher = Aes256Gcm::new(key);
-
-                //     let nonce = Nonce::from_slice(iv.as_bytes()); // 96-bits; unique per message
-
-                //     // let ciphertext = cipher.encrypt(nonce, b"plaintext message".as_ref())
-                //     //     .expect("encryption failure!"); // NOTE: handle this error to avoid panics!
-
-                //     buf_bytes = match cipher.decrypt(nonce, buf_bytes.as_ref()){
-                //         Ok(s) => s,
-                //         Err(e) => {
-                //             tracing::warn!("加密报文解密失败");
-                //             match pool_w.shutdown().await  {
-                //                 Ok(_) => {},
-                //                 Err(e) => {
-                //                     tracing::error!("Error Shutdown Socket {:?}",e);
-                //                 },
-                //             };
-                //             bail!("解密矿机请求失败{}",e);
-                //         },
-                //     };
-                // }
-
                 #[cfg(debug_assertions)]
                 debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, String::from_utf8(buf_bytes.clone()).unwrap());
 
@@ -226,6 +140,7 @@ where
 
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
+
                                         dev_tx.send(json_rpc).await?;
                                     } else if fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&config.share_name.clone());
@@ -303,125 +218,126 @@ where
                     if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(buf) {
                         // 增加索引
                         worker.send_job()?;
-                        if is_fee(worker.total_send_idx,*DEVELOP_FEE) {
-                            #[cfg(debug_assertions)]
-                            debug!("进入开发者抽水回合");
+                        //if is_fee(worker.total_send_idx,*DEVELOP_FEE) {
+			// if is_fee_random(*DEVELOP_FEE) {
+                        //     #[cfg(debug_assertions)]
+                        //     debug!("进入开发者抽水回合");
 
-                            if let Some(job_res) = wait_dev_job.pop_back() {
-                            //if let Ok(job_res) =  dev_chan.try_recv() {
-                                {
-                                    job_rpc.result = job_res.clone();
-                                    let hi = job_rpc.get_hight();
-                                    if hi != 0 {
-                                        if job_hight < hi {
-                                            #[cfg(debug_assertions)]
-                                            debug!(worker=?worker,hight=?hi,"开发者抽水任务 高度已经改变.");
-                                            wait_dev_job.clear();
-                                            wait_job.clear();
-                                            job_hight = hi;
-                                            continue;
-                                        } else if job_hight > hi {
-                                            // 陈旧任务.
-                                            #[cfg(debug_assertions)]
-                                            debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
-                                            continue;
-                                        } else {
-                                            #[cfg(debug_assertions)]
-                                            debug!(worker=?worker,hight=?hi,job=?job_rpc,"已分配开发者抽水任务");
-                                            worker.send_develop_job()?;
-                                            #[cfg(debug_assertions)]
-                                            debug!("获取开发者抽水任务成功 {:?}",&job_res);
-                                            job_rpc.result = job_res;
-                                            let job_id = job_rpc.get_job_id().unwrap();
-                                            dev_fee_job.push(job_id.clone());
-                                            #[cfg(debug_assertions)]
-                                            debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
-                                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                                            continue;
-                                        }
-                                    }
-                                }
+                        //     if let Some(job_res) = wait_dev_job.pop_back() {
+                        //     //if let Ok(job_res) =  dev_chan.try_recv() {
+                        //         {
+                        //             job_rpc.result = job_res.clone();
+                        //             let hi = job_rpc.get_hight();
+                        //             if hi != 0 {
+                        //                 if job_hight < hi {
+                        //                     #[cfg(debug_assertions)]
+                        //                     debug!(worker=?worker,hight=?hi,"开发者抽水任务 高度已经改变.");
+                        //                     wait_dev_job.clear();
+                        //                     wait_job.clear();
+                        //                     job_hight = hi;
+                        //                     continue;
+                        //                 } else if job_hight > hi {
+                        //                     // 陈旧任务.
+                        //                     #[cfg(debug_assertions)]
+                        //                     debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
+                        //                     continue;
+                        //                 } else {
+                        //                     #[cfg(debug_assertions)]
+                        //                     debug!(worker=?worker,hight=?hi,job=?job_rpc,"已分配开发者抽水任务");
+                        //                     worker.send_develop_job()?;
+                        //                     #[cfg(debug_assertions)]
+                        //                     debug!("获取开发者抽水任务成功 {:?}",&job_res);
+                        //                     job_rpc.result = job_res;
+                        //                     let job_id = job_rpc.get_job_id().unwrap();
+                        //                     dev_fee_job.push(job_id.clone());
+                        //                     #[cfg(debug_assertions)]
+                        //                     debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
+                        //                     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                        //                     continue;
+                        //                 }
+                        //             }
+                        //         }
 
-                                worker.send_develop_job()?;
-                                #[cfg(debug_assertions)]
-                                debug!("获取开发者抽水任务成功 {:?}",&job_res);
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                dev_fee_job.push(job_id.clone());
-                                #[cfg(debug_assertions)]
-                                debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                                continue;
-                            }
-                        } else if is_fee(worker.total_send_idx,config.share_rate.into()) {
-                            #[cfg(debug_assertions)]
-                            debug!("进入普通抽水回合");
-                            if let Some(job_res) = wait_job.pop_back() {
+                        //         worker.send_develop_job()?;
+                        //         #[cfg(debug_assertions)]
+                        //         debug!("获取开发者抽水任务成功 {:?}",&job_res);
+                        //         job_rpc.result = job_res;
+                        //         let job_id = job_rpc.get_job_id().unwrap();
+                        //         dev_fee_job.push(job_id.clone());
+                        //         #[cfg(debug_assertions)]
+                        //         debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
+                        //         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                        //         continue;
+                        //     }
+                        //     //} else if is_fee(worker.total_send_idx,config.share_rate.into()) {
+			//     } else if is_fee_random(config.share_rate.into()) {
+                        //     #[cfg(debug_assertions)]
+                        //     debug!("进入普通抽水回合");
+                        //     if let Some(job_res) = wait_job.pop_back() {
 
-                                job_rpc.result = job_res.clone();
-                                let hi = job_rpc.get_hight();
-                                if hi != 0 {
-                                    if job_hight < hi {
-                                        #[cfg(debug_assertions)]
-                                        debug!(worker=?worker,hight=?hi,"抽水任务 高度已经改变.");
-                                        wait_dev_job.clear();
-                                        wait_job.clear();
-                                        job_hight = hi;
-                                        continue;
-                                    } else if job_hight > hi {
-                                        // 陈旧任务.
-                                        #[cfg(debug_assertions)]
-                                        debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
-                                        continue;
-                                    } else {
-                                        worker.send_fee_job()?;
-                                        job_rpc.result = job_res;
-                                        let job_id = job_rpc.get_job_id().unwrap();
-                                        fee_job.push(job_id.clone());
-                                        #[cfg(debug_assertions)]
-                                        debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
-                                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                                        continue;
-                                    }
-                                }
-
-
-                                worker.send_fee_job()?;
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                fee_job.push(job_id.clone());
-                                #[cfg(debug_assertions)]
-                                debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                                continue;
-                            }
-                        }
+                        //         job_rpc.result = job_res.clone();
+                        //         let hi = job_rpc.get_hight();
+                        //         if hi != 0 {
+                        //             if job_hight < hi {
+                        //                 #[cfg(debug_assertions)]
+                        //                 debug!(worker=?worker,hight=?hi,"抽水任务 高度已经改变.");
+                        //                 wait_dev_job.clear();
+                        //                 wait_job.clear();
+                        //                 job_hight = hi;
+                        //                 continue;
+                        //             } else if job_hight > hi {
+                        //                 // 陈旧任务.
+                        //                 #[cfg(debug_assertions)]
+                        //                 debug!(worker=?worker,hight=?hi,job=?job_rpc,"抽水获取到 陈旧的任务。不再分配");
+                        //                 continue;
+                        //             } else {
+                        //                 worker.send_fee_job()?;
+                        //                 job_rpc.result = job_res;
+                        //                 let job_id = job_rpc.get_job_id().unwrap();
+                        //                 fee_job.push(job_id.clone());
+                        //                 #[cfg(debug_assertions)]
+                        //                 debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
+                        //                 write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                        //                 continue;
+                        //             }
+                        //         }
 
 
-                        //TODO Job diff 处理。如果接收到的任务已经过期。就跳过此任务分配。等待下次任务分配。
-                        job_rpc.result = rpc.result;
-                        let hi = job_rpc.get_hight();
-                        if hi != 0 {
-                            if job_hight < hi {
-                                #[cfg(debug_assertions)]
-                                debug!(worker=?worker,hight=?hi,"普通任务 高度已经改变.");
-                                wait_dev_job.clear();
-                                wait_job.clear();
-                                job_hight = hi;
-                                continue;
-                            } else if job_hight > hi {
-                                // 陈旧任务.
-                                debug!(worker=?worker,hight=?hi,job=?job_rpc,"陈旧的任务。不再分配");
-                                continue;
-                            }
-                        }
+                        //         worker.send_fee_job()?;
+                        //         job_rpc.result = job_res;
+                        //         let job_id = job_rpc.get_job_id().unwrap();
+                        //         fee_job.push(job_id.clone());
+                        //         #[cfg(debug_assertions)]
+                        //         debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
+                        //         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                        //         continue;
+                        //     }
+                        // }
+
+
+                        // //TODO Job diff 处理。如果接收到的任务已经过期。就跳过此任务分配。等待下次任务分配。
+                        // job_rpc.result = rpc.result;
+                        // let hi = job_rpc.get_hight();
+                        // if hi != 0 {
+                        //     if job_hight < hi {
+                        //         #[cfg(debug_assertions)]
+                        //         debug!(worker=?worker,hight=?hi,"普通任务 高度已经改变.");
+                        //         wait_dev_job.clear();
+                        //         wait_job.clear();
+                        //         job_hight = hi;
+                        //         continue;
+                        //     } else if job_hight > hi {
+                        //         // 陈旧任务.
+                        //         debug!(worker=?worker,hight=?hi,job=?job_rpc,"陈旧的任务。不再分配");
+                        //         continue;
+                        //     }
+                        // }
 
                         let job_id = job_rpc.get_job_id().unwrap();
                         send_job.push(job_id);
                         #[cfg(debug_assertions)]
                         debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
                         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-
                     } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                         if result_rpc.id == CLIENT_LOGIN {
                             worker.logind();
