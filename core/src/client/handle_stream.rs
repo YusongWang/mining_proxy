@@ -316,7 +316,7 @@ where
 
 
                         // //TODO Job diff 处理。如果接收到的任务已经过期。就跳过此任务分配。等待下次任务分配。
-                        // job_rpc.result = rpc.result;
+ 
                         // let hi = job_rpc.get_hight();
                         // if hi != 0 {
                         //     if job_hight < hi {
@@ -332,7 +332,8 @@ where
                         //         continue;
                         //     }
                         // }
-
+                        job_rpc.result = rpc.result;
+                        
                         let job_id = job_rpc.get_job_id().unwrap();
                         send_job.push(job_id);
                         #[cfg(debug_assertions)]
