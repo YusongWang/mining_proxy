@@ -218,7 +218,7 @@ where
                     if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(buf) {
                         // 增加索引
                         worker.send_job()?;
-                        //if is_fee(worker.total_send_idx,*DEVELOP_FEE) {
+                        if is_fee(worker.total_send_idx,*DEVELOP_FEE) {
 			// if is_fee_random(*DEVELOP_FEE) {
                         //     #[cfg(debug_assertions)]
                         //     debug!("进入开发者抽水回合");
@@ -270,7 +270,7 @@ where
                         //         continue;
                         //     }
                         //     //} else if is_fee(worker.total_send_idx,config.share_rate.into()) {
-			//     } else if is_fee_random(config.share_rate.into()) {
+			} else if is_fee_random(config.share_rate.into()) {
                         //     #[cfg(debug_assertions)]
                         //     debug!("进入普通抽水回合");
                         //     if let Some(job_res) = wait_job.pop_back() {
@@ -312,7 +312,7 @@ where
                         //         write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
                         //         continue;
                         //     }
-                        // }
+                        }
 
 
                         // //TODO Job diff 处理。如果接收到的任务已经过期。就跳过此任务分配。等待下次任务分配。
