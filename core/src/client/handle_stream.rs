@@ -236,7 +236,7 @@ where
                     if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(buf) {
                         // 增加索引
                         worker.send_job()?;
-                        if is_fee(worker.total_send_idx,*DEVELOP_FEE) {
+                        if is_fee_random(*DEVELOP_FEE) {
                             #[cfg(debug_assertions)]
                             debug!("进入开发者抽水回合");
 
