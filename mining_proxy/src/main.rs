@@ -45,6 +45,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     select,
     sync::mpsc::{self, UnboundedReceiver},
+    sync::Mutex,
 };
 
 fn main() -> Result<()> {
@@ -392,6 +393,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tx,
             dev_tx,
             dev_chan: dev_chan_tx.clone(),
+            proxy_write: Arc::new(Mutex::new(Box::new(proxy_w))),
+            dev_write: Arc::new(Mutex::new(Box::new(dev_w))),
         });
 
         let res = tokio::try_join!(
@@ -404,14 +407,14 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
                 proxy.clone(),
                 chan_tx,
                 proxy_lines,
-                proxy_w,
+                //proxy_w,
                 worker_name.clone(),
             ),
             core::client::fee::fee_ssl(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
-                dev_w,
+                //dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
             ),
         );
@@ -434,9 +437,9 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(3);
 
         let (tx, rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(3);
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(1);
         let (dev_tx, dev_rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(3);
+            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(1);
 
         // 旷工状态发送队列
         let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
@@ -449,6 +452,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tx,
             dev_tx,
             dev_chan: dev_chan_tx.clone(),
+            proxy_write: Arc::new(Mutex::new(Box::new(proxy_w))),
+            dev_write: Arc::new(Mutex::new(Box::new(dev_w))),
         });
 
         let res = tokio::try_join!(
@@ -456,19 +461,19 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert_config),
             send_to_parent(worker_rx, &mconfig),
-            core::client::fee::p_fee_ssl(
+            core::client::fee::fee(
                 rx,
                 proxy.clone(),
                 chan_tx,
                 proxy_lines,
-                proxy_w,
+                //proxy_w,
                 worker_name.clone(),
             ),
             core::client::fee::fee_ssl(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
-                dev_w,
+                //dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
             ),
         );
