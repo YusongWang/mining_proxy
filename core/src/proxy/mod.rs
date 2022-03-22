@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use tokio::{
-    io::{AsyncWrite, WriteHalf},
+    io::AsyncWrite,
     //net::TcpStream,
     sync::{broadcast::Sender, mpsc::UnboundedSender, Mutex, RwLock},
 };
@@ -21,6 +21,6 @@ pub struct Proxy {
         tokio::sync::mpsc::Sender<Box<dyn EthClientObject + Send + Sync>>,
     pub worker_tx: UnboundedSender<Worker>,
 
-    pub proxy_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync>>>,
-    pub dev_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync>>>,
+    pub proxy_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync + Unpin>>>,
+    pub dev_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync + Unpin>>>,
 }

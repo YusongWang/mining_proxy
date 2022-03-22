@@ -393,8 +393,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tx,
             dev_tx,
             dev_chan: dev_chan_tx.clone(),
-            proxy_write: Arc::new(Mutex::new(Box::new(proxy_w))),
-            dev_write: Arc::new(Mutex::new(Box::new(dev_w))),
+            proxy_write: Arc::new(Mutex::new(Box::new(Box::pin(proxy_w)))),
+            dev_write: Arc::new(Mutex::new(Box::new(Box::pin(dev_w)))),
         });
 
         let res = tokio::try_join!(
@@ -452,8 +452,8 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tx,
             dev_tx,
             dev_chan: dev_chan_tx.clone(),
-            proxy_write: Arc::new(Mutex::new(Box::new(proxy_w))),
-            dev_write: Arc::new(Mutex::new(Box::new(dev_w))),
+            proxy_write: Arc::new(Mutex::new(Box::new(Box::pin(proxy_w)))),
+            dev_write: Arc::new(Mutex::new(Box::new(Box::pin(dev_w)))),
         });
 
         let res = tokio::try_join!(
