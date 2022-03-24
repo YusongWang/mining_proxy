@@ -1,6 +1,7 @@
 /target
 .DS_Store
 default.yaml
+release/
 configs.yaml
 logs
 # Editor directories and files

@@ -20,7 +20,6 @@ pub struct Proxy {
     pub dev_tx:
         tokio::sync::mpsc::Sender<Box<dyn EthClientObject + Send + Sync>>,
     pub worker_tx: UnboundedSender<Worker>,
-
-    pub proxy_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync + Unpin>>>,
-    pub dev_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync + Unpin>>>,
+    // pub proxy_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync + Unpin>>>,
+    // pub dev_write: Arc<Mutex<Box<dyn AsyncWrite + Send + Sync + Unpin>>>,
 }

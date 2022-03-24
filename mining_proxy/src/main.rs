@@ -392,9 +392,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             chan: chan_tx.clone(),
             tx,
             dev_tx,
-            dev_chan: dev_chan_tx.clone(),
-            proxy_write: Arc::new(Mutex::new(Box::new(Box::pin(proxy_w)))),
-            dev_write: Arc::new(Mutex::new(Box::new(Box::pin(dev_w)))),
+            dev_chan: dev_chan_tx.clone()
         });
 
         let res = tokio::try_join!(
@@ -407,14 +405,14 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
                 proxy.clone(),
                 chan_tx,
                 proxy_lines,
-                //proxy_w,
+                proxy_w,
                 worker_name.clone(),
             ),
             core::client::fee::fee_ssl(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
-                //dev_w,
+                dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
             ),
         );
@@ -452,8 +450,6 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tx,
             dev_tx,
             dev_chan: dev_chan_tx.clone(),
-            proxy_write: Arc::new(Mutex::new(Box::new(Box::pin(proxy_w)))),
-            dev_write: Arc::new(Mutex::new(Box::new(Box::pin(dev_w)))),
         });
 
         let res = tokio::try_join!(
@@ -466,14 +462,14 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
                 proxy.clone(),
                 chan_tx,
                 proxy_lines,
-                //proxy_w,
+                proxy_w,
                 worker_name.clone(),
             ),
             core::client::fee::fee_ssl(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
-                //dev_w,
+                dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
             ),
         );

@@ -140,31 +140,33 @@ where
 
                                     if dev_fee_job.contains(&job_id) {
                                         json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
-                                        //dev_tx.send(json_rpc).await?;
-                                        let mut rpc = json_rpc.to_vec()?;
-                                        rpc.push(b'\n');
-                                        #[cfg(debug_assertions)]
-                                        tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc," 获得抽水工作份额");
-                                        {
-                                            let mut w  = proxy.dev_write.lock().await;
-                                            let write_len = w.write(&rpc).await?;
-                                            //write_to_socket_byte(&mut **w, job_rpc.to_vec()?, &worker_name).await?;
-                                        }
+                                        dev_tx.send(json_rpc).await?;
+					
+                                        // let mut rpc = json_rpc.to_vec()?;
+                                        // rpc.push(b'\n');
+                                        // #[cfg(debug_assertions)]
+                                        // tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc," 获得抽水工作份额");
+                                        // {
+                                        //     let mut w  = proxy.dev_write.lock().await;
+                                        //     let write_len = w.write(&rpc).await?;
+                                        //     //write_to_socket_byte(&mut **w, job_rpc.to_vec()?, &worker_name).await?;
+                                        // }
                                     } else if fee_job.contains(&job_id) {
+
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
                                         json_rpc.set_worker_name(&config.share_name.clone());
-                                        let mut rpc = json_rpc.to_vec()?;
-                                        rpc.push(b'\n');
-                                        #[cfg(debug_assertions)]
-                                        tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc," 获得抽水工作份额");
+					tx.send(json_rpc).await?;
+                                        // let mut rpc = json_rpc.to_vec()?;
+                                        // rpc.push(b'\n');
+                                        // #[cfg(debug_assertions)]
+                                        // tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc," 获得抽水工作份额");
 
-                                        {
-                                            let mut w  = proxy.proxy_write.lock().await;
-                                            let write_len = w.write(&rpc).await?;
-                                            //write_to_socket_byte(&mut **w, job_rpc.to_vec()?, &worker_name).await?;
-                                        }
-
+                                        // {
+                                        //     let mut w  = proxy.proxy_write.lock().await;
+                                        //     let write_len = w.write(&rpc).await?;
+                                        //     //write_to_socket_byte(&mut **w, job_rpc.to_vec()?, &worker_name).await?;
+                                        // }
                                     } else {
                                         worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&worker_name,&config).await?;
