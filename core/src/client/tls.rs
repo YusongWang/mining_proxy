@@ -55,7 +55,7 @@ pub async fn accept_tcp_with_tls(
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
-            let mut worker_tx = p.worker_tx.clone();
+            let worker_tx = p.worker_tx.clone();
             match transfer_ssl(p, &mut worker, stream, acceptor).await {
                 Ok(_) => {
                     if worker.is_online() {

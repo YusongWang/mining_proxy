@@ -29,7 +29,6 @@ use core::{
         encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls, SSL,
         TCP,
     },
-    protocol::ethjson::EthClientObject,
     state::Worker,
     util::config::Settings,
     web::{handles::auth::Claims, AppState, OnlineWorker},
@@ -45,19 +44,16 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     select,
     sync::mpsc::{self, UnboundedReceiver},
-    sync::Mutex,
 };
 
 fn main() -> Result<()> {
     setup_panic!();
-    //openssl_probe::init_ssl_cert_env_vars();
     dotenv().ok();
-    //logger::init();
 
     if std::fs::metadata("./logs/").is_err() {
         std::fs::create_dir("./logs/")?;
     }
-
+    
     struct LocalTimer;
     impl FormatTime for LocalTimer {
         fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
@@ -86,8 +82,8 @@ fn main() -> Result<()> {
         .with_ansi(false) // 如果日志是写入文件，应将ansi的颜色输出功能关掉
         .event_format(format)
         .init();
-    core::init();
 
+    core::init();
     let matches = core::util::get_app_command_matches()?;
     if !matches.is_present("server") {
         tracing::info!(
@@ -96,7 +92,7 @@ fn main() -> Result<()> {
             version::commit_date(),
             version::short_sha(),
         );
-
+	
         actix_web::rt::System::with_tokio_rt(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -115,16 +111,14 @@ fn main() -> Result<()> {
 
 async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
     let data: AppState = Arc::new(std::sync::Mutex::new(HashMap::new()));
-
+    
     match OpenOptions::new()
         .write(true)
         .read(true)
-        //.create(true)
-        //.truncate(true)
         .open("configs.yaml")
     {
         Ok(mut f) => {
-            //let configs:Vec<Settings> = vec![];
+
             let mut configs = String::new();
             if let Ok(len) = f.read_to_string(&mut configs) {
                 if len > 0 {
@@ -194,17 +188,14 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
             ))
             .service(actix_web_static_files::ResourceFiles::new("", generated))
     })
-    //.workers(1)
     .bind(format!("0.0.0.0:{}", port))
     {
         http.run()
     } else {
         let mut proxy_server = data.lock().unwrap();
-
         for (_, other_server) in &mut *proxy_server {
             other_server.child.kill().await?;
         }
-
         bail!("web端口 {} 被占用了", port);
     };
 
@@ -219,7 +210,6 @@ fn tokio_main(matches: &ArgMatches<'_>) -> Result<()> {
         .build()
         .unwrap()
         .block_on(async { tokio_run(matches).await })?;
-
     Ok(())
 }
 
@@ -378,9 +368,9 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
 
         let (tx, rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+            mpsc::channel::<Vec<String>>(15);
         let (dev_tx, dev_rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(15);
+            mpsc::channel::<Vec<String>>(15);
 
         // 旷工状态发送队列
         let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
@@ -421,27 +411,25 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tracing::error!("致命错误 : {}", err);
         }
     } else if stream_type == SSL {
+	
         let (proxy_lines, proxy_w) = core::client::proxy_pool_login_with_ssl(
             &config,
             worker_name.clone(),
-        )
-        .await?;
+        ).await?;
+	
         let (dev_lines, dev_w) = core::client::dev_pool_ssl_login(
             core::DEVELOP_WORKER_NAME.to_string(),
-        )
-        .await?;
-
+        ).await?;
+	
         let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(3);
         let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(3);
 
-        let (tx, rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(1);
-        let (dev_tx, dev_rx) =
-            mpsc::channel::<Box<dyn EthClientObject + Send + Sync>>(1);
+	let (tx, rx) = mpsc::channel::<Vec<String>>(15);
+        let (dev_tx, dev_rx) = mpsc::channel::<Vec<String>>(15);
 
         // 旷工状态发送队列
         let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-
+	
         let mconfig = config.clone();
         let proxy = Arc::new(core::proxy::Proxy {
             config: Arc::new(RwLock::new(config)),
@@ -618,3 +606,4 @@ fn load_keys(path: &Path) -> std::io::Result<Vec<PrivateKey>> {
         })
         .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
 }
+ 

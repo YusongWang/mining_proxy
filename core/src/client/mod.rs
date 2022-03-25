@@ -33,7 +33,6 @@ use tokio::{
     },
     net::TcpStream,
     sync::mpsc::UnboundedSender,
-    time,
 };
 
 use crate::{
@@ -41,12 +40,11 @@ use crate::{
         ethjson::{
             EthClientObject, EthClientRootObject, EthClientWorkerObject,
         },
-        rpc::eth::{Client, ClientWithWorkerName, ServerId, ServerRpc},
-        CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, SUBSCRIBE,
+        rpc::eth::{Client, ClientWithWorkerName, ServerRpc}, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     proxy::Proxy,
     state::Worker,
-    util::{config::Settings, get_agent_fee, get_develop_fee, get_eth_wallet},
+    util::{config::Settings, get_eth_wallet},
     SPLIT,
 };
 
@@ -699,7 +697,7 @@ where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let (stream_type, pools) =
+    let (_stream_type, pools) =
         match crate::client::get_pool_ip_and_type_for_proxyer(&config) {
             Ok(pool) => pool,
             Err(_) => {
@@ -867,15 +865,15 @@ pub async fn submit_develop_hashrate(
 
 // new -----------------------------------------------------------------
 pub async fn proxy_pool_login(
-    config: &Settings, hostname: String,
+    config: &Settings, _hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
-    let (stream_type, pools) =
+    let (_stream_type, pools) =
         match crate::client::get_pool_ip_and_type_from_vec(
             &config.share_address,
         ) {
             Ok((stream, addr)) => (stream, addr),
-            Err(e) => {
+            Err(_e) => {
                 tracing::error!("所有TCP矿池均不可链接。请修改后重试");
                 bail!("所有TCP矿池均不可链接。请修改后重试");
             }
@@ -890,7 +888,7 @@ pub async fn proxy_pool_login(
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
-    let mut proxy_lines = proxy_r.lines();
+    let proxy_lines = proxy_r.lines();
 
     let s = config.get_share_name().unwrap();
 
@@ -913,17 +911,17 @@ pub async fn proxy_pool_login(
 }
 
 pub async fn proxy_pool_login_with_ssl(
-    config: &Settings, hostname: String,
+    config: &Settings, _hostname: String,
 ) -> Result<(
     Lines<BufReader<ReadHalf<tokio_native_tls::TlsStream<TcpStream>>>>,
     WriteHalf<TlsStream<TcpStream>>,
 )> {
-    let (stream_type, pools) =
+    let (_stream_type, pools) =
         match crate::client::get_pool_ip_and_type_from_vec(
             &config.share_address,
         ) {
             Ok((stream, addr)) => (stream, addr),
-            Err(e) => {
+            Err(_e) => {
                 tracing::error!("所有TCP矿池均不可链接。请修改后重试");
                 bail!("所有TCP矿池均不可链接。请修改后重试");
             }
@@ -939,7 +937,7 @@ pub async fn proxy_pool_login_with_ssl(
 
     let (proxy_r, mut proxy_w) = tokio::io::split(stream);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
-    let mut proxy_lines = proxy_r.lines();
+    let proxy_lines = proxy_r.lines();
 
     let s = config.get_share_name().unwrap();
 
@@ -987,7 +985,7 @@ pub async fn dev_pool_tcp_login(
     let (proxy_r, mut proxy_w) =
         tokio::io::split(tokio::net::TcpStream::from_std(stream)?);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
-    let mut proxy_lines = proxy_r.lines();
+    let proxy_lines = proxy_r.lines();
 
     let login = ClientWithWorkerName {
         id: CLIENT_LOGIN,
@@ -1164,7 +1162,7 @@ where W: AsyncWrite {
 }
 
 pub async fn write_rpc<W, T>(
-    encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String,
+    _encrypt: bool, w: &mut WriteHalf<W>, rpc: &T, worker: &String,
 ) -> Result<()>
 where
     W: AsyncWrite,
@@ -1178,7 +1176,7 @@ where
 }
 
 pub async fn write_string<W>(
-    encrypt: bool, w: &mut WriteHalf<W>, rpc: &str, worker: &String,
+    _encrypt: bool, w: &mut WriteHalf<W>, rpc: &str, worker: &String,
 ) -> Result<()>
 where W: AsyncWrite {
     // if encrypt {

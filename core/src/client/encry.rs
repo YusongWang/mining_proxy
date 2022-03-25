@@ -39,7 +39,7 @@ pub async fn accept_en_tcp(proxy: Arc<Proxy>) -> Result<()> {
             // 矿工状态管理
 
             let mut worker: Worker = Worker::default();
-            let mut worker_tx = p.worker_tx.clone();
+            let worker_tx = p.worker_tx.clone();
             match transfer(p, &mut worker, stream).await {
                 Ok(_) => {
                     if worker.is_online() {

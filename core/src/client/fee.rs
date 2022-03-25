@@ -2,23 +2,20 @@ use anyhow::{anyhow, Result};
 
 use std::sync::Arc;
 use tokio::{
-    io::{AsyncRead, AsyncWrite, BufReader, Lines, WriteHalf, AsyncBufRead},
+    io::{AsyncRead, AsyncWrite, BufReader, Lines, WriteHalf},
     select,
-    sync::{broadcast::Sender, RwLockReadGuard},
-    time,
+    sync::broadcast::Sender,
 };
 
 use crate::{
     client::lines_unwrap,
     protocol::{
         ethjson::{
-            EthClientObject, EthClientRootObject, EthServer,
-            EthServerRootObject,
+            EthClientObject, EthServer,
+            EthServerRootObject,EthClientWorkerObject,
         },
-        CLIENT_GETWORK,
     },
     proxy::Proxy,
-    util::config::Settings,
 };
 
 use super::write_to_socket_byte;
@@ -27,10 +24,10 @@ use tracing::debug;
 
 
 pub async fn fee_ssl<R:'static>(
-    mut rx: tokio::sync::mpsc::Receiver<Box<dyn EthClientObject + Send + Sync>>,
+    rx: tokio::sync::mpsc::Receiver<Vec<String>>,
     chan: Sender<Vec<String>>,
-    mut proxy_lines: Lines<BufReader<tokio::io::ReadHalf<R>>>,
-    mut w: tokio::io::WriteHalf<
+    proxy_lines: Lines<BufReader<tokio::io::ReadHalf<R>>>,
+    w: tokio::io::WriteHalf<
             tokio_native_tls::TlsStream<tokio::net::TcpStream>,
 	>,
     worker_name: String,
@@ -43,14 +40,14 @@ R:AsyncRead + Send
     let worker_write = tokio::spawn(async move {
         match async_write(rx, worker_name_write,w).await {
             Ok(()) => todo!(),
-            Err(e) => panic!(e),
+            Err(e) => std::panic::panic_any(e),
         }
     });
     
     let worker_reader = tokio::spawn(async move{
 	match worker_reader(proxy_lines, chan, worker_name).await {
             Ok(()) => todo!(),
-            Err(e) => panic!(e),
+            Err(e) => std::panic::panic_any(e),
 	}
     });
     
@@ -60,29 +57,32 @@ R:AsyncRead + Send
 }
 
 pub async fn fee<W:'static, R:'static>(
-    mut rx: tokio::sync::mpsc::Receiver<Box<dyn EthClientObject + Send + Sync>>,
-    proxy: Arc<Proxy>, chan: Sender<Vec<String>>,
-    mut proxy_lines: Lines<BufReader<tokio::io::ReadHalf<R>>>,
-    mut w: WriteHalf<W>, worker_name: String,
+    rx: tokio::sync::mpsc::Receiver<Vec<String>>,
+    _proxy: Arc<Proxy>,
+    chan: Sender<Vec<String>>,
+    proxy_lines: Lines<BufReader<tokio::io::ReadHalf<R>>>,
+    w: WriteHalf<W>,
+    worker_name: String,
 ) -> Result<()>
 where
     R: AsyncRead + Send,
     W: AsyncWrite + Send,
 {
-
     let worker_name_write = worker_name.clone();
+    
     
     let worker_write = tokio::spawn(async move {
         match async_write(rx, worker_name_write,w).await {
             Ok(()) => todo!(),
-            Err(e) => panic!(e),
+            Err(e) => std::panic::panic_any(e),
         }
     });
+
     
     let worker_reader = tokio::spawn(async move{
 	match worker_reader(proxy_lines, chan, worker_name).await {
             Ok(()) => todo!(),
-            Err(e) => panic!(e),
+            Err(e) => std::panic::panic_any(e),
 	}
     });
     
@@ -92,36 +92,41 @@ where
 }
 
 async fn async_write<W>(
-    mut rx: tokio::sync::mpsc::Receiver<Box<dyn EthClientObject + Send + Sync>>,
+    mut rx: tokio::sync::mpsc::Receiver<Vec<String>>,
     worker_name: String, mut w: WriteHalf<W>,
 ) -> Result<()>
 where
     W: AsyncWrite + Send,
 {
-    let mut get_work = EthClientRootObject {
-        id: CLIENT_GETWORK,
-        method: "eth_getWork".into(),
-        params: vec![],
-    };
-
-    let sleep = time::sleep(tokio::time::Duration::from_secs(5));
-    tokio::pin!(sleep);
-    let mut share_job_idx: u64 = 0;
-
-    loop {
-        select! {
-            Some(mut job_rpc) = rx.recv() => {
-                share_job_idx+=1;
-                job_rpc.set_id(share_job_idx);
-                tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
-                write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?;
-            },
-            () = &mut sleep  => {
-                write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
-                sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
-            },
-        }
+    // let mut get_work = EthClientRootObject {
+    //     id: CLIENT_GETWORK,
+    //     method: "eth_getWork".into(),
+    //     params: vec![],
+    // };
+    let mut json_rpc = EthClientWorkerObject{ id: 40, method: "".into(), params: vec![], worker: worker_name.clone()};
+    
+    // let sleep = time::sleep(tokio::time::Duration::from_secs(5));
+    // tokio::pin!(sleep);
+    // let mut share_job_idx: u64 = 0;
+    while let Some(params) = rx.recv().await {
+	json_rpc.params = params; 
+	write_to_socket_byte(&mut w, json_rpc.to_vec()?, &worker_name).await?;
     }
+    Ok(())
+    // loop {
+    //     select! {
+    //         Some(mut job_rpc) = rx.recv() => {
+    //             share_job_idx+=1;
+    //             job_rpc.set_id(share_job_idx);
+    //             tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," 获得抽水工作份额");
+    //             write_to_socket_byte(&mut w, job_rpc.to_vec()?, &worker_name).await?;
+    //         },
+    //         () = &mut sleep  => {
+    //             write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
+    //             sleep.as_mut().reset(time::Instant::now() + time::Duration::from_secs(10));
+    //         },
+    //     }
+    // }
 }
 
 

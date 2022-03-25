@@ -5,7 +5,7 @@ use tracing::info;
 use tokio::{
     io::{split, BufReader},
     net::{TcpListener, TcpStream},
-    sync::{mpsc::UnboundedSender, RwLockReadGuard},
+    sync::{RwLockReadGuard},
 };
 
 use crate::{proxy::Proxy, state::Worker, util::config::Settings};
@@ -40,7 +40,7 @@ pub async fn accept_tcp(proxy: Arc<Proxy>) -> Result<()> {
         tokio::spawn(async move {
             // 矿工状态管理
             let mut worker: Worker = Worker::default();
-            let mut worker_tx = p.worker_tx.clone();
+            let worker_tx = p.worker_tx.clone();
 
             match transfer(p, &mut worker, stream).await {
                 Ok(_) => {

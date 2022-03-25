@@ -109,7 +109,7 @@ impl EthClientObject for EthClientRootObject {
         }
     }
 
-    fn set_worker_name(&mut self, worker_name: &str) -> bool {
+    fn set_worker_name(&mut self, _worker_name: &str) -> bool {
         //self.params[0] = worker_name.to_string();
         true
     }
@@ -432,7 +432,7 @@ where
     if let Some(wallet) = rpc.get_eth_wallet() {
         rpc.set_id(CLIENT_LOGIN);
         let mut temp_worker = wallet.clone();
-        let mut split = wallet.split(".").collect::<Vec<&str>>();
+        let split = wallet.split(".").collect::<Vec<&str>>();
         if split.len() > 1 {
             worker.login(
                 temp_worker.clone(),

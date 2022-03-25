@@ -1,20 +1,19 @@
 use std::io::Error;
 
 use crate::protocol::{
-    eth_stratum::{EthLoginNotify, EthSubscriptionNotify},
+    eth_stratum::{EthSubscriptionNotify},
     ethjson::{
         login, new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_login,
-        new_eth_submit_work,
     },
     stratum::{
-        StraumErrorResult, StraumMiningNotify, StraumMiningSet,
-        StraumResultBool, StraumRoot,
+        StraumMiningSet,
+        StraumResultBool,
     },
 };
 
 use anyhow::{bail, Result};
-use hex::FromHex;
-use tracing::{debug, info};
+
+use tracing::{debug};
 
 //use openssl::symm::{decrypt, Cipher};
 extern crate rand;
@@ -22,7 +21,7 @@ extern crate rand;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use tokio::{
     io::{
-        AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader,
+        AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader,
         Lines, ReadHalf, WriteHalf,
     },
     net::TcpStream,
@@ -44,7 +43,7 @@ use crate::{
 use super::write_to_socket;
 
 async fn lines_unwrap<W>(
-    w: &mut WriteHalf<W>, res: Result<Option<String>, Error>,
+    _w: &mut WriteHalf<W>, res: Result<Option<String>, Error>,
     worker_name: &String, form_name: &str,
 ) -> Result<String>
 where
@@ -105,7 +104,7 @@ async fn develop_pool_login(
 
     let (develop_r, mut develop_w) = tokio::io::split(outbound);
     let develop_r = tokio::io::BufReader::new(develop_r);
-    let mut develop_lines = develop_r.lines();
+    let develop_lines = develop_r.lines();
 
     let develop_name = hostname + "_develop";
     let login_develop = ClientWithWorkerName {
@@ -121,7 +120,7 @@ async fn develop_pool_login(
 }
 
 async fn proxy_pool_login(
-    config: &Settings, hostname: String,
+    config: &Settings, _hostname: String,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
     //TODO 这里要兼容SSL矿池
     let (stream, _) =
@@ -136,7 +135,7 @@ async fn proxy_pool_login(
     let outbound = TcpStream::from_std(stream)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
-    let mut proxy_lines = proxy_r.lines();
+    let proxy_lines = proxy_r.lines();
 
     let s = config.get_share_name().unwrap();
 
@@ -161,7 +160,7 @@ async fn proxy_pool_login(
 pub async fn pool_with_tcp_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
+    let (_stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
     {
         Ok(pool) => pool,
         Err(_) => {
@@ -180,7 +179,7 @@ pub async fn pool_with_tcp_reconnect(
 
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
-    let mut pool_lines = pool_r.lines();
+    let pool_lines = pool_r.lines();
     Ok((pool_lines, pool_w))
     // } else if stream_type == crate::client::SSL {
     // let (stream, _) =
@@ -204,7 +203,7 @@ pub async fn pool_with_tcp_reconnect(
 pub async fn pool_with_ssl_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
+    let (_stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
     {
         Ok(pool) => pool,
         Err(_) => {
@@ -222,7 +221,7 @@ pub async fn pool_with_ssl_reconnect(
 
     let (pool_r, pool_w) = tokio::io::split(stream);
     let pool_r = tokio::io::BufReader::new(pool_r);
-    let mut pool_lines = pool_r.lines();
+    let pool_lines = pool_r.lines();
     Ok((pool_lines, pool_w))
 }
 
@@ -232,13 +231,13 @@ pub async fn handle_stream<R, W>(
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
     mut pool_w: WriteHalf<TcpStream>, config: &Settings,
-    mut is_encrypted: bool,
+    is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,
     W: AsyncWrite,
 {
-    let proxy_wallet_and_worker_name =
+    let _proxy_wallet_and_worker_name =
         config.share_wallet.clone() + "." + &config.share_name;
     let mut all_walllet_name = String::new();
     let mut protocol = PROTOCOL::KNOWN;
@@ -251,7 +250,7 @@ where
         result: true,
     };
 
-    let mut stratum_result = StraumResult {
+    let _stratum_result = StraumResult {
         id: 0,
         jsonrpc: "2.0".into(),
         result: vec![true],
@@ -264,7 +263,7 @@ where
         .take(30)
         .collect::<Vec<u8>>();
 
-    let proxy_eth_submit_hash = EthClientWorkerObject {
+    let _proxy_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
         params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
@@ -276,7 +275,7 @@ where
         .take(30)
         .collect::<Vec<u8>>();
 
-    let develop_eth_submit_hash = EthClientWorkerObject {
+    let _develop_eth_submit_hash = EthClientWorkerObject {
         id: CLIENT_SUBHASHRATE,
         method: "eth_submitHashrate".to_string(),
         params: vec!["0x0".into(), hexutil::to_hex(&rand_string)],
@@ -284,7 +283,7 @@ where
     };
 
     // 池子 给矿机的封包总数。
-    let mut pool_job_idx: u64 = 0;
+    let _pool_job_idx: u64 = 0;
 
     let mut rpc_id = 0;
     //let mut pool_lines: MyStream;
@@ -299,7 +298,7 @@ where
         worker_lines = worker_r.split(b'\n');
     }
 
-    let mut is_submithashrate = false;
+    let _is_submithashrate = false;
 
     let sleep = time::sleep(tokio::time::Duration::from_secs(30));
     tokio::pin!(sleep);
@@ -308,7 +307,7 @@ where
         select! {
             res = worker_lines.next_segment() => {
                 //let start = std::time::Instant::now();
-                let mut buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
+                let buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
 
                 // if is_encrypted {
                 //     let key = Vec::from_hex(config.key.clone()).unwrap();
@@ -361,7 +360,7 @@ where
                     if let Some(mut json_rpc) = parse(&buffer) {
                         if first {
                             first = false;
-                            let res = match json_rpc.get_method().as_str() {
+                            let _res = match json_rpc.get_method().as_str() {
                                 "eth_submitLogin" => {
                                     protocol = PROTOCOL::ETH;
                                 },
@@ -505,7 +504,7 @@ where
                             }
 
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                        } else if let Ok(mut result_rpc) = serde_json::from_str::<EthServer>(&buf) {
+                        } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
                             if result_rpc.id == CLIENT_LOGIN {
 
                                 worker.logind();
@@ -531,9 +530,9 @@ where
                         //write_rpc(is_encrypted,&mut worker_w,&)
 
 
-                        if let Ok(mut job_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
+                        if let Ok(_job_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
 
-                        } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
+                        } else if let Ok(result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
 
                             if let Some(res) = result_rpc.result.get(0) {
                                 if *res == true {
@@ -546,7 +545,7 @@ where
                                 }
                             }
 
-                        } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
+                        } else if let Ok(_result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
 
                             worker.logind();
 
@@ -557,7 +556,7 @@ where
 
                         write_string(is_encrypted,&mut worker_w,&buf,&worker_name).await?;
                     } else if protocol ==  PROTOCOL::NICEHASHSTRATUM {
-                        if let Ok(mut result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
+                        if let Ok(_result_rpc) = serde_json::from_str::<StraumResult>(&buf) {
 
                         } else if let Ok(mut result_rpc) = serde_json::from_str::<StraumResultBool>(&buf) {
 
@@ -583,8 +582,8 @@ where
                             }
 
                             continue;
-                        } else if let Ok(mut set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
-                        } else if let Ok(mut set_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
+                        } else if let Ok(_set_rpc) = serde_json::from_str::<StraumMiningSet>(&buf) {
+                        } else if let Ok(_set_rpc) = serde_json::from_str::<EthSubscriptionNotify>(&buf) {
 
                             write_string(is_encrypted,&mut worker_w,&buf,&worker_name).await?;
 
