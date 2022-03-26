@@ -107,7 +107,7 @@ where W: AsyncWrite + Send {
             Some(params) = rx.recv() => {
                 share_job_idx+=1;
                 json_rpc.id = share_job_idx;
-        json_rpc.params = params;
+		json_rpc.params = params;
                 //tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc,id=share_job_idx," //获得抽水工作份额");
         info!(worker=?worker_name,json=?json_rpc,"获得任务");
                 write_to_socket_byte(&mut w, json_rpc.to_vec()?, &worker_name).await?;
