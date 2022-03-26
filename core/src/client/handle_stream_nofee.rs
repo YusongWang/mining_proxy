@@ -1,15 +1,12 @@
 use std::io::Error;
 
 use crate::protocol::{
-    eth_stratum::{EthSubscriptionNotify},
-    stratum::{
-        login, StraumMiningSet,
-        StraumResultBool,
-    },
+    eth_stratum::EthSubscriptionNotify,
+    stratum::{login, StraumMiningSet, StraumResultBool},
 };
 use anyhow::{bail, Result};
 
-use tracing::{debug};
+use tracing::debug;
 
 //use openssl::symm::{decrypt, Cipher};
 extern crate rand;
@@ -27,9 +24,7 @@ use tokio::{
 use crate::{
     client::*,
     protocol::{
-        ethjson::{
-            EthServer, EthServerRoot, EthServerRootObject,
-        },
+        ethjson::{EthServer, EthServerRoot, EthServerRootObject},
         stratum::StraumResult,
         CLIENT_GETWORK, CLIENT_LOGIN, CLIENT_SUBHASHRATE, CLIENT_SUBMITWORK,
         PROTOCOL, SUBSCRIBE,
@@ -310,13 +305,13 @@ async fn proxy_pool_login(
 pub async fn pool_with_tcp_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (_stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
-    {
-        Ok(pool) => pool,
-        Err(_) => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
+    let (_stream_type, pools) =
+        match crate::client::get_pool_ip_and_type(config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
     // if stream_type == crate::client::TCP {
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -353,13 +348,13 @@ pub async fn pool_with_tcp_reconnect(
 pub async fn pool_with_ssl_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (_stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
-    {
-        Ok(pool) => pool,
-        Err(_) => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
+    let (_stream_type, pools) =
+        match crate::client::get_pool_ip_and_type(config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {

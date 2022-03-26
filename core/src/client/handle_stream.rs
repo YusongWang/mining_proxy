@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 
+use std::io::Write;
 use std::sync::Arc;
 use tracing::{debug, info};
 
@@ -19,7 +20,6 @@ use crate::{
     state::Worker,
     util::{config::Settings, is_fee_random},
 };
-
 
 use crate::{
     protocol::ethjson::{
@@ -42,6 +42,8 @@ where
     PR: AsyncRead,
     PW: AsyncWrite,
 {
+    let guard = pprof::ProfilerGuard::new(100).unwrap();
+
     let mut worker_name: String = String::new();
     let mut eth_server_result = EthServerRoot {
         id: 0,
@@ -70,7 +72,7 @@ where
     let mut pool_lines = pool_r.lines();
     let mut worker_lines;
     let mut send_job = Vec::new();
-    
+
     if is_encrypted {
         worker_lines = worker_r.split(SPLIT);
     } else {
@@ -138,36 +140,23 @@ where
                                     #[cfg(debug_assertions)]
                                     debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
                                     let mut json_rpc = Box::new(EthClientWorkerObject{ id: json_rpc.get_id(), method: json_rpc.get_method(), params: json_rpc.get_params(), worker: worker.worker_name.clone()});
-
-                                    if dev_fee_job.contains(&job_id) {
-                                        //json_rpc.set_worker_name(&DEVELOP_WORKER_NAME.to_string());
-                                        dev_tx.send(json_rpc.get_params()).await?;
-					
-                                        // let mut rpc = json_rpc.to_vec()?;
-                                        // rpc.push(b'\n');
-                                        // #[cfg(debug_assertions)]
-                                        // tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc," 获得抽水工作份额");
-                                        // {
-                                        //     let mut w  = proxy.dev_write.lock().await;
-                                        //     let write_len = w.write(&rpc).await?;
-                                        //     //write_to_socket_byte(&mut **w, job_rpc.to_vec()?, &worker_name).await?;
-                                        // }
+                    if dev_fee_job.contains(&job_id) {
+                    debug!("0 :  收到开发者工作量 {} #{:?}",worker_name, json_rpc);
+                                        match dev_tx.try_send(json_rpc.get_params()){
+                        Ok(_) => {},
+                        Err(e)=> {
+                        debug!("开发者通道已满.{}",e);
+                        },
+                    }
                                     } else if fee_job.contains(&job_id) {
-
                                         worker.fee_share_index_add();
                                         worker.fee_share_accept();
-                                        //json_rpc.set_worker_name(&config.share_name.clone());
-					tx.send(json_rpc.get_params()).await?;
-                                        // let mut rpc = json_rpc.to_vec()?;
-                                        // rpc.push(b'\n');
-                                        // #[cfg(debug_assertions)]
-                                        // tracing::debug!(worker_name = ?worker_name,rpc = ?job_rpc," 获得抽水工作份额");
-
-                                        // {
-                                        //     let mut w  = proxy.proxy_write.lock().await;
-                                        //     let write_len = w.write(&rpc).await?;
-                                        //     //write_to_socket_byte(&mut **w, job_rpc.to_vec()?, &worker_name).await?;
-                                        // }
+                    match tx.try_send(json_rpc.get_params()) {
+                        Ok(()) => {},
+                        Err(e) => {
+                        debug!("中转通道已满.{}",e);
+                        },
+                    }
                                     } else {
                                         worker.share_index_add();
                                         new_eth_submit_work(worker,&mut pool_w,&mut worker_w,&mut json_rpc,&worker_name,&config).await?;
@@ -229,63 +218,53 @@ where
                 #[cfg(debug_assertions)]
                 debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
 
-                let buffer: Vec<_> = buffer.split('\n').collect();
-
-                for buf in buffer {
-                    if buf.is_empty() {
-                        continue;
+                if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(&buffer) {
+                    // 增加索引
+                    worker.send_job()?;
+                    if is_fee_random(*DEVELOP_FEE) {
+                        #[cfg(debug_assertions)]
+                        debug!("进入开发者抽水回合");
+                        if let Some(job_res) = wait_dev_job.pop_back() {
+                            worker.send_develop_job()?;
+                            #[cfg(debug_assertions)]
+                            debug!("获取开发者抽水任务成功 {:?}",&job_res);
+                            job_rpc.result = job_res;
+                            let job_id = job_rpc.get_job_id().unwrap();
+                            dev_fee_job.push(job_id.clone());
+                            #[cfg(debug_assertions)]
+                            debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
+                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                            continue;
+                        }
+                    } else if is_fee_random(config.share_rate.into()) {
+                        #[cfg(debug_assertions)]
+                        debug!("进入普通抽水回合");
+                        if let Some(job_res) = wait_job.pop_back() {
+                            worker.send_fee_job()?;
+                            job_rpc.result = job_res;
+                            let job_id = job_rpc.get_job_id().unwrap();
+                            fee_job.push(job_id.clone());
+                            #[cfg(debug_assertions)]
+                            debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
+                            write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                            continue;
+                        }
                     }
 
-                    if let Ok(rpc) = serde_json::from_str::<EthServerRootObject>(buf) {
-                        // 增加索引
-                        worker.send_job()?;
-                        if is_fee_random(*DEVELOP_FEE) {
-                            #[cfg(debug_assertions)]
-                            debug!("进入开发者抽水回合");
 
-                            if let Some(job_res) = wait_dev_job.pop_back() {
-                                worker.send_develop_job()?;
-                                #[cfg(debug_assertions)]
-                                debug!("获取开发者抽水任务成功 {:?}",&job_res);
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                dev_fee_job.push(job_id.clone());
-                                #[cfg(debug_assertions)]
-                                debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                                continue;
-                            }
-                        } else if is_fee_random(config.share_rate.into()) {
-                            #[cfg(debug_assertions)]
-                            debug!("进入普通抽水回合");
-                            if let Some(job_res) = wait_job.pop_back() {
-
-                                worker.send_fee_job()?;
-                                job_rpc.result = job_res;
-                                let job_id = job_rpc.get_job_id().unwrap();
-                                fee_job.push(job_id.clone());
-                                #[cfg(debug_assertions)]
-                                debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
-                                write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                                continue;
-                            }
-                        }
-
-
-                        job_rpc.result = rpc.result;
-                        let job_id = job_rpc.get_job_id().unwrap();
-                        send_job.push(job_id);
-                        #[cfg(debug_assertions)]
-                        debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
-                        write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
-                    } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buf) {
-                        if result_rpc.id == CLIENT_LOGIN {
-                            worker.logind();
-                        } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
-                            worker.share_accept();
-                        } else if result_rpc.id == CLIENT_SUBMITWORK {
-                            worker.share_reject();
-                        }
+                    job_rpc.result = rpc.result;
+                    let job_id = job_rpc.get_job_id().unwrap();
+                    send_job.push(job_id);
+                    #[cfg(debug_assertions)]
+                    debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
+                    write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buffer) {
+                    if result_rpc.id == CLIENT_LOGIN {
+                        worker.logind();
+                    } else if result_rpc.id == CLIENT_SUBMITWORK && result_rpc.result {
+                        worker.share_accept();
+                    } else if result_rpc.id == CLIENT_SUBMITWORK {
+                        worker.share_reject();
                     }
                 }
             },
@@ -296,6 +275,19 @@ where
                 wait_job.push_back(job_res);
             },
             () = &mut sleep  => {
+match guard.report().build() {
+    Ok(report) => {
+        let mut file = File::create("profile.pb").unwrap();
+        let profile = report.pprof().unwrap();
+
+        let mut content = Vec::new();
+        profile.encode(&mut content).unwrap();
+        file.write_all(&content).unwrap();
+
+        println!("report: {}", &report);
+    }
+    Err(_) => {}
+};		
                 match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {

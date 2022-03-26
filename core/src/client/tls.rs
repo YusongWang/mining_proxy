@@ -61,7 +61,7 @@ pub async fn accept_tcp_with_tls(
                     if worker.is_online() {
                         worker.offline();
                         info!("IP: {} 安全下线", addr);
-                        worker_tx.send(worker);
+                        worker_tx.send(worker).unwrap();
                     } else {
                         info!("IP: {} 下线", addr);
                     }
@@ -69,7 +69,7 @@ pub async fn accept_tcp_with_tls(
                 Err(e) => {
                     if worker.is_online() {
                         worker.offline();
-                        worker_tx.send(worker);
+                        worker_tx.send(worker).unwrap();
                         info!("IP: {} 下线原因 {}", addr, e);
                     } else {
                         debug!("IP: {} 恶意链接断开: {}", addr, e);

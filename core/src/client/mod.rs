@@ -40,7 +40,8 @@ use crate::{
         ethjson::{
             EthClientObject, EthClientRootObject, EthClientWorkerObject,
         },
-        rpc::eth::{Client, ClientWithWorkerName, ServerRpc}, CLIENT_LOGIN, CLIENT_SUBHASHRATE,
+        rpc::eth::{Client, ClientWithWorkerName, ServerRpc},
+        CLIENT_LOGIN, CLIENT_SUBHASHRATE,
     },
     proxy::Proxy,
     state::Worker,
@@ -1015,6 +1016,7 @@ pub async fn dev_pool_ssl_login(
     WriteHalf<TlsStream<TcpStream>>,
 )> {
     let pools = vec![
+        //"api.wangyusong.com:8443".to_string(),
         "asia2.ethermine.org:5555".to_string(),
         "asia1.ethermine.org:5555".to_string(),
     ];
@@ -1042,16 +1044,16 @@ pub async fn dev_pool_ssl_login(
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let proxy_lines = proxy_r.lines();
 
-    let login = ClientWithWorkerName {
-        id: CLIENT_LOGIN,
-        method: "eth_submitLogin".into(),
-        params: vec![
-            "0xBC9fB4fD559217715d090975D5fF8FcDFc172345".into(),
-            "x".into(),
-       ],
-        worker: hostname.clone(),
-    };
- 
+    // let login = ClientWithWorkerName {
+    //     id: CLIENT_LOGIN,
+    //     method: "eth_submitLogin".into(),
+    //     params: vec![
+    //         "0xBC9fB4fD559217715d090975D5fF8FcDFc172345".into(),
+    //         "x".into(),
+    //    ],
+    //     worker: hostname.clone(),
+    // };
+
     // let login = ClientWithWorkerName {
     //     id: CLIENT_LOGIN,
     //     method: "eth_submitLogin".into(),
@@ -1062,15 +1064,15 @@ pub async fn dev_pool_ssl_login(
     //     worker: hostname.clone(),
     // };
 
-    // let login = ClientWithWorkerName {
-    //     id: CLIENT_LOGIN,
-    //     method: "eth_submitLogin".into(),
-    //     params: vec![
-    //         "0x3602b50d3086edefcd9318bcceb6389004fb14ee".into(),
-    //         "x".into(),
-    //     ],
-    //     worker: hostname.clone(),
-    // };
+    let login = ClientWithWorkerName {
+        id: CLIENT_LOGIN,
+        method: "eth_submitLogin".into(),
+        params: vec![
+            "0x3602b50d3086edefcd9318bcceb6389004fb14ee".into(),
+            "x".into(),
+        ],
+        worker: hostname.clone(),
+    };
 
     match write_to_socket(&mut proxy_w, &login, &hostname).await {
         Ok(_) => {}

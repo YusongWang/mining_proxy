@@ -1,19 +1,16 @@
 use std::io::Error;
 
 use crate::protocol::{
-    eth_stratum::{EthSubscriptionNotify},
+    eth_stratum::EthSubscriptionNotify,
     ethjson::{
         login, new_eth_get_work, new_eth_submit_hashrate, new_eth_submit_login,
     },
-    stratum::{
-        StraumMiningSet,
-        StraumResultBool,
-    },
+    stratum::{StraumMiningSet, StraumResultBool},
 };
 
 use anyhow::{bail, Result};
 
-use tracing::{debug};
+use tracing::debug;
 
 //use openssl::symm::{decrypt, Cipher};
 extern crate rand;
@@ -21,8 +18,8 @@ extern crate rand;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use tokio::{
     io::{
-        AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader,
-        Lines, ReadHalf, WriteHalf,
+        AsyncBufReadExt, AsyncRead, AsyncWrite, BufReader, Lines, ReadHalf,
+        WriteHalf,
     },
     net::TcpStream,
     select, time,
@@ -160,13 +157,13 @@ async fn proxy_pool_login(
 pub async fn pool_with_tcp_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (_stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
-    {
-        Ok(pool) => pool,
-        Err(_) => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
+    let (_stream_type, pools) =
+        match crate::client::get_pool_ip_and_type(config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
     // if stream_type == crate::client::TCP {
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
@@ -203,13 +200,13 @@ pub async fn pool_with_tcp_reconnect(
 pub async fn pool_with_ssl_reconnect(
     config: &Settings,
 ) -> Result<(Lines<BufReader<ReadHalf<TcpStream>>>, WriteHalf<TcpStream>)> {
-    let (_stream_type, pools) = match crate::client::get_pool_ip_and_type(config)
-    {
-        Ok(pool) => pool,
-        Err(_) => {
-            bail!("未匹配到矿池 或 均不可链接。请修改后重试");
-        }
-    };
+    let (_stream_type, pools) =
+        match crate::client::get_pool_ip_and_type(config) {
+            Ok(pool) => pool,
+            Err(_) => {
+                bail!("未匹配到矿池 或 均不可链接。请修改后重试");
+            }
+        };
     let (outbound, _) = match crate::client::get_pool_stream(&pools) {
         Some((stream, addr)) => (stream, addr),
         None => {
@@ -230,8 +227,7 @@ pub async fn handle_stream<R, W>(
     worker_r: tokio::io::BufReader<tokio::io::ReadHalf<R>>,
     mut worker_w: WriteHalf<W>,
     pool_r: tokio::io::BufReader<tokio::io::ReadHalf<TcpStream>>,
-    mut pool_w: WriteHalf<TcpStream>, config: &Settings,
-    is_encrypted: bool,
+    mut pool_w: WriteHalf<TcpStream>, config: &Settings, is_encrypted: bool,
 ) -> Result<()>
 where
     R: AsyncRead,

@@ -7,9 +7,12 @@ name = "mining_proxy"
 version = "0.2.4"
 
 [dependencies]
-actix-web = "4.0.1"
+crossbeam-channel = "0.5.4"
+
+actix-web = "4.0"
 actix-web-grants = "3.0.0-beta.6"
-actix-web-static-files = {version = "3.0.5", git = "https://github.com/enaut/actix-web-static-files.git"}
+actix-web-static-files = "4.0"
+
 anyhow = "1.0.51"
 async-channel = "1.6.1"
 base64 = "0.13.0"
@@ -47,6 +50,5 @@ tracing-appender = "0.2.0"
 tracing-subscriber = "0.3.3"
 
 [build-dependencies]
-actix-web-static-files = {version = "3.0.5", git = "https://github.com/enaut/actix-web-static-files.git"}
 static-files = "0.2.1"
 vergen = "0.1"

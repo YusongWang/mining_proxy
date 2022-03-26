@@ -37,8 +37,8 @@ use core::{
 use anyhow::{bail, Result};
 
 use clap::{crate_version, ArgMatches};
+use crossbeam_channel::bounded;
 use human_panic::setup_panic;
-//use native_tls::{Certificate, Identity};
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     if std::fs::metadata("./logs/").is_err() {
         std::fs::create_dir("./logs/")?;
     }
-    
+
     struct LocalTimer;
     impl FormatTime for LocalTimer {
         fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
@@ -92,7 +92,7 @@ fn main() -> Result<()> {
             version::commit_date(),
             version::short_sha(),
         );
-	
+
         actix_web::rt::System::with_tokio_rt(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -111,14 +111,13 @@ fn main() -> Result<()> {
 
 async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
     let data: AppState = Arc::new(std::sync::Mutex::new(HashMap::new()));
-    
+
     match OpenOptions::new()
         .write(true)
         .read(true)
         .open("configs.yaml")
     {
         Ok(mut f) => {
-
             let mut configs = String::new();
             if let Ok(len) = f.read_to_string(&mut configs) {
                 if len > 0 {
@@ -167,9 +166,10 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
     let http_data = data.clone();
     let web_sever = if let Ok(http) = HttpServer::new(move || {
         let generated = generate();
-        let generated1 = generate();
+
         use actix_web_grants::GrantsMiddleware;
         let auth = GrantsMiddleware::with_extractor(extract);
+
         App::new()
             .wrap(auth)
             .app_data(web::Data::new(http_data.clone()))
@@ -183,10 +183,7 @@ async fn async_main(_matches: ArgMatches<'_>) -> Result<()> {
                     .service(core::web::handles::server::server)
                     .service(core::web::handles::server::dashboard),
             )
-            .service(actix_web_static_files::ResourceFiles::new(
-                "/", generated1,
-            ))
-            .service(actix_web_static_files::ResourceFiles::new("", generated))
+            .service(actix_web_static_files::ResourceFiles::new("/", generated))
     })
     .bind(format!("0.0.0.0:{}", port))
     {
@@ -355,36 +352,37 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         }
     };
 
+    //    if config.coin == "ETH" {
+    let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(1);
+    let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
+
+    let (tx, rx) = mpsc::channel::<Vec<String>>(15);
+    let (dev_tx, dev_rx) = mpsc::channel::<Vec<String>>(15);
+    // let (tx, rx) =
+    //     bounded::<Vec<String>>(15);
+    // let (dev_tx, dev_rx) =
+    //     bounded::<Vec<String>>(15);
+    tracing::debug!("创建矿工队列");
+    // 旷工状态发送队列
+    let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
+
+    let mconfig = config.clone();
+    let proxy = Arc::new(core::proxy::Proxy {
+        config: Arc::new(RwLock::new(config)),
+        worker_tx,
+        chan: chan_tx.clone(),
+        tx,
+        dev_tx,
+        dev_chan: dev_chan_tx.clone(),
+    });
+    let (dev_lines, dev_w) =
+        core::client::dev_pool_ssl_login(core::DEVELOP_WORKER_NAME.to_string())
+            .await?;
+
     if stream_type == TCP {
         let (proxy_lines, proxy_w) =
-            core::client::proxy_pool_login(&config, worker_name.clone())
+            core::client::proxy_pool_login(&mconfig, worker_name.clone())
                 .await?;
-        let (dev_lines, dev_w) = core::client::dev_pool_ssl_login(
-            core::DEVELOP_WORKER_NAME.to_string(),
-        )
-        .await?;
-
-        let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(1);
-        let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
-
-        let (tx, rx) =
-            mpsc::channel::<Vec<String>>(15);
-        let (dev_tx, dev_rx) =
-            mpsc::channel::<Vec<String>>(15);
-
-        // 旷工状态发送队列
-        let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-
-        let mconfig = config.clone();
-        let proxy = Arc::new(core::proxy::Proxy {
-            config: Arc::new(RwLock::new(config)),
-            worker_tx,
-            chan: chan_tx.clone(),
-            tx,
-            dev_tx,
-            dev_chan: dev_chan_tx.clone()
-        });
-
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
             accept_en_tcp(Arc::clone(&proxy)),
@@ -392,13 +390,12 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             send_to_parent(worker_rx, &mconfig),
             core::client::fee::fee(
                 rx,
-                proxy.clone(),
                 chan_tx,
                 proxy_lines,
                 proxy_w,
                 worker_name.clone(),
             ),
-            core::client::fee::fee_ssl(
+            core::client::fee::fee(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
@@ -411,34 +408,11 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             tracing::error!("致命错误 : {}", err);
         }
     } else if stream_type == SSL {
-	
         let (proxy_lines, proxy_w) = core::client::proxy_pool_login_with_ssl(
-            &config,
+            &mconfig,
             worker_name.clone(),
-        ).await?;
-	
-        let (dev_lines, dev_w) = core::client::dev_pool_ssl_login(
-            core::DEVELOP_WORKER_NAME.to_string(),
-        ).await?;
-	
-        let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(3);
-        let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(3);
-
-	let (tx, rx) = mpsc::channel::<Vec<String>>(15);
-        let (dev_tx, dev_rx) = mpsc::channel::<Vec<String>>(15);
-
-        // 旷工状态发送队列
-        let (worker_tx, worker_rx) = mpsc::unbounded_channel::<Worker>();
-	
-        let mconfig = config.clone();
-        let proxy = Arc::new(core::proxy::Proxy {
-            config: Arc::new(RwLock::new(config)),
-            worker_tx,
-            chan: chan_tx.clone(),
-            tx,
-            dev_tx,
-            dev_chan: dev_chan_tx.clone(),
-        });
+        )
+        .await?;
 
         let res = tokio::try_join!(
             accept_tcp(Arc::clone(&proxy)),
@@ -447,13 +421,12 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             send_to_parent(worker_rx, &mconfig),
             core::client::fee::fee(
                 rx,
-                proxy.clone(),
                 chan_tx,
                 proxy_lines,
                 proxy_w,
                 worker_name.clone(),
             ),
-            core::client::fee::fee_ssl(
+            core::client::fee::fee(
                 dev_rx,
                 dev_chan_tx,
                 dev_lines,
@@ -606,4 +579,24 @@ fn load_keys(path: &Path) -> std::io::Result<Vec<PrivateKey>> {
         })
         .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
 }
- 
+
+// async fn flux_transfer(mut inbound: TcpStream, proxy_addr: String) ->
+// Result<()> {     let mut outbound =
+// tokio::net::TcpStream::connect(proxy_addr).await?;
+
+//     let (mut ri, mut wi) = inbound.split();
+//     let (mut ro, mut wo) = outbound.split();
+
+//     let client_to_server = async {
+//         io::copy(&mut ri, &mut wo).await?;
+//         wo.shutdown().await
+//     };
+
+//     let server_to_client = async {
+//         io::copy(&mut ro, &mut wi).await?;
+//         wi.shutdown().await
+//     };
+//     tokio::try_join!(client_to_server, server_to_client)?;
+
+//     return Ok(());
+// }
