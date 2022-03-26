@@ -6,7 +6,6 @@ name = "core"
 version = "0.2.4"
 
 [dependencies]
-pprof = { version = "0.7", features = ["protobuf-codec"] }
 actix-web = "4.0"
 actix-web-grants = "3.0.0-beta.6"
 actix-web-static-files = "4.0"

@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use std::io::Write;
 use std::sync::Arc;
 use tracing::{debug, info};
-use pprof::protos::Message;
+
     
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
@@ -42,8 +42,6 @@ where
     PR: AsyncRead,
     PW: AsyncWrite,
 {
-    let guard = pprof::ProfilerGuard::new(100).unwrap();
-
     let mut worker_name: String = String::new();
     let mut eth_server_result = EthServerRoot {
         id: 0,
@@ -63,23 +61,20 @@ where
     //最后一次发送的rpc_id
     let mut rpc_id = 0;
 
-    // 如果任务时重复的，就等待一次下次发送
-    let _dev_send_idx = 0;
-    let _job_idx = 0;
-
+    let mut worker_lines = worker_r.lines();
     //let mut total_send_idx = 0;
     // 包装为封包格式。
     let mut pool_lines = pool_r.lines();
-    let mut worker_lines;
+
     let mut send_job = Vec::new();
 
-    if is_encrypted {
-        worker_lines = worker_r.split(SPLIT);
-    } else {
-        worker_lines = worker_r.split(b'\n');
-    }
+    // if is_encrypted {
+    //     worker_lines = worker_r.split(SPLIT);
+    // } else {
+    //     worker_lines = worker_r.split(b'\n');
+    // }
 
-    use rand::SeedableRng;
+    use rand::SeedableRng;	
     let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
     let send_time = rand::Rng::gen_range(&mut rng, 1..360) as u64;
     let workers_queue = proxy.worker_tx.clone();
@@ -110,20 +105,9 @@ where
 
     loop {
         select! {
-            res = worker_lines.next_segment() => {
-                let start = std::time::Instant::now();
-                let buf_bytes = seagment_unwrap(&mut pool_w,res,&worker_name).await?;
-
-                #[cfg(debug_assertions)]
-                debug!("0:  矿机 -> 矿池 {} #{:?}", worker_name, String::from_utf8(buf_bytes.clone()).unwrap());
-
-                let buf_bytes = buf_bytes.split(|c| *c == b'\n');
-                for buffer in buf_bytes {
-                    if buffer.is_empty() {
-                        continue;
-                    }
-
-                    if let Some(mut json_rpc) = parse(buffer) {
+            res = worker_lines.next_line() => {
+                let buffer = lines_unwrap(res,&worker_name,"矿机").await?;
+                    if let Some(mut json_rpc) = parse(buffer.as_bytes()) {
                         #[cfg(debug_assertions)]
                         info!("接受矿工: {} 提交 RPC {:?}",worker.worker_name,json_rpc);
                         rpc_id = json_rpc.get_id();
@@ -207,11 +191,8 @@ where
                         }
                     } else {
                         tracing::warn!("协议解析错误: {:?}",buffer);
-                        bail!("未知的协议{}",buf_parse_to_string(&mut worker_w,&buffer).await?);
                     }
-                }
-                #[cfg(debug_assertions)]
-                info!("接受矿工: {} 提交处理时间{:?}",worker.worker_name,start.elapsed());
+
             },
             res = pool_lines.next_line() => {
                 let buffer = lines_unwrap(res,&worker_name,"矿池").await?;
@@ -275,21 +256,6 @@ where
                 wait_job.push_back(job_res);
             },
             () = &mut sleep  => {
-match guard.report().build() {
-    Ok(report) => {
-        let mut file = std::fs::File::create("profile.pb").unwrap();
-        let profile = report.pprof().unwrap();
-
-        let mut content = Vec::new();
-
-            profile.write_to_vec(&mut content).unwrap();
-            file.write_all(&content).unwrap();	
-
-
-        println!("report: {:?}", &report);
-    }
-    Err(_) => {}
-};		
                 match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {
