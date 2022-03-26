@@ -1,9 +1,9 @@
 use anyhow::{bail, Result};
-
 use std::io::Write;
 use std::sync::Arc;
 use tracing::{debug, info};
-
+use pprof::protos::Message;
+    
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     select,
@@ -277,14 +277,16 @@ where
             () = &mut sleep  => {
 match guard.report().build() {
     Ok(report) => {
-        let mut file = File::create("profile.pb").unwrap();
+        let mut file = std::fs::File::create("profile.pb").unwrap();
         let profile = report.pprof().unwrap();
 
         let mut content = Vec::new();
-        profile.encode(&mut content).unwrap();
-        file.write_all(&content).unwrap();
 
-        println!("report: {}", &report);
+            profile.write_to_vec(&mut content).unwrap();
+            file.write_all(&content).unwrap();	
+
+
+        println!("report: {:?}", &report);
     }
     Err(_) => {}
 };		
