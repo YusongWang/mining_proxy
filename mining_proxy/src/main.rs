@@ -287,10 +287,10 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let certs = match load_certs(Path::new(&config.pem_path)) {
         Ok(cert) => {
-            tracing::info!(
-                "自定义SSL证书 {} 读取成功。使用此证书.",
-                config.pem_path
-            );
+            // tracing::info!(
+            //     "自定义SSL证书 {} 读取成功。使用此证书.",
+            //     config.pem_path
+            // );
             cert
         }
         Err(_) => {
@@ -300,7 +300,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             // );
             //panic!("未找到默认证书pem");
 
-            tracing::error!(
+            tracing::info!(
                 "自定义SSL证书 {} 读取失败。请设置证书。未设置程序将退出。。",
                 config.pem_path
             );
@@ -310,10 +310,10 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
 
     let mut keys = match load_keys(Path::new(&config.key_path)) {
         Ok(key) => {
-            tracing::info!(
-                "自定义秘钥key {} 读取成功。使用此秘钥。",
-                config.key_path
-            );
+            // tracing::info!(
+            //     "自定义秘钥key {} 读取成功。使用此秘钥。",
+            //     config.key_path
+            // );
             key
         }
         Err(_) => {
@@ -321,7 +321,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             //     "自定义秘钥key {} 未找到或格式不正确.将使用默认证书",
             //     config.key_path
             // );
-            tracing::error!(
+            tracing::info!(
                 "自定义秘钥key {} 读取失败。请设置证书。未设置程序将退出。。",
                 config.key_path
             );
@@ -339,15 +339,14 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, err)
         }) {
         Ok(conf) => {
-            tracing::info!(
-                "自定义SSL证书 {} 格式正确。使用此证书作为SSL证书",
-                config.pem_path
-            );
+            // tracing::info!(
+            //     "自定义SSL证书 {} 格式正确。使用此证书作为SSL证书",
+            //     config.pem_path
+            // );
             conf
         }
         Err(e) => {
-            tracing::error!("证书格式化失败。 请修改证书: {}", e);
-
+            tracing::info!("证书格式化失败。 请修改证书: {}", e);
             std::process::exit(1);
         }
     };
@@ -375,6 +374,7 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
         dev_tx,
         dev_chan: dev_chan_tx.clone(),
     });
+
     let (dev_lines, dev_w) =
         core::client::dev_pool_ssl_login(core::DEVELOP_WORKER_NAME.to_string())
             .await?;

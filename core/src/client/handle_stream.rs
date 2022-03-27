@@ -66,7 +66,7 @@ where
     // 包装为封包格式。
     let mut pool_lines = pool_r.lines();
 
-    let mut send_job = Vec::new();
+    //let mut send_job = Vec::new();
 
     // if is_encrypted {
     //     worker_lines = worker_r.split(SPLIT);
@@ -125,7 +125,7 @@ where
                                     debug!("0 :  收到提交工作量 {} #{:?}",worker_name, json_rpc);
                                     let mut json_rpc = Box::new(EthClientWorkerObject{ id: json_rpc.get_id(), method: json_rpc.get_method(), params: json_rpc.get_params(), worker: worker.worker_name.clone()});
                     if dev_fee_job.contains(&job_id) {
-                    debug!("0 :  收到开发者工作量 {} #{:?}",worker_name, json_rpc);
+//                    debug!("0 :  收到开发者工作量 {} #{:?}",worker_name, json_rpc);
                                         match dev_tx.try_send(json_rpc.get_params()){
                         Ok(_) => {},
                         Err(e)=> {
@@ -232,10 +232,9 @@ where
                         }
                     }
 
-
                     job_rpc.result = rpc.result;
-                    let job_id = job_rpc.get_job_id().unwrap();
-                    send_job.push(job_id);
+                    // let job_id = job_rpc.get_job_id().unwrap();
+                    // send_job.push(job_id);
                     #[cfg(debug_assertions)]
                     debug!("{} 发送普通任务 #{:?}",worker_name, job_rpc);
                     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
@@ -256,6 +255,22 @@ where
                 wait_job.push_back(job_res);
             },
             () = &mut sleep  => {
+		if dev_fee_job.len() > 1000 {
+		     dev_fee_job  = dev_fee_job.drain(750..).collect();
+		}
+		
+		if fee_job.len() > 1000 {
+		    fee_job = fee_job.drain(750..).collect();
+		}
+		
+		if wait_dev_job.len() > 1000 {
+		    wait_dev_job = wait_dev_job.drain(900..).collect();
+		}
+		
+		if wait_job.len() > 1000 {
+		    wait_job = wait_job.drain(900..).collect();
+		}
+		
                 match workers_queue.send(worker.clone()) {
                     Ok(_) => {},
                     Err(_) => {
