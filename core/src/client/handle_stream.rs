@@ -1,9 +1,7 @@
 use anyhow::{bail, Result};
-use std::io::Write;
 use std::sync::Arc;
 use tracing::{debug, info};
 
-    
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, WriteHalf},
     select,
@@ -81,9 +79,8 @@ where
     let sleep = time::sleep(tokio::time::Duration::from_secs(send_time));
     tokio::pin!(sleep);
 
-    let mut chan = proxy.chan.subscribe();
-    let mut dev_chan = proxy.dev_chan.subscribe();
-
+    // let mut chan = proxy.chan.subscribe();
+    // let mut dev_chan = proxy.dev_chan.subscribe();
     let tx = proxy.tx.clone();
     let dev_tx = proxy.dev_tx.clone();
 
@@ -205,24 +202,42 @@ where
                     if is_fee_random(*DEVELOP_FEE) {
                         #[cfg(debug_assertions)]
                         debug!("进入开发者抽水回合");
-                        if let Some(job_res) = wait_dev_job.pop_back() {
+                        //if let Some(job_res) = wait_dev_job.pop_back() {
+			let fee = RwLockReadGuard::map(proxy.develop_job.read().await, |f| f);			
+			if let Some(job_res) = fee.back() {
                             worker.send_develop_job()?;
                             #[cfg(debug_assertions)]
                             debug!("获取开发者抽水任务成功 {:?}",&job_res);
-                            job_rpc.result = job_res;
+                            job_rpc.result = job_res.clone();
                             let job_id = job_rpc.get_job_id().unwrap();
                             dev_fee_job.push(job_id.clone());
                             #[cfg(debug_assertions)]
                             debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
                             continue;
-                        }
+                        }			
+			
+			// if let Ok(job_res) = dev_chan.recv().await {
+                        //     worker.send_develop_job()?;
+                        //     #[cfg(debug_assertions)]
+                        //     debug!("获取开发者抽水任务成功 {:?}",&job_res);
+                        //     job_rpc.result = job_res;
+                        //     let job_id = job_rpc.get_job_id().unwrap();
+                        //     dev_fee_job.push(job_id.clone());
+                        //     #[cfg(debug_assertions)]
+                        //     debug!("{} 发送开发者任务 #{:?}",worker_name, job_rpc);
+                        //     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                        //     continue;
+                        // }
                     } else if is_fee_random(config.share_rate.into()) {
                         #[cfg(debug_assertions)]
                         debug!("进入普通抽水回合");
-                        if let Some(job_res) = wait_job.pop_back() {
+
+
+			let fee = RwLockReadGuard::map(proxy.fee_job.read().await, |f| f);
+			if let Some(job_res) = fee.back() {
                             worker.send_fee_job()?;
-                            job_rpc.result = job_res;
+                            job_rpc.result = job_res.clone();
                             let job_id = job_rpc.get_job_id().unwrap();
                             fee_job.push(job_id.clone());
                             #[cfg(debug_assertions)]
@@ -230,7 +245,19 @@ where
                             write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
                             continue;
                         }
+			//                        if let Some(job_res) = wait_job.pop_back() {
+			// if let Ok(job_res) = chan.recv().await {
+                        //     worker.send_fee_job()?;
+                        //     job_rpc.result = job_res;
+                        //     let job_id = job_rpc.get_job_id().unwrap();
+                        //     fee_job.push(job_id.clone());
+                        //     #[cfg(debug_assertions)]
+                        //     debug!("{} 发送抽水任务 #{:?}",worker_name, job_rpc);
+                        //     write_rpc(is_encrypted,&mut worker_w,&job_rpc,&worker_name).await?;
+                        //     continue;
+                        // }
                     }
+
 
                     job_rpc.result = rpc.result;
                     // let job_id = job_rpc.get_job_id().unwrap();
@@ -248,12 +275,12 @@ where
                     }
                 }
             },
-            Ok(job_res) = dev_chan.recv() => {
-                wait_dev_job.push_back(job_res);
-            },
-            Ok(job_res) = chan.recv() => {
-                wait_job.push_back(job_res);
-            },
+            // Ok(job_res) = dev_chan.recv() => {
+            //     wait_dev_job.push_back(job_res);
+            // },
+            // Ok(job_res) = chan.recv() => {
+            //     wait_job.push_back(job_res);
+            // },
             () = &mut sleep  => {
 		if dev_fee_job.len() > 1000 {
 		     dev_fee_job  = dev_fee_job.drain(750..).collect();

@@ -9,7 +9,9 @@ pub mod pools;
 pub mod tcp;
 pub mod tls;
 
-use anyhow::bail;
+
+use tokio::sync::broadcast::{Receiver,error::TryRecvError};
+use anyhow::{anyhow,bail,Result};
 
 use native_tls::TlsConnector;
 use rand::prelude::SliceRandom;
@@ -25,7 +27,7 @@ use tokio_native_tls::TlsStream;
 
 use tracing::debug;
 
-use anyhow::Result;
+
 use tokio::{
     io::{
         AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader,
@@ -1193,4 +1195,24 @@ where W: AsyncWrite {
 pub enum FEE {
     PROXYFEE(Box<dyn EthClientObject + Send + Sync>),
     DEVFEE(Box<dyn EthClientObject + Send + Sync>),
+}
+
+fn recv<T>(tx: &mut Receiver<T>) -> Result<T>
+where T: std::clone::Clone {
+    let res = match tx.try_recv() {
+        Ok(t) => return Ok(t),
+        Err(e) => match e {
+            TryRecvError::Lagged(_) => {
+                return recv(tx);
+            }
+            TryRecvError::Empty => {
+                return Err(anyhow!("Empty Channel"));
+            }
+            TryRecvError::Closed => {
+                return Err(anyhow!("close channel"));
+            }
+        },
+    };
+
+    res
 }

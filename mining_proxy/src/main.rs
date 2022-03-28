@@ -7,10 +7,10 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 use rustls_pemfile::{certs, rsa_private_keys};
 use tokio_rustls::rustls::{self, Certificate, PrivateKey};
 
-use std::{path::Path, sync::Arc};
+use std::{path::Path, sync::Arc, collections::VecDeque};
 use tracing::Level;
 
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{broadcast, RwLock, Mutex};
 
 use tracing_subscriber::{
     self,
@@ -22,6 +22,8 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs::OpenOptions, io::Read};
 
+
+
 use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
 
 use core::{
@@ -29,6 +31,7 @@ use core::{
         encry::accept_en_tcp, tcp::accept_tcp, tls::accept_tcp_with_tls, SSL,
         TCP,
     },
+    proxy::Job,
     state::Worker,
     util::config::Settings,
     web::{handles::auth::Claims, AppState, OnlineWorker},
@@ -37,7 +40,7 @@ use core::{
 use anyhow::{bail, Result};
 
 use clap::{crate_version, ArgMatches};
-use crossbeam_channel::bounded;
+//use crossbeam_channel::bounded;
 use human_panic::setup_panic;
 
 use tokio::{
@@ -352,9 +355,11 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     };
 
     //    if config.coin == "ETH" {
-    let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(1);
-    let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
-
+    // let (chan_tx, _chan_rx) = broadcast::channel::<Vec<String>>(1);
+    // let (dev_chan_tx, _dev_chan_rx) = broadcast::channel::<Vec<String>>(1);
+    let fee_job:Job = Arc::new(RwLock::new(VecDeque::new()));
+    let develop_job:Job = Arc::new(RwLock::new(VecDeque::new()));
+    
     let (tx, rx) = mpsc::channel::<Vec<String>>(15);
     let (dev_tx, dev_rx) = mpsc::channel::<Vec<String>>(15);
     // let (tx, rx) =
@@ -369,10 +374,12 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
     let proxy = Arc::new(core::proxy::Proxy {
         config: Arc::new(RwLock::new(config)),
         worker_tx,
-        chan: chan_tx.clone(),
+//        chan: chan_tx.clone(),
         tx,
         dev_tx,
-        dev_chan: dev_chan_tx.clone(),
+	fee_job:fee_job.clone(),
+	develop_job:develop_job.clone(),
+//        dev_chan: dev_chan_tx.clone(),
     });
 
     let (dev_lines, dev_w) =
@@ -390,14 +397,16 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             send_to_parent(worker_rx, &mconfig),
             core::client::fee::fee(
                 rx,
-                chan_tx,
+                //chan_tx,
+		fee_job,
                 proxy_lines,
                 proxy_w,
                 worker_name.clone(),
             ),
             core::client::fee::fee(
                 dev_rx,
-                dev_chan_tx,
+		//                dev_chan_tx,
+		develop_job,
                 dev_lines,
                 dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
@@ -421,14 +430,16 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             send_to_parent(worker_rx, &mconfig),
             core::client::fee::fee(
                 rx,
-                chan_tx,
+                //chan_tx,
+		fee_job,
                 proxy_lines,
                 proxy_w,
                 worker_name.clone(),
             ),
             core::client::fee::fee(
                 dev_rx,
-                dev_chan_tx,
+                //dev_chan_tx,
+		develop_job,
                 dev_lines,
                 dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
