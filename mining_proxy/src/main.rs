@@ -395,21 +395,21 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert_config),
             send_to_parent(worker_rx, &mconfig),
-            core::client::fee::fee(
+            core::client::fee::fee_tcp(
                 rx,
-                //chan_tx,
 		fee_job,
                 proxy_lines,
                 proxy_w,
                 worker_name.clone(),
+		proxy.clone(),
             ),
-            core::client::fee::fee(
+            core::client::fee::develop_fee_ssl(
                 dev_rx,
-		//                dev_chan_tx,
 		develop_job,
                 dev_lines,
                 dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
+		proxy,
             ),
         );
 
@@ -428,21 +428,21 @@ async fn tokio_run(matches: &ArgMatches<'_>) -> Result<()> {
             accept_en_tcp(Arc::clone(&proxy)),
             accept_tcp_with_tls(Arc::clone(&proxy), cert_config),
             send_to_parent(worker_rx, &mconfig),
-            core::client::fee::fee(
+            core::client::fee::fee_ssl(
                 rx,
-                //chan_tx,
 		fee_job,
                 proxy_lines,
                 proxy_w,
                 worker_name.clone(),
+		proxy.clone(),
             ),
-            core::client::fee::fee(
+            core::client::fee::develop_fee_ssl(
                 dev_rx,
-                //dev_chan_tx,
 		develop_job,
                 dev_lines,
                 dev_w,
                 core::DEVELOP_WORKER_NAME.to_string(),
+		proxy,
             ),
         );
 

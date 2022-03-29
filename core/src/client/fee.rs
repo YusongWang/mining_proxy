@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLockReadGuard};
+
 use anyhow::{anyhow, Result};
 
 use tokio::{
@@ -7,7 +9,7 @@ use tokio::{
     sync::RwLockWriteGuard,
 };
 
-use crate::{protocol::ethjson::EthClientObject, proxy::Job};
+use crate::{protocol::ethjson::EthClientObject, proxy::{Job, Proxy}, util::config::Settings};
 
 use crate::{
     client::lines_unwrap,
@@ -21,35 +23,247 @@ use super::write_to_socket_byte;
 
 use tracing::{debug, info};
 
-// pub async fn fee_ssl<R: 'static>(
-//     rx: Receiver<Vec<String>>, chan: Sender<Vec<String>>,
-//     proxy_lines: Lines<BufReader<tokio::io::ReadHalf<R>>>,
-//     w: tokio::io::WriteHalf<tokio_native_tls::TlsStream<tokio::net::TcpStream>>,
-//     worker_name: String,
-// ) -> Result<()>
-// where
-//     R: AsyncRead + Send,
-// {
-//     let worker_name_write = worker_name.clone();
 
-//     let worker_write = tokio::spawn(async move {
-//         match async_write(rx, worker_name_write, w).await {
-//             Ok(()) => todo!(),
-//             Err(e) => std::panic::panic_any(e),
-//         }
-//     });
+pub async fn develop_fee_ssl(
+    mut rx: Receiver<Vec<String>>,
+    job: Job,
+    mut proxy_lines: Lines<BufReader<tokio::io::ReadHalf<tokio_native_tls::TlsStream<tokio::net::TcpStream>>>>,
+    mut w: tokio::io::WriteHalf<tokio_native_tls::TlsStream<tokio::net::TcpStream>>,
+    worker_name: String,
+    proxy: Arc<Proxy>
+) -> Result<()>
+{
+    let mut config: Settings;
+    {
+        let rconfig = proxy.config.read().await;
+        config = rconfig.clone();
+    }
+    
+    let mut get_work = EthClientRootObject {
+        id: 6,
+        method: "eth_getWork".into(),
+        params: vec![],
+    };
 
-//     let worker_reader = tokio::spawn(async move {
-//         match worker_reader(proxy_lines, chan, worker_name).await {
-//             Ok(()) => todo!(),
-//             Err(e) => std::panic::panic_any(e),
-//         }
-//     });
+    let mut json_rpc = EthClientWorkerObject {
+        id: 40,
+        method: "eth_submitWork".into(),
+        params: vec![],
+        worker: worker_name.clone(),
+    };
 
-//     let (_, _) = tokio::join!(worker_write, worker_reader);
+    let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(20));
+    tokio::pin!(sleep);
+    let mut share_job_idx: u64 = 0;
 
-//     Ok(())
-// }
+    loop {
+        select! {
+            res = proxy_lines.next_line() => {
+                let buffer = match lines_unwrap(res,&worker_name,"矿池").await {
+                    Ok(buf) => buf,
+                    Err(_) => {
+
+    let (dev_lines, dev_w) =
+        crate::client::dev_pool_ssl_login(worker_name.clone())
+            .await?;
+
+                        //同时加2个值
+                        w = dev_w;
+                        proxy_lines = dev_lines;
+                        info!(worker_name = ?worker_name,"重新登录成功!!");
+
+                        continue;			
+                    },
+                };
+                #[cfg(debug_assertions)]
+                debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
+                if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buffer) {
+                    let job_res = job_rpc.get_job_result().unwrap();
+		    {
+			let mut j = RwLockWriteGuard::map(job.write().await, |f| f);
+			j.push_back(job_res)
+		    }
+                } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buffer) {
+                    if result_rpc.result == false {
+                        tracing::debug!(worker_name = ?worker_name,rpc = ?buffer,"线程获得操作结果 {:?}",result_rpc.result);
+                    }
+                }
+            },	    
+            Some(params) = rx.recv() => {
+                share_job_idx+=1;
+                json_rpc.id = share_job_idx;
+		json_rpc.params = params;
+                write_to_socket_byte(&mut w, json_rpc.to_vec()?, &worker_name).await?;
+            },
+            () = &mut sleep  => {
+                write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(10));
+            },
+        }
+    }
+
+    Ok(())
+}
+
+
+pub async fn fee_ssl(
+    mut rx: Receiver<Vec<String>>,
+    job: Job,
+    mut proxy_lines: Lines<BufReader<tokio::io::ReadHalf<tokio_native_tls::TlsStream<tokio::net::TcpStream>>>>,
+    mut w: tokio::io::WriteHalf<tokio_native_tls::TlsStream<tokio::net::TcpStream>>,
+    worker_name: String,
+    proxy: Arc<Proxy>
+) -> Result<()>
+{
+    let mut config: Settings;
+    {
+        let rconfig = proxy.config.read().await;
+        config = rconfig.clone();
+    }
+    
+    let mut get_work = EthClientRootObject {
+        id: 6,
+        method: "eth_getWork".into(),
+        params: vec![],
+    };
+
+    let mut json_rpc = EthClientWorkerObject {
+        id: 40,
+        method: "eth_submitWork".into(),
+        params: vec![],
+        worker: worker_name.clone(),
+    };
+
+    let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(20));
+    tokio::pin!(sleep);
+    let mut share_job_idx: u64 = 0;
+
+    loop {
+        select! {
+            res = proxy_lines.next_line() => {
+                let buffer = match lines_unwrap(res,&worker_name,"矿池").await {
+                    Ok(buf) => buf,
+                    Err(_) => {
+                        //return Err(anyhow!("抽水旷工掉线了a"));
+                        // info!(worker_name =
+			//       ?worker_name,"退出了。重新登录到池!!");
+ 			let (new_lines, dev_w) = crate::client::proxy_pool_login_with_ssl(&config,config.share_name.clone()).await?;
+			
+                        //同时加2个值
+                        w = dev_w;
+                        proxy_lines = new_lines;
+                        info!(worker_name = ?worker_name,"重新登录成功!!");
+
+                        continue;			
+                    },
+                };
+                #[cfg(debug_assertions)]
+                debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
+                if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buffer) {
+                    let job_res = job_rpc.get_job_result().unwrap();
+		    {
+			let mut j = RwLockWriteGuard::map(job.write().await, |f| f);
+			j.push_back(job_res)
+		    }
+                } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buffer) {
+                    if result_rpc.result == false {
+                        tracing::debug!(worker_name = ?worker_name,rpc = ?buffer,"线程获得操作结果 {:?}",result_rpc.result);
+                    }
+                }
+            },	    
+            Some(params) = rx.recv() => {
+                share_job_idx+=1;
+                json_rpc.id = share_job_idx;
+		json_rpc.params = params;
+                write_to_socket_byte(&mut w, json_rpc.to_vec()?, &worker_name).await?;
+            },
+            () = &mut sleep  => {
+                write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(10));
+            },
+        }
+    }
+
+    Ok(())
+}
+pub async fn fee_tcp(
+    mut rx: Receiver<Vec<String>>,
+    job: Job,
+    mut proxy_lines: Lines<BufReader<tokio::io::ReadHalf<tokio::net::TcpStream>>>,
+    mut w: tokio::io::WriteHalf<tokio::net::TcpStream>,
+    worker_name: String,
+    proxy: Arc<Proxy>
+) -> Result<()>
+{
+    let mut config: Settings;
+    {
+        let rconfig = proxy.config.read().await;
+        config = rconfig.clone();
+    }
+    
+    let mut get_work = EthClientRootObject {
+        id: 6,
+        method: "eth_getWork".into(),
+        params: vec![],
+    };
+
+    let mut json_rpc = EthClientWorkerObject {
+        id: 40,
+        method: "eth_submitWork".into(),
+        params: vec![],
+        worker: worker_name.clone(),
+    };
+
+    let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(20));
+    tokio::pin!(sleep);
+    let mut share_job_idx: u64 = 0;
+
+    loop {
+        select! {
+            res = proxy_lines.next_line() => {
+                let buffer = match lines_unwrap(res,&worker_name,"矿池").await {
+                    Ok(buf) => buf,
+                    Err(_) => {
+
+ 			let (new_lines, dev_w) = crate::client::proxy_pool_login(&config,config.share_name.clone()).await?;
+			
+                        //同时加2个值
+                        w = dev_w;
+                        proxy_lines = new_lines;
+                        info!(worker_name = ?worker_name,"重新登录成功!!");
+
+                        continue;			
+                    },
+                };
+                #[cfg(debug_assertions)]
+                debug!("1 :  矿池 -> 矿机 {} #{:?}",worker_name, buffer);
+                if let Ok(job_rpc) = serde_json::from_str::<EthServerRootObject>(&buffer) {
+                    let job_res = job_rpc.get_job_result().unwrap();
+		    {
+			let mut j = RwLockWriteGuard::map(job.write().await, |f| f);
+			j.push_back(job_res)
+		    }
+                } else if let Ok(result_rpc) = serde_json::from_str::<EthServer>(&buffer) {
+                    if result_rpc.result == false {
+                        tracing::debug!(worker_name = ?worker_name,rpc = ?buffer,"线程获得操作结果 {:?}",result_rpc.result);
+                    }
+                }
+            },	    
+            Some(params) = rx.recv() => {
+                share_job_idx+=1;
+                json_rpc.id = share_job_idx;
+		json_rpc.params = params;
+                write_to_socket_byte(&mut w, json_rpc.to_vec()?, &worker_name).await?;
+            },
+            () = &mut sleep  => {
+                write_to_socket_byte(&mut w, get_work.to_vec()?, &worker_name).await?;
+                sleep.as_mut().reset(tokio::time::Instant::now() + tokio::time::Duration::from_secs(10));
+            },
+        }
+    }
+
+    Ok(())
+}
 
 pub async fn fee<W: 'static, R: 'static>(
     rx: Receiver<Vec<String>>,
@@ -107,7 +321,7 @@ where W: AsyncWrite + Send {
     let mut share_job_idx: u64 = 0;
 
     loop {
-        select! {
+        select! {	    
             Some(params) = rx.recv() => {
                 share_job_idx+=1;
                 json_rpc.id = share_job_idx;
