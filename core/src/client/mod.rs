@@ -542,6 +542,7 @@ where
         };
 
         let stream = tokio::net::TcpStream::from_std(outbound)?;
+        stream.set_nodelay(true)?;
         let (pool_r, pool_w) = tokio::io::split(stream);
         let pool_r = tokio::io::BufReader::new(pool_r);
 
