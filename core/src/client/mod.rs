@@ -277,6 +277,8 @@ pub async fn get_pool_stream_with_tls(
             }
         };
 
+        stream.set_nodelay(true).unwrap();
+
         let cx = match TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
@@ -889,6 +891,7 @@ pub async fn proxy_pool_login(
         }
     };
     let outbound = TcpStream::from_std(stream)?;
+    outbound.set_nodelay(true)?;
     let (proxy_r, mut proxy_w) = tokio::io::split(outbound);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let proxy_lines = proxy_r.lines();
@@ -1041,7 +1044,6 @@ pub async fn dev_pool_ssl_login(
                 bail!("所有矿池均不可链接。请修改后重试");
             }
         };
-
     let (proxy_r, mut proxy_w) = tokio::io::split(stream);
     let proxy_r = tokio::io::BufReader::new(proxy_r);
     let proxy_lines = proxy_r.lines();

@@ -48,6 +48,7 @@ pub async fn accept_tcp_with_tls(
     loop {
         // Asynchronously wait for an inbound TcpStream.
         let (stream, addr) = listener.accept().await?;
+        stream.set_nodelay(true)?;
         let acceptor = tls_acceptor.clone();
 
         let p = Arc::clone(&proxy);

@@ -35,7 +35,8 @@ pub async fn accept_tcp(proxy: Arc<Proxy>) -> Result<()> {
 
     loop {
         let (stream, addr) = listener.accept().await?;
-
+        stream.set_nodelay(true)?;
+        
         let p = Arc::clone(&proxy);
         tokio::spawn(async move {
             // 矿工状态管理
