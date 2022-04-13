@@ -31,7 +31,7 @@ Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
   <a href="https://jq.qq.com/?_wv=1027&k=AWfknDiw">QQ 群</a> 
 </p>
 
-![Screenshot](https://raw.githubusercontent.com/YusongWang/mining_proxy/main/images/web1.jpg)
+![Screenshot](https://raw.githubusercontent.com/YusongWang/mining_proxy/v0.2.3/images/web1.jpg)
 
 ## :sparkles: 特性
 
@@ -69,4 +69,4 @@ JWT_SECRET=test
 
 ## 抽水逻辑说明
 
-![Screenshot](https://raw.githubusercontent.com/YusongWang/mining_proxy/main/images/fee.jpg)
+![Screenshot](https://raw.githubusercontent.com/YusongWang/mining_proxy/v0.2.3/images/fee.jpg)
