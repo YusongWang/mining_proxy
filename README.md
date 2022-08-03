@@ -47,6 +47,8 @@ Coffee: Eth+BSC+HECO+Matic: 0x3602b50d3086edefcd9318bcceb6389004fb14ee
 ## :hammer_and_wrench: 部署
 
 - 自行编译
+编译遇到问题基本都是web的源码没有clone
+看这里：https://github.com/YusongWang/mining_proxy/issues/26
 
 在软件运行目录下创建 .env 文件
 ```env
